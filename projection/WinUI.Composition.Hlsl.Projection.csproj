@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+		<TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+		<UseWinUI>true</UseWinUI>
+		<Platforms>x64</Platforms>
+		<PlatformTarget>x64</PlatformTarget>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<AssemblyName>WinUI.Composition.Hlsl.Projection</AssemblyName>
+		<CsWinRTIncludes>WinUI.Composition.Hlsl</CsWinRTIncludes>
+		<CsWinRTGeneratedFilesDir>$(IntermediateOutputPath)Generated</CsWinRTGeneratedFilesDir>
+		<IsPackable>true</IsPackable>
+		<PackageId>WinUI.Composition.Hlsl</PackageId>
+		<Version>0.1.0-preview.1</Version>
+		<Authors>WinUI.Composition.Hlsl contributors</Authors>
+		<Description>C++/WinRT HLSL Composition effects and theme-aware liquid glass brushes for WinUI 3</Description>
+		<PackageOutputPath>../artifacts/packages</PackageOutputPath>
+		<NativeConfiguration Condition="'$(NativeConfiguration)'==''">Release</NativeConfiguration>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.3.1" PrivateAssets="all"/>
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0"/>
+		<CsWinRTInputs Include="../artifacts/x64/$(NativeConfiguration)/WinUI.Composition.Hlsl.winmd"/>
+		<None Include="../artifacts/x64/$(NativeConfiguration)/WinUI.Composition.Hlsl.winmd" Pack="true" PackagePath="lib/native"/>
+		<None Include="../artifacts/x64/$(NativeConfiguration)/WinUI.Composition.Hlsl.dll" Pack="true" PackagePath="runtimes/win-x64/native"/>
+		<None Include="../packaging/WinUI.Composition.Hlsl.Native.targets" Pack="true" PackagePath="build/native/WinUI.Composition.Hlsl.targets"/>
+		<None Include="../packaging/WinUI.Composition.Hlsl.Managed.targets" Pack="true" PackagePath="buildTransitive/net8.0-windows10.0.26100.0/WinUI.Composition.Hlsl.targets"/>
+	</ItemGroup>
+</Project>

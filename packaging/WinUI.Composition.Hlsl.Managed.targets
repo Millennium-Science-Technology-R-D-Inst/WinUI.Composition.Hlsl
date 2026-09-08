@@ -1,0 +1,8 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ItemGroup>
+		<WindowsMetadataReference Include="$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.Composition.Hlsl.winmd" Implementation="WinUI.Composition.Hlsl.dll"/>
+	</ItemGroup>
+	<Target Name="HlslRequireManagedX64" BeforeTargets="PrepareForBuild" Condition="'$(PlatformTarget)'!='x64' and '$(RuntimeIdentifier)'!='win-x64'">
+		<Error Text="WinUI.Composition.Hlsl requires x64 / win-x64."/>
+	</Target>
+</Project>

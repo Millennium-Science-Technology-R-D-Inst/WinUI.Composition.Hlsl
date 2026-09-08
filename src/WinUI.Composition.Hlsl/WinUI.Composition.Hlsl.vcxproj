@@ -1,0 +1,122 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup Label="Globals">
+		<ProjectGuid>{52A0F546-89A6-4FD2-BA87-F8F06B5542A8}</ProjectGuid>
+		<RootNamespace>WinUI.Composition.Hlsl</RootNamespace>
+		<ProjectName>WinUI.Composition.Hlsl</ProjectName>
+		<CppWinRTOptimized>true</CppWinRTOptimized>
+		<CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
+		<CppWinRTGenerateWindowsMetadata>true</CppWinRTGenerateWindowsMetadata>
+		<MinimalCoreWin>true</MinimalCoreWin>
+		<AppContainerApplication>false</AppContainerApplication>
+		<ApplicationType>Windows Store</ApplicationType>
+		<ApplicationTypeRevision>10.0</ApplicationTypeRevision>
+		<WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+		<WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
+		<UseWinUI>true</UseWinUI>
+		<DesktopCompatible>true</DesktopCompatible>
+		<EnableNativePackageReferenceSupport>true</EnableNativePackageReferenceSupport>
+	</PropertyGroup>
+	<Import Project="$(VCTargetsPath)/Microsoft.Cpp.Default.props"/>
+	<ItemGroup Label="ProjectConfigurations">
+		<ProjectConfiguration Include="Debug|x64">
+			<Configuration>Debug</Configuration>
+			<Platform>x64</Platform>
+		</ProjectConfiguration>
+		<ProjectConfiguration Include="Release|x64">
+			<Configuration>Release</Configuration>
+			<Platform>x64</Platform>
+		</ProjectConfiguration>
+	</ItemGroup>
+	<PropertyGroup Label="Configuration">
+		<ConfigurationType>DynamicLibrary</ConfigurationType>
+		<PlatformToolset>v145</PlatformToolset>
+		<CharacterSet>Unicode</CharacterSet>
+		<GenerateManifest>false</GenerateManifest>
+		<UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+	</PropertyGroup>
+	<Import Project="$(VCTargetsPath)/Microsoft.Cpp.props"/>
+	<PropertyGroup>
+		<OutDir>$(MSBuildThisFileDirectory)..\..\artifacts\$(Platform)\$(Configuration)\</OutDir>
+		<IntDir>$(MSBuildThisFileDirectory)obj\$(Platform)\$(Configuration)\</IntDir>
+		<GeneratedFilesDir>$(IntDir)Generated Files\</GeneratedFilesDir>
+	</PropertyGroup>
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<LanguageStandard>stdcpp23</LanguageStandard>
+			<PrecompiledHeader>Use</PrecompiledHeader>
+			<PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+			<WarningLevel>Level4</WarningLevel>
+			<AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
+			<PreprocessorDefinitions>_WINRT_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Public;$(ProjectDir)Effects;$(ProjectDir)Runtime;$(ProjectDir)Materials;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<ModuleDefinitionFile>WinUI.Composition.Hlsl.def</ModuleDefinitionFile>
+			<GenerateWindowsMetadata>true</GenerateWindowsMetadata>
+			<AdditionalDependencies>d3dcompiler.lib;dxguid.lib;bcrypt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+	<ItemGroup>
+		<ClCompile Include="dllmain.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClCompile Include="pch.cpp">
+			<PrecompiledHeader>Create</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="pch.h"/>
+		<ClCompile Include="Effects\EffectEngine.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Effects\EffectEngine.h"/>
+		<ClCompile Include="Materials\CustomLiquidGlassEffect.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Materials\CustomLiquidGlassEffect.h"/>
+		<ClCompile Include="Materials\GaussianBlurEffect.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Materials\GaussianBlurEffect.h"/>
+		<ClCompile Include="Public\HlslComposition.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Public\HlslComposition.h"/>
+		<ClCompile Include="Public\HlslEffect.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Public\HlslEffect.h"/>
+		<ClCompile Include="Public\HlslEffectBrush.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Public\HlslEffectBrush.h"/>
+		<ClCompile Include="Public\HlslEffectFactory.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Public\HlslEffectFactory.h"/>
+		<ClCompile Include="Public\LiquidGlassBrush.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Public\LiquidGlassBrush.h"/>
+		<ClCompile Include="Public\LiquidGlassMaterial.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Public\LiquidGlassMaterial.h"/>
+		<ClCompile Include="Runtime\CustomEffectRuntime.cpp">
+			<PrecompiledHeader>Use</PrecompiledHeader>
+		</ClCompile>
+		<ClInclude Include="Runtime\CustomEffectRuntime.h"/>
+		<ClInclude Include="Runtime\Runtime240.h"/>
+		<ClInclude Include="Runtime\RuntimeResolver.h"/>
+		<ClCompile Include="Internal/Validation.ixx">
+			<PrecompiledHeader>NotUsing</PrecompiledHeader>
+		</ClCompile>
+		<Midl Include="Public/Api.idl"/>
+		<ClCompile Include="$(GeneratedFilesDir)module.g.cpp"/>
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Windows.CppWinRT" Version="3.0.260818.1"/>
+		<PackageReference Include="Microsoft.Windows.ImplementationLibrary" Version="1.0.260126.7"/>
+		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705"/>
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0"/>
+	</ItemGroup>
+	<Import Project="$(VCTargetsPath)/Microsoft.Cpp.targets"/>
+</Project>

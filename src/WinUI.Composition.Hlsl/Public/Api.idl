@@ -1,0 +1,59 @@
+﻿namespace WinUI.Composition.Hlsl
+{
+    enum HlslEffectKind { Color, Sampler };
+    runtimeclass HlslEffect;
+    runtimeclass HlslEffectFactory;
+    runtimeclass HlslEffectBrush;
+    [default_interface] runtimeclass HlslEffect
+    {
+        static HlslEffect CreateColor(Guid id, String shader);
+        static HlslEffect CreateSampler(Guid id, String shader);
+        Guid Id{ get; };
+        HlslEffectKind Kind{ get; };
+    }
+    [default_interface] runtimeclass HlslEffectFactory
+    {
+        HlslEffectBrush CreateBrush();
+    }
+    [default_interface] runtimeclass HlslEffectBrush
+    {
+        Microsoft.UI.Composition.CompositionBrush Brush{ get; };
+        void SetSource(String name, Microsoft.UI.Composition.CompositionBrush source);
+        void SetFloat(String name, Single value);
+    }
+    runtimeclass HlslComposition
+    {
+        static HlslEffectFactory CreateEffectFactory(Microsoft.UI.Composition.Compositor compositor, HlslEffect effect);
+        static HlslEffectBrush CreateBackdropBrush(Microsoft.UI.Composition.Compositor compositor, HlslEffect effect);
+        static Microsoft.UI.Xaml.Media.Brush CreateXamlBrush(HlslEffectBrush brush);
+    }
+    [default_interface] runtimeclass LiquidGlassMaterial
+    {
+        LiquidGlassMaterial(Microsoft.UI.Composition.Compositor compositor);
+        HlslEffectBrush EffectBrush{ get; };
+        Single BlurRadius;
+        Single RefractionStrength;
+        Single DispersionStrength;
+        Single CornerRadius;
+        Single BorderThickness;
+        Single HighlightStrength;
+    }
+    [default_interface] runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
+    {
+        LiquidGlassBrush();
+        Boolean IsEnabled;
+        static Microsoft.UI.Xaml.DependencyProperty IsEnabledProperty{ get; };
+        Single BlurRadius;
+        static Microsoft.UI.Xaml.DependencyProperty BlurRadiusProperty{ get; };
+        Single RefractionStrength;
+        static Microsoft.UI.Xaml.DependencyProperty RefractionStrengthProperty{ get; };
+        Single DispersionStrength;
+        static Microsoft.UI.Xaml.DependencyProperty DispersionStrengthProperty{ get; };
+        Single CornerRadius;
+        static Microsoft.UI.Xaml.DependencyProperty CornerRadiusProperty{ get; };
+        Single BorderThickness;
+        static Microsoft.UI.Xaml.DependencyProperty BorderThicknessProperty{ get; };
+        Single HighlightStrength;
+        static Microsoft.UI.Xaml.DependencyProperty HighlightStrengthProperty{ get; };
+    }
+}
