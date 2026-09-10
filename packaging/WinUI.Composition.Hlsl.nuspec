@@ -1,0 +1,30 @@
+﻿<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>WinUI.Composition.Hlsl</id>
+    <version>0.1.0-preview.6</version>
+    <authors>WinUI.Composition.Hlsl contributors</authors>
+    <license type="file">LICENSE.txt</license>
+    <description>Native WinRT HLSL composition effects and XAML material brushes for WinUI.</description>
+    <readme>README.md</readme>
+    <dependencies>
+      <group targetFramework="native">
+        <dependency id="Microsoft.WindowsAppSDK" version="2.4.0"/>
+      </group>
+      <group targetFramework="net8.0-windows10.0.26100.0">
+        <dependency id="Microsoft.WindowsAppSDK" version="2.4.0"/>
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="README.md" target="README.md"/>
+    <file src="LICENSE.txt" target="LICENSE.txt"/>
+    <file src="artifacts\x64\Release\WinUI.Composition.Hlsl.winmd" target="lib\native"/>
+    <file src="artifacts\x64\Release\WinUI.Composition.Hlsl.dll" target="runtimes\win-x64\native"/>
+    <file src="artifacts\Win32\Release\WinUI.Composition.Hlsl.dll" target="runtimes\win-x86\native"/>
+    <file src="artifacts\ARM64\Release\WinUI.Composition.Hlsl.dll" target="runtimes\win-arm64\native"/>
+    <file src="projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll" target="lib\net8.0-windows10.0.26100.0"/>
+    <file src="packaging\WinUI.Composition.Hlsl.Native.targets" target="build\native\WinUI.Composition.Hlsl.targets"/>
+    <file src="packaging\WinUI.Composition.Hlsl.Managed.targets" target="buildTransitive\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.targets"/>
+  </files>
+</package>

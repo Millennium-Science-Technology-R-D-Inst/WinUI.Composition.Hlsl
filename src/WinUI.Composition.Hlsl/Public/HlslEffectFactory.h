@@ -1,15 +1,16 @@
 ﻿#pragma once
 #include "HlslEffectFactory.g.h"
+#include "EffectDefinition.h"
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslEffectFactory : HlslEffectFactoryT<HlslEffectFactory>
 	{
-		HlslEffectFactory(Microsoft::UI::Composition::CompositionEffectFactory const& value) :m_factory(value)
+		HlslEffectFactory(Microsoft::UI::Composition::CompositionEffectFactory const& factory, hlsl::engine::Definition definition) :m_factory(factory), m_definition(std::move(definition))
 		{
 		}
 		Hlsl::HlslEffectBrush CreateBrush();
 	private:
 		Microsoft::UI::Composition::CompositionEffectFactory m_factory{ nullptr };
+		hlsl::engine::Definition m_definition;
 	};
 }
-

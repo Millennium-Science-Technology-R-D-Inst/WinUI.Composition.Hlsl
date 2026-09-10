@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "CustomEffectRuntime.h"
+#include "EffectRegistration.h"
 #include "Runtime240.h"
 #include "RuntimeResolver.h"
 
@@ -64,12 +65,13 @@ namespace
 	struct RuntimeEffectEntry
 	{
 		explicit RuntimeEffectEntry(CustomEffectRuntime::CustomEffectDefinition const& value) :
-			definition(&value)
+			owned(value), definition(&owned.value)
 		{
 			effectType.vtable = effectTypeVtable;
 			effectType.entry = this;
 		}
 
+		OwnedEffectDefinition owned;
 		CustomEffectRuntime::CustomEffectDefinition const* definition{};
 		winrt::com_ptr<ID3DBlob> shaderBlob;
 		std::once_flag shaderOnce;
@@ -309,7 +311,7 @@ namespace
 		char const* profile = GetShaderLibraryProfile(shaderProfileVersion);
 
 		winrt::com_ptr<ID3DBlob> errors;
-		check_hresult(D3DCompile(
+		auto result=D3DCompile(
 			source,
 			sourceSize,
 			nullptr,
@@ -320,7 +322,14 @@ namespace
 			flags,
 			0,
 			shaderBlob,
-			errors.put()));
+			errors.put());
+		if (FAILED(result))
+		{
+			std::string message="HLSL compilation failed.";
+			if (errors) message.assign(static_cast<char const*>(errors->GetBufferPointer()), errors->GetBufferSize());
+			while (!message.empty() && message.back() == '\0')message.pop_back();
+			throw hresult_error(result, to_hstring(message));
+		}
 	}
 
 	void EnsureShader(RuntimeEffectEntry* entry)
@@ -1350,23 +1359,25 @@ namespace
 		}
 
 		std::lock_guard<std::mutex> guard(g_registryMutex);
-		for (auto** current = nodeBegin; current != nodeEnd; ++current)
+		RuntimeEffectEntry* found{};
+		size_t customCount{};
+		for (auto** current=nodeBegin; current != nodeEnd; ++current)
 		{
-			auto* node = *current;
-			if (!node)
+			auto node=*current; if (!node)continue;
+			if (auto* entry=FindEntryByEffectTypeLocked(*reinterpret_cast<void**>(node)))
 			{
-				continue;
-			}
-
-			if (auto* entry = FindEntryByEffectTypeLocked(*reinterpret_cast<void**>(node)))
-			{
-				return entry;
+				found=entry; ++customCount;
 			}
 		}
-
-		return nullptr;
+		if (!found)return nullptr;
+		if (customCount != 1)
+			throw hresult_not_implemented(L"A factory graph supports exactly one HLSL custom node. Chain separate effect brushes instead.");
+		// v0.1 synthetic topology consists only of the custom node and its optional source-flatten wrapper.
+		auto allowed=found->definition->flattenSourceBeforeCustomSampler ? 2u : 1u;
+		if (nodeCount != allowed)
+			throw hresult_not_implemented(L"Mixed native/custom graph topology is not supported. Use separate CompositionEffectBrush passes.");
+		return found;
 	}
-
 	HRESULT __fastcall DetourCompileEffectDescription(void* description, void** result)
 	{
 		// This detour is reached on DWM's effect compilation worker path after
@@ -1378,20 +1389,18 @@ namespace
 			return E_POINTER;
 		}
 
-		if (auto* entry = FindEntryInGraph(description))
+		try
 		{
-			try
+			if (auto* entry = FindEntryInGraph(description))
 			{
 				*result = CreateCompiledResult(entry);
 				return S_OK;
 			}
-			catch (...)
-			{
-				*result = nullptr;
-				return to_hresult();
-			}
 		}
-
+		catch (...)
+		{
+			*result=nullptr; return to_hresult();
+		}
 		return g_originalCompileEffectDescription(description, result);
 	}
 
@@ -1585,29 +1594,13 @@ namespace
 							   },
 						   };
 
-						   auto snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, GetCurrentProcessId());
-						   if (snapshot != INVALID_HANDLE_VALUE)
+						   for (auto name : { L"dcompi.dll",L"dwmcorei.dll" })
 						   {
-							   // Patch every currently loaded module because the call chain can be
-							   // rooted in dcompi, dwmcorei, the app module, or helper DLLs depending
-							   // on load order and delay-load state.
-							   MODULEENTRY32W entry{};
-							   entry.dwSize = sizeof(entry);
-							   if (Module32FirstW(snapshot, &entry))
-							   {
-								   do
-								   {
-									   PatchImport(entry.hModule, patches, ARRAYSIZE(patches));
-									   PatchDelayImport(entry.hModule, patches, ARRAYSIZE(patches));
-								   }
-								   while (Module32NextW(snapshot, &entry));
-							   }
-
-							   CloseHandle(snapshot);
+							   auto caller=GetModuleHandleW(name);
+							   check_pointer(caller);
+							   PatchImport(caller, patches, ARRAYSIZE(patches));
+							   PatchDelayImport(caller, patches, ARRAYSIZE(patches));
 						   }
-
-						   PatchImport(GetModuleHandleW(nullptr), patches, ARRAYSIZE(patches));
-						   PatchDelayImport(GetModuleHandleW(nullptr), patches, ARRAYSIZE(patches));
 					   });
 	}
 
@@ -1730,12 +1723,18 @@ namespace
 			}
 
 			auto const& property = m_definition->properties[index];
-			if (!property.getDefaultValue)
-			{
-				return E_NOTIMPL;
-			}
 
-			return property.getDefaultValue(value);
+			if (property.getDefaultValue) return property.getDefaultValue(value);
+			try
+			{
+				auto initial=Windows::Foundation::PropertyValue::CreateSingle(property.initialScalar).as<Windows::Foundation::IPropertyValue>();
+				*value=reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(detach_abi(initial));
+				return S_OK;
+			}
+			catch (...)
+			{
+				return to_hresult();
+			}
 		}
 
 		HRESULT __stdcall GetSource(
@@ -1799,10 +1798,15 @@ namespace CustomEffectRuntime
 		// happen if the app creates the same effect description for several brushes;
 		// all of them should share the same synthetic EffectType and shader blob.
 		std::lock_guard<std::mutex> guard(g_registryMutex);
-		if (FindEntryByGuidLocked(definition.id))
+		if (auto* existing=FindEntryByGuidLocked(definition.id))
 		{
+			OwnedEffectDefinition candidate{ definition };
+			if (!existing->owned.Equivalent(candidate)) throw hresult_invalid_argument(L"Effect GUID is already registered with a different shader definition.");
 			return;
 		}
+		size_t registrations=0;
+		for (auto* current=g_effects; current; current=current->next)++registrations;
+		if (registrations >= 1024) throw hresult_error(E_OUTOFMEMORY, L"The process has reached the limit of 1024 distinct HLSL definitions. Reuse deterministic descriptors.");
 
 		auto* entry = new RuntimeEffectEntry(definition);
 		if (g_wuceffectsiModule)
@@ -1826,8 +1830,13 @@ namespace CustomEffectRuntime
 		// supplies metadata and HLSL source, while this runtime owns the fragile
 		// build-specific ABI adaptation.
 		RegisterEffect(definition);
+		RuntimeEffectEntry* entry{};
+		{
+			std::lock_guard<std::mutex> guard(g_registryMutex); entry=FindEntryByGuidLocked(definition.id);
+		}
+		EnsureShader(entry);
 		InstallHook();
-		return make<RuntimeGraphicsEffect>(&definition);
+		return make<RuntimeGraphicsEffect>(entry->definition);
 	}
 
 }

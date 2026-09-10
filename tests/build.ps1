@@ -1,0 +1,12 @@
+﻿param([ValidateSet("Cpp","CSharp")][string]$Language)
+$ErrorActionPreference="Stop"
+$vswhere=[Environment]::GetFolderPath('ProgramFilesX86')+'\Microsoft Visual Studio\Installer\vswhere.exe'
+$msbuild=& $vswhere -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+$root=Split-Path $PSScriptRoot -Parent
+$start=[Diagnostics.ProcessStartInfo]::new($msbuild)
+$start.UseShellExecute=$false;$start.WorkingDirectory=$root
+$start.Environment.Clear()
+foreach($entry in [Environment]::GetEnvironmentVariables().GetEnumerator()){$start.Environment[$entry.Key]=$entry.Value}
+$project=if($Language -eq "Cpp"){"tests\Cpp\HlslCppConsumer.vcxproj"}else{"tests\CSharp\HlslCSharpConsumer.csproj"}
+$start.Arguments="$project /restore /p:Configuration=Debug /p:Platform=x64 /p:RestorePackagesPath=$env:USERPROFILE\.nuget\packages /p:NuGetAudit=false /m /v:minimal /nologo /fl /flp:logfile=$Language-test-build.log;verbosity=minimal"
+$process=[Diagnostics.Process]::Start($start);$process.WaitForExit();exit $process.ExitCode

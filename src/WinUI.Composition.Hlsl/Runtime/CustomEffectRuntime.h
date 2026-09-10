@@ -21,6 +21,7 @@ namespace CustomEffectRuntime
 		uint32_t index;
 		ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING mapping;
 		HRESULT(*getDefaultValue)(ABI::Windows::Foundation::IPropertyValue** value);
+		float initialScalar{};
 	};
 
 	struct NativePropertyMetadata
@@ -114,6 +115,7 @@ namespace CustomEffectRuntime
 
 		bool flattenSourceBeforeCustomSampler;
 		char const* flattenShaderFunctionName;
+		char const* descriptorKey{};
 	};
 
 	void RegisterEffect(CustomEffectDefinition const& definition);

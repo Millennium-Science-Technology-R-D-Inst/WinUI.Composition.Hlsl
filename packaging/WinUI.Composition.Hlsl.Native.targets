@@ -1,11 +1,16 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup>
+		<HlslNativeArchitecture Condition="'$(Platform)'=='Win32'">x86</HlslNativeArchitecture>
+		<HlslNativeArchitecture Condition="'$(HlslNativeArchitecture)'==''">$(Platform)</HlslNativeArchitecture>
+		<HlslNativeDll>$(MSBuildThisFileDirectory)..\..\runtimes\win-$(HlslNativeArchitecture)\native\WinUI.Composition.Hlsl.dll</HlslNativeDll>
+	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.Composition.Hlsl.winmd">
 			<Implementation>WinUI.Composition.Hlsl.dll</Implementation>
 		</Reference>
-		<ReferenceCopyLocalPaths Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\WinUI.Composition.Hlsl.dll"/>
+		<ReferenceCopyLocalPaths Include="$(HlslNativeDll)"/>
 	</ItemGroup>
-	<Target Name="HlslRequireNativeX64" BeforeTargets="PrepareForBuild" Condition="'$(Platform)'!='x64'">
-		<Error Text="WinUI.Composition.Hlsl currently supports x64 only."/>
+	<Target Name="HlslCheckNativeAsset" BeforeTargets="PrepareForBuild" Condition="!Exists('$(HlslNativeDll)')">
+		<Error Text="This WinUI.Composition.Hlsl package does not contain a native binary for $(HlslNativeArchitecture)."/>
 	</Target>
 </Project>

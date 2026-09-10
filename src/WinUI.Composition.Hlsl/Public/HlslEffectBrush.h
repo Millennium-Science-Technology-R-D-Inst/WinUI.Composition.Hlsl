@@ -1,10 +1,11 @@
 ﻿#pragma once
 #include "HlslEffectBrush.g.h"
+#include "EffectDefinition.h"
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslEffectBrush : HlslEffectBrushT<HlslEffectBrush>
 	{
-		HlslEffectBrush(Microsoft::UI::Composition::CompositionEffectBrush const& brush, bool glass=false) :m_brush(brush), m_glass(glass)
+		HlslEffectBrush(Microsoft::UI::Composition::CompositionEffectBrush const& brush, hlsl::engine::Definition definition) :m_brush(brush), m_definition(std::move(definition))
 		{
 		}
 		Microsoft::UI::Composition::CompositionBrush Brush() const
@@ -15,7 +16,6 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void SetFloat(hstring const& name, float value);
 	private:
 		Microsoft::UI::Composition::CompositionEffectBrush m_brush{ nullptr };
-		bool m_glass{};
+		hlsl::engine::Definition m_definition;
 	};
 }
-

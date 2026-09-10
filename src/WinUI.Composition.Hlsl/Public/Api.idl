@@ -1,6 +1,14 @@
 ﻿namespace WinUI.Composition.Hlsl
 {
     enum HlslEffectKind { Color, Sampler };
+    [default_interface] runtimeclass HlslFloatProperty
+    {
+        HlslFloatProperty(String name, Single defaultValue, Single minimum, Single maximum);
+        String Name{ get; };
+        Single DefaultValue{ get; };
+        Single Minimum{ get; };
+        Single Maximum{ get; };
+    }
     runtimeclass HlslEffect;
     runtimeclass HlslEffectFactory;
     runtimeclass HlslEffectBrush;
@@ -8,6 +16,10 @@
     {
         static HlslEffect CreateColor(Guid id, String shader);
         static HlslEffect CreateSampler(Guid id, String shader);
+        static HlslEffect CreateColorTransform(String shader);
+        static HlslEffect CreateCustomSampler(String shader);
+        static HlslEffect CreateColorWithProperties(String shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
+        static HlslEffect CreateSamplerWithProperties(String shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         Guid Id{ get; };
         HlslEffectKind Kind{ get; };
     }
@@ -43,17 +55,17 @@
         LiquidGlassBrush();
         Boolean IsEnabled;
         static Microsoft.UI.Xaml.DependencyProperty IsEnabledProperty{ get; };
-        Single BlurRadius;
+        Double BlurRadius;
         static Microsoft.UI.Xaml.DependencyProperty BlurRadiusProperty{ get; };
-        Single RefractionStrength;
+        Double RefractionStrength;
         static Microsoft.UI.Xaml.DependencyProperty RefractionStrengthProperty{ get; };
-        Single DispersionStrength;
+        Double DispersionStrength;
         static Microsoft.UI.Xaml.DependencyProperty DispersionStrengthProperty{ get; };
-        Single CornerRadius;
+        Double CornerRadius;
         static Microsoft.UI.Xaml.DependencyProperty CornerRadiusProperty{ get; };
-        Single BorderThickness;
+        Double BorderThickness;
         static Microsoft.UI.Xaml.DependencyProperty BorderThicknessProperty{ get; };
-        Single HighlightStrength;
+        Double HighlightStrength;
         static Microsoft.UI.Xaml.DependencyProperty HighlightStrengthProperty{ get; };
     }
 }

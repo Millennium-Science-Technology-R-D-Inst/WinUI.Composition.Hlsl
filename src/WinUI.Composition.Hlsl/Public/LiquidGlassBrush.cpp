@@ -1,9 +1,11 @@
 ﻿#include "pch.h"
 #include "LiquidGlassBrush.h"
 #include "LiquidGlassBrush.g.cpp"
-#include <winrt/Windows.UI.ViewManagement.h>
+
 #include <winrt/Windows.UI.Xaml.Interop.h>
+
 import WinUI.Composition.Hlsl.Validation;
+
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	using namespace Microsoft::UI::Xaml;
@@ -20,7 +22,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	}
 	DependencyProperty LiquidGlassBrush::IsEnabledProperty()
 	{
-		static auto property=DependencyProperty::Register(L"IsEnabled", Windows::UI::Xaml::Interop::TypeName{ L"Boolean",Windows::UI::Xaml::Interop::TypeKind::Primitive }, Windows::UI::Xaml::Interop::TypeName{ L"WinUI.Composition.Hlsl.LiquidGlassBrush",Windows::UI::Xaml::Interop::TypeKind::Metadata }, PropertyMetadata(box_value(true), PropertyChangedCallback{ Changed }));
+		static auto property=DependencyProperty::Register(L"IsEnabled", winrt::xaml_typename<bool>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(true), PropertyChangedCallback{ Changed }));
 		return property;
 	}
 	bool LiquidGlassBrush::IsEnabled() const
@@ -33,133 +35,109 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	}
 	DependencyProperty LiquidGlassBrush::BlurRadiusProperty()
 	{
-		static auto property=DependencyProperty::Register(L"BlurRadius", Windows::UI::Xaml::Interop::TypeName{ L"Single",Windows::UI::Xaml::Interop::TypeKind::Primitive }, Windows::UI::Xaml::Interop::TypeName{ L"WinUI.Composition.Hlsl.LiquidGlassBrush",Windows::UI::Xaml::Interop::TypeKind::Metadata }, PropertyMetadata(box_value(12.0f), PropertyChangedCallback{ Changed }));
+		static auto property=DependencyProperty::Register(L"BlurRadius", winrt::xaml_typename<double>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(12.0), PropertyChangedCallback{ Changed }));
 		return property;
 	}
-	float LiquidGlassBrush::BlurRadius() const
+	double LiquidGlassBrush::BlurRadius() const
 	{
-		return unbox_value<float>(GetValue(BlurRadiusProperty()));
+		return unbox_value<double>(GetValue(BlurRadiusProperty()));
 	}
-	void LiquidGlassBrush::BlurRadius(float value)
+	void LiquidGlassBrush::BlurRadius(double value)
 	{
 		if (!hlsl::validation::IsFiniteNonNegative(value) || value > 256) throw hresult_invalid_argument(L"Material values must be between 0 and 256.");
 		SetValue(BlurRadiusProperty(), box_value(value));
 	}
 	DependencyProperty LiquidGlassBrush::RefractionStrengthProperty()
 	{
-		static auto property=DependencyProperty::Register(L"RefractionStrength", Windows::UI::Xaml::Interop::TypeName{ L"Single",Windows::UI::Xaml::Interop::TypeKind::Primitive }, Windows::UI::Xaml::Interop::TypeName{ L"WinUI.Composition.Hlsl.LiquidGlassBrush",Windows::UI::Xaml::Interop::TypeKind::Metadata }, PropertyMetadata(box_value(24.0f), PropertyChangedCallback{ Changed }));
+		static auto property=DependencyProperty::Register(L"RefractionStrength", winrt::xaml_typename<double>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(24.0), PropertyChangedCallback{ Changed }));
 		return property;
 	}
-	float LiquidGlassBrush::RefractionStrength() const
+	double LiquidGlassBrush::RefractionStrength() const
 	{
-		return unbox_value<float>(GetValue(RefractionStrengthProperty()));
+		return unbox_value<double>(GetValue(RefractionStrengthProperty()));
 	}
-	void LiquidGlassBrush::RefractionStrength(float value)
+	void LiquidGlassBrush::RefractionStrength(double value)
 	{
 		if (!hlsl::validation::IsFiniteNonNegative(value) || value > 256) throw hresult_invalid_argument(L"Material values must be between 0 and 256.");
 		SetValue(RefractionStrengthProperty(), box_value(value));
 	}
 	DependencyProperty LiquidGlassBrush::DispersionStrengthProperty()
 	{
-		static auto property=DependencyProperty::Register(L"DispersionStrength", Windows::UI::Xaml::Interop::TypeName{ L"Single",Windows::UI::Xaml::Interop::TypeKind::Primitive }, Windows::UI::Xaml::Interop::TypeName{ L"WinUI.Composition.Hlsl.LiquidGlassBrush",Windows::UI::Xaml::Interop::TypeKind::Metadata }, PropertyMetadata(box_value(1.2f), PropertyChangedCallback{ Changed }));
+		static auto property=DependencyProperty::Register(L"DispersionStrength", winrt::xaml_typename<double>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(1.2), PropertyChangedCallback{ Changed }));
 		return property;
 	}
-	float LiquidGlassBrush::DispersionStrength() const
+	double LiquidGlassBrush::DispersionStrength() const
 	{
-		return unbox_value<float>(GetValue(DispersionStrengthProperty()));
+		return unbox_value<double>(GetValue(DispersionStrengthProperty()));
 	}
-	void LiquidGlassBrush::DispersionStrength(float value)
+	void LiquidGlassBrush::DispersionStrength(double value)
 	{
 		if (!hlsl::validation::IsFiniteNonNegative(value) || value > 256) throw hresult_invalid_argument(L"Material values must be between 0 and 256.");
 		SetValue(DispersionStrengthProperty(), box_value(value));
 	}
 	DependencyProperty LiquidGlassBrush::CornerRadiusProperty()
 	{
-		static auto property=DependencyProperty::Register(L"CornerRadius", Windows::UI::Xaml::Interop::TypeName{ L"Single",Windows::UI::Xaml::Interop::TypeKind::Primitive }, Windows::UI::Xaml::Interop::TypeName{ L"WinUI.Composition.Hlsl.LiquidGlassBrush",Windows::UI::Xaml::Interop::TypeKind::Metadata }, PropertyMetadata(box_value(12.0f), PropertyChangedCallback{ Changed }));
+		static auto property=DependencyProperty::Register(L"CornerRadius", winrt::xaml_typename<double>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(12.0), PropertyChangedCallback{ Changed }));
 		return property;
 	}
-	float LiquidGlassBrush::CornerRadius() const
+	double LiquidGlassBrush::CornerRadius() const
 	{
-		return unbox_value<float>(GetValue(CornerRadiusProperty()));
+		return unbox_value<double>(GetValue(CornerRadiusProperty()));
 	}
-	void LiquidGlassBrush::CornerRadius(float value)
+	void LiquidGlassBrush::CornerRadius(double value)
 	{
 		if (!hlsl::validation::IsFiniteNonNegative(value) || value > 256) throw hresult_invalid_argument(L"Material values must be between 0 and 256.");
 		SetValue(CornerRadiusProperty(), box_value(value));
 	}
 	DependencyProperty LiquidGlassBrush::BorderThicknessProperty()
 	{
-		static auto property=DependencyProperty::Register(L"BorderThickness", Windows::UI::Xaml::Interop::TypeName{ L"Single",Windows::UI::Xaml::Interop::TypeKind::Primitive }, Windows::UI::Xaml::Interop::TypeName{ L"WinUI.Composition.Hlsl.LiquidGlassBrush",Windows::UI::Xaml::Interop::TypeKind::Metadata }, PropertyMetadata(box_value(1.0f), PropertyChangedCallback{ Changed }));
+		static auto property=DependencyProperty::Register(L"BorderThickness", winrt::xaml_typename<double>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(1.0), PropertyChangedCallback{ Changed }));
 		return property;
 	}
-	float LiquidGlassBrush::BorderThickness() const
+	double LiquidGlassBrush::BorderThickness() const
 	{
-		return unbox_value<float>(GetValue(BorderThicknessProperty()));
+		return unbox_value<double>(GetValue(BorderThicknessProperty()));
 	}
-	void LiquidGlassBrush::BorderThickness(float value)
+	void LiquidGlassBrush::BorderThickness(double value)
 	{
 		if (!hlsl::validation::IsFiniteNonNegative(value) || value > 256) throw hresult_invalid_argument(L"Material values must be between 0 and 256.");
 		SetValue(BorderThicknessProperty(), box_value(value));
 	}
 	DependencyProperty LiquidGlassBrush::HighlightStrengthProperty()
 	{
-		static auto property=DependencyProperty::Register(L"HighlightStrength", Windows::UI::Xaml::Interop::TypeName{ L"Single",Windows::UI::Xaml::Interop::TypeKind::Primitive }, Windows::UI::Xaml::Interop::TypeName{ L"WinUI.Composition.Hlsl.LiquidGlassBrush",Windows::UI::Xaml::Interop::TypeKind::Metadata }, PropertyMetadata(box_value(0.8f), PropertyChangedCallback{ Changed }));
+		static auto property=DependencyProperty::Register(L"HighlightStrength", winrt::xaml_typename<double>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(0.8), PropertyChangedCallback{ Changed }));
 		return property;
 	}
-	float LiquidGlassBrush::HighlightStrength() const
+	double LiquidGlassBrush::HighlightStrength() const
 	{
-		return unbox_value<float>(GetValue(HighlightStrengthProperty()));
+		return unbox_value<double>(GetValue(HighlightStrengthProperty()));
 	}
-	void LiquidGlassBrush::HighlightStrength(float value)
+	void LiquidGlassBrush::HighlightStrength(double value)
 	{
 		if (!hlsl::validation::IsFiniteNonNegative(value) || value > 256) throw hresult_invalid_argument(L"Material values must be between 0 and 256.");
 		SetValue(HighlightStrengthProperty(), box_value(value));
 	}
 	void LiquidGlassBrush::OnConnected()
-	{
-		m_connected=true; m_queue=Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
-		auto weak=get_weak();
-		auto changed=[weak](auto const&, auto const&)
-			{
-				if (auto self=weak.get()) self->m_queue.TryEnqueue([weak]
-																   {
-																	   if (auto owner=weak.get())owner->Update();
-																   });
-			};
-		m_contrast=m_accessibility.HighContrastChanged(auto_revoke, changed);
-		m_effects=m_ui.AdvancedEffectsEnabledChanged(auto_revoke, changed);
-		Update();
-	}
-	void LiquidGlassBrush::OnDisconnected()
-	{
-		m_connected=false; m_contrast.revoke(); m_effects.revoke();
-		CompositionBrush(nullptr); m_material=nullptr;
-	}
-	void LiquidGlassBrush::Update()
-	{
-		if (!m_connected) return;
-		auto compositor=Media::CompositionTarget::GetCompositorForCurrentThread();
-		if (!IsEnabled() || m_accessibility.HighContrast() || !m_ui.AdvancedEffectsEnabled())
-		{
-			CompositionBrush(compositor.CreateColorBrush(FallbackColor())); m_material=nullptr; return;
-		}
-		try
-		{
-			if (!m_material)m_material=Hlsl::LiquidGlassMaterial(compositor);
-			m_material.BlurRadius(BlurRadius());
-			m_material.RefractionStrength(RefractionStrength());
-			m_material.DispersionStrength(DispersionStrength());
-			m_material.CornerRadius(CornerRadius());
-			m_material.BorderThickness(BorderThickness());
-			m_material.HighlightStrength(HighlightStrength());
-			CompositionBrush(m_material.EffectBrush().Brush());
-		}
-		catch (hresult_error const& error)
-		{
-			OutputDebugStringW(error.message().c_str());
-			CompositionBrush(compositor.CreateColorBrush(FallbackColor())); m_material=nullptr;
-		}
-	}
+    {
+        m_lifecycle.Connect(*this);
+    }
+    void LiquidGlassBrush::OnDisconnected()
+    {
+        m_lifecycle.Disconnect(*this);
+    }
+    void LiquidGlassBrush::Update()
+    {
+        m_lifecycle.Update(*this);
+    }
+    Microsoft::UI::Composition::CompositionBrush LiquidGlassBrush::BuildPipeline(Microsoft::UI::Composition::Compositor const& compositor)
+    {
+        if(!m_material)m_material=Hlsl::LiquidGlassMaterial(compositor);
+        m_material.BlurRadius(static_cast<float>(BlurRadius()));
+        m_material.RefractionStrength(static_cast<float>(RefractionStrength()));
+        m_material.DispersionStrength(static_cast<float>(DispersionStrength()));
+        m_material.CornerRadius(static_cast<float>(CornerRadius()));
+        m_material.BorderThickness(static_cast<float>(BorderThickness()));
+        m_material.HighlightStrength(static_cast<float>(HighlightStrength()));
+        return m_material.EffectBrush().Brush();
+    }
 }
-
-

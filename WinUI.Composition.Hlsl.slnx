@@ -1,9 +1,24 @@
 <Solution>
   <Configurations>
     <Platform Name="Any CPU" />
+    <Platform Name="ARM64" />
     <Platform Name="x64" />
+    <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cpp/HlslCppConsumer.vcxproj" Id="c6f605e8-9f22-4b74-a015-9f84362b580e">
+      <BuildType Project="Debug" />
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="tests/CSharp/HlslCSharpConsumer.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Project Path="projection/WinUI.Composition.Hlsl.Projection.csproj">
-    <Platform Project="x64" />
-  </Project><Project Path="src/WinUI.Composition.Hlsl/WinUI.Composition.Hlsl.vcxproj" Id="52a0f546-89a6-4fd2-ba87-f8f06b5542a8" />
+    <Platform Solution="*|Any CPU" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="x86" />
+  </Project>
+  <Project Path="src/WinUI.Composition.Hlsl/WinUI.Composition.Hlsl.vcxproj" Id="52a0f546-89a6-4fd2-ba87-f8f06b5542a8" />
 </Solution>

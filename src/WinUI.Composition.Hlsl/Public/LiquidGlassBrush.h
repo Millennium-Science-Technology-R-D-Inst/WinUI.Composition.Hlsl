@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "LiquidGlassBrush.g.h"
-#include <winrt/Windows.UI.ViewManagement.h>
+#include "XamlHlslBrushBase.h"
+
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct LiquidGlassBrush : LiquidGlassBrushT<LiquidGlassBrush>
@@ -11,34 +12,35 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		bool IsEnabled() const;
 		void IsEnabled(bool value);
 		static Microsoft::UI::Xaml::DependencyProperty IsEnabledProperty();
-		float BlurRadius() const;
-		void BlurRadius(float value);
+		double BlurRadius() const;
+		void BlurRadius(double value);
 		static Microsoft::UI::Xaml::DependencyProperty BlurRadiusProperty();
-		float RefractionStrength() const;
-		void RefractionStrength(float value);
+		double RefractionStrength() const;
+		void RefractionStrength(double value);
 		static Microsoft::UI::Xaml::DependencyProperty RefractionStrengthProperty();
-		float DispersionStrength() const;
-		void DispersionStrength(float value);
+		double DispersionStrength() const;
+		void DispersionStrength(double value);
 		static Microsoft::UI::Xaml::DependencyProperty DispersionStrengthProperty();
-		float CornerRadius() const;
-		void CornerRadius(float value);
+		double CornerRadius() const;
+		void CornerRadius(double value);
 		static Microsoft::UI::Xaml::DependencyProperty CornerRadiusProperty();
-		float BorderThickness() const;
-		void BorderThickness(float value);
+		double BorderThickness() const;
+		void BorderThickness(double value);
 		static Microsoft::UI::Xaml::DependencyProperty BorderThicknessProperty();
-		float HighlightStrength() const;
-		void HighlightStrength(float value);
+		double HighlightStrength() const;
+		void HighlightStrength(double value);
 		static Microsoft::UI::Xaml::DependencyProperty HighlightStrengthProperty();
 	private:
 		void Update();
+        friend class hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush>;
+        Microsoft::UI::Composition::CompositionBrush BuildPipeline(Microsoft::UI::Composition::Compositor const&);
+        void ReleasePipeline() noexcept {m_material=nullptr;}
+        hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush> m_lifecycle;
 		static void Changed(Microsoft::UI::Xaml::DependencyObject const& object, Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const&);
-		bool m_connected{};
+
 		Hlsl::LiquidGlassMaterial m_material{ nullptr };
-		Microsoft::UI::Dispatching::DispatcherQueue m_queue{ nullptr };
-		Windows::UI::ViewManagement::AccessibilitySettings m_accessibility;
-		Windows::UI::ViewManagement::UISettings m_ui;
-		Windows::UI::ViewManagement::AccessibilitySettings::HighContrastChanged_revoker m_contrast;
-		Windows::UI::ViewManagement::UISettings::AdvancedEffectsEnabledChanged_revoker m_effects;
+
+
 
 	};
 }

@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "EffectDefinition.h"
 
 namespace CustomLiquidGlassEffect
 {
@@ -10,6 +11,7 @@ namespace CustomLiquidGlassEffect
 	inline constexpr wchar_t HighlightStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.HighlightStrength";
 	inline constexpr wchar_t DispersionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.DispersionStrength";
 
+	hlsl::engine::Definition Description();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect();
 }
 

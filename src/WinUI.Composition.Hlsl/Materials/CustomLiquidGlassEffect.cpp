@@ -349,6 +349,21 @@ export float4 PSBodyM(float2 uv, float4 samplerDataExt, float4 samplerData) { re
 
 namespace CustomLiquidGlassEffect
 {
+	hlsl::engine::Definition Description()
+	{
+		static auto value=[]
+			{
+				auto definition=std::make_shared<hlsl::engine::EffectDefinition>();
+				definition->id=kCustomLiquidGlassEffectId; definition->sampler=true;
+				definition->effectName=EffectName; definition->nativeTemplate=&kDefinition;
+				definition->properties={
+					{ L"BlurRadius",12,0,64 },{ L"RefractionStrength",24,0,128 },
+					{ L"CornerRadius",12,0,512 },{ L"BorderThickness",1,0,32 },
+					{ L"HighlightStrength",0.8f,0,4 },{ L"DispersionStrength",1.2f,0,16 } };
+				return definition;
+			}();
+		return value;
+	}
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect()
 	{
 		// This ports the WinUI2 glass material into the DWM custom sampler model.
