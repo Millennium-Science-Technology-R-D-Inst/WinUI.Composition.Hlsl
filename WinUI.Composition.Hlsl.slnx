@@ -6,10 +6,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/tests/">
-    <Project Path="tests/Cpp/HlslCppConsumer.vcxproj" Id="c6f605e8-9f22-4b74-a015-9f84362b580e">
-      <BuildType Project="Debug" />
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="tests/Cpp/WUILiquidGlassDemo.Hlsl.vcxproj" Id="8bf9eaa4-ea72-409e-a9a9-f140f7540c9a" />
     <Project Path="tests/CSharp/HlslCSharpConsumer.csproj">
       <Platform Project="x64" />
     </Project>

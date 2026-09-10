@@ -1,0 +1,360 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Window
+    x:Class="WUILiquidGlassDemo_Hlsl.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:WUILiquidGlassDemo_Hlsl"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="HLSL Composition API · App SDK 2.4.0"
+    mc:Ignorable="d">
+
+    <Grid
+        x:Name="Root"
+        AllowDrop="True"
+        Background="Transparent"
+        DragOver="OnRootDragOver"
+        Drop="OnRootDrop">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid.Resources>
+            <Storyboard x:Key="DynamicSceneStoryboard" RepeatBehavior="Forever">
+                <DoubleAnimation
+                    AutoReverse="True"
+                    EnableDependentAnimation="True"
+                    Storyboard.TargetName="RedOrb"
+                    Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.TranslateX)"
+                    From="-120"
+                    To="520"
+                    Duration="0:0:8" />
+                <DoubleAnimation
+                    AutoReverse="True"
+                    EnableDependentAnimation="True"
+                    Storyboard.TargetName="RedOrb"
+                    Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.TranslateY)"
+                    From="0"
+                    To="90"
+                    Duration="0:0:5" />
+                <DoubleAnimation
+                    AutoReverse="True"
+                    EnableDependentAnimation="True"
+                    Storyboard.TargetName="CyanOrb"
+                    Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.TranslateX)"
+                    From="420"
+                    To="-160"
+                    Duration="0:0:10" />
+                <DoubleAnimation
+                    AutoReverse="True"
+                    EnableDependentAnimation="True"
+                    Storyboard.TargetName="CyanOrb"
+                    Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.TranslateY)"
+                    From="0"
+                    To="-120"
+                    Duration="0:0:6" />
+                <DoubleAnimation
+                    AutoReverse="True"
+                    EnableDependentAnimation="True"
+                    Storyboard.TargetName="GoldBar"
+                    Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.TranslateX)"
+                    From="-260"
+                    To="260"
+                    Duration="0:0:7" />
+                <DoubleAnimation
+                    AutoReverse="True"
+                    EnableDependentAnimation="True"
+                    Storyboard.TargetName="BlueBar"
+                    Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.TranslateX)"
+                    From="260"
+                    To="-260"
+                    Duration="0:0:9" />
+                <DoubleAnimation
+                    AutoReverse="True"
+                    Storyboard.TargetName="PulseRing"
+                    Storyboard.TargetProperty="Opacity"
+                    From="0.25"
+                    To="0.95"
+                    Duration="0:0:2.2" />
+                <DoubleAnimation
+                    AutoReverse="True"
+                    EnableDependentAnimation="True"
+                    Storyboard.TargetName="PulseRing"
+                    Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)"
+                    From="0.82"
+                    To="1.18"
+                    Duration="0:0:2.2" />
+                <DoubleAnimation
+                    AutoReverse="True"
+                    EnableDependentAnimation="True"
+                    Storyboard.TargetName="PulseRing"
+                    Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)"
+                    From="0.82"
+                    To="1.18"
+                    Duration="0:0:2.2" />
+            </Storyboard>
+        </Grid.Resources>
+
+        <Grid Grid.ColumnSpan="2" Background="Transparent">
+            <Image
+                x:Name="BackgroundImage"
+                IsHitTestVisible="False"
+                Stretch="UniformToFill"
+                Visibility="Collapsed" />
+
+            <Canvas IsHitTestVisible="False">
+                <Ellipse
+                    x:Name="RedOrb"
+                    Canvas.Left="72"
+                    Canvas.Top="54"
+                    Width="170"
+                    Height="170"
+                    Fill="#FFE94B5F"
+                    Opacity="0.95">
+                    <Ellipse.RenderTransform>
+                        <CompositeTransform />
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+
+                <Ellipse
+                    x:Name="CyanOrb"
+                    Canvas.Left="430"
+                    Canvas.Top="245"
+                    Width="220"
+                    Height="220"
+                    Fill="#FF21C7C9"
+                    Opacity="0.9">
+                    <Ellipse.RenderTransform>
+                        <CompositeTransform />
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+
+                <Rectangle
+                    x:Name="GoldBar"
+                    Canvas.Left="-160"
+                    Canvas.Top="185"
+                    Width="760"
+                    Height="44"
+                    Fill="#FFF2C94C"
+                    Opacity="0.9"
+                    RenderTransformOrigin="0.5,0.5">
+                    <Rectangle.RenderTransform>
+                        <CompositeTransform Rotation="-13" />
+                    </Rectangle.RenderTransform>
+                </Rectangle>
+
+                <Rectangle
+                    x:Name="BlueBar"
+                    Canvas.Left="90"
+                    Canvas.Top="420"
+                    Width="820"
+                    Height="36"
+                    Fill="#FF5A7CFF"
+                    Opacity="0.78"
+                    RenderTransformOrigin="0.5,0.5">
+                    <Rectangle.RenderTransform>
+                        <CompositeTransform Rotation="9" />
+                    </Rectangle.RenderTransform>
+                </Rectangle>
+
+                <Ellipse
+                    x:Name="PulseRing"
+                    Canvas.Left="245"
+                    Canvas.Top="88"
+                    Width="260"
+                    Height="260"
+                    Opacity="0.45"
+                    RenderTransformOrigin="0.5,0.5"
+                    Stroke="#FFE36BFF"
+                    StrokeThickness="18">
+                    <Ellipse.RenderTransform>
+                        <CompositeTransform />
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+            </Canvas>
+
+            <ProgressRing
+                Width="72"
+                Height="72"
+                Margin="0,36,44,0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                IsActive="True"
+                IsHitTestVisible="False" />
+
+            <ScrollViewer
+                x:Name="CenterContentScroller"
+                Width="440"
+                Height="220"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="#CCFFFFFF"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="24" Spacing="10">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="28"
+                        FontWeight="SemiBold"
+                        Text="WinUI 3 custom effect" />
+                    <TextBlock
+                        x:Name="EffectCaption"
+                        HorizontalAlignment="Center"
+                        FontSize="16"
+                        Text="Solid translucent brush" />
+                    <TextBlock
+                        Margin="0,16,0,0"
+                        Text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer mattis ligula vitae libero volutpat, sit amet tincidunt sapien pretium."
+                        TextWrapping="Wrap" />
+                    <TextBlock Text="Praesent euismod, erat at suscipit sagittis, augue justo suscipit lectus, vitae facilisis neque arcu vel augue. Sed commodo tellus in lorem porttitor, a mattis tortor dapibus." TextWrapping="Wrap" />
+                    <TextBlock Text="Donec faucibus arcu at ipsum cursus, eget tempus mi gravida. Etiam vel ante ac lorem congue feugiat. Vivamus posuere urna vitae nulla facilisis, sed fermentum ipsum luctus." TextWrapping="Wrap" />
+                    <TextBlock Text="Aliquam erat volutpat. Maecenas imperdiet ex vitae sem gravida, sed bibendum lorem placerat. Curabitur dignissim sem sed urna pulvinar, in tincidunt neque commodo." TextWrapping="Wrap" />
+                    <TextBlock Text="Suspendisse potenti. Nunc laoreet sem vel ipsum pulvinar, vitae porta justo vestibulum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames." TextWrapping="Wrap" />
+                    <TextBlock Text="Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Aenean ac metus in elit vestibulum blandit." TextWrapping="Wrap" />
+                    <TextBlock Text="Morbi at neque sed justo efficitur consequat. Nam elementum metus eu justo blandit, vitae vulputate risus scelerisque. Nulla facilisi." TextWrapping="Wrap" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <StackPanel
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="8">
+                <StackPanel.RenderTransform>
+                    <TranslateTransform Y="138" />
+                </StackPanel.RenderTransform>
+                <Button
+                    x:Name="SetBackgroundImageButton"
+                    Click="OnSetBackgroundImageClick"
+                    Content="Set background image" />
+                <Button
+                    x:Name="ClearBackgroundImageButton"
+                    Click="OnClearBackgroundImageClick"
+                    Content="Clear background image" />
+            </StackPanel>
+        </Grid>
+
+        <Canvas
+            x:Name="BackdropHost"
+            Grid.ColumnSpan="2"
+            Loaded="OnBackdropHostLoaded"
+            PointerCanceled="OnBackdropHostPointerCanceled"
+            PointerCaptureLost="OnBackdropHostPointerCaptureLost"
+            PointerExited="OnBackdropHostPointerExited"
+            PointerMoved="OnBackdropHostPointerMoved"
+            PointerPressed="OnBackdropHostPointerPressed"
+            PointerReleased="OnBackdropHostPointerReleased"
+            SizeChanged="OnBackdropHostSizeChanged">
+            <Border
+                x:Name="BackdropFrame"
+                Canvas.Left="268"
+                Canvas.Top="80"
+                Width="420"
+                Height="260"
+                Background="Transparent"
+                BorderBrush="#FF808080"
+                BorderThickness="2"
+                PointerWheelChanged="OnBackdropFramePointerWheelChanged" />
+        </Canvas>
+
+        <Border Grid.Column="0">
+            <StackPanel Margin="16,24,16,0" Spacing="8">
+                <TextBlock
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    Text="Brush effect" />
+                <ComboBox
+                    x:Name="EffectSelector"
+                    HorizontalAlignment="Stretch"
+                    SelectedIndex="4"
+                    SelectionChanged="OnEffectSelectionChanged">
+                    <ComboBoxItem Content="Solid" />
+                    <ComboBoxItem Content="Linear Gradient" />
+                    <ComboBoxItem Content="Blur" />
+                    <ComboBoxItem Content="Invert" />
+                    <ComboBoxItem Content="Liquid Glass" />
+                </ComboBox>
+                <TextBlock
+                    Margin="0,12,0,0"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    Text="Border width" />
+                <Slider
+                    x:Name="BorderWidthSlider"
+                    Maximum="24"
+                    Minimum="0"
+                    StepFrequency="1"
+                    TickFrequency="4"
+                    TickPlacement="BottomRight"
+                    ValueChanged="OnBorderWidthChanged"
+                    Value="2" />
+                <StackPanel
+                    x:Name="LiquidGlassControls"
+                    Margin="0,12,0,0"
+                    Spacing="6">
+                    <TextBlock
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Text="Liquid glass" />
+                    <TextBlock Text="Blur radius" />
+                    <Slider
+                        x:Name="BlurRadiusSlider"
+                        Maximum="16"
+                        Minimum="0"
+                        SmallChange="0.25"
+                        StepFrequency="0.25"
+                        ValueChanged="OnLiquidGlassParameterChanged"
+                        Value="0" />
+                    <TextBlock Text="Refraction" />
+                    <Slider
+                        x:Name="RefractionStrengthSlider"
+                        Maximum="24"
+                        Minimum="0"
+                        SmallChange="0.25"
+                        StepFrequency="0.25"
+                        ValueChanged="OnLiquidGlassParameterChanged"
+                        Value="12" />
+                    <TextBlock Text="Corner radius" />
+                    <Slider
+                        x:Name="CornerRadiusSlider"
+                        Maximum="96"
+                        Minimum="0"
+                        SmallChange="1"
+                        StepFrequency="1"
+                        ValueChanged="OnLiquidGlassParameterChanged"
+                        Value="36" />
+                    <TextBlock Text="Glass border" />
+                    <Slider
+                        x:Name="MaterialBorderThicknessSlider"
+                        Maximum="8"
+                        Minimum="0"
+                        SmallChange="0.25"
+                        StepFrequency="0.25"
+                        ValueChanged="OnLiquidGlassParameterChanged"
+                        Value="1.5" />
+                    <TextBlock Text="Highlight" />
+                    <Slider
+                        x:Name="HighlightStrengthSlider"
+                        Maximum="2"
+                        Minimum="0"
+                        SmallChange="0.05"
+                        StepFrequency="0.05"
+                        ValueChanged="OnLiquidGlassParameterChanged"
+                        Value="0.85" />
+                    <TextBlock Text="Dispersion" />
+                    <Slider
+                        x:Name="DispersionStrengthSlider"
+                        Maximum="8"
+                        Minimum="0"
+                        SmallChange="0.1"
+                        StepFrequency="0.1"
+                        ValueChanged="OnLiquidGlassParameterChanged"
+                        Value="1.2" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
+
+

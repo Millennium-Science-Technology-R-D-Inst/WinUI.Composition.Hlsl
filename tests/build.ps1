@@ -7,6 +7,6 @@ $start=[Diagnostics.ProcessStartInfo]::new($msbuild)
 $start.UseShellExecute=$false;$start.WorkingDirectory=$root
 $start.Environment.Clear()
 foreach($entry in [Environment]::GetEnvironmentVariables().GetEnumerator()){$start.Environment[$entry.Key]=$entry.Value}
-$project=if($Language -eq "Cpp"){"tests\Cpp\HlslCppConsumer.vcxproj"}else{"tests\CSharp\HlslCSharpConsumer.csproj"}
+$project=if($Language -eq "Cpp"){"tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj"}else{"tests\CSharp\HlslCSharpConsumer.csproj"}
 $start.Arguments="$project /restore /p:Configuration=Debug /p:Platform=x64 /p:RestorePackagesPath=$env:USERPROFILE\.nuget\packages /p:NuGetAudit=false /m /v:minimal /nologo /fl /flp:logfile=$Language-test-build.log;verbosity=minimal"
 $process=[Diagnostics.Process]::Start($start);$process.WaitForExit();exit $process.ExitCode

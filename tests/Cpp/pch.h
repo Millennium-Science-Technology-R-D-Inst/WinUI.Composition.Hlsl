@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -49,6 +49,5 @@
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <windows.graphics.effects.interop.h>
 #include <wil/cppwinrt_helpers.h>
-
-#include <winrt/Windows.UI.Xaml.Interop.h>
 #include <winrt/WinUI.Composition.Hlsl.h>
+

@@ -2,7 +2,7 @@
 <package>
   <metadata>
     <id>WinUI.Composition.Hlsl</id>
-    <version>0.1.0-preview.6</version>
+    <version>0.1.0-preview.7</version>
     <authors>WinUI.Composition.Hlsl contributors</authors>
     <license type="file">LICENSE.txt</license>
     <description>Native WinRT HLSL composition effects and XAML material brushes for WinUI.</description>
