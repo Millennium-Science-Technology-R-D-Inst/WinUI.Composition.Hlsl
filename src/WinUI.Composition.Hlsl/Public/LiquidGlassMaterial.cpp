@@ -3,6 +3,7 @@
 #include "HlslEffectFactory.h"
 #include "CustomLiquidGlassEffect.h"
 
+import winrt.Microsoft.UI.Composition;
 import winrt.Windows.Graphics.Effects;
 import WinUI.Composition.Hlsl.GaussianBlurEffect;
 import WinUI.Composition.Hlsl.Validation;
@@ -37,7 +38,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		// the custom sampler needs.
 		auto blurEffect = GaussianBlurEffect::CreateEffect(
 			GaussianBlurEffect::LiquidGlassBlurEffectName,
-			Windows::Graphics::Effects::CompositionEffectSourceParameter(L"Backdrop"),
+			Microsoft::UI::Composition::CompositionEffectSourceParameter(L"Backdrop"),
 			RadiusToStandardDeviation(m_BlurRadius));
 		auto graph = CustomLiquidGlassEffect::CreateEffect(blurEffect);
 
