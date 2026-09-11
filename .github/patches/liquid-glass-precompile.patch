@@ -1,1 +1,62 @@
-PLACEHOLDER
+diff --git a/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp b/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp
+--- a/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp
++++ b/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp
+@@
+ 	void EnsureShader(RuntimeEffectEntry* entry)
+ 	{
++		auto const& definition = *entry->definition;
++		if (definition.shaderBytecode && definition.shaderBytecodeSize)
++		{
++			return;
++		}
++
+ 		// Shader compilation is intentionally tied to the registered effect entry,
+ 		// not to a brush instance. CompositionEffectFactory creation can occur on a
+ 		// worker path and multiple brushes may share the same CustomEffectDefinition,
+@@
+ 		body->argData = subgraph && subgraph->shaderArgumentBegin
+ 			? subgraph->shaderArgumentBegin
+ 			: definition.shaderArguments;
+-		body->bytecodeSize = self->entry->shaderBlob->GetBufferSize();
+-		body->bytecodeData = self->entry->shaderBlob->GetBufferPointer();
++		if (definition.shaderBytecode && definition.shaderBytecodeSize)
++		{
++			body->bytecodeSize = definition.shaderBytecodeSize;
++			body->bytecodeData = definition.shaderBytecode;
++		}
++		else
++		{
++			body->bytecodeSize = self->entry->shaderBlob->GetBufferSize();
++			body->bytecodeData = self->entry->shaderBlob->GetBufferPointer();
++		}
+ 		body->functionName = isMainSubgraph ? definition.shaderFunctionName : definition.flattenShaderFunctionName;
+@@
+ 	uint32_t GetCompiledSubgraphCount(CustomEffectRuntime::CustomEffectDefinition const& definition)
+ 	{
+ 		// slot 5 source flattening creates three FlattenedEffectGraph subgraphs:
+@@
+ 		return UsesFlattenSourceSubgraph(definition) ? 3u : 1u;
+ 	}
++
++	uint32_t GetExpectedEffectNodeCount(CustomEffectRuntime::CustomEffectDefinition const& definition)
++	{
++		// This is the observed FlattenedEffectGraph node shape for the supported
++		// WinUI build. Keep it distinct from ICompiledEffect subgraph accounting:
++		// EffectNode and CompiledEffectSubgraph are different private graph layers.
++		return UsesFlattenSourceSubgraph(definition) ? 3u : 1u;
++	}
+@@
+ 		if (!found)return nullptr;
+ 		if (customCount != 1)
+ 			throw hresult_not_implemented(L"A factory graph supports exactly one HLSL custom node. Chain separate effect brushes instead.");
+-		// v0.1 synthetic topology consists only of the custom node and its optional source-flatten wrapper.
+-		auto allowed=found->definition->flattenSourceBeforeCustomSampler ? 2u : 1u;
+-		if (nodeCount != allowed)
++		// Do not take over an arbitrary mixed graph merely because it contains one
++		// custom node. The synthetic compiler only knows the exact private topology
++		// emitted for this definition; everything else must fail closed.
++		auto const expectedNodeCount = GetExpectedEffectNodeCount(*found->definition);
++		if (nodeCount != expectedNodeCount)
+ 			throw hresult_not_implemented(L"Mixed native/custom graph topology is not supported. Use separate CompositionEffectBrush passes.");
+ 		return found;
+ 	}
