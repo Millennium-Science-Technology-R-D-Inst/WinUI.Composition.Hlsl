@@ -46,6 +46,16 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				desc.Rows == 1 &&
 				desc.Columns == columns;
 		}
+
+		bool HasSamplerAbi(ID3D11FunctionReflection* function)
+		{
+			if (!function) return false;
+			D3D11_FUNCTION_DESC desc{};
+			return SUCCEEDED(function->GetDesc(&desc)) && desc.HasReturn && desc.FunctionParameterCount == 2 &&
+				IsFloatVector(function->GetFunctionParameter(-1), 4) &&
+				IsFloatVector(function->GetFunctionParameter(0), 2) &&
+				IsFloatVector(function->GetFunctionParameter(1), 4);
+		}
 	}
 
 	Hlsl::HlslShaderLibrary HlslShaderLibrary::Create(
@@ -109,27 +119,29 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 
 		D3D11_FUNCTION_DESC functionDesc{};
 		check_hresult(function->GetDesc(&functionDesc));
-		auto const expectedParameterCount = sampler ? 2 : 1;
-		if (!functionDesc.HasReturn || functionDesc.FunctionParameterCount != expectedParameterCount ||
-			!IsFloatVector(function->GetFunctionParameter(-1), 4))
+		if (!functionDesc.HasReturn || !IsFloatVector(function->GetFunctionParameter(-1), 4))
 		{
-			throw hresult_invalid_argument(
-				sampler
-					? L"Compiled sampler PSBody must have ABI float4 PSBody(float2 uv, float4 samplerDataExt)."
-					: L"Compiled color PSBody must have ABI float4 PSBody(float4 color).");
+			throw hresult_invalid_argument(L"Compiled PSBody must return float4.");
 		}
 
 		if (sampler)
 		{
-			if (!IsFloatVector(function->GetFunctionParameter(0), 2) ||
-				!IsFloatVector(function->GetFunctionParameter(1), 4))
+			static constexpr char const* requiredSamplerExports[] = {
+				"PSBody", "PSBodyCC", "PSBodyCW", "PSBodyCM", "PSBodyWC", "PSBodyWW", "PSBodyWM",
+				"PSBodyMC", "PSBodyMW", "PSBodyMM", "PSBodyC", "PSBodyW", "PSBodyM"
+			};
+			for (auto const* exportName : requiredSamplerExports)
 			{
-				throw hresult_invalid_argument(L"Compiled sampler PSBody parameter types do not match the public sampler ABI.");
+				if (!HasSamplerAbi(FindFunction(reflection.get(), exportName)))
+				{
+					throw hresult_invalid_argument(
+						L"Compiled sampler libraries must export PSBody plus all clamp/wrap/mirror PSBody variants with ABI float4(float2 uv, float4 samplerDataExt).");
+				}
 			}
 		}
-		else if (!IsFloatVector(function->GetFunctionParameter(0), 4))
+		else if (functionDesc.FunctionParameterCount != 1 || !IsFloatVector(function->GetFunctionParameter(0), 4))
 		{
-			throw hresult_invalid_argument(L"Compiled color PSBody parameter type does not match the public color ABI.");
+			throw hresult_invalid_argument(L"Compiled color PSBody must have ABI float4 PSBody(float4 color).");
 		}
 
 		if (propertyNames.empty())
