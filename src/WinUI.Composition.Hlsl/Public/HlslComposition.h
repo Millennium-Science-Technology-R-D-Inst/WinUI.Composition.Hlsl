@@ -1,5 +1,10 @@
 ﻿#pragma once
+#ifndef WINRT_IMPORT_MODULE
+#define WINRT_IMPORT_MODULE
+#endif
 #include "HlslComposition.g.h"
+import winrt.Microsoft.UI.Composition;
+import winrt.Microsoft.UI.Xaml.Media;
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslComposition

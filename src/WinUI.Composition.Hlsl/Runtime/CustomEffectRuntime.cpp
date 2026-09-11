@@ -1,7 +1,270 @@
-﻿#include "CustomEffectRuntime.h"
-#include "EffectRegistration.h"
-#include "Runtime240.h"
-#include "RuntimeResolver.h"
+﻿module;
+#include <unknwn.h>
+#include <Windows.h>
+#include <guiddef.h>
+#include <windows.graphics.effects.interop.h>
+#include <d2d1effects.h>
+#include <d3dcompiler.h>
+#include <bcrypt.h>
+
+module WinUI.Composition.Hlsl.CustomEffectRuntime;
+
+import std;
+import winrt_base;
+import winrt.Windows.Foundation;
+import winrt.Windows.Graphics.Effects;
+import winrt.Microsoft.UI.Composition;
+
+#pragma once
+
+// The native registry owns every byte to which the synthetic EffectType points.
+struct OwnedEffectDefinition
+{
+	CustomEffectRuntime::CustomEffectDefinition value{};
+	std::wstring effectName;
+	std::string fragmentName, shaderSource, shaderFunctionName, flattenName, descriptorKey;
+	std::vector<unsigned char> shaderBytecode;
+	std::vector<CustomEffectRuntime::SourceDescriptor> sources;
+	std::vector<std::wstring> sourceNames, propertyNames;
+	std::vector<CustomEffectRuntime::PropertyDescriptor> properties;
+	std::vector<CustomEffectRuntime::NativePropertyMetadata> metadata;
+	std::vector<std::string> shaderNames;
+	std::vector<CustomEffectRuntime::ConstantBufferPropertyMapping> mappings;
+	std::vector<uint16_t> arguments;
+	std::vector<unsigned char> constants;
+
+	explicit OwnedEffectDefinition(CustomEffectRuntime::CustomEffectDefinition const& input) :value(input)
+	{
+		auto const hasSource = input.shaderSource && input.shaderSourceSize;
+		auto const hasBytecode = input.shaderBytecode && input.shaderBytecodeSize;
+		if (!input.effectName || !input.fragmentName || hasSource == hasBytecode || !input.shaderFunctionName ||
+			input.sourceCount != 1 || !input.sources || input.propertyCount > 64 ||
+			(input.propertyCount && !input.properties) ||
+			(input.nativePropertyMetadataCount && !input.nativePropertyMetadata) ||
+			(input.shaderArgumentCount && !input.shaderArguments) ||
+			(input.constantBufferPropertyCount && !input.constantBufferProperties) ||
+			(input.constantBufferSize && !input.constantBufferInitialValue))
+			throw winrt::hresult_invalid_argument(L"Invalid native effect definition.");
+		effectName=input.effectName; fragmentName=input.fragmentName;
+		if (hasSource) shaderSource.assign(input.shaderSource, input.shaderSourceSize);
+		if (hasBytecode)
+		{
+			auto begin=static_cast<unsigned char const*>(input.shaderBytecode);
+			shaderBytecode.assign(begin, begin + input.shaderBytecodeSize);
+		}
+		shaderFunctionName=input.shaderFunctionName;
+		flattenName=input.flattenShaderFunctionName ? input.flattenShaderFunctionName : "";
+		descriptorKey=input.descriptorKey ? input.descriptorKey : ""; value.descriptorKey=descriptorKey.c_str();
+		value.effectName=effectName.c_str(); value.fragmentName=fragmentName.c_str();
+		value.shaderSource=shaderSource.empty() ? nullptr : shaderSource.data();
+		value.shaderSourceSize=shaderSource.size();
+		value.shaderBytecode=shaderBytecode.empty() ? nullptr : shaderBytecode.data();
+		value.shaderBytecodeSize=shaderBytecode.size();
+		value.shaderFunctionName=shaderFunctionName.c_str();
+		value.flattenShaderFunctionName=flattenName.empty() ? nullptr : flattenName.c_str();
+		sources.assign(input.sources, input.sources + input.sourceCount);
+		sourceNames.resize(sources.size());
+		for (size_t i=0; i < sources.size(); ++i)
+		{
+			sourceNames[i]=sources[i].name; sources[i].name=sourceNames[i].c_str();
+		}
+		if (input.propertyCount)properties.assign(input.properties, input.properties + input.propertyCount);
+		propertyNames.resize(properties.size());
+		for (size_t i=0; i < properties.size(); ++i)
+		{
+			propertyNames[i]=properties[i].publicName; properties[i].publicName=propertyNames[i].c_str();
+			if (properties[i].getDefaultValue)
+			{
+				winrt::Windows::Foundation::IPropertyValue initial{ nullptr };
+				winrt::check_hresult(properties[i].getDefaultValue(reinterpret_cast<ABI::Windows::Foundation::IPropertyValue**>(winrt::put_abi(initial))));
+				properties[i].initialScalar=initial.GetSingle(); properties[i].getDefaultValue=nullptr;
+			}
+		}
+		if (input.nativePropertyMetadataCount)
+		{
+			auto begin=static_cast<CustomEffectRuntime::NativePropertyMetadata const*>(input.nativePropertyMetadata);
+			metadata.assign(begin, begin + input.nativePropertyMetadataCount);
+		}
+		shaderNames.resize(metadata.size());
+		for (size_t i=0; i < metadata.size(); ++i)
+		{
+			shaderNames[i]=metadata[i].shaderName; metadata[i].shaderName=shaderNames[i].c_str();
+		}
+		if (input.constantBufferPropertyCount)mappings.assign(input.constantBufferProperties, input.constantBufferProperties + input.constantBufferPropertyCount);
+		if (input.shaderArgumentCount)arguments.assign(input.shaderArguments, input.shaderArguments + input.shaderArgumentCount);
+		if (input.constantBufferSize)
+		{
+			auto begin=static_cast<unsigned char const*>(input.constantBufferInitialValue);
+			constants.assign(begin, begin + input.constantBufferSize);
+		}
+		value.sources=sources.data(); value.properties=properties.data(); value.nativePropertyMetadata=metadata.data();
+		value.constantBufferProperties=mappings.data(); value.shaderArguments=arguments.data();
+		value.constantBufferInitialValue=constants.empty() ? nullptr : constants.data();
+	}
+
+	bool Equivalent(OwnedEffectDefinition const& other) const
+	{
+		auto const& b=other.value;
+		if (descriptorKey != other.descriptorKey || effectName != other.effectName || fragmentName != other.fragmentName ||
+			shaderSource != other.shaderSource || shaderBytecode != other.shaderBytecode ||
+			shaderFunctionName != other.shaderFunctionName || flattenName != other.flattenName ||
+			sourceNames != other.sourceNames || propertyNames != other.propertyNames || shaderNames != other.shaderNames ||
+			arguments != other.arguments || constants != other.constants ||
+			value.linkingArgType != b.linkingArgType || value.shaderProfileVersion != b.shaderProfileVersion ||
+			value.propertiesStructSize != b.propertiesStructSize ||
+			value.flattenSourceBeforeCustomSampler != b.flattenSourceBeforeCustomSampler ||
+			metadata.size() != other.metadata.size() || mappings.size() != other.mappings.size())return false;
+		for (size_t i=0; i < sources.size(); ++i)
+			if (sources[i].kind != other.sources[i].kind ||
+				sources[i].requiresSamplerData != other.sources[i].requiresSamplerData ||
+				sources[i].requiresSamplerDataExt != other.sources[i].requiresSamplerDataExt)return false;
+		for (size_t i=0; i < properties.size(); ++i)
+			if (properties[i].index != other.properties[i].index || properties[i].mapping != other.properties[i].mapping ||
+				properties[i].initialScalar != other.properties[i].initialScalar)return false;
+		for (size_t i=0; i < metadata.size(); ++i)
+			if (metadata[i].propertyOffset != other.metadata[i].propertyOffset ||
+				metadata[i].expressionType != other.metadata[i].expressionType ||
+				metadata[i].propertyType != other.metadata[i].propertyType ||
+				metadata[i].valueCount != other.metadata[i].valueCount ||
+				metadata[i].validator != other.metadata[i].validator)return false;
+		for (size_t i=0; i < mappings.size(); ++i)
+			if (mappings[i].propertyIndex != other.mappings[i].propertyIndex ||
+				mappings[i].constantBufferOffset != other.mappings[i].constantBufferOffset)return false;
+		return true;
+	}
+};
+
+
+#pragma once
+namespace HlslComposition
+{
+	struct NativeEntrypoints
+	{
+		uintptr_t fromGuid{}, table{}, getBounds{}, calcInputBounds{}, updater{};
+		size_t effectCount{};
+	};
+	class RuntimeImage
+	{
+		struct Section
+		{
+			uint8_t* begin; size_t size; DWORD flags;
+		};
+		uint8_t* m_base;
+		std::vector<Section> m_sections;
+	public:
+		explicit RuntimeImage(HMODULE module) :m_base(reinterpret_cast<uint8_t*>(module))
+		{
+			if (!module) winrt::throw_hresult(E_INVALIDARG);
+			auto dos=reinterpret_cast<IMAGE_DOS_HEADER*>(m_base);
+			auto nt=reinterpret_cast<IMAGE_NT_HEADERS*>(m_base + dos->e_lfanew);
+			if (dos->e_magic != IMAGE_DOS_SIGNATURE || nt->Signature != IMAGE_NT_SIGNATURE ||
+				nt->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64) Fail();
+			for (auto section=IMAGE_FIRST_SECTION(nt); section < IMAGE_FIRST_SECTION(nt) + nt->FileHeader.NumberOfSections; ++section)
+				m_sections.push_back({ m_base + section->VirtualAddress,section->Misc.VirtualSize,section->Characteristics });
+		}
+
+		[[noreturn]] static void Fail()
+		{
+			throw winrt::hresult_error(HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+									   L"HLSL Composition: native ABI fingerprint is missing or ambiguous.");
+		}
+
+		bool Contains(void const* pointer, size_t size, DWORD flags) const
+		{
+			auto address=reinterpret_cast<uintptr_t>(pointer);
+			for (auto const& s : m_sections)
+			{
+				auto start=reinterpret_cast<uintptr_t>(s.begin);
+				if ((s.flags & flags) == flags && address >= start && address - start <= s.size && size <= s.size - (address - start)) return true;
+			}
+			return false;
+		}
+
+		uint8_t* Unique(std::initializer_list<int> pattern, DWORD flags) const
+		{
+			uint8_t* found{};
+			for (auto const& s : m_sections)
+			{
+				if ((s.flags & flags) != flags || s.size < pattern.size()) continue;
+				for (size_t i=0; i <= s.size - pattern.size(); ++i)
+				{
+					size_t j=0;
+					for (auto byte : pattern)
+					{
+						if (byte >= 0 && s.begin[i + j] != byte) break; ++j;
+					}
+					if (j == pattern.size())
+					{
+						if (found) Fail(); found=s.begin + i;
+					}
+				}
+			}
+			if (!found) Fail();
+			return found;
+		}
+
+		uintptr_t Rva(void const* pointer) const
+		{
+			return reinterpret_cast<uintptr_t>(pointer) - reinterpret_cast<uintptr_t>(m_base);
+		}
+
+		NativeEntrypoints Resolve() const
+		{
+			constexpr DWORD code=IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
+			// Match the GUID lookup loop, not merely a common function prologue.
+			// -1 represents relocation-dependent bytes. No module-relative address is embedded.
+			auto lookup=Unique({
+				0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x74,0x24,0x10,0x48,0x89,0x7c,0x24,0x18,
+				0x41,0x56,0x48,0x83,0xec,0x20,0x4c,0x8b,0xf1,
+				0x48,0x8d,0x3d,-1,-1,-1,-1,0x33,0xdb,0x48,0x8b,0x37,0x48,0x8b,0xce,
+				0x48,0x8b,0x06,0x48,0x8b,0x40,0x08,0xe8,-1,-1,-1,-1,
+				0x48,0x8b,0xc8,0x49,0x8b,0x06,0x48,0x3b,0x01,0x75,0x0a,
+				0x49,0x8b,0x46,0x08,0x48,0x3b,0x41,0x08,0x74,0x24,0xff,0xc3,
+				0x48,0x83,0xc7,0x08,0x83,0xfb,-1,0x72,0xce
+							   }, code);
+			int32_t displacement{};
+			memcpy(&displacement, lookup + 27, 4);
+			auto table = reinterpret_cast<void**>(lookup + 31 + displacement);
+			auto count = static_cast<size_t>(lookup[80]);
+			if (count < 1 || count>128 || !Contains(table, count * sizeof(void*), IMAGE_SCN_MEM_READ))
+				Fail();
+			void** neutral{};
+			for (size_t i=0; i < count; ++i)
+			{
+				auto object=table[i];
+				if (!Contains(object, sizeof(void*), IMAGE_SCN_MEM_READ)) Fail();
+				auto vt=*reinterpret_cast<void***>(object);
+				if (!Contains(vt, 22 * sizeof(void*), IMAGE_SCN_MEM_READ)) Fail();
+				for (size_t slot=0; slot < 22; ++slot) if (!Contains(vt[slot], 1, code)) Fail();
+				auto getGuid=reinterpret_cast<GUID const* (*)(void*)>(vt[1]);
+				auto guid=getGuid(object);
+				if (!Contains(guid, sizeof(GUID), IMAGE_SCN_MEM_READ)) Fail();
+				if (IsEqualGUID(*guid, CLSID_D2D1ColorMatrix)) neutral=vt;
+			}
+			if (!neutral) Fail();
+			auto copy=Unique({ 0x4d,0x8b,0xc8,0x48,0x8b,0xc2,0x44,0x8b,0x41,0x1c,0x8b,0x51,0x10,
+				0x49,0xc1,0xe0,0x02,0x48,0x03,0x10,0x49,0x8b,0x09,0xe9
+							 }, code);
+			void** updater{};
+			for (auto const& s : m_sections)
+			{
+				if (!(s.flags & IMAGE_SCN_MEM_READ) || (s.flags & (IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_WRITE))) continue;
+				for (size_t i=0; i + 4 * sizeof(void*) <= s.size; i+=sizeof(void*))
+				{
+					auto candidate = reinterpret_cast<void**>(s.begin + i);
+					if (candidate[2] != copy || candidate[0] != candidate[1] ||
+						!Contains(candidate[0], 1, code) || !Contains(candidate[3], 1, code)) continue;
+					if (updater) Fail();
+					updater=candidate;
+				}
+			}
+			if (!updater) Fail();
+			return { Rva(lookup),Rva(table),Rva(neutral[15]),Rva(neutral[16]),Rva(updater),count };
+		}
+	};
+}
+
+
 
 using namespace winrt;
 using namespace Microsoft::UI::Composition;

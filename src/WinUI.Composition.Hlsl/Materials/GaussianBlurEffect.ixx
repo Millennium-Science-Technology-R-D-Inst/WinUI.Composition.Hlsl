@@ -1,6 +1,8 @@
-﻿#pragma once
+export module WinUI.Composition.Hlsl.GaussianBlurEffect;
 
-namespace GaussianBlurEffect
+import winrt.Windows.Graphics.Effects;
+
+export namespace GaussianBlurEffect
 {
 	inline constexpr wchar_t BlurAmountPropertyPath[] = L"GaussianBlurEffect.BlurAmount";
 
@@ -8,4 +10,3 @@ namespace GaussianBlurEffect
 		wchar_t const* sourceName,
 		float blurAmount);
 }
-

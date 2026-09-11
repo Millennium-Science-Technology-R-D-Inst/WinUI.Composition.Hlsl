@@ -1,11 +1,12 @@
-﻿//#include <unknwn.h>
+﻿#include <unknwn.h>
 #include <weakreference.h>
-#include "EffectEngine.h"
-#include "CustomEffectRuntime.h"
 #include <bcrypt.h>
+#include <windows.graphics.effects.interop.h>
+#include "EffectEngine.h"
 #pragma comment(lib,"bcrypt.lib")
 
 import WinUI.Composition.Hlsl.EffectDef;
+import WinUI.Composition.Hlsl.CustomEffectRuntime;
 import std;
 import winrt_base;
 import winrt.Windows.Foundation;

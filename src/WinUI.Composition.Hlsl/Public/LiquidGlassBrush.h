@@ -1,4 +1,7 @@
 ﻿#pragma once
+#ifndef WINRT_IMPORT_MODULE
+#define WINRT_IMPORT_MODULE
+#endif
 #include "LiquidGlassBrush.g.h"
 #include "XamlHlslBrushBase.h"
 
@@ -32,16 +35,16 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		static Microsoft::UI::Xaml::DependencyProperty HighlightStrengthProperty();
 	private:
 		void Update();
-        friend class hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush>;
-        Microsoft::UI::Composition::CompositionBrush BuildPipeline(Microsoft::UI::Composition::Compositor const&);
-        void ReleasePipeline() noexcept {m_material=nullptr;}
-        hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush> m_lifecycle;
+		friend class hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush>;
+		Microsoft::UI::Composition::CompositionBrush BuildPipeline(Microsoft::UI::Composition::Compositor const&);
+		void ReleasePipeline() noexcept
+		{
+			m_material = nullptr;
+		}
+		hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush> m_lifecycle;
 		static void Changed(Microsoft::UI::Xaml::DependencyObject const& object, Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const&);
 
 		Hlsl::LiquidGlassMaterial m_material{ nullptr };
-
-
-
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation

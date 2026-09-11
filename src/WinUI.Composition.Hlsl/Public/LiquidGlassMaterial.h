@@ -1,4 +1,7 @@
 ﻿#pragma once
+#ifndef WINRT_IMPORT_MODULE
+#define WINRT_IMPORT_MODULE
+#endif
 #include "LiquidGlassMaterial.g.h"
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {

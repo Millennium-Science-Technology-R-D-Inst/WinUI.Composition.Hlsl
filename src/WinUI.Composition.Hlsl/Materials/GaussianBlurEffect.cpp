@@ -1,7 +1,9 @@
-﻿#include <d2d1effects.h>
+﻿module;
 #include <Windows.h>
+#include <d2d1effects.h>
 #include <windows.graphics.effects.interop.h>
-#include "GaussianBlurEffect.h"
+
+module WinUI.Composition.Hlsl.GaussianBlurEffect;
 
 import winrt.Microsoft.UI.Composition;
 import winrt.Windows.Foundation;

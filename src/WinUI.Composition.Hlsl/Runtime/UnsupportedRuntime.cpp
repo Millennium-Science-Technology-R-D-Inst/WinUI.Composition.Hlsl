@@ -1,5 +1,7 @@
-﻿#include "pch.h"
-#include "CustomEffectRuntime.h"
+﻿module WinUI.Composition.Hlsl.CustomEffectRuntime;
+
+import winrt_base;
+import winrt.Windows.Graphics.Effects;
 namespace CustomEffectRuntime
 {
 	void RegisterEffect(CustomEffectDefinition const&)

@@ -1,7 +1,12 @@
 ﻿#pragma once
+#ifndef WINRT_IMPORT_MODULE
+#define WINRT_IMPORT_MODULE
+#endif
 #include "HlslEffectFactory.g.h"
 
 import WinUI.Composition.Hlsl.EffectDef;
+import winrt.Microsoft.UI.Composition;
+import std;
 
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {

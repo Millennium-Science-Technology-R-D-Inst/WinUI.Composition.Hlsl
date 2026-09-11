@@ -1,4 +1,7 @@
 ﻿#pragma once
+#ifndef WINRT_IMPORT_MODULE
+#define WINRT_IMPORT_MODULE
+#endif
 #include "HlslEffectBrush.g.h"
 
 import WinUI.Composition.Hlsl.EffectDef;

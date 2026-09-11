@@ -1,9 +1,9 @@
 ﻿module;
-#include "CustomEffectRuntime.h"
 
 export module WinUI.Composition.Hlsl.EffectDef;
 
 import std;
+import WinUI.Composition.Hlsl.CustomEffectRuntime;
 import winrt.Windows.Foundation;
 import winrt.Windows.Graphics.Effects;
 import winrt.Microsoft.UI.Composition;
@@ -30,8 +30,10 @@ export namespace hlsl::engine
 		CustomEffectRuntime::CustomEffectDefinition const* nativeTemplate{};
 	};
 
+	using Definition = std::shared_ptr<EffectDefinition const>;
+
 	winrt::guid DeriveId(EffectDefinition const& definition);
 	void Validate(EffectDefinition const& definition);
-	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(std::shared_ptr<EffectDefinition const> const& definition);
-	winrt::Microsoft::UI::Composition::CompositionEffectFactory GetFactory(winrt::Microsoft::UI::Composition::Compositor const& compositor, std::shared_ptr<EffectDefinition const> const& definition);
+	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(Definition const& definition);
+	winrt::Microsoft::UI::Composition::CompositionEffectFactory GetFactory(winrt::Microsoft::UI::Composition::Compositor const& compositor, Definition const& definition);
 }

@@ -1,6 +1,4 @@
 ﻿#pragma once
-#include <Windows.h>
-
 import winrt.Microsoft.UI.Composition;
 import winrt.Microsoft.UI.Xaml.Media;
 
@@ -29,10 +27,9 @@ namespace hlsl::xaml
 				owner.ReleasePipeline();
 				if (previous)previous.Close();
 			}
-			catch (winrt::hresult_error const& error)
-			{
-				OutputDebugStringW(error.message().c_str());
-			}
+		catch (winrt::hresult_error const&)
+		{
+		}
 		}
 
 		void Update(D& owner)
@@ -63,10 +60,9 @@ namespace hlsl::xaml
 					else
 						owner.ReleasePipeline();
 				}
-				catch (winrt::hresult_error const& error)
-				{
-					OutputDebugStringW(error.message().c_str());
-					owner.ReleasePipeline();
+			catch (winrt::hresult_error const&)
+			{
+				owner.ReleasePipeline();
 				}
 				if (!next)next=compositor.CreateColorBrush(owner.FallbackColor());
 				auto previous=owner.CompositionBrush();

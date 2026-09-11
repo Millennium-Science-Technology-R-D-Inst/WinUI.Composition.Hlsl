@@ -1,5 +1,6 @@
 ﻿#pragma once
 import WinUI.Composition.Hlsl.EffectDef;
+import winrt.Windows.Graphics.Effects;
 
 namespace CustomLiquidGlassEffect
 {

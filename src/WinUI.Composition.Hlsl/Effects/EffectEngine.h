@@ -1,8 +1,8 @@
 ﻿#pragma once
-#include <winrt/Microsoft.UI.Composition.h>
-#include <winrt/Microsoft.UI.Xaml.Media.h>
-#include <winrt/Windows.Graphics.Effects.h>
-#include <string_view>
+import winrt.Microsoft.UI.Composition;
+import winrt.Microsoft.UI.Xaml.Media;
+import winrt.Windows.Graphics.Effects;
+import std;
 namespace hlsl::engine
 {
 	// HLSL contract: export float4 PSBody(float4 color).
@@ -19,7 +19,7 @@ namespace hlsl::engine
 
 	winrt::Microsoft::UI::Xaml::Media::XamlCompositionBrushBase AsXamlBrush(winrt::Microsoft::UI::Composition::CompositionBrush const& brush);
 
-	// Advanced sampler effects and animatable constants use CustomEffectRuntime.h descriptors.
+	// Advanced sampler effects and animatable constants use the CustomEffectRuntime module descriptors.
 	// The adapter is deliberately version-bounded: Windows App SDK 2.4.0 x64.
 }
 

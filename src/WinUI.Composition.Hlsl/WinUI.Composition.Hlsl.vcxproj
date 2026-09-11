@@ -15,7 +15,6 @@
     <UseWinUI>true</UseWinUI>
     <DesktopCompatible>true</DesktopCompatible>
     <EnableNativePackageReferenceSupport>true</EnableNativePackageReferenceSupport>
-    <CppWinRTModuleExclude>Windows.AI;Windows.UI.Xaml</CppWinRTModuleExclude>
     <CppWinRTProjectLanguage>C++/WinRT</CppWinRTProjectLanguage>
     <CppWinRTUsePrefixes>false</CppWinRTUsePrefixes>
   </PropertyGroup>
@@ -51,6 +50,8 @@
     <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <GenerateManifest>false</GenerateManifest>
+    <!-- This runtime component has no XAML Page/PriResource inputs. -->
+    <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
     <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)/Microsoft.Cpp.props" />
@@ -84,7 +85,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
       <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>_WINRT_DLL;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINRT_DLL;WINRT_ENABLE_LEGACY_COM;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(IntDir);$(ProjectDir);$(ProjectDir)Public;$(ProjectDir)Effects;$(ProjectDir)Runtime;$(ProjectDir)Materials;$(ProjectDir)Internal;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">stdc17</LanguageStandard_C>
       <BuildStlModules Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">true</BuildStlModules>
@@ -112,13 +113,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="pch.h" />
     <ClCompile Include="Effects\EffectEngine.cpp" />
     <ClInclude Include="Effects\EffectEngine.h" />
     <ClCompile Include="Materials\CustomLiquidGlassEffect.cpp" />
     <ClInclude Include="Materials\CustomLiquidGlassEffect.h" />
     <ClCompile Include="Materials\GaussianBlurEffect.cpp" />
-    <ClInclude Include="Materials\GaussianBlurEffect.h" />
+    <ClCompile Include="Materials\GaussianBlurEffect.ixx" />
     <ClCompile Include="Public\HlslComposition.cpp" />
     <ClInclude Include="Public\HlslComposition.h" />
     <ClCompile Include="Public\HlslEffect.cpp" />
@@ -134,16 +134,13 @@
     <ClCompile Include="Runtime\CustomEffectRuntime.cpp">
       <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClInclude Include="Runtime\CustomEffectRuntime.h" />
-    <ClInclude Include="Runtime\Runtime240.h" />
-    <ClInclude Include="Runtime\RuntimeResolver.h" />
+    <ClCompile Include="Runtime\CustomEffectRuntime.ixx" />
     <ClCompile Include="Internal/Validation.ixx" />
     <Midl Include="Public/Api.idl" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
     <ClCompile Include="Effects\EffectDefinition.ixx">
       <FileType>Document</FileType>
     </ClCompile>
-    <ClInclude Include="Runtime/EffectRegistration.h" />
     <ClInclude Include="Public/HlslFloatProperty.h" />
     <ClCompile Include="Public/HlslFloatProperty.cpp" />
     <ClCompile Include="Runtime/UnsupportedRuntime.cpp">

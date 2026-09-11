@@ -1,11 +1,12 @@
 ﻿#include <Windows.h>
+#include <windows.graphics.effects.interop.h>
 
 #include "CustomLiquidGlassEffect.h"
-#include "CustomEffectRuntime.h"
 #include "LiquidGlassShader.g.h"
 
 import winrt.Windows.Foundation;
 import WinUI.Composition.Hlsl.EffectDef;
+import WinUI.Composition.Hlsl.CustomEffectRuntime;
 
 using namespace winrt;
 
@@ -26,7 +27,7 @@ namespace
 
 	static_assert(sizeof(LiquidGlassConstants) == 32);
 
-	enum LiquidGlassPropertyIndex : uint32_t
+	enum LiquidGlassPropertyIndex : std::uint32_t
 	{
 		BlurRadiusProperty = 0,
 		RefractionStrengthProperty,
@@ -36,14 +37,14 @@ namespace
 		DispersionStrengthProperty,
 	};
 
-	constexpr uint32_t kDCompositionExpressionTypeScalar = 18;
-	constexpr uint32_t kPropertyTypeSingle = 8;
-	constexpr uint32_t kBlurRadiusOffset = 0;
-	constexpr uint32_t kBorderThicknessOffset = 4;
-	constexpr uint32_t kCornerRadiusOffset = 8;
-	constexpr uint32_t kRefractionStrengthOffset = 12;
-	constexpr uint32_t kHighlightStrengthOffset = 16;
-	constexpr uint32_t kDispersionStrengthOffset = 24;
+	constexpr std::uint32_t kDCompositionExpressionTypeScalar = 18;
+	constexpr std::uint32_t kPropertyTypeSingle = 8;
+	constexpr std::uint32_t kBlurRadiusOffset = 0;
+	constexpr std::uint32_t kBorderThicknessOffset = 4;
+	constexpr std::uint32_t kCornerRadiusOffset = 8;
+	constexpr std::uint32_t kRefractionStrengthOffset = 12;
+	constexpr std::uint32_t kHighlightStrengthOffset = 16;
+	constexpr std::uint32_t kDispersionStrengthOffset = 24;
 
 	HRESULT CreateScalarProperty(
 		float scalar,
@@ -177,7 +178,7 @@ namespace
 
 namespace CustomLiquidGlassEffect
 {
-	std::shared_ptr<EffectDefinition const> Description()
+	hlsl::engine::Definition Description()
 	{
 		static auto value=[]
 			{

@@ -1,13 +1,17 @@
 ﻿#pragma once
+#ifndef WINRT_IMPORT_MODULE
+#define WINRT_IMPORT_MODULE
+#endif
 #include "HlslEffect.g.h"
 
 import WinUI.Composition.Hlsl.EffectDef;
+import std;
 
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslEffect : HlslEffectT<HlslEffect>
 	{
-		explicit HlslEffect(std::shared_ptr<EffectDefinition const> definition) :m_definition(std::move(definition))
+		explicit HlslEffect(hlsl::engine::Definition definition) :m_definition(std::move(definition))
 		{
 		}
 		static Hlsl::HlslEffect CreateColor(winrt::guid const& id, hstring const& shader);
@@ -26,12 +30,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			return m_definition->sampler ? HlslEffectKind::Sampler : HlslEffectKind::Color;
 		}
-		std::shared_ptr<EffectDefinition const> const& Definition() const
+		hlsl::engine::Definition const& Definition() const
 		{
 			return m_definition;
 		}
 	private:
-		std::shared_ptr<EffectDefinition const> m_definition;
+		hlsl::engine::Definition m_definition;
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation
