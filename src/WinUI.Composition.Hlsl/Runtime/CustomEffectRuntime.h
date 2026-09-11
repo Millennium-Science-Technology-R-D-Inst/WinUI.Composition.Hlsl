@@ -87,8 +87,15 @@ namespace CustomEffectRuntime
 		wchar_t const* effectName;
 		char const* fragmentName;
 
+		// Dynamic/user effects may provide HLSL source and are compiled lazily.
 		char const* shaderSource;
 		size_t shaderSourceSize;
+
+		// Built-in effects may instead provide an FXC-precompiled DXBC shader-linking
+		// library. Exactly one representation (source or bytecode) must be present.
+		void const* shaderBytecode;
+		size_t shaderBytecodeSize;
+
 		char const* shaderFunctionName;
 
 		SourceDescriptor const* sources;
