@@ -1,0 +1,35 @@
+name: Apply staged liquid glass patch
+
+on:
+  push:
+    branches:
+      - fix/liquid-glass-topology-blur-precompiled-hlsl
+    paths:
+      - .github/patches/liquid-glass-precompile.patch
+      - .github/workflows/apply-liquid-glass-precompile.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/liquid-glass-topology-blur-precompiled-hlsl
+      - name: Validate patch
+        run: git apply --check .github/patches/liquid-glass-precompile.patch
+      - name: Apply patch
+        run: git apply .github/patches/liquid-glass-precompile.patch
+      - name: Remove staging files
+        run: git rm .github/patches/liquid-glass-precompile.patch .github/workflows/apply-liquid-glass-precompile.yml
+      - name: Commit result
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "runtime: fix custom graph validation and consume precompiled DXBC"
+          git push origin HEAD:fix/liquid-glass-topology-blur-precompiled-hlsl
