@@ -3,16 +3,30 @@
 #include "LiquidGlassMaterial.g.cpp"
 #include "HlslEffectFactory.h"
 #include "CustomLiquidGlassEffect.h"
+#include "GaussianBlurEffect.h"
 import WinUI.Composition.Hlsl.Validation;
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	LiquidGlassMaterial::LiquidGlassMaterial(Microsoft::UI::Composition::Compositor const& compositor)
 	{
 		if (!compositor) throw hresult_invalid_argument();
+
+		// Keep the native Gaussian pass in its own factory. The private custom runtime
+		// deliberately does not lower arbitrary mixed native/custom graphs.
+		auto blurProperties=single_threaded_vector<hstring>();
+		blurProperties.Append(GaussianBlurEffect::BlurAmountPropertyPath);
+		auto blurFactory=compositor.CreateEffectFactory(
+			GaussianBlurEffect::CreateEffect(L"Backdrop", m_BlurRadius),
+			blurProperties);
+		m_blurEffect=blurFactory.CreateBrush();
+		m_blurEffect.SetSourceParameter(L"Backdrop", compositor.CreateBackdropBrush());
+
 		auto definition = CustomLiquidGlassEffect::Description();
 		auto factory = make<implementation::HlslEffectFactory>(hlsl::engine::GetFactory(compositor, definition), definition);
 		m_effect=factory.CreateBrush();
-		m_effect.SetSource(L"Backdrop", compositor.CreateBackdropBrush());
+		// The blur brush is an external source to the custom factory. Its output is a
+		// materialized texture, which is exactly what the arbitrary custom sampler needs.
+		m_effect.SetSource(L"Backdrop", m_blurEffect);
 		m_effect.SetFloat(L"BlurRadius", m_BlurRadius);
 		m_effect.SetFloat(L"RefractionStrength", m_RefractionStrength);
 		m_effect.SetFloat(L"DispersionStrength", m_DispersionStrength);
@@ -22,7 +36,11 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	}
 	void LiquidGlassMaterial::BlurRadius(float value)
 	{
-		m_effect.SetFloat(L"BlurRadius", value); m_BlurRadius=value;
+		// Keep the schema/range check on the HLSL effect, but perform the actual
+		// transmission blur in the native Gaussian pass.
+		m_effect.SetFloat(L"BlurRadius", value);
+		m_blurEffect.Properties().InsertScalar(GaussianBlurEffect::BlurAmountPropertyPath, value);
+		m_BlurRadius=value;
 	}
 	void LiquidGlassMaterial::RefractionStrength(float value)
 	{
