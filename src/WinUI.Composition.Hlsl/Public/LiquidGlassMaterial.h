@@ -41,6 +41,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void HighlightStrength(float value);
 	private:
 		Hlsl::HlslEffectBrush m_effect{ nullptr };
+		Microsoft::UI::Composition::CompositionEffectBrush m_blurEffect{ nullptr };
 		float m_BlurRadius{ 12.0f };
 		float m_RefractionStrength{ 24.0f };
 		float m_DispersionStrength{ 1.2f };
