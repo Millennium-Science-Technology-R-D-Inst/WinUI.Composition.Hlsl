@@ -1,7 +1,8 @@
-﻿#include "pch.h"
-#include "HlslFloatProperty.h"
+﻿#include "HlslFloatProperty.h"
 #include "HlslFloatProperty.g.cpp"
-#include "EffectDefinition.h"
+
+import WinUI.Composition.Hlsl.EffectDef;
+
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	HlslFloatProperty::HlslFloatProperty(hstring const& name, float initial, float minimum, float maximum) :

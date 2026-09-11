@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "HlslEffectBrush.g.h"
-#include "EffectDefinition.h"
+
+import WinUI.Composition.Hlsl.EffectDef;
+
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslEffectBrush : HlslEffectBrushT<HlslEffectBrush>

@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "LiquidGlassBrush.h"
+﻿#include "LiquidGlassBrush.h"
 #include "LiquidGlassBrush.g.cpp"
 
 #include <winrt/Windows.UI.Xaml.Interop.h>

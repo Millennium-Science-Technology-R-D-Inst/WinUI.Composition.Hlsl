@@ -1,14 +1,15 @@
-﻿#include "pch.h"
-#include "EffectEngine.h"
-#include "EffectDefinition.h"
-#include <bcrypt.h>
+﻿//#include <unknwn.h>
 #include <weakreference.h>
-#include <array>
-#include <bit>
-#include <cmath>
-#include <set>
-#include <sstream>
+#include "EffectEngine.h"
+#include "CustomEffectRuntime.h"
+#include <bcrypt.h>
 #pragma comment(lib,"bcrypt.lib")
+
+import WinUI.Composition.Hlsl.EffectDef;
+import std;
+import winrt_base;
+import winrt.Windows.Foundation;
+
 namespace hlsl::engine
 {
 	namespace
@@ -21,16 +22,16 @@ namespace hlsl::engine
 		}
 		std::string Key(EffectDefinition const& definition)
 		{
-			std::string result=definition.sampler ? "sampler-v1:" : "color-v1:";
-			auto append=[&](std::string const& value)
+			std::string result = definition.sampler ? "sampler-v1:" : "color-v1:";
+			auto append = [&](std::string const& value)
 				{
-					result+=std::to_string(value.size()) + ":" + value;
+					result += std::to_string(value.size()) + ":" + value;
 				};
 			append(definition.shader); append(winrt::to_string(definition.sourceName)); append(winrt::to_string(definition.effectName));
 			for (auto const& p : definition.properties)
 			{
 				append(winrt::to_string(p.name));
-				result+=":" + std::to_string(std::bit_cast<uint32_t>(p.initial)) + ":" + std::to_string(std::bit_cast<uint32_t>(p.minimum)) + ":" + std::to_string(std::bit_cast<uint32_t>(p.maximum));
+				result += ":" + std::to_string(std::bit_cast<uint32_t>(p.initial)) + ":" + std::to_string(std::bit_cast<uint32_t>(p.minimum)) + ":" + std::to_string(std::bit_cast<uint32_t>(p.maximum));
 			}
 			return result;
 		}
@@ -47,40 +48,40 @@ namespace hlsl::engine
 			CustomEffectRuntime::CustomEffectDefinition native{};
 			explicit Program(EffectDefinition const& description) :key(Key(description))
 			{
-				if (description.sampler)code="Texture2D texture0; SamplerState sampler0;\n";
+				if (description.sampler)code = "Texture2D texture0; SamplerState sampler0;\n";
 				if (!description.properties.empty())
 				{
-					code+="cbuffer UserConstants : register(b0) {\n";
+					code += "cbuffer UserConstants : register(b0) {\n";
 					names.resize(description.properties.size());
 					constants.resize((description.properties.size() + 3) / 4 * 4);
-					for (size_t i=0; i < description.properties.size(); ++i)
+					for (size_t i = 0; i < description.properties.size(); ++i)
 					{
-						auto const& p=description.properties[i];
-						names[i]=winrt::to_string(p.name); code+="float " + names[i] + ";\n";
+						auto const& p = description.properties[i];
+						names[i] = winrt::to_string(p.name); code += "float " + names[i] + ";\n";
 						properties.push_back({ p.name.c_str(),static_cast<uint32_t>(i),ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT,nullptr,p.initial });
-						constants[i]=p.initial;
+						constants[i] = p.initial;
 						mappings.push_back({ static_cast<uint32_t>(i),static_cast<uint32_t>(i * 4) });
 					}
-					for (size_t i=0; i < names.size(); ++i)metadata.push_back({ names[i].c_str(),static_cast<uint32_t>(i * 4),18,8,1,nullptr });
-					code+="};\n";
+					for (size_t i = 0; i < names.size(); ++i)metadata.push_back({ names[i].c_str(),static_cast<uint32_t>(i * 4),18,8,1,nullptr });
+					code += "};\n";
 				}
-				code+="#line 1 \"UserShader.hlsl\"\n" + description.shader;
+				code += "#line 1 \"UserShader.hlsl\"\n" + description.shader;
 				if (description.sampler)
 				{
 					for (auto suffix : { "","CC","CW","CM","WC","WW","WM","MC","MW","MM","C","W","M" })
-						code+="\n#line 1 \"GeneratedShader.hlsl\"\nexport float4 PSBody" + std::string(suffix) + "(float2 uv,float4 info){return Shade(uv,info);}\n";
-					arguments[0]=0x0100; arguments[1]=0x0400;
+						code += "\n#line 1 \"GeneratedShader.hlsl\"\nexport float4 PSBody" + std::string(suffix) + "(float2 uv,float4 info){return Shade(uv,info);}\n";
+					arguments[0] = 0x0100; arguments[1] = 0x0400;
 				}
-				source={ description.sourceName.c_str(),CustomEffectRuntime::SourceKind::Backdrop,false,description.sampler };
-				native.descriptorKey=key.c_str(); native.id=description.id; native.effectName=description.effectName.c_str(); native.fragmentName="AppHlslEffect";
-				native.shaderSource=code.c_str(); native.shaderSourceSize=code.size(); native.shaderFunctionName="PSBody";
-				native.sources=&source; native.sourceCount=1; native.properties=properties.data(); native.propertyCount=static_cast<uint32_t>(properties.size());
-				native.nativePropertyMetadata=metadata.data(); native.nativePropertyMetadataCount=static_cast<uint32_t>(metadata.size());
-				native.propertiesStructSize=static_cast<uint32_t>(constants.size() * 4);
-				native.constantBufferProperties=mappings.data(); native.constantBufferPropertyCount=static_cast<uint32_t>(mappings.size());
-				native.constantBufferSize=static_cast<uint32_t>(constants.size() * 4); native.constantBufferInitialValue=constants.data();
-				native.shaderArguments=arguments; native.shaderArgumentCount=description.sampler ? 2 : 1; native.linkingArgType=description.sampler ? 0x0200 : 0;
-				native.shaderProfileVersion=CustomEffectRuntime::kShaderProfileLevel93;
+				source = { description.sourceName.c_str(),CustomEffectRuntime::SourceKind::Backdrop,false,description.sampler };
+				native.descriptorKey = key.c_str(); native.id = description.id; native.effectName = description.effectName.c_str(); native.fragmentName = "AppHlslEffect";
+				native.shaderSource = code.c_str(); native.shaderSourceSize = code.size(); native.shaderFunctionName = "PSBody";
+				native.sources = &source; native.sourceCount = 1; native.properties = properties.data(); native.propertyCount = static_cast<uint32_t>(properties.size());
+				native.nativePropertyMetadata = metadata.data(); native.nativePropertyMetadataCount = static_cast<uint32_t>(metadata.size());
+				native.propertiesStructSize = static_cast<uint32_t>(constants.size() * 4);
+				native.constantBufferProperties = mappings.data(); native.constantBufferPropertyCount = static_cast<uint32_t>(mappings.size());
+				native.constantBufferSize = static_cast<uint32_t>(constants.size() * 4); native.constantBufferInitialValue = constants.data();
+				native.shaderArguments = arguments; native.shaderArgumentCount = description.sampler ? 2 : 1; native.linkingArgType = description.sampler ? 0x0200 : 0;
+				native.shaderProfileVersion = CustomEffectRuntime::kShaderProfileLevel93;
 			}
 		};
 		struct CachedFactory
@@ -122,51 +123,52 @@ namespace hlsl::engine
 	}
 	winrt::guid DeriveId(EffectDefinition const& definition)
 	{
-		auto key=Key(definition); std::array<unsigned char, 32> digest{};
-		auto status=BCryptHash(BCRYPT_SHA256_ALG_HANDLE, nullptr, 0, reinterpret_cast<PUCHAR>(key.data()), static_cast<ULONG>(key.size()), digest.data(), 32);
-		if (status < 0)winrt::throw_hresult(E_FAIL);
+		auto key = Key(definition); std::array<unsigned char, 32> digest{};
+		auto status = BCryptHash(BCRYPT_SHA256_ALG_HANDLE, nullptr, 0, reinterpret_cast<PUCHAR>(key.data()), static_cast<ULONG>(key.size()), digest.data(), 32);
+		if (status < 0)
+			winrt::throw_hresult(E_FAIL);
 		winrt::guid id{}; memcpy(&id, digest.data(), sizeof(id)); return id;
 	}
-	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(Definition const& definition)
+	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(std::shared_ptr<EffectDefinition const> const& definition)
 	{
 		if (definition->nativeTemplate)return CustomEffectRuntime::CreateEffect(*definition->nativeTemplate);
 		Validate(*definition);
 		Program program{ *definition };
 		return CustomEffectRuntime::CreateEffect(program.native);
 	}
-	winrt::Microsoft::UI::Composition::CompositionEffectFactory GetFactory(winrt::Microsoft::UI::Composition::Compositor const& compositor, Definition const& definition)
+	winrt::Microsoft::UI::Composition::CompositionEffectFactory GetFactory(winrt::Microsoft::UI::Composition::Compositor const& compositor, std::shared_ptr<EffectDefinition const> const& definition)
 	{
 		if (!compositor || !definition)throw winrt::hresult_invalid_argument();
 		// Always register/validate before cache lookup, including explicit-GUID collisions.
-		auto effect=Compile(definition);
-		for (auto it=factories.begin(); it != factories.end();)
+		auto effect = Compile(definition);
+		for (auto it = factories.begin(); it != factories.end();)
 		{
-			auto owner=it->compositor; auto factory=it->factory.get();
+			auto owner = it->compositor; auto factory = it->factory.get();
 			if (!owner || !factory)
 			{
-				it=factories.erase(it); continue;
+				it = factories.erase(it); continue;
 			}
 			if (owner == compositor && it->id == definition->id)return factory;
 			++it;
 		}
-		auto paths=winrt::single_threaded_vector<winrt::hstring>();
+		auto paths = winrt::single_threaded_vector<winrt::hstring>();
 		for (auto const& p : definition->properties)paths.Append(definition->effectName + L"." + p.name);
-		auto factory=compositor.CreateEffectFactory(effect, paths);
+		auto factory = compositor.CreateEffectFactory(effect, paths);
 		if (factory.try_as<::IWeakReferenceSource>())
 			factories.push_back({ compositor,winrt::make_weak(factory),definition->id });
 		return factory;
 	}
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateColorEffect(winrt::guid const& id, std::string_view shader)
 	{
-		auto definition=std::make_shared<EffectDefinition>(); definition->id=id; definition->shader=shader; return Compile(definition);
+		auto definition = std::make_shared<EffectDefinition>(); definition->id = id; definition->shader = shader; return Compile(definition);
 	}
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateSamplerEffect(winrt::guid const& id, std::string_view shader)
 	{
-		auto definition=std::make_shared<EffectDefinition>(); definition->id=id; definition->shader=shader; definition->sampler=true; return Compile(definition);
+		auto definition = std::make_shared<EffectDefinition>(); definition->id = id; definition->shader = shader; definition->sampler = true; return Compile(definition);
 	}
 	winrt::Microsoft::UI::Composition::CompositionEffectBrush CreateBackdropBrush(winrt::Microsoft::UI::Composition::Compositor const& compositor, winrt::Windows::Graphics::Effects::IGraphicsEffect const& effect)
 	{
-		auto brush=compositor.CreateEffectFactory(effect).CreateBrush(); brush.SetSourceParameter(L"Backdrop", compositor.CreateBackdropBrush()); return brush;
+		auto brush = compositor.CreateEffectFactory(effect).CreateBrush(); brush.SetSourceParameter(L"Backdrop", compositor.CreateBackdropBrush()); return brush;
 	}
 	winrt::Microsoft::UI::Xaml::Media::XamlCompositionBrushBase AsXamlBrush(winrt::Microsoft::UI::Composition::CompositionBrush const& brush)
 	{

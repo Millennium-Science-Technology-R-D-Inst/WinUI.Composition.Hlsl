@@ -1,4 +1,8 @@
-﻿#pragma once
+﻿#include <guiddef.h>
+#include <windows.graphics.effects.interop.h>
+
+import std;
+import winrt.Windows.Graphics.Effects;
 
 namespace CustomEffectRuntime
 {
@@ -18,7 +22,7 @@ namespace CustomEffectRuntime
 	struct PropertyDescriptor
 	{
 		wchar_t const* publicName;
-		uint32_t index;
+		std::uint32_t index;
 		ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING mapping;
 		HRESULT(*getDefaultValue)(ABI::Windows::Foundation::IPropertyValue** value);
 		float initialScalar{};
@@ -27,17 +31,17 @@ namespace CustomEffectRuntime
 	struct NativePropertyMetadata
 	{
 		char const* shaderName;
-		uint32_t propertyOffset;
-		uint32_t expressionType;
-		uint32_t propertyType;
-		uint32_t valueCount;
+		std::uint32_t propertyOffset;
+		std::uint32_t expressionType;
+		std::uint32_t propertyType;
+		std::uint32_t valueCount;
 		void* validator;
 	};
 
 	struct ConstantBufferPropertyMapping
 	{
-		uint32_t propertyIndex;
-		uint32_t constantBufferOffset;
+		std::uint32_t propertyIndex;
+		std::uint32_t constantBufferOffset;
 	};
 
 	// DWM names this D3DShaderProfileVersion. It is a single byte at
@@ -77,9 +81,9 @@ namespace CustomEffectRuntime
 	//   So two stacked brushes (e.g. system GaussianBlur + LiquidGlass) do not
 	//   force a shared profile. Mixing a profile-2 custom body with a profile-1
 	//   wuceffectsi body in the *same* technique link still fails.
-	constexpr uint8_t kShaderProfileLevel91 = 0;
-	constexpr uint8_t kShaderProfileLevel93 = 1;
-	constexpr uint8_t kShaderProfilePs40 = 2;
+	constexpr std::uint8_t kShaderProfileLevel91 = 0;
+	constexpr std::uint8_t kShaderProfileLevel93 = 1;
+	constexpr std::uint8_t kShaderProfilePs40 = 2;
 
 	struct CustomEffectDefinition
 	{
@@ -99,25 +103,25 @@ namespace CustomEffectRuntime
 		char const* shaderFunctionName;
 
 		SourceDescriptor const* sources;
-		uint32_t sourceCount;
+		std::uint32_t sourceCount;
 
 		PropertyDescriptor const* properties;
-		uint32_t propertyCount;
+		std::uint32_t propertyCount;
 		void const* nativePropertyMetadata;
-		uint32_t nativePropertyMetadataCount;
-		uint32_t propertiesStructSize;
+		std::uint32_t nativePropertyMetadataCount;
+		std::uint32_t propertiesStructSize;
 
 		ConstantBufferPropertyMapping const* constantBufferProperties;
-		uint32_t constantBufferPropertyCount;
+		std::uint32_t constantBufferPropertyCount;
 
-		uint16_t const* shaderArguments;
-		uint64_t shaderArgumentCount;
-		uint16_t linkingArgType;
+		std::uint16_t const* shaderArguments;
+		std::uint64_t shaderArgumentCount;
+		std::uint16_t linkingArgType;
 		// Was misnamed hasCustomSamplers. DWM consumes this as
 		// D3DShaderProfileVersion (kShaderProfile*).
-		uint8_t shaderProfileVersion;
+		std::uint8_t shaderProfileVersion;
 
-		uint32_t constantBufferSize;
+		std::uint32_t constantBufferSize;
 		void const* constantBufferInitialValue;
 
 		bool flattenSourceBeforeCustomSampler;
@@ -127,7 +131,6 @@ namespace CustomEffectRuntime
 
 	void RegisterEffect(CustomEffectDefinition const& definition);
 
-	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
-		CustomEffectDefinition const& definition);
+	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(CustomEffectDefinition const& definition);
 }
 

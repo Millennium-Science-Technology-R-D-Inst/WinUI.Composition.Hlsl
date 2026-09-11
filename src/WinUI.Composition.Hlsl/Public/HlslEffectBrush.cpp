@@ -1,7 +1,6 @@
-﻿#include "pch.h"
-#include "HlslEffectBrush.h"
+﻿#include "HlslEffectBrush.h"
 #include "HlslEffectBrush.g.cpp"
-#include <cmath>
+
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	void HlslEffectBrush::SetSource(hstring const& name, Microsoft::UI::Composition::CompositionBrush const& source)

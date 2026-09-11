@@ -1,6 +1,8 @@
 ﻿#pragma once
-#include <winrt/Microsoft.UI.Composition.h>
-#include <winrt/Microsoft.UI.Xaml.Media.h>
+#include <Windows.h>
+
+import winrt.Microsoft.UI.Composition;
+import winrt.Microsoft.UI.Xaml.Media;
 
 namespace hlsl::xaml
 {

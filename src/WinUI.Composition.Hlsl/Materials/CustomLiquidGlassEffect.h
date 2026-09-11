@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "EffectDefinition.h"
+import WinUI.Composition.Hlsl.EffectDef;
 
 namespace CustomLiquidGlassEffect
 {

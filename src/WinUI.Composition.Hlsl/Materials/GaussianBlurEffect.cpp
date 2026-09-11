@@ -1,5 +1,11 @@
-﻿#include "pch.h"
+﻿#include <d2d1effects.h>
+#include <Windows.h>
+#include <windows.graphics.effects.interop.h>
 #include "GaussianBlurEffect.h"
+
+import winrt.Microsoft.UI.Composition;
+import winrt.Windows.Foundation;
+import winrt.Windows.Graphics.Effects;
 
 using namespace winrt;
 using namespace Microsoft::UI::Composition;

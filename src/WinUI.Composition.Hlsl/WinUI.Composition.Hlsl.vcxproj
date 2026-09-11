@@ -11,10 +11,13 @@
     <AppContainerApplication>false</AppContainerApplication>
     <ApplicationType>Windows Store</ApplicationType>
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
-    <WindowsTargetPlatformVersion>10.0.28000.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <UseWinUI>true</UseWinUI>
     <DesktopCompatible>true</DesktopCompatible>
     <EnableNativePackageReferenceSupport>true</EnableNativePackageReferenceSupport>
+    <CppWinRTModuleExclude>Windows.AI;Windows.UI.Xaml</CppWinRTModuleExclude>
+    <CppWinRTProjectLanguage>C++/WinRT</CppWinRTProjectLanguage>
+    <CppWinRTUsePrefixes>false</CppWinRTUsePrefixes>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)/Microsoft.Cpp.Default.props" />
   <ItemGroup Label="ProjectConfigurations">
@@ -77,12 +80,30 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <LanguageStandard>stdcpp23</LanguageStandard>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
       <AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>_WINRT_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINRT_DLL;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(IntDir);$(ProjectDir);$(ProjectDir)Public;$(ProjectDir)Effects;$(ProjectDir)Runtime;$(ProjectDir)Materials;$(ProjectDir)Internal;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">stdc17</LanguageStandard_C>
+      <BuildStlModules Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">true</BuildStlModules>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">stdc17</LanguageStandard_C>
+      <BuildStlModules Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">true</BuildStlModules>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">stdc17</LanguageStandard_C>
+      <BuildStlModules Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</BuildStlModules>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">stdc17</LanguageStandard_C>
+      <BuildStlModules Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</BuildStlModules>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">stdc17</LanguageStandard_C>
+      <BuildStlModules Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</BuildStlModules>
+      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Release|x64'">stdc17</LanguageStandard_C>
+      <BuildStlModules Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</BuildStlModules>
+      <UndefinePreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">GetCurrentTime;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">GetCurrentTime;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">GetCurrentTime;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">GetCurrentTime;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">GetCurrentTime;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">GetCurrentTime;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
       <ModuleDefinitionFile>WinUI.Composition.Hlsl.def</ModuleDefinitionFile>
@@ -91,78 +112,53 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="pch.cpp">
-      <PrecompiledHeader>Create</PrecompiledHeader>
-    </ClCompile>
     <ClInclude Include="pch.h" />
-    <ClCompile Include="Effects\EffectEngine.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Effects\EffectEngine.cpp" />
     <ClInclude Include="Effects\EffectEngine.h" />
-    <ClCompile Include="Materials\CustomLiquidGlassEffect.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Materials\CustomLiquidGlassEffect.cpp" />
     <ClInclude Include="Materials\CustomLiquidGlassEffect.h" />
-    <ClCompile Include="Materials\GaussianBlurEffect.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Materials\GaussianBlurEffect.cpp" />
     <ClInclude Include="Materials\GaussianBlurEffect.h" />
-    <ClCompile Include="Public\HlslComposition.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Public\HlslComposition.cpp" />
     <ClInclude Include="Public\HlslComposition.h" />
-    <ClCompile Include="Public\HlslEffect.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Public\HlslEffect.cpp" />
     <ClInclude Include="Public\HlslEffect.h" />
-    <ClCompile Include="Public\HlslEffectBrush.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Public\HlslEffectBrush.cpp" />
     <ClInclude Include="Public\HlslEffectBrush.h" />
-    <ClCompile Include="Public\HlslEffectFactory.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Public\HlslEffectFactory.cpp" />
     <ClInclude Include="Public\HlslEffectFactory.h" />
-    <ClCompile Include="Public\LiquidGlassBrush.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Public\LiquidGlassBrush.cpp" />
     <ClInclude Include="Public\LiquidGlassBrush.h" />
-    <ClCompile Include="Public\LiquidGlassMaterial.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Public\LiquidGlassMaterial.cpp" />
     <ClInclude Include="Public\LiquidGlassMaterial.h" />
     <ClCompile Include="Runtime\CustomEffectRuntime.cpp">
       <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
-      <PrecompiledHeader>Use</PrecompiledHeader>
     </ClCompile>
     <ClInclude Include="Runtime\CustomEffectRuntime.h" />
     <ClInclude Include="Runtime\Runtime240.h" />
     <ClInclude Include="Runtime\RuntimeResolver.h" />
-    <ClCompile Include="Internal/Validation.ixx">
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="Internal/Validation.ixx" />
     <Midl Include="Public/Api.idl" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Windows.CppWinRT" />
-    <PackageReference Include="Microsoft.Windows.ImplementationLibrary" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" />
-  </ItemGroup>
-  <Import Project="$(VCTargetsPath)/Microsoft.Cpp.targets" />
-  <ItemGroup>
-    <ClInclude Include="Effects/EffectDefinition.h" />
+    <ClCompile Include="Effects\EffectDefinition.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
     <ClInclude Include="Runtime/EffectRegistration.h" />
     <ClInclude Include="Public/HlslFloatProperty.h" />
     <ClCompile Include="Public/HlslFloatProperty.cpp" />
     <ClCompile Include="Runtime/UnsupportedRuntime.cpp">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="Internal/XamlHlslBrushBase.h" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.CppWinRT" />
+    <PackageReference Include="Microsoft.Windows.ImplementationLibrary" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="YexuanXiao.CppWinRTPlus.Ext" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)/Microsoft.Cpp.targets" />
   <ItemGroup>
     <FxCompile Include="Shaders\LiquidGlass.hlsl">
       <EntryPointName />

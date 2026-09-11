@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "CustomEffectRuntime.h"
+﻿#include "CustomEffectRuntime.h"
 #include "EffectRegistration.h"
 #include "Runtime240.h"
 #include "RuntimeResolver.h"

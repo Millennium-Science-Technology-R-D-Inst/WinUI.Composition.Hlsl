@@ -1,7 +1,11 @@
-﻿#include "pch.h"
+﻿#include <Windows.h>
+
 #include "CustomLiquidGlassEffect.h"
 #include "CustomEffectRuntime.h"
 #include "LiquidGlassShader.g.h"
+
+import winrt.Windows.Foundation;
+import WinUI.Composition.Hlsl.EffectDef;
 
 using namespace winrt;
 
@@ -173,7 +177,7 @@ namespace
 
 namespace CustomLiquidGlassEffect
 {
-	hlsl::engine::Definition Description()
+	std::shared_ptr<EffectDefinition const> Description()
 	{
 		static auto value=[]
 			{

@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "HlslEffectFactory.h"
+﻿#include "HlslEffectFactory.h"
 #include "HlslEffectFactory.g.cpp"
 #include "HlslEffectBrush.h"
 namespace winrt::WinUI::Composition::Hlsl::implementation

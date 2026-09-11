@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "HlslComposition.h"
+﻿#include "HlslComposition.h"
 #include "HlslComposition.g.cpp"
 #include "HlslEffect.h"
 #include "HlslEffectFactory.h"

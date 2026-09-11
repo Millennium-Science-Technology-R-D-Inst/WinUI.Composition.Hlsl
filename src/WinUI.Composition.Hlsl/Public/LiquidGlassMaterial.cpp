@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "LiquidGlassMaterial.h"
+﻿#include "LiquidGlassMaterial.h"
 #include "LiquidGlassMaterial.g.cpp"
 #include "HlslEffectFactory.h"
 #include "CustomLiquidGlassEffect.h"
