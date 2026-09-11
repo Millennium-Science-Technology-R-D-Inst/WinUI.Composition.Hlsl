@@ -48,52 +48,57 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float sdf = RoundedRectSdf(local, halfRect, radius);
     const float feather = max(edgeSoftness, 1.0f);
     const float alpha = saturate((feather - sdf) / feather) * materialOpacity;
-    if (alpha <= 0.0f)
+
+    // FXC's SM4 library compiler can emit a false-positive X4000 for helper
+    // functions with a mid-function return. Keep one initialized return value and
+    // one final return instead of weakening /WX for the whole shader build.
+    float4 result = 0.0f.xxxx;
+    if (alpha > 0.0f)
     {
-        return 0.0f.xxxx;
+        const float innerDistance = max(-sdf, 0.0f);
+        const float halfMinSize = max(min(halfRect.x, halfRect.y), 1.0f);
+        const float2 domeCoord = local / max(halfRect, 1.0f.xx);
+        const float domeRadius = saturate(length(domeCoord));
+        const float domeDepth = (1.0f - domeRadius) * halfMinSize;
+        const float2 domeNormal = normalize(domeCoord + 1e-5f.xx);
+        const float edgeFactor = 1.0f - saturate(innerDistance / max(radius, 1.0f));
+        const float interiorFactor = saturate(domeDepth / halfMinSize);
+        const float edgeDistance = max(borderThickness * 4.0f + feather * 2.0f, 1.0f);
+        const float rimDistance = max(borderThickness * 2.0f + 1.0f, 1.0f);
+        const float edgeIntensity = exp(-innerDistance / edgeDistance) * 0.85f;
+        const float rimIntensity = exp(-innerDistance / rimDistance) * 0.25f;
+        const float centerFade = 1.0f - smoothstep(
+            halfMinSize * 0.08f,
+            halfMinSize * 0.55f,
+            domeDepth);
+        const float refractionWeight = (edgeIntensity + rimIntensity) * centerFade;
+        const float dispersionWeight = edgeIntensity * centerFade;
+
+        const float2 refractUv = uv - domeNormal * texelSize * refractionStrength * refractionWeight;
+        const float2 dispersionOffset = domeNormal * texelSize * dispersionStrength * dispersionWeight;
+
+        float3 color = float3(
+            SampleTransmission(refractUv - dispersionOffset).r,
+            SampleTransmission(refractUv).g,
+            SampleTransmission(refractUv + dispersionOffset).b);
+        color = lerp(color, 1.0f.xxx, 0.08f + interiorFactor * 0.06f);
+
+        const float borderMask = 1.0f - smoothstep(borderThickness, borderThickness + feather, innerDistance);
+        const float innerGlow = 1.0f - smoothstep(borderThickness * 2.0f, borderThickness * 6.0f + feather, innerDistance);
+        const float domeHeight = sqrt(saturate(1.0f - dot(domeCoord, domeCoord)));
+        const float3 surfaceNormal = normalize(float3(-domeCoord * 0.35f, 0.45f + domeHeight * 0.75f));
+        const float3 lightDir = normalize(float3(-0.35f, -0.45f, 0.82f));
+        const float specular = pow(saturate(dot(surfaceNormal, lightDir)), 18.0f) * (0.20f + edgeFactor * 0.50f);
+        const float topSweep = pow(saturate(1.0f - localPosition.y / rectSize.y), 2.5f) * (0.15f + edgeFactor * 0.20f);
+
+        color += (specular * 0.28f + topSweep * 0.12f + innerGlow * 0.10f) * highlightStrength;
+        color = lerp(color, 1.0f.xxx, borderMask * 0.22f * highlightStrength);
+        color = saturate(color);
+
+        result = float4(color * alpha, alpha);
     }
 
-    const float innerDistance = max(-sdf, 0.0f);
-    const float halfMinSize = max(min(halfRect.x, halfRect.y), 1.0f);
-    const float2 domeCoord = local / max(halfRect, 1.0f.xx);
-    const float domeRadius = saturate(length(domeCoord));
-    const float domeDepth = (1.0f - domeRadius) * halfMinSize;
-    const float2 domeNormal = normalize(domeCoord + 1e-5f.xx);
-    const float edgeFactor = 1.0f - saturate(innerDistance / max(radius, 1.0f));
-    const float interiorFactor = saturate(domeDepth / halfMinSize);
-    const float edgeDistance = max(borderThickness * 4.0f + feather * 2.0f, 1.0f);
-    const float rimDistance = max(borderThickness * 2.0f + 1.0f, 1.0f);
-    const float edgeIntensity = exp(-innerDistance / edgeDistance) * 0.85f;
-    const float rimIntensity = exp(-innerDistance / rimDistance) * 0.25f;
-    const float centerFade = 1.0f - smoothstep(
-        halfMinSize * 0.08f,
-        halfMinSize * 0.55f,
-        domeDepth);
-    const float refractionWeight = (edgeIntensity + rimIntensity) * centerFade;
-    const float dispersionWeight = edgeIntensity * centerFade;
-
-    const float2 refractUv = uv - domeNormal * texelSize * refractionStrength * refractionWeight;
-    const float2 dispersionOffset = domeNormal * texelSize * dispersionStrength * dispersionWeight;
-
-    float3 color = float3(
-        SampleTransmission(refractUv - dispersionOffset).r,
-        SampleTransmission(refractUv).g,
-        SampleTransmission(refractUv + dispersionOffset).b);
-    color = lerp(color, 1.0f.xxx, 0.08f + interiorFactor * 0.06f);
-
-    const float borderMask = 1.0f - smoothstep(borderThickness, borderThickness + feather, innerDistance);
-    const float innerGlow = 1.0f - smoothstep(borderThickness * 2.0f, borderThickness * 6.0f + feather, innerDistance);
-    const float domeHeight = sqrt(saturate(1.0f - dot(domeCoord, domeCoord)));
-    const float3 surfaceNormal = normalize(float3(-domeCoord * 0.35f, 0.45f + domeHeight * 0.75f));
-    const float3 lightDir = normalize(float3(-0.35f, -0.45f, 0.82f));
-    const float specular = pow(saturate(dot(surfaceNormal, lightDir)), 18.0f) * (0.20f + edgeFactor * 0.50f);
-    const float topSweep = pow(saturate(1.0f - localPosition.y / rectSize.y), 2.5f) * (0.15f + edgeFactor * 0.20f);
-
-    color += (specular * 0.28f + topSweep * 0.12f + innerGlow * 0.10f) * highlightStrength;
-    color = lerp(color, 1.0f.xxx, borderMask * 0.22f * highlightStrength);
-    color = saturate(color);
-
-    return float4(color * alpha, alpha);
+    return result;
 }
 
 // DWM appends sampler edge-mode suffixes for custom sampler bodies.
