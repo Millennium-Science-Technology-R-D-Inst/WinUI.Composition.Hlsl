@@ -15,7 +15,7 @@ float RoundedRectSdf(float2 p, float2 halfSize, float radius)
 
 float4 SampleTransmission(float2 uv)
 {
-    // The source is materialized by the upstream native GaussianBlur brush pass.
+    // The source is materialized by the upstream native GaussianBlur graph stage.
     return texture0.Sample(sampler0, uv);
 }
 
@@ -94,11 +94,17 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         color = lerp(color, 1.0f.xxx, borderMask * 0.22f * highlightStrength);
         color = saturate(color);
 
+        // Composition expects premultiplied-alpha output from this material.
         result = float4(color * alpha, alpha);
     }
 
     return result;
 }
+
+// MaterializedTexture lowering uses this color passthrough for the source and
+// final wrapper subgraphs. The custom sampler itself remains linked into the
+// final consumer fragment so its SDF is evaluated at destination resolution.
+export float4 MaterializeColor(float4 color) { return color; }
 
 // DWM appends sampler edge-mode suffixes for custom sampler bodies.
 export float4 PSBody(float2 uv, float4 samplerDataExt, float4 samplerData) { return LiquidGlassCore(uv, samplerDataExt, samplerData); }

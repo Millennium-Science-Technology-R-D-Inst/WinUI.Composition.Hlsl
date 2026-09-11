@@ -1,9 +1,12 @@
-﻿#include "LiquidGlassMaterial.h"
+#include "LiquidGlassMaterial.h"
 #include "LiquidGlassMaterial.g.cpp"
 #include "HlslEffectFactory.h"
 #include "CustomLiquidGlassEffect.h"
+
+import winrt.Windows.Graphics.Effects;
 import WinUI.Composition.Hlsl.GaussianBlurEffect;
 import WinUI.Composition.Hlsl.Validation;
+
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	namespace
@@ -27,19 +30,31 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		if (!compositor)
 			throw hresult_invalid_argument();
 
-		auto blurProperties = single_threaded_vector<hstring>();
-		blurProperties.Append(GaussianBlurEffect::BlurAmountPropertyPath);
-		auto blurFactory = compositor.CreateEffectFactory(
-			GaussianBlurEffect::CreateEffect(L"Backdrop", RadiusToStandardDeviation(m_BlurRadius)),
-			blurProperties);
-		m_blurEffect = blurFactory.CreateBrush();
-		m_blurEffect.SetSourceParameter(L"Backdrop", compositor.CreateBackdropBrush());
+		// Keep GaussianBlur and the custom sampler in one effect description. A
+		// CompositionEffectBrush is not a supported SetSourceParameter input for
+		// another CompositionEffectBrush; the MaterializedTexture lowering path is
+		// responsible for turning this native upstream graph into the Texture2D that
+		// the custom sampler needs.
+		auto blurEffect = GaussianBlurEffect::CreateEffect(
+			GaussianBlurEffect::LiquidGlassBlurEffectName,
+			Windows::Graphics::Effects::CompositionEffectSourceParameter(L"Backdrop"),
+			RadiusToStandardDeviation(m_BlurRadius));
+		auto graph = CustomLiquidGlassEffect::CreateEffect(blurEffect);
+
+		auto animatableProperties = single_threaded_vector<hstring>();
+		animatableProperties.Append(GaussianBlurEffect::LiquidGlassBlurAmountPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::RefractionStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::CornerRadiusPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::BorderThicknessPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::HighlightStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::DispersionStrengthPropertyPath);
 
 		auto definition = CustomLiquidGlassEffect::Description();
-		auto factory = make<implementation::HlslEffectFactory>(
-			hlsl::engine::GetFactory(compositor, definition), definition);
+		auto compositionFactory = compositor.CreateEffectFactory(graph, animatableProperties);
+		auto factory = make<implementation::HlslEffectFactory>(compositionFactory, definition);
 		m_effect = factory.CreateBrush();
-		m_effect.SetSource(L"Backdrop", m_blurEffect);
+		m_compositionEffect = m_effect.Brush().as<Microsoft::UI::Composition::CompositionEffectBrush>();
+		m_effect.SetSource(L"Backdrop", compositor.CreateBackdropBrush());
 		m_effect.SetFloat(L"RefractionStrength", m_RefractionStrength);
 		m_effect.SetFloat(L"DispersionStrength", m_DispersionStrength);
 		m_effect.SetFloat(L"CornerRadius", m_CornerRadius);
@@ -49,8 +64,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	void LiquidGlassMaterial::BlurRadius(float value)
 	{
 		ValidateBlurRadius(value);
-		m_blurEffect.Properties().InsertScalar(
-			GaussianBlurEffect::BlurAmountPropertyPath,
+		m_compositionEffect.Properties().InsertScalar(
+			GaussianBlurEffect::LiquidGlassBlurAmountPropertyPath,
 			RadiusToStandardDeviation(value));
 		m_BlurRadius = value;
 	}

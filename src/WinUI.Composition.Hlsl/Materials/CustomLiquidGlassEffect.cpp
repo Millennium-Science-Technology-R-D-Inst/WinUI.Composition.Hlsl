@@ -1,4 +1,4 @@
-﻿#include <Windows.h>
+#include <Windows.h>
 #include <windows.graphics.effects.interop.h>
 
 #include "CustomLiquidGlassEffect.h"
@@ -160,9 +160,12 @@ namespace
 		CustomEffectRuntime::kShaderProfilePs40,
 		sizeof(kInitialConstants),
 		&kInitialConstants,
-		CustomEffectRuntime::CustomEffectInputMode::LinkedColor,
-		CustomEffectRuntime::GraphLoweringPolicy::SingleCustom,
-		nullptr,
+		// A custom sampler needs arbitrary UV access to the blurred input. Ask the
+		// runtime to materialize the upstream native graph into a real texture,
+		// rather than treating its output as a linked color dependency.
+		CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture,
+		CustomEffectRuntime::GraphLoweringPolicy::MaterializedInput,
+		"MaterializeColor",
 	};
 }
 
@@ -187,5 +190,15 @@ namespace CustomLiquidGlassEffect
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect()
 	{
 		return CustomEffectRuntime::CreateEffect(kDefinition);
+	}
+
+	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
+		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source)
+	{
+		if (!source)
+		{
+			throw hresult_invalid_argument(L"LiquidGlass requires a non-null materialized source graph.");
+		}
+		return CustomEffectRuntime::CreateEffect(kDefinition, source);
 	}
 }

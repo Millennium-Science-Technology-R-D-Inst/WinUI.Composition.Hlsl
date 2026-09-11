@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 import WinUI.Composition.Hlsl.EffectDef;
 import winrt.Windows.Graphics.Effects;
 
@@ -13,5 +13,6 @@ namespace CustomLiquidGlassEffect
 
 	hlsl::engine::Definition Description();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect();
+	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
+		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source);
 }
-

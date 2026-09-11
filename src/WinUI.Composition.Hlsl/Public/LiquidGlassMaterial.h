@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef WINRT_IMPORT_MODULE
 #define WINRT_IMPORT_MODULE
 #endif
@@ -44,14 +44,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void HighlightStrength(float value);
 	private:
 		Hlsl::HlslEffectBrush m_effect{ nullptr };
-		Microsoft::UI::Composition::CompositionEffectBrush m_blurEffect{ nullptr };
+		Microsoft::UI::Composition::CompositionEffectBrush m_compositionEffect{ nullptr };
 		float m_BlurRadius{ 12.0f };
 		float m_RefractionStrength{ 24.0f };
 		float m_DispersionStrength{ 1.2f };
 		float m_CornerRadius{ 12.0f };
 		float m_BorderThickness{ 1.0f };
 		float m_HighlightStrength{ 0.8f };
-
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation
