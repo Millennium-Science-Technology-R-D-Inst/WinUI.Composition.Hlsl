@@ -7,14 +7,14 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	namespace
 	{
 		void AppendProperties(
-			hlsl::engine::Definition const& definition,
+			hlsl::engine::EffectDefinition& definition,
 			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties)
 		{
 			if (!properties) return;
 			for (auto const& property : properties)
 			{
 				if (!property) throw hresult_invalid_argument(L"A property descriptor is null.");
-				definition->properties.push_back({ std::wstring(property.Name()),property.DefaultValue(),property.Minimum(),property.Maximum() });
+				definition.properties.push_back({ std::wstring(property.Name()),property.DefaultValue(),property.Minimum(),property.Maximum() });
 			}
 		}
 
@@ -27,7 +27,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			auto definition=std::make_shared<hlsl::engine::EffectDefinition>();
 			definition->shader=to_string(shader); definition->sampler=sampler; definition->sourceName=sourceName;
-			AppendProperties(definition, properties);
+			AppendProperties(*definition, properties);
 			hlsl::engine::Validate(*definition);
 			definition->id=id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
 			return make<HlslEffect>(definition);
@@ -53,7 +53,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				case Hlsl::HlslShaderProfile::Pixel40: definition->shaderProfile = CustomEffectRuntime::kShaderProfilePs40; break;
 				default: throw hresult_invalid_argument(L"Unknown shader profile.");
 			}
-			AppendProperties(definition, properties);
+			AppendProperties(*definition, properties);
 			std::vector<std::wstring> propertyNames;
 			propertyNames.reserve(definition->properties.size());
 			for (auto const& property : definition->properties)
