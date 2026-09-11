@@ -2,7 +2,7 @@
 
 Provides a Composition-level instance of the built-in Liquid Glass effect.
 
-The material uses a native D2D Gaussian brush pass followed by the custom HLSL sampler. The native stage uses balanced optimization and hard borders; the brush boundary materializes its output before refraction, dispersion, shape, and highlights.
+The material is described as one Composition effect graph: native D2D Gaussian blur -> custom HLSL sampler. The runtime's `MaterializedTexture` lowering emits an explicit intermediate texture boundary for the native upstream graph so the custom sampler can perform arbitrary UV sampling. The custom sampler remains linked into the final output subgraph instead of being rendered into the Gaussian blur's internal prescale target.
 
 The built-in LiquidGlass shader is compiled at build time with the Visual C++/Windows SDK FXC MSBuild task as an SM4 shader-linking library. The generated DXBC bytecode is embedded in the native DLL; runtime `D3DCompile` remains available only for dynamic source-based `HlslEffect` APIs.
 
