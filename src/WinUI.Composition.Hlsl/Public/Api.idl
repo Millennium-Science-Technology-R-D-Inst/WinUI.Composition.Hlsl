@@ -1,6 +1,12 @@
 ﻿namespace WinUI.Composition.Hlsl
 {
     enum HlslEffectKind { Color, Sampler };
+    enum HlslShaderProfile { Level91, Level93, Pixel40 };
+    [default_interface] runtimeclass HlslShaderLibrary
+    {
+        static HlslShaderLibrary Create(Windows.Storage.Streams.IBuffer bytecode, HlslShaderProfile profile);
+        HlslShaderProfile Profile{ get; };
+    }
     [default_interface] runtimeclass HlslFloatProperty
     {
         HlslFloatProperty(String name, Single defaultValue, Single minimum, Single maximum);
@@ -18,6 +24,8 @@
         static HlslEffect CreateSampler(Guid id, String shader);
         static HlslEffect CreateColorTransform(String shader);
         static HlslEffect CreateCustomSampler(String shader);
+        static HlslEffect CreateCompiledColor(Guid id, HlslShaderLibrary shader);
+        static HlslEffect CreateCompiledSampler(Guid id, HlslShaderLibrary shader);
         static HlslEffect CreateColorWithProperties(String shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         static HlslEffect CreateSamplerWithProperties(String shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         Guid Id{ get; };

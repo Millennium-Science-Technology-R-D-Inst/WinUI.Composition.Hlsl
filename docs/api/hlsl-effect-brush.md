@@ -1,9 +1,9 @@
-﻿# HlslEffectBrush class
+# HlslEffectBrush class
 
 Wraps the native `CompositionEffectBrush` created for an `HlslEffect` schema.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.7  
+**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
 

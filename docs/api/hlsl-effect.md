@@ -1,9 +1,9 @@
-﻿# HlslEffect class
+# HlslEffect class
 
 Describes an immutable HLSL effect.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.7  
+**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
 
@@ -61,6 +61,10 @@ Each property is emitted into the shader constant buffer and becomes animatable 
 
 Creates an effect with an explicitly supplied ID. Use these overloads when an external contract already owns the GUID. Reusing a GUID for a different description throws an exception when the effect is registered.
 
+### CreateCompiledColor / CreateCompiledSampler
+
+Creates an effect from an immutable [HlslShaderLibrary](hlsl-shader-library.md). These overloads do not call `D3DCompile` at runtime.
+
 ## Exceptions
 
 | Exception | Condition |
@@ -70,4 +74,4 @@ Creates an effect with an explicitly supplied ID. Use these overloads when an ex
 
 ## Applies to
 
-Windows App SDK 2.4; WinUI.Composition.Hlsl 0.1.0-preview.7.
+Windows App SDK 2.4; WinUI.Composition.Hlsl 0.1.0-preview.8.

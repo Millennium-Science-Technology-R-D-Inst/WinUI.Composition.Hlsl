@@ -23,12 +23,16 @@ namespace hlsl::engine
 		}
 		std::string Key(EffectDefinition const& definition)
 		{
-			std::string result = definition.sampler ? "sampler-v1:" : "color-v1:";
+			std::string result = definition.sampler ? "sampler-v2:" : "color-v2:";
 			auto append = [&](std::string const& value)
 				{
 					result += std::to_string(value.size()) + ":" + value;
 				};
-			append(definition.shader); append(winrt::to_string(definition.sourceName)); append(winrt::to_string(definition.effectName));
+			append(definition.shader);
+			append(definition.shaderBytecode.empty() ? std::string{} :
+				std::string(reinterpret_cast<char const*>(definition.shaderBytecode.data()), definition.shaderBytecode.size()));
+			result += ":" + std::to_string(definition.shaderProfile);
+			append(winrt::to_string(definition.sourceName)); append(winrt::to_string(definition.effectName));
 			for (auto const& p : definition.properties)
 			{
 				append(winrt::to_string(p.name));
@@ -49,7 +53,7 @@ namespace hlsl::engine
 			CustomEffectRuntime::CustomEffectDefinition native{};
 			explicit Program(EffectDefinition const& description) :key(Key(description))
 			{
-				if (description.sampler)code = "Texture2D texture0; SamplerState sampler0;\n";
+				if (description.shaderBytecode.empty() && description.sampler)code = "Texture2D texture0; SamplerState sampler0;\n";
 				if (!description.properties.empty())
 				{
 					code += "cbuffer UserConstants : register(b0) {\n";
@@ -66,23 +70,34 @@ namespace hlsl::engine
 					for (size_t i = 0; i < names.size(); ++i)metadata.push_back({ names[i].c_str(),static_cast<uint32_t>(i * 4),18,8,1,nullptr });
 					code += "};\n";
 				}
-				code += "#line 1 \"UserShader.hlsl\"\n" + description.shader;
-				if (description.sampler)
+				if (description.shaderBytecode.empty())
 				{
-					for (auto suffix : { "","CC","CW","CM","WC","WW","WM","MC","MW","MM","C","W","M" })
-						code += "\n#line 1 \"GeneratedShader.hlsl\"\nexport float4 PSBody" + std::string(suffix) + "(float2 uv,float4 info){return Shade(uv,info);}\n";
-					arguments[0] = 0x0100; arguments[1] = 0x0400;
+					code += "#line 1 \"UserShader.hlsl\"\n" + description.shader;
+					if (description.sampler)
+					{
+						for (auto suffix : { "","CC","CW","CM","WC","WW","WM","MC","MW","MM","C","W","M" })
+							code += "\n#line 1 \"GeneratedShader.hlsl\"\nexport float4 PSBody" + std::string(suffix) + "(float2 uv,float4 info){return Shade(uv,info);}\n";
+					}
 				}
+				if (description.sampler) { arguments[0] = 0x0100; arguments[1] = 0x0400; }
 				source = { description.sourceName.c_str(),CustomEffectRuntime::SourceKind::Backdrop,false,description.sampler };
 				native.descriptorKey = key.c_str(); native.id = description.id; native.effectName = description.effectName.c_str(); native.fragmentName = "AppHlslEffect";
-				native.shaderSource = code.c_str(); native.shaderSourceSize = code.size(); native.shaderFunctionName = "PSBody";
+				if (description.shaderBytecode.empty())
+				{
+					native.shaderSource = code.c_str(); native.shaderSourceSize = code.size();
+				}
+				else
+				{
+					native.shaderBytecode = description.shaderBytecode.data(); native.shaderBytecodeSize = description.shaderBytecode.size();
+				}
+				native.shaderFunctionName = "PSBody";
 				native.sources = &source; native.sourceCount = 1; native.properties = properties.data(); native.propertyCount = static_cast<uint32_t>(properties.size());
 				native.nativePropertyMetadata = metadata.data(); native.nativePropertyMetadataCount = static_cast<uint32_t>(metadata.size());
 				native.propertiesStructSize = static_cast<uint32_t>(constants.size() * 4);
 				native.constantBufferProperties = mappings.data(); native.constantBufferPropertyCount = static_cast<uint32_t>(mappings.size());
 				native.constantBufferSize = static_cast<uint32_t>(constants.size() * 4); native.constantBufferInitialValue = constants.data();
 				native.shaderArguments = arguments; native.shaderArgumentCount = description.sampler ? 2 : 1; native.linkingArgType = description.sampler ? 0x0200 : 0;
-				native.shaderProfileVersion = CustomEffectRuntime::kShaderProfileLevel93;
+				native.shaderProfileVersion = description.shaderProfile;
 			}
 		};
 		struct CachedFactory
@@ -111,8 +126,11 @@ namespace hlsl::engine
 	}
 	void Validate(EffectDefinition const& definition)
 	{
-		if (definition.shader.empty() || definition.shader.size() > 1024 * 1024 || definition.shader.find('\0') != std::string::npos)
-			throw winrt::hresult_invalid_argument(L"Shader source must contain 1 to 1048576 UTF-8 bytes without NUL.");
+		auto const hasSource = !definition.shader.empty();
+		auto const hasBytecode = !definition.shaderBytecode.empty();
+		if (hasSource == hasBytecode || definition.shader.size() > 1024 * 1024 || definition.shader.find('\0') != std::string::npos ||
+			definition.shaderBytecode.size() > 16 * 1024 * 1024)
+			throw winrt::hresult_invalid_argument(L"Specify exactly one valid HLSL source or DXBC library payload.");
 		if (!Identifier(definition.sourceName) || definition.properties.size() > 64)throw winrt::hresult_invalid_argument(L"Invalid source name or too many scalar properties.");
 		std::set<std::wstring> names;
 		for (auto const& p : definition.properties)

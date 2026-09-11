@@ -109,11 +109,11 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 								  {
 									  switch (phase++)
 									  {
-										  case 0: self->EffectSelector().SelectedIndex(3); break;
-										  case 1: self->EffectSelector().SelectedIndex(2); break;
-										  case 2: self->EffectSelector().SelectedIndex(4); break;
-										  case 3: self->RefractionStrengthSlider().Value(42); self->CornerRadiusSlider().Value(40); break;
-										  case 4: self->BackdropFrame().Width(500); self->BackdropFrame().Height(300); break;
+										  case 0: self->EffectSelector().SelectedIndex(4); break;
+										  case 1: self->RefractionStrengthSlider().Value(42); self->CornerRadiusSlider().Value(40); self->BlurRadiusSlider().Value(18); break;
+										  case 2: self->BackdropFrame().Width(500); self->BackdropFrame().Height(300); break;
+										  case 3: self->EffectSelector().SelectedIndex(3); break;
+										  case 4: self->EffectSelector().SelectedIndex(2); break;
 										  default:
 											  std::ofstream("smoke.log", std::ios::app) << "PASS: invert, sampler blur, glass, properties, resize\n";
 											  self->m_smokeTimer.Stop(); self->Close(); return;

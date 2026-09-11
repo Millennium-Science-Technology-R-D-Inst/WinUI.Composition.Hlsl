@@ -26,8 +26,9 @@ namespace
 		IGraphicsEffectSource,
 		ABI::Windows::Graphics::Effects::IGraphicsEffectD2D1Interop>
 	{
-		Effect(wchar_t const* sourceName, float blurAmount) :
-			m_source(sourceName),
+		Effect(wchar_t const* effectName, IGraphicsEffectSource const& source, float blurAmount) :
+			m_name(effectName),
+			m_source(source),
 			m_blurAmount(blurAmount)
 		{
 		}
@@ -174,8 +175,8 @@ namespace
 		}
 
 	private:
-		hstring m_name{ L"GaussianBlurEffect" };
-		CompositionEffectSourceParameter m_source{ nullptr };
+		hstring m_name;
+		IGraphicsEffectSource m_source{ nullptr };
 		float m_blurAmount{};
 	};
 }
@@ -186,7 +187,19 @@ namespace GaussianBlurEffect
 		wchar_t const* sourceName,
 		float blurAmount)
 	{
-		return make<Effect>(sourceName, blurAmount);
+		return make<Effect>(L"GaussianBlurEffect", CompositionEffectSourceParameter(sourceName), blurAmount);
+	}
+
+	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
+		wchar_t const* effectName,
+		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source,
+		float standardDeviation)
+	{
+		if (!effectName || !source)
+		{
+			throw hresult_invalid_argument();
+		}
+		return make<Effect>(effectName, source, standardDeviation);
 	}
 }
 

@@ -1,9 +1,9 @@
-﻿# HlslComposition class
+# HlslComposition class
 
 Provides static entry points for creating Composition and XAML objects.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.7  
+**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
 

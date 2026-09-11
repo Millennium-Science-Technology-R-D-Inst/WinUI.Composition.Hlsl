@@ -10,6 +10,23 @@
 		</Reference>
 		<ReferenceCopyLocalPaths Include="$(HlslNativeDll)"/>
 	</ItemGroup>
+	<ItemGroup Condition="'@(HlslCompositionShader)'!=''">
+		<FxCompile Include="@(HlslCompositionShader)">
+			<EntryPointName />
+			<ShaderType>Library</ShaderType>
+			<ShaderModel Condition="'%(HlslCompositionShader.ShaderModel)'==''">4.0</ShaderModel>
+			<HeaderFileOutput>$(IntDir)Hlsl\%(Filename).g.h</HeaderFileOutput>
+			<ObjectFileOutput>$(IntDir)Hlsl\%(Filename).dxbc</ObjectFileOutput>
+			<VariableName>g_%(Filename)_Shader</VariableName>
+			<TreatWarningAsError>true</TreatWarningAsError>
+			<SuppressStartupBanner>true</SuppressStartupBanner>
+			<AdditionalOptions>/Ges /O3 %(AdditionalOptions)</AdditionalOptions>
+		</FxCompile>
+	</ItemGroup>
+	<Target Name="HlslValidateCompositionShaderMetadata" BeforeTargets="PrepareForBuild" Condition="'@(HlslCompositionShader)'!=''">
+		<Error Condition="'%(HlslCompositionShader.Kind)'!='Color' and '%(HlslCompositionShader.Kind)'!='Sampler'"
+			Text="HlslCompositionShader %(Identity) must set Kind to Color or Sampler."/>
+	</Target>
 	<Target Name="HlslCheckNativeAsset" BeforeTargets="PrepareForBuild" Condition="!Exists('$(HlslNativeDll)')">
 		<Error Text="This WinUI.Composition.Hlsl package does not contain a native binary for $(HlslNativeArchitecture)."/>
 	</Target>

@@ -69,7 +69,7 @@ Offline 只使用现有 NuGet 缓存。两个消费测试直接引用本地 NuGe
 
 RuntimeResolver 根据机器码和引用关系解析入口，不把 DLL hash 当作自动兼容性的默认判据。Runtime240 记录历史审计数据，尚不能替代完整 ABI layout 验证。
 
-目前 native lowering 对单 custom-node/source 拓扑有主动检查，复杂图不会被静默替换成其中一个节点。多个效果可以通过独立 CompositionEffectBrush 的 source 串联。完整多节点编译、所有 ABI layout 的运行时推导和 sampler bounds 自验证仍是后续要完成的实现工作，不能仅凭入口 pattern 匹配宣称已经完成。
+目前 native lowering 会先检查 graph，再按语义策略处理单个 custom node。多个 custom shader node 或尚未实现的 mixed native/custom topology 会明确返回不支持，避免生成 malformed DWM packet 或静默漏编译；需要任意 UV 采样的 material 通过独立 brush 边界取得已物化纹理。完整的 mixed-graph lowering、多 custom-node pass partitioning、所有 ABI layout 的运行时推导和 sampler bounds 自验证仍是后续工作。
 
 x64 已有运行时实现。Win32/ARM64 项目配置被保留；当前尚未提供对应指令集的 native resolver，效果创建会明确失败，XAML brush 可回退实色。构建配置存在不等于该架构的 shader 路径已经验证。
 

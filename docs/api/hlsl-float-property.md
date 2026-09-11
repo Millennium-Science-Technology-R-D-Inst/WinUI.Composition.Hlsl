@@ -3,7 +3,7 @@
 Declares a scalar shader property.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.7  
+**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
 

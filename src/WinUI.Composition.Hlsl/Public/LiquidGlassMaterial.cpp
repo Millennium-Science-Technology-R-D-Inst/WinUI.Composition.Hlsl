@@ -6,28 +6,40 @@ import WinUI.Composition.Hlsl.GaussianBlurEffect;
 import WinUI.Composition.Hlsl.Validation;
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
+	namespace
+	{
+		constexpr float RadiusToStandardDeviation(float radius) noexcept
+		{
+			return radius / 3.0f;
+		}
+
+		void ValidateBlurRadius(float value)
+		{
+			if (!hlsl::validation::IsFiniteNonNegative(value) || value > 64.0f)
+			{
+				throw hresult_invalid_argument(L"BlurRadius must be finite and between 0 and 64 DIPs.");
+			}
+		}
+	}
+
 	LiquidGlassMaterial::LiquidGlassMaterial(Microsoft::UI::Composition::Compositor const& compositor)
 	{
 		if (!compositor)
 			throw hresult_invalid_argument();
 
-		// Keep the native Gaussian pass in its own factory. The private custom runtime
-		// deliberately does not lower arbitrary mixed native/custom graphs.
 		auto blurProperties = single_threaded_vector<hstring>();
 		blurProperties.Append(GaussianBlurEffect::BlurAmountPropertyPath);
 		auto blurFactory = compositor.CreateEffectFactory(
-			GaussianBlurEffect::CreateEffect(L"Backdrop", m_BlurRadius),
+			GaussianBlurEffect::CreateEffect(L"Backdrop", RadiusToStandardDeviation(m_BlurRadius)),
 			blurProperties);
 		m_blurEffect = blurFactory.CreateBrush();
 		m_blurEffect.SetSourceParameter(L"Backdrop", compositor.CreateBackdropBrush());
 
 		auto definition = CustomLiquidGlassEffect::Description();
-		auto factory = make<implementation::HlslEffectFactory>(hlsl::engine::GetFactory(compositor, definition), definition);
+		auto factory = make<implementation::HlslEffectFactory>(
+			hlsl::engine::GetFactory(compositor, definition), definition);
 		m_effect = factory.CreateBrush();
-		// The blur brush is an external source to the custom factory. Its output is a
-		// materialized texture, which is exactly what the arbitrary custom sampler needs.
 		m_effect.SetSource(L"Backdrop", m_blurEffect);
-		m_effect.SetFloat(L"BlurRadius", m_BlurRadius);
 		m_effect.SetFloat(L"RefractionStrength", m_RefractionStrength);
 		m_effect.SetFloat(L"DispersionStrength", m_DispersionStrength);
 		m_effect.SetFloat(L"CornerRadius", m_CornerRadius);
@@ -36,10 +48,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	}
 	void LiquidGlassMaterial::BlurRadius(float value)
 	{
-		// Keep the schema/range check on the HLSL effect, but perform the actual
-		// transmission blur in the native Gaussian pass.
-		m_effect.SetFloat(L"BlurRadius", value);
-		m_blurEffect.Properties().InsertScalar(GaussianBlurEffect::BlurAmountPropertyPath, value);
+		ValidateBlurRadius(value);
+		m_blurEffect.Properties().InsertScalar(
+			GaussianBlurEffect::BlurAmountPropertyPath,
+			RadiusToStandardDeviation(value));
 		m_BlurRadius = value;
 	}
 	void LiquidGlassMaterial::RefractionStrength(float value)

@@ -11,7 +11,7 @@
     <AppContainerApplication>false</AppContainerApplication>
     <ApplicationType>Windows Store</ApplicationType>
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <UseWinUI>true</UseWinUI>
     <DesktopCompatible>true</DesktopCompatible>
     <EnableNativePackageReferenceSupport>true</EnableNativePackageReferenceSupport>
@@ -119,10 +119,13 @@
     <ClInclude Include="Materials\CustomLiquidGlassEffect.h" />
     <ClCompile Include="Materials\GaussianBlurEffect.cpp" />
     <ClCompile Include="Materials\GaussianBlurEffect.ixx" />
+    <ClCompile Include="Shaders\LiquidGlassShader.ixx" />
     <ClCompile Include="Public\HlslComposition.cpp" />
     <ClInclude Include="Public\HlslComposition.h" />
     <ClCompile Include="Public\HlslEffect.cpp" />
     <ClInclude Include="Public\HlslEffect.h" />
+    <ClCompile Include="Public\HlslShaderLibrary.cpp" />
+    <ClInclude Include="Public\HlslShaderLibrary.h" />
     <ClCompile Include="Public\HlslEffectBrush.cpp" />
     <ClInclude Include="Public\HlslEffectBrush.h" />
     <ClCompile Include="Public\HlslEffectFactory.cpp" />

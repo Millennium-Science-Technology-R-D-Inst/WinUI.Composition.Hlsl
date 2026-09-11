@@ -5,6 +5,7 @@
 #include <windows.graphics.effects.interop.h>
 #include <d2d1effects.h>
 #include <d3dcompiler.h>
+#include <d3d11shader.h>
 #include <bcrypt.h>
 
 module WinUI.Composition.Hlsl.CustomEffectRuntime;
@@ -22,7 +23,7 @@ struct OwnedEffectDefinition
 {
 	CustomEffectRuntime::CustomEffectDefinition value{};
 	std::wstring effectName;
-	std::string fragmentName, shaderSource, shaderFunctionName, flattenName, descriptorKey;
+	std::string fragmentName, shaderSource, shaderFunctionName, materializationName, descriptorKey;
 	std::vector<unsigned char> shaderBytecode;
 	std::vector<CustomEffectRuntime::SourceDescriptor> sources;
 	std::vector<std::wstring> sourceNames, propertyNames;
@@ -53,7 +54,7 @@ struct OwnedEffectDefinition
 			shaderBytecode.assign(begin, begin + input.shaderBytecodeSize);
 		}
 		shaderFunctionName=input.shaderFunctionName;
-		flattenName=input.flattenShaderFunctionName ? input.flattenShaderFunctionName : "";
+		materializationName=input.materializationShaderFunctionName ? input.materializationShaderFunctionName : "";
 		descriptorKey=input.descriptorKey ? input.descriptorKey : ""; value.descriptorKey=descriptorKey.c_str();
 		value.effectName=effectName.c_str(); value.fragmentName=fragmentName.c_str();
 		value.shaderSource=shaderSource.empty() ? nullptr : shaderSource.data();
@@ -61,7 +62,7 @@ struct OwnedEffectDefinition
 		value.shaderBytecode=shaderBytecode.empty() ? nullptr : shaderBytecode.data();
 		value.shaderBytecodeSize=shaderBytecode.size();
 		value.shaderFunctionName=shaderFunctionName.c_str();
-		value.flattenShaderFunctionName=flattenName.empty() ? nullptr : flattenName.c_str();
+		value.materializationShaderFunctionName=materializationName.empty() ? nullptr : materializationName.c_str();
 		sources.assign(input.sources, input.sources + input.sourceCount);
 		sourceNames.resize(sources.size());
 		for (size_t i=0; i < sources.size(); ++i)
@@ -107,12 +108,12 @@ struct OwnedEffectDefinition
 		auto const& b=other.value;
 		if (descriptorKey != other.descriptorKey || effectName != other.effectName || fragmentName != other.fragmentName ||
 			shaderSource != other.shaderSource || shaderBytecode != other.shaderBytecode ||
-			shaderFunctionName != other.shaderFunctionName || flattenName != other.flattenName ||
+			shaderFunctionName != other.shaderFunctionName || materializationName != other.materializationName ||
 			sourceNames != other.sourceNames || propertyNames != other.propertyNames || shaderNames != other.shaderNames ||
 			arguments != other.arguments || constants != other.constants ||
 			value.linkingArgType != b.linkingArgType || value.shaderProfileVersion != b.shaderProfileVersion ||
 			value.propertiesStructSize != b.propertiesStructSize ||
-			value.flattenSourceBeforeCustomSampler != b.flattenSourceBeforeCustomSampler ||
+			value.inputMode != b.inputMode || value.graphPolicy != b.graphPolicy ||
 			metadata.size() != other.metadata.size() || mappings.size() != other.mappings.size())return false;
 		for (size_t i=0; i < sources.size(); ++i)
 			if (sources[i].kind != other.sources[i].kind ||
@@ -599,6 +600,29 @@ namespace
 		auto const& definition = *entry->definition;
 		if (definition.shaderBytecode && definition.shaderBytecodeSize)
 		{
+			winrt::com_ptr<ID3D11LibraryReflection> reflection;
+			check_hresult(D3DReflectLibrary(
+				definition.shaderBytecode,
+				definition.shaderBytecodeSize,
+				IID_ID3D11LibraryReflection,
+				reflection.put_void()));
+			D3D11_LIBRARY_DESC library{};
+			check_hresult(reflection->GetDesc(&library));
+			bool hasEntryPoint{};
+			for (uint32_t index = 0; index < library.FunctionCount; ++index)
+			{
+				D3D11_FUNCTION_DESC function{};
+				check_hresult(reflection->GetFunctionByIndex(index)->GetDesc(&function));
+				if (function.Name && strcmp(function.Name, definition.shaderFunctionName) == 0)
+				{
+					hasEntryPoint = true;
+					break;
+				}
+			}
+			if (!hasEntryPoint)
+			{
+				throw hresult_invalid_argument(L"The DXBC library does not export the required shader function.");
+			}
 			return;
 		}
 
@@ -681,7 +705,8 @@ namespace
 		// CSingleInputCompositeEffect and become their own EffectSubgraph. Returning true
 		// here only for effects whose compiled result also exposes a flatten subgraph
 		// keeps FlattenedEffectGraph and ICompiledEffect subgraph counts aligned.
-		return self->entry->definition->flattenSourceBeforeCustomSampler;
+		return self->entry->definition->inputMode ==
+			CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture;
 	}
 
 	bool __fastcall EffectType_ReturnTrue(RuntimeEffectType*)
@@ -1031,7 +1056,7 @@ namespace
 			body->bytecodeSize = self->entry->shaderBlob->GetBufferSize();
 			body->bytecodeData = self->entry->shaderBlob->GetBufferPointer();
 		}
-		body->functionName = isMainSubgraph ? definition.shaderFunctionName : definition.flattenShaderFunctionName;
+		body->functionName = isMainSubgraph ? definition.shaderFunctionName : definition.materializationShaderFunctionName;
 		body->constantBufferSize = PointerRangeByteSize(
 			subgraph->constantBufferInitialBegin,
 			subgraph->constantBufferInitialEnd);
@@ -1285,7 +1310,8 @@ namespace
 		// Keep this helper separate because the same boolean must drive both sides of
 		// the ABI: EffectType slot 5 controls Traverser flattening, while
 		// CreateCompiledResult controls the ICompiledEffect subgraph layout.
-		return definition.flattenSourceBeforeCustomSampler;
+		return definition.inputMode ==
+			CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture;
 	}
 
 	uint32_t GetMainSubgraphIndex(CustomEffectRuntime::CustomEffectDefinition const& definition)
@@ -1302,14 +1328,6 @@ namespace
 		// the custom effect. ICompiledEffect must expose the same count because
 		// EffectInstance iterates the flattened subgraph vector when allocating
 		// constant buffers.
-		return UsesFlattenSourceSubgraph(definition) ? 3u : 1u;
-	}
-
-	uint32_t GetExpectedEffectNodeCount(CustomEffectRuntime::CustomEffectDefinition const& definition)
-	{
-		// This is the observed FlattenedEffectGraph node shape for the supported
-		// WinUI build. Keep it distinct from ICompiledEffect subgraph accounting:
-		// EffectNode and CompiledEffectSubgraph are different private graph layers.
 		return UsesFlattenSourceSubgraph(definition) ? 3u : 1u;
 	}
 
@@ -1440,7 +1458,7 @@ namespace
 				// upstream effect as a child fragment and MakeShaderLinkingArgument emits
 				// 0x0500 dependency output, which cannot provide texture/samplerDataExt.
 				if (definition.sourceCount != 1 ||
-					!definition.flattenShaderFunctionName ||
+					!definition.materializationShaderFunctionName ||
 					definition.shaderArgumentCount == 0)
 				{
 					check_hresult(E_INVALIDARG);
@@ -1606,14 +1624,31 @@ namespace
 		}
 	}
 
-	RuntimeEffectEntry* FindEntryInGraph(void* description)
+	struct EffectNodeView
+	{
+		void* address{};
+		void* effectType{};
+	};
+
+	struct InspectedEffectGraph
+	{
+		std::vector<EffectNodeView> nodes;
+	};
+
+	struct LoweringPlan
+	{
+		RuntimeEffectEntry* customEffect{};
+		CustomEffectRuntime::GraphLoweringPolicy policy{};
+	};
+
+	InspectedEffectGraph InspectEffectGraph(void* description)
 	{
 		// CompileEffectDescription is shared by all composition effects. Only return
 		// a custom compiled result when the flattened graph actually contains one of
 		// our synthetic EffectType pointers; otherwise forward to the original export.
 		if (!description)
 		{
-			return nullptr;
+			return {};
 		}
 
 		// CompileEffectDescription receives the IEffectDescriptionWithNames interface
@@ -1627,42 +1662,62 @@ namespace
 		auto const endAddress = reinterpret_cast<uintptr_t>(nodeEnd);
 		if (!nodeBegin || !nodeEnd || endAddress < beginAddress)
 		{
-			return nullptr;
+			return {};
 		}
 
 		auto const nodeBytes = endAddress - beginAddress;
 		if ((nodeBytes % sizeof(void*)) != 0)
 		{
-			return nullptr;
+			return {};
 		}
 
 		auto const nodeCount = nodeBytes / sizeof(void*);
 		if (nodeCount > 0x19)
 		{
-			return nullptr;
+			return {};
 		}
 
+		InspectedEffectGraph inspected;
+		inspected.nodes.reserve(nodeCount);
+		for (auto** current = nodeBegin; current != nodeEnd; ++current)
+		{
+			auto* node = *current;
+			if (node)
+			{
+				inspected.nodes.push_back({ node, *reinterpret_cast<void**>(node) });
+			}
+		}
+		return inspected;
+	}
+
+	LoweringPlan ValidateAndPlan(InspectedEffectGraph const& graph)
+	{
 		std::lock_guard<std::mutex> guard(g_registryMutex);
 		RuntimeEffectEntry* found{};
 		size_t customCount{};
-		for (auto** current=nodeBegin; current != nodeEnd; ++current)
+		for (auto const& node : graph.nodes)
 		{
-			auto node=*current; if (!node)continue;
-			if (auto* entry=FindEntryByEffectTypeLocked(*reinterpret_cast<void**>(node)))
+			if (auto* entry = FindEntryByEffectTypeLocked(node.effectType))
 			{
 				found=entry; ++customCount;
 			}
 		}
-		if (!found)return nullptr;
+		if (!found)return {};
 		if (customCount != 1)
-			throw hresult_not_implemented(L"A factory graph supports exactly one HLSL custom node. Chain separate effect brushes instead.");
-		// Do not take over an arbitrary mixed graph merely because it contains one
-		// custom node. The synthetic compiler only knows the exact private topology
-		// emitted for this definition; everything else must fail closed.
-		auto const expectedNodeCount = GetExpectedEffectNodeCount(*found->definition);
-		if (nodeCount != expectedNodeCount)
-			throw hresult_not_implemented(L"Mixed native/custom graph topology is not supported. Use separate CompositionEffectBrush passes.");
-		return found;
+			throw hresult_not_implemented(L"The current custom-effect lowering backend supports exactly one custom shader node.");
+
+		auto const policy = found->definition->graphPolicy;
+		if (policy == CustomEffectRuntime::GraphLoweringPolicy::SingleCustom &&
+			graph.nodes.size() != customCount)
+		{
+			throw hresult_not_implemented(L"This custom effect does not declare a materialized native input boundary.");
+		}
+		if (policy == CustomEffectRuntime::GraphLoweringPolicy::MaterializedInput &&
+			found->definition->inputMode != CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture)
+		{
+			throw hresult_invalid_argument(L"A materialized-input graph requires a texture-sampling custom effect.");
+		}
+		return { found, policy };
 	}
 	HRESULT __fastcall DetourCompileEffectDescription(void* description, void** result)
 	{
@@ -1677,7 +1732,8 @@ namespace
 
 		try
 		{
-			if (auto* entry = FindEntryInGraph(description))
+			auto const plan = ValidateAndPlan(InspectEffectGraph(description));
+			if (auto* entry = plan.customEffect)
 			{
 				*result = CreateCompiledResult(entry);
 				return S_OK;
@@ -1902,11 +1958,22 @@ namespace
 		// property count/defaults, and source list. The private runtime state is
 		// deliberately not exposed here; the detours recover it later from the GUID
 		// and synthetic EffectType pointer.
-		explicit RuntimeGraphicsEffect(CustomEffectRuntime::CustomEffectDefinition const* definition) :
+		explicit RuntimeGraphicsEffect(
+			CustomEffectRuntime::CustomEffectDefinition const* definition,
+			IGraphicsEffectSource const& source = nullptr) :
 			m_definition(definition),
 			m_name(definition->effectName)
 		{
 			m_sources.reserve(definition->sourceCount);
+			if (source)
+			{
+				if (definition->sourceCount != 1)
+				{
+					throw hresult_invalid_argument(L"An explicit source requires a single-input custom effect.");
+				}
+				m_sources.push_back(source);
+				return;
+			}
 			for (uint32_t index = 0; index < definition->sourceCount; ++index)
 			{
 				auto const& sourceDefinition = definition->sources[index];
@@ -2106,6 +2173,13 @@ namespace CustomEffectRuntime
 
 	IGraphicsEffect CreateEffect(CustomEffectDefinition const& definition)
 	{
+		return CreateEffect(definition, nullptr);
+	}
+
+	IGraphicsEffect CreateEffect(
+		CustomEffectDefinition const& definition,
+		IGraphicsEffectSource const& source)
+	{
 		// The public shape must be the same shape WinUI expects from built-in effects:
 		// an IGraphicsEffect that can be passed directly to Compositor::CreateEffectFactory.
 		// Registration and hook installation live here only to make that object usable
@@ -2122,7 +2196,7 @@ namespace CustomEffectRuntime
 		}
 		EnsureShader(entry);
 		InstallHook();
-		return make<RuntimeGraphicsEffect>(entry->definition);
+		return make<RuntimeGraphicsEffect>(entry->definition, source);
 	}
 
 }

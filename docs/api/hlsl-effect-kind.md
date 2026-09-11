@@ -1,9 +1,9 @@
-﻿# HlslEffectKind enum
+# HlslEffectKind enum
 
 Identifies the shader contract represented by an [HlslEffect](hlsl-effect.md).
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.7  
+**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
 
@@ -20,6 +20,6 @@ public enum HlslEffectKind
 
 ## Applies to
 
-Windows App SDK 2.4; WinUI.Composition.Hlsl 0.1.0-preview.7.
+Windows App SDK 2.4; WinUI.Composition.Hlsl 0.1.0-preview.8.
 
 

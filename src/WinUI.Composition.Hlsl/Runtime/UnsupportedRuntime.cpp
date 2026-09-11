@@ -12,4 +12,10 @@ namespace CustomEffectRuntime
 	{
 		throw winrt::hresult_not_implemented(L"No HLSL Composition native ABI adapter is available for this architecture.");
 	}
+	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
+		CustomEffectDefinition const&,
+		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const&)
+	{
+		throw winrt::hresult_not_implemented(L"No HLSL Composition native ABI adapter is available for this architecture.");
+	}
 }

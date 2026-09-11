@@ -1,9 +1,9 @@
-﻿# LiquidGlassBrush class
+# LiquidGlassBrush class
 
 An XAML brush that renders the built-in Liquid Glass material.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.7  
+**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
 
@@ -17,7 +17,7 @@ runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `IsEnabled` | `Boolean` | `true` | Enables the effect. When false, the brush displays `FallbackColor`. |
-| `BlurRadius` | `Double` | `12` | Upstream native Gaussian transmission blur amount. |
+| `BlurRadius` | `Double` | `12` | Gaussian radius in DIPs (converted internally to standard deviation). |
 | `RefractionStrength` | `Double` | `24` | Edge displacement strength. |
 | `DispersionStrength` | `Double` | `1.2` | RGB dispersion strength. |
 | `CornerRadius` | `Double` | `12` | Rounded material radius. |
@@ -26,7 +26,7 @@ runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
 
 The numeric dependency properties use `Double`, matching WinUI XAML text conversion. Values are validated and converted to GPU `float` values internally.
 
-The material uses a native GaussianBlur `CompositionEffectBrush` as the source of the custom HLSL glass brush. The two effects intentionally use separate factories so the private HLSL runtime never has to lower a mixed native/custom factory graph.
+The material uses a native Gaussian effect brush as the materialized source of the custom HLSL glass sampler. This is the safe lowering path until the private backend can emit mixed native/custom compiled-subgraph records.
 
 ## Theme resources
 

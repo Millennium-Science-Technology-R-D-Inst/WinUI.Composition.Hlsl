@@ -2,11 +2,11 @@
 #include <windows.graphics.effects.interop.h>
 
 #include "CustomLiquidGlassEffect.h"
-#include "LiquidGlassShader.g.h"
 
 import winrt.Windows.Foundation;
 import WinUI.Composition.Hlsl.EffectDef;
 import WinUI.Composition.Hlsl.CustomEffectRuntime;
+import WinUI.Composition.Hlsl.Shaders.LiquidGlass;
 
 using namespace winrt;
 
@@ -21,7 +21,7 @@ namespace
 	};
 
 	constexpr LiquidGlassConstants kInitialConstants{
-		{ 0.0f, 1.5f, 36.0f, 12.0f },
+		{ 1.5f, 36.0f, 12.0f, 0.0f },
 		{ 0.85f, 1.0f, 1.2f, 1.0f },
 	};
 
@@ -29,8 +29,7 @@ namespace
 
 	enum LiquidGlassPropertyIndex : std::uint32_t
 	{
-		BlurRadiusProperty = 0,
-		RefractionStrengthProperty,
+		RefractionStrengthProperty = 0,
 		CornerRadiusProperty,
 		BorderThicknessProperty,
 		HighlightStrengthProperty,
@@ -39,10 +38,9 @@ namespace
 
 	constexpr std::uint32_t kDCompositionExpressionTypeScalar = 18;
 	constexpr std::uint32_t kPropertyTypeSingle = 8;
-	constexpr std::uint32_t kBlurRadiusOffset = 0;
-	constexpr std::uint32_t kBorderThicknessOffset = 4;
-	constexpr std::uint32_t kCornerRadiusOffset = 8;
-	constexpr std::uint32_t kRefractionStrengthOffset = 12;
+	constexpr std::uint32_t kBorderThicknessOffset = 0;
+	constexpr std::uint32_t kCornerRadiusOffset = 4;
+	constexpr std::uint32_t kRefractionStrengthOffset = 8;
 	constexpr std::uint32_t kHighlightStrengthOffset = 16;
 	constexpr std::uint32_t kDispersionStrengthOffset = 24;
 
@@ -70,24 +68,19 @@ namespace
 		}
 	}
 
-	HRESULT GetBlurRadiusDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams0[0], value);
-	}
-
 	HRESULT GetRefractionStrengthDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams0[3], value);
-	}
-
-	HRESULT GetCornerRadiusDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
 		return CreateScalarProperty(kInitialConstants.materialParams0[2], value);
 	}
 
-	HRESULT GetBorderThicknessDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
+	HRESULT GetCornerRadiusDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
 		return CreateScalarProperty(kInitialConstants.materialParams0[1], value);
+	}
+
+	HRESULT GetBorderThicknessDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
+	{
+		return CreateScalarProperty(kInitialConstants.materialParams0[0], value);
 	}
 
 	HRESULT GetHighlightStrengthDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
@@ -101,7 +94,6 @@ namespace
 	}
 
 	CustomEffectRuntime::PropertyDescriptor const kProperties[] = {
-		{ L"BlurRadius", BlurRadiusProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetBlurRadiusDefault },
 		{ L"RefractionStrength", RefractionStrengthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetRefractionStrengthDefault },
 		{ L"CornerRadius", CornerRadiusProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetCornerRadiusDefault },
 		{ L"BorderThickness", BorderThicknessProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetBorderThicknessDefault },
@@ -110,7 +102,6 @@ namespace
 	};
 
 	CustomEffectRuntime::NativePropertyMetadata const kNativePropertyMetadata[] = {
-		{ "BlurRadius", kBlurRadiusOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 		{ "RefractionStrength", kRefractionStrengthOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 		{ "CornerRadius", kCornerRadiusOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 		{ "BorderThickness", kBorderThicknessOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
@@ -119,7 +110,6 @@ namespace
 	};
 
 	CustomEffectRuntime::ConstantBufferPropertyMapping const kConstantBufferProperties[] = {
-		{ BlurRadiusProperty, kBlurRadiusOffset },
 		{ RefractionStrengthProperty, kRefractionStrengthOffset },
 		{ CornerRadiusProperty, kCornerRadiusOffset },
 		{ BorderThicknessProperty, kBorderThicknessOffset },
@@ -142,14 +132,16 @@ namespace
 		kBackdropSamplerDataArgument,
 	};
 
+	auto const kLiquidGlassShader = WinUI::Composition::Hlsl::Shaders::LiquidGlassShader();
+
 	CustomEffectRuntime::CustomEffectDefinition const kDefinition{
 		kCustomLiquidGlassEffectId,
 		CustomLiquidGlassEffect::EffectName,
 		"CustomLiquidGlassEffect",
 		nullptr,
 		0,
-		g_LiquidGlassShader,
-		sizeof(g_LiquidGlassShader),
+		kLiquidGlassShader.data,
+		kLiquidGlassShader.size,
 		"PSBody",
 		kSources,
 		ARRAYSIZE(kSources),
@@ -168,10 +160,8 @@ namespace
 		CustomEffectRuntime::kShaderProfilePs40,
 		sizeof(kInitialConstants),
 		&kInitialConstants,
-		// LiquidGlassMaterial binds a separate native GaussianBlur brush. That brush
-		// boundary already materializes the source texture, so no extra internal
-		// FlattenSource subgraph is required for this built-in material.
-		false,
+		CustomEffectRuntime::CustomEffectInputMode::LinkedColor,
+		CustomEffectRuntime::GraphLoweringPolicy::SingleCustom,
 		nullptr,
 	};
 }
@@ -186,7 +176,7 @@ namespace CustomLiquidGlassEffect
 				definition->id=kCustomLiquidGlassEffectId; definition->sampler=true;
 				definition->effectName=EffectName; definition->nativeTemplate=&kDefinition;
 				definition->properties={
-					{ L"BlurRadius",12,0,64 },{ L"RefractionStrength",24,0,128 },
+					{ L"RefractionStrength",24,0,128 },
 					{ L"CornerRadius",12,0,512 },{ L"BorderThickness",1,0,32 },
 					{ L"HighlightStrength",0.8f,0,4 },{ L"DispersionStrength",1.2f,0,16 } };
 				return definition;
@@ -196,9 +186,6 @@ namespace CustomLiquidGlassEffect
 
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect()
 	{
-		// The native Gaussian pass and private custom sampler are intentionally kept
-		// in separate CompositionEffectFactory instances. The custom runtime only has
-		// to lower one HLSL node and consumes the blur brush as an external source.
 		return CustomEffectRuntime::CreateEffect(kDefinition);
 	}
 }

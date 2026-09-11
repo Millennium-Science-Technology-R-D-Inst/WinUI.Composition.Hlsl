@@ -5,7 +5,6 @@ import winrt.Windows.Graphics.Effects;
 namespace CustomLiquidGlassEffect
 {
 	inline constexpr wchar_t EffectName[] = L"BackdropLiquidGlassEffect";
-	inline constexpr wchar_t BlurRadiusPropertyPath[] = L"BackdropLiquidGlassEffect.BlurRadius";
 	inline constexpr wchar_t RefractionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.RefractionStrength";
 	inline constexpr wchar_t CornerRadiusPropertyPath[] = L"BackdropLiquidGlassEffect.CornerRadius";
 	inline constexpr wchar_t BorderThicknessPropertyPath[] = L"BackdropLiquidGlassEffect.BorderThickness";

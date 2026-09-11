@@ -15,16 +15,15 @@ float RoundedRectSdf(float2 p, float2 halfSize, float radius)
 
 float4 SampleTransmission(float2 uv)
 {
-    // The source is already blurred by a separate native GaussianBlur
-    // CompositionEffectBrush. This pass only performs glass sampling.
+    // The source is materialized by the upstream native GaussianBlur brush pass.
     return texture0.Sample(sampler0, uv);
 }
 
 float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 {
-    const float borderThickness = MaterialParams0.y;
-    const float cornerRadius = MaterialParams0.z;
-    const float refractionStrength = MaterialParams0.w;
+    const float borderThickness = MaterialParams0.x;
+    const float cornerRadius = MaterialParams0.y;
+    const float refractionStrength = MaterialParams0.z;
     const float highlightStrength = MaterialParams1.x;
     const float edgeSoftness = MaterialParams1.y;
     const float dispersionStrength = MaterialParams1.z;

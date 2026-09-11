@@ -18,6 +18,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		static Hlsl::HlslEffect CreateSampler(winrt::guid const& id, hstring const& shader);
 		static Hlsl::HlslEffect CreateColorTransform(hstring const& shader);
 		static Hlsl::HlslEffect CreateCustomSampler(hstring const& shader);
+		static Hlsl::HlslEffect CreateCompiledColor(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
+		static Hlsl::HlslEffect CreateCompiledSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateColorWithProperties(hstring const& shader, hstring const& sourceName,
 														  Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateSamplerWithProperties(hstring const& shader, hstring const& sourceName,

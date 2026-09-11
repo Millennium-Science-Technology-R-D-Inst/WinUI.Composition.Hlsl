@@ -1,11 +1,11 @@
-﻿# WinUI.Composition.Hlsl documentation
+# WinUI.Composition.Hlsl documentation
 
 `WinUI.Composition.Hlsl` is a native Windows Runtime component for creating HLSL-backed Microsoft.UI.Composition effects and XAML material brushes in WinUI 3 applications.
 
 ## Install
 
 ```xml
-<PackageReference Include="WinUI.Composition.Hlsl" Version="0.1.0-preview.7" />
+<PackageReference Include="WinUI.Composition.Hlsl" Version="0.1.0-preview.8" />
 ```
 
 The package contains the native implementation and the build assets required by C++/WinRT and C# WinUI applications. Consumers do not create or configure a projection project.
@@ -62,6 +62,6 @@ var xamlBrush = HlslComposition.CreateXamlBrush(brush);
 | Product | Version |
 | --- | --- |
 | Windows App SDK | 2.4 |
-| WinUI.Composition.Hlsl | 0.1.0-preview.7 |
+| WinUI.Composition.Hlsl | 0.1.0-preview.8 |
 
 

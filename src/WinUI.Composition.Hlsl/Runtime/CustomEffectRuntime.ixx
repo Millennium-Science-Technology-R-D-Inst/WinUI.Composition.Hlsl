@@ -34,6 +34,16 @@ export namespace CustomEffectRuntime
 	constexpr std::uint8_t kShaderProfileLevel91 = 0;
 	constexpr std::uint8_t kShaderProfileLevel93 = 1;
 	constexpr std::uint8_t kShaderProfilePs40 = 2;
+	enum class CustomEffectInputMode : std::uint8_t
+	{
+		LinkedColor,
+		MaterializedTexture,
+	};
+	enum class GraphLoweringPolicy : std::uint8_t
+	{
+		SingleCustom,
+		MaterializedInput,
+	};
 	struct CustomEffectDefinition
 	{
 		GUID id; wchar_t const* effectName; char const* fragmentName;
@@ -45,8 +55,13 @@ export namespace CustomEffectRuntime
 		ConstantBufferPropertyMapping const* constantBufferProperties; std::uint32_t constantBufferPropertyCount;
 		std::uint16_t const* shaderArguments; std::uint64_t shaderArgumentCount; std::uint16_t linkingArgType; std::uint8_t shaderProfileVersion;
 		std::uint32_t constantBufferSize; void const* constantBufferInitialValue;
-		bool flattenSourceBeforeCustomSampler; char const* flattenShaderFunctionName; char const* descriptorKey{};
+		CustomEffectInputMode inputMode{ CustomEffectInputMode::LinkedColor };
+		GraphLoweringPolicy graphPolicy{ GraphLoweringPolicy::SingleCustom };
+		char const* materializationShaderFunctionName{}; char const* descriptorKey{};
 	};
 	void RegisterEffect(CustomEffectDefinition const& definition);
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(CustomEffectDefinition const& definition);
+	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
+		CustomEffectDefinition const& definition,
+		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source);
 }

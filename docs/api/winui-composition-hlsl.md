@@ -11,6 +11,7 @@ Provides HLSL effect descriptions, Composition factories and brushes, and a read
 | [HlslEffectBrush](hlsl-effect-brush.md) | Wraps a `CompositionEffectBrush` and applies declared sources and scalar properties. |
 | [HlslEffectFactory](hlsl-effect-factory.md) | Creates brush instances from a compiled effect description. |
 | [HlslFloatProperty](hlsl-float-property.md) | Declares a named scalar shader property and its accepted range. |
+| [HlslShaderLibrary](hlsl-shader-library.md) | Owns validated, precompiled DXBC shader-library bytecode. |
 | [LiquidGlassBrush](liquid-glass-brush.md) | XAML brush that renders the built-in Liquid Glass material. |
 | [LiquidGlassMaterial](liquid-glass-material.md) | Composition-level Liquid Glass material. |
 
@@ -19,6 +20,7 @@ Provides HLSL effect descriptions, Composition factories and brushes, and a read
 | Enum | Description |
 | --- | --- |
 | [HlslEffectKind](hlsl-effect-kind.md) | Identifies a `Color` or `Sampler` effect. |
+| `HlslShaderProfile` | Identifies the SM4 library profile used by precompiled bytecode. |
 
 ## Remarks
 

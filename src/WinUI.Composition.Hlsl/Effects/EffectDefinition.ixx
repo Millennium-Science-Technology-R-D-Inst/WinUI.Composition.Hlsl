@@ -23,6 +23,8 @@ export namespace hlsl::engine
 		winrt::guid id{};
 		bool sampler{};
 		std::string shader;
+		std::vector<std::uint8_t> shaderBytecode;
+		std::uint8_t shaderProfile{ CustomEffectRuntime::kShaderProfileLevel93 };
 		std::wstring sourceName{ L"Backdrop" };
 		std::wstring effectName{ L"HlslEffect" };
 		std::vector<ScalarProperty> properties;
