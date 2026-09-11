@@ -6,6 +6,11 @@ on:
       - fix/liquid-glass-topology-blur-precompiled-hlsl
     paths:
       - .github/workflows/validate-liquid-glass-branch.yml
+      - src/WinUI.Composition.Hlsl/WinUI.Composition.Hlsl.vcxproj
+      - src/WinUI.Composition.Hlsl/Shaders/**
+      - src/WinUI.Composition.Hlsl/Materials/**
+      - src/WinUI.Composition.Hlsl/Public/**
+      - src/WinUI.Composition.Hlsl/Runtime/**
   workflow_dispatch:
 
 permissions:
