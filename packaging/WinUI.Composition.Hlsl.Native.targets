@@ -2,10 +2,11 @@
 	<PropertyGroup>
 		<HlslNativeArchitecture Condition="'$(Platform)'=='Win32'">x86</HlslNativeArchitecture>
 		<HlslNativeArchitecture Condition="'$(HlslNativeArchitecture)'==''">$(Platform)</HlslNativeArchitecture>
-		<HlslNativeDll>$(MSBuildThisFileDirectory)..\..\runtimes\win-$(HlslNativeArchitecture)\native\WinUI.Composition.Hlsl.dll</HlslNativeDll>
+		<HlslWinmd Condition="'$(HlslWinmd)'==''">$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.Composition.Hlsl.winmd</HlslWinmd>
+		<HlslNativeDll Condition="'$(HlslNativeDll)'==''">$(MSBuildThisFileDirectory)..\..\runtimes\win-$(HlslNativeArchitecture)\native\WinUI.Composition.Hlsl.dll</HlslNativeDll>
 	</PropertyGroup>
 	<ItemGroup>
-		<Reference Include="$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.Composition.Hlsl.winmd">
+		<Reference Include="$(HlslWinmd)">
 			<Implementation>WinUI.Composition.Hlsl.dll</Implementation>
 		</Reference>
 		<ReferenceCopyLocalPaths Include="$(HlslNativeDll)"/>
