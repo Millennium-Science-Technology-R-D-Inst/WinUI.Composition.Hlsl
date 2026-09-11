@@ -17,7 +17,7 @@ runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `IsEnabled` | `Boolean` | `true` | Enables the effect. When false, the brush displays `FallbackColor`. |
-| `BlurRadius` | `Double` | `12` | Transmission blur amount. |
+| `BlurRadius` | `Double` | `12` | Upstream native Gaussian transmission blur amount. |
 | `RefractionStrength` | `Double` | `24` | Edge displacement strength. |
 | `DispersionStrength` | `Double` | `1.2` | RGB dispersion strength. |
 | `CornerRadius` | `Double` | `12` | Rounded material radius. |
@@ -25,6 +25,8 @@ runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
 | `HighlightStrength` | `Double` | `0.8` | Highlight intensity. |
 
 The numeric dependency properties use `Double`, matching WinUI XAML text conversion. Values are validated and converted to GPU `float` values internally.
+
+The material uses a native GaussianBlur `CompositionEffectBrush` as the source of the custom HLSL glass brush. The two effects intentionally use separate factories so the private HLSL runtime never has to lower a mixed native/custom factory graph.
 
 ## Theme resources
 
