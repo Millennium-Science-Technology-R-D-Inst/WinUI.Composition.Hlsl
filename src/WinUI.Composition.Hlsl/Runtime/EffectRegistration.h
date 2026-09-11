@@ -10,6 +10,7 @@ struct OwnedEffectDefinition
 	CustomEffectRuntime::CustomEffectDefinition value{};
 	std::wstring effectName;
 	std::string fragmentName, shaderSource, shaderFunctionName, flattenName, descriptorKey;
+	std::vector<unsigned char> shaderBytecode;
 	std::vector<CustomEffectRuntime::SourceDescriptor> sources;
 	std::vector<std::wstring> sourceNames, propertyNames;
 	std::vector<CustomEffectRuntime::PropertyDescriptor> properties;
@@ -21,7 +22,9 @@ struct OwnedEffectDefinition
 
 	explicit OwnedEffectDefinition(CustomEffectRuntime::CustomEffectDefinition const& input) :value(input)
 	{
-		if (!input.effectName || !input.fragmentName || !input.shaderSource || !input.shaderFunctionName ||
+		auto const hasSource = input.shaderSource && input.shaderSourceSize;
+		auto const hasBytecode = input.shaderBytecode && input.shaderBytecodeSize;
+		if (!input.effectName || !input.fragmentName || hasSource == hasBytecode || !input.shaderFunctionName ||
 			input.sourceCount != 1 || !input.sources || input.propertyCount > 64 ||
 			(input.propertyCount && !input.properties) ||
 			(input.nativePropertyMetadataCount && !input.nativePropertyMetadata) ||
@@ -30,11 +33,21 @@ struct OwnedEffectDefinition
 			(input.constantBufferSize && !input.constantBufferInitialValue))
 			throw winrt::hresult_invalid_argument(L"Invalid native effect definition.");
 		effectName=input.effectName; fragmentName=input.fragmentName;
-		shaderSource.assign(input.shaderSource, input.shaderSourceSize); shaderFunctionName=input.shaderFunctionName;
+		if (hasSource) shaderSource.assign(input.shaderSource, input.shaderSourceSize);
+		if (hasBytecode)
+		{
+			auto begin=static_cast<unsigned char const*>(input.shaderBytecode);
+			shaderBytecode.assign(begin, begin + input.shaderBytecodeSize);
+		}
+		shaderFunctionName=input.shaderFunctionName;
 		flattenName=input.flattenShaderFunctionName ? input.flattenShaderFunctionName : "";
 		descriptorKey=input.descriptorKey ? input.descriptorKey : ""; value.descriptorKey=descriptorKey.c_str();
 		value.effectName=effectName.c_str(); value.fragmentName=fragmentName.c_str();
-		value.shaderSource=shaderSource.data(); value.shaderFunctionName=shaderFunctionName.c_str();
+		value.shaderSource=shaderSource.empty() ? nullptr : shaderSource.data();
+		value.shaderSourceSize=shaderSource.size();
+		value.shaderBytecode=shaderBytecode.empty() ? nullptr : shaderBytecode.data();
+		value.shaderBytecodeSize=shaderBytecode.size();
+		value.shaderFunctionName=shaderFunctionName.c_str();
 		value.flattenShaderFunctionName=flattenName.empty() ? nullptr : flattenName.c_str();
 		sources.assign(input.sources, input.sources + input.sourceCount);
 		sourceNames.resize(sources.size());
@@ -79,7 +92,8 @@ struct OwnedEffectDefinition
 	bool Equivalent(OwnedEffectDefinition const& other) const
 	{
 		auto const& b=other.value;
-		if (descriptorKey != other.descriptorKey || effectName != other.effectName || fragmentName != other.fragmentName || shaderSource != other.shaderSource ||
+		if (descriptorKey != other.descriptorKey || effectName != other.effectName || fragmentName != other.fragmentName ||
+			shaderSource != other.shaderSource || shaderBytecode != other.shaderBytecode ||
 			shaderFunctionName != other.shaderFunctionName || flattenName != other.flattenName ||
 			sourceNames != other.sourceNames || propertyNames != other.propertyNames || shaderNames != other.shaderNames ||
 			arguments != other.arguments || constants != other.constants ||
