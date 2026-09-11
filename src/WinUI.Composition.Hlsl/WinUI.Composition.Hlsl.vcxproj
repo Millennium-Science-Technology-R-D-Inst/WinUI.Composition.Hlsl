@@ -165,6 +165,7 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\LiquidGlass.hlsl">
+      <EntryPointName />
       <ShaderType>Library</ShaderType>
       <ShaderModel>4.0</ShaderModel>
       <HeaderFileOutput>$(IntDir)LiquidGlassShader.g.h</HeaderFileOutput>
