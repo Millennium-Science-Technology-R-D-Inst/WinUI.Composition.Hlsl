@@ -1,7 +1,7 @@
 diff --git a/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp b/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp
 --- a/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp
 +++ b/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp
-@@
+@@ -322,6 +322,12 @@ namespace
  	void EnsureShader(RuntimeEffectEntry* entry)
  	{
 +		auto const& definition = *entry->definition;
@@ -13,7 +13,7 @@ diff --git a/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp b/src/Wi
  		// Shader compilation is intentionally tied to the registered effect entry,
  		// not to a brush instance. CompositionEffectFactory creation can occur on a
  		// worker path and multiple brushes may share the same CustomEffectDefinition,
-@@
+@@ -737,6 +743,14 @@ namespace
  		body->argData = subgraph && subgraph->shaderArgumentBegin
  			? subgraph->shaderArgumentBegin
  			: definition.shaderArguments;
@@ -30,11 +30,7 @@ diff --git a/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp b/src/Wi
 +			body->bytecodeData = self->entry->shaderBlob->GetBufferPointer();
 +		}
  		body->functionName = isMainSubgraph ? definition.shaderFunctionName : definition.flattenShaderFunctionName;
-@@
- 	uint32_t GetCompiledSubgraphCount(CustomEffectRuntime::CustomEffectDefinition const& definition)
- 	{
- 		// slot 5 source flattening creates three FlattenedEffectGraph subgraphs:
-@@
+@@ -1028,6 +1042,15 @@ namespace
  		return UsesFlattenSourceSubgraph(definition) ? 3u : 1u;
  	}
 +
@@ -45,8 +41,10 @@ diff --git a/src/WinUI.Composition.Hlsl/Runtime/CustomEffectRuntime.cpp b/src/Wi
 +		// EffectNode and CompiledEffectSubgraph are different private graph layers.
 +		return UsesFlattenSourceSubgraph(definition) ? 3u : 1u;
 +	}
-@@
- 		if (!found)return nullptr;
+ 
+ 	void InitializeDirectPropertyUpdater(
+ 		ConstantBufferUpdater& updater,
+@@ -1370,9 +1393,12 @@ namespace
  		if (customCount != 1)
  			throw hresult_not_implemented(L"A factory graph supports exactly one HLSL custom node. Chain separate effect brushes instead.");
 -		// v0.1 synthetic topology consists only of the custom node and its optional source-flatten wrapper.
