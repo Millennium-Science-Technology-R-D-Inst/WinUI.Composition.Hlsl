@@ -13,6 +13,7 @@ For LiquidGlass the project uses the standard C++ project-system item:
 ```xml
 <ItemGroup>
   <FxCompile Include="Shaders\LiquidGlass.hlsl">
+    <EntryPointName />
     <ShaderType>Library</ShaderType>
     <ShaderModel>4.0</ShaderModel>
     <HeaderFileOutput>$(IntDir)LiquidGlassShader.g.h</HeaderFileOutput>
@@ -25,7 +26,7 @@ For LiquidGlass the project uses the standard C++ project-system item:
 </ItemGroup>
 ```
 
-This is intentionally the conventional Visual C++ HLSL build pipeline rather than a custom shader compiler target. `ShaderType=Library` plus `ShaderModel=4.0` produces the `lib_4_0` shader-linking library required by the observed DWM linker path. `HeaderFileOutput` generates a C/C++ byte array while `ObjectFileOutput` also leaves the DXBC object available for inspection.
+This is intentionally the conventional Visual C++ HLSL build pipeline rather than a custom shader compiler target. `ShaderType=Library` plus `ShaderModel=4.0` produces the `lib_4_0` shader-linking library required by the observed DWM linker path. `EntryPointName` is empty because a shader library exposes its callable functions with HLSL `export` rather than compiling one fixed `main` entry point. `HeaderFileOutput` generates a C/C++ byte array while `ObjectFileOutput` also leaves the DXBC object available for inspection.
 
 The generated header embeds the DXBC bytecode in the native DLL. `CustomEffectDefinition` points at that bytecode and the runtime passes it directly to DWM's shader-linking body. No `D3DCompile` call is required for that built-in effect.
 
