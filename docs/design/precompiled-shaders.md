@@ -2,54 +2,46 @@
 
 ## Goal
 
-Built-in effects should not compile invariant HLSL source on the consumer's machine. Dynamic source-based APIs remain supported for development and runtime-generated effects.
+Built-in and production effects should be able to avoid runtime `D3DCompile`. Dynamic source-based APIs remain available for development and runtime-generated effects.
 
-## Build-time path
+## Built-in build-time path
 
-`Shaders/*.hlsl` is a normal Visual C++ `FxCompile` project item. The Visual C++/Windows SDK build targets invoke the traditional FXC compiler for the SM4 target used here. For the private Composition linker used by this project, the output must be a shader-linking DXBC library in the SM4 family, not a standalone pixel shader and not DXIL/SM6.
+`Shaders/*.hlsl` is compiled by the standard Visual C++ `FxCompile` MSBuild item. For the private Composition shader linker used by this project, the payload must be an FXC SM4 shader-linking DXBC library, not a standalone pixel shader and not DXIL/SM6.
 
-For LiquidGlass the project uses the standard C++ project-system item:
+LiquidGlass uses:
 
 ```xml
-<ItemGroup>
-  <FxCompile Include="Shaders\LiquidGlass.hlsl">
-    <EntryPointName />
-    <ShaderType>Library</ShaderType>
-    <ShaderModel>4.0</ShaderModel>
-    <HeaderFileOutput>$(IntDir)LiquidGlassShader.g.h</HeaderFileOutput>
-    <ObjectFileOutput>$(IntDir)LiquidGlassShader.dxbc</ObjectFileOutput>
-    <VariableName>g_LiquidGlassShader</VariableName>
-    <TreatWarningAsError>true</TreatWarningAsError>
-    <SuppressStartupBanner>true</SuppressStartupBanner>
-    <AdditionalOptions>/Ges /O3 %(AdditionalOptions)</AdditionalOptions>
-  </FxCompile>
-</ItemGroup>
+<FxCompile Include="Shaders\LiquidGlass.hlsl">
+  <EntryPointName />
+  <ShaderType>Library</ShaderType>
+  <ShaderModel>4.0</ShaderModel>
+  <HeaderFileOutput>$(IntDir)LiquidGlassShader.g.h</HeaderFileOutput>
+  <ObjectFileOutput>$(IntDir)LiquidGlassShader.dxbc</ObjectFileOutput>
+  <VariableName>g_LiquidGlassShader</VariableName>
+  <TreatWarningAsError>true</TreatWarningAsError>
+  <SuppressStartupBanner>true</SuppressStartupBanner>
+  <AdditionalOptions>/Ges /O3 %(AdditionalOptions)</AdditionalOptions>
+</FxCompile>
 ```
 
-This is intentionally the conventional Visual C++ HLSL build pipeline rather than a custom shader compiler target. `ShaderType=Library` plus `ShaderModel=4.0` produces the `lib_4_0` shader-linking library required by the observed DWM linker path. `EntryPointName` is empty because a shader library exposes its callable functions with HLSL `export` rather than compiling one fixed `main` entry point. `HeaderFileOutput` generates a C/C++ byte array while `ObjectFileOutput` also leaves the DXBC object available for inspection.
+`ShaderType=Library` plus `ShaderModel=4.0` produces the `lib_4_0` shader-linking library. `EntryPointName` is empty because the library exposes exported functions instead of compiling one fixed `main` entry point.
 
-The generated header embeds the DXBC bytecode in the native DLL. `CustomEffectDefinition` points at that bytecode and the runtime passes it directly to DWM's shader-linking body. No `D3DCompile` call is required for that built-in effect.
+The generated C/C++ byte-array header is included only in the global module fragment of `LiquidGlassShader.ixx`; it is not exported through the C++ module interface. The embedded bytes are deep-copied by the runtime registry when the effect definition is registered. Built-in LiquidGlass therefore reaches the private linker without calling `D3DCompile` at runtime.
 
 ## Runtime source path
 
-The existing `HlslEffect.Create*` APIs accept source strings. Those definitions still populate `shaderSource`; the registry compiles the source once with `D3DCompile` and caches the resulting library blob for the process.
+Source-string `HlslEffect.Create*` APIs populate HLSL source. The runtime compiles that source once with `D3DCompile` and caches the shader library for the process. Compiler diagnostics are propagated as an `hresult_error` message identifying `UserShader.hlsl`.
 
-Thus the runtime has two explicit payload forms:
+The two payload forms are intentionally distinct:
 
-- source HLSL: dynamic/development path, compiled once at runtime;
-- precompiled DXBC library: production/built-in path, compiled by Visual C++ MSBuild/FXC.
+- source HLSL: dynamic/development path;
+- precompiled DXBC library: production/build-time path.
 
-The registry requires exactly one representation and deep-copies whichever representation is supplied.
+A definition must contain exactly one payload form.
 
-## Why FXC instead of DXC
+## Public precompiled API
 
-This project is not creating an ordinary application-owned D3D12 shader. The reverse-engineered DWM/WUCEffectsI path loads an SM4 shader-linking library and links exported functions with Microsoft's own fragment modules. The observed profile byte maps to `lib_4_0_level_9_1_ps_only`, `lib_4_0_level_9_3_ps_only`, or `lib_4_0`. A DXC-produced SM6/DXIL library is therefore not a drop-in replacement for this ABI.
-
-FXC is already integrated into the Visual C++ MSBuild toolchain and can produce exactly the required library target, a `.dxbc` object, and a generated C/C++ byte-array header. A separate compiler executable or custom shader packaging format is unnecessary for built-in effects.
-
-## Public API
-
-The source-string APIs remain available. Consumers that ship precompiled libraries use an explicit immutable bytecode object rather than overloading `String shader`:
+Consumers create an immutable bytecode object instead of overloading a `String` with source/path/bytecode semantics:
 
 ```idl
 enum HlslShaderProfile
@@ -66,9 +58,25 @@ runtimeclass HlslShaderLibrary
 }
 ```
 
-`HlslEffect.CreateCompiledSampler` and `HlslEffect.CreateCompiledColor` consume that library. The runtime owns a copy of the bytes, validates the DXBC container, reflects the required export, and keeps the shader profile explicit.
+`HlslEffect.CreateCompiledColor`, `CreateCompiledSampler`, `CreateCompiledColorWithProperties`, and `CreateCompiledSamplerWithProperties` consume this object. The WinRT API exposes `IBuffer`, not a native pointer; internally the bytes are owned by `std::vector<std::uint8_t>`.
 
-Native NuGet consumers can declare build-time shaders with:
+Before registration, the library is inspected with `D3DReflectLibrary`. Malformed/non-library DXBC, missing required exports, incompatible public function signatures, and mismatched `UserConstants` scalar layouts fail before reaching the private Composition linker. The selected `HlslShaderProfile` remains an explicit caller/build contract; profile-byte inference from the DXBC library is not implemented yet.
+
+### Public compiled ABI
+
+Color libraries export:
+
+```hlsl
+export float4 PSBody(float4 color);
+```
+
+Sampler libraries export the same `float4(float2 uv, float4 samplerDataExt)` ABI for `PSBody` and the clamp/wrap/mirror variants used by the Composition linker (`PSBodyCC`, `PSBodyCW`, ..., `PSBodyM`). Dynamic sampler source uses a simpler `Shade` function because the runtime generates those wrappers before `D3DCompile`; precompiled libraries must contain them at build time.
+
+If scalar properties are declared, the library must contain `cbuffer UserConstants : register(b0)` with the declared scalar names in API order. The runtime validates offsets and the required 16-byte cbuffer padding.
+
+## Native NuGet consumer build integration
+
+A C++/WinRT consumer can declare:
 
 ```xml
 <ItemGroup>
@@ -79,4 +87,16 @@ Native NuGet consumers can declare build-time shaders with:
 </ItemGroup>
 ```
 
-The package maps these items to standard Visual C++ `FxCompile` library items and emits `.dxbc` plus a generated byte-array header under `$(IntDir)Hlsl`. `Kind` must be `Color` or `Sampler`. This first integration deliberately does not generate a C++ module so the bytecode contract remains language-neutral.
+The NuGet package installs its native target through `buildTransitive/native`. The target converts each item to a standard Visual C++ `FxCompile` library item, emits a generated C/C++ header under `$(IntDir)Hlsl`, emits `$(IntDir)Hlsl\<name>.dxbc`, and copies the `.dxbc` into `$(OutDir)Hlsl` as a language-neutral build output.
+
+`Kind` is currently validation metadata (`Color` or `Sampler`); it does not synthesize HLSL wrappers. The HLSL file must therefore export the compiled ABI described above. Output naming currently uses `%(Filename)`, so two input files with the same leaf name are not supported without further target work.
+
+## CsWinRT / managed consumers
+
+The WinRT bytecode consumption API is language-neutral: a C# or other CsWinRT consumer can load build-produced DXBC into an `IBuffer`, create `HlslShaderLibrary`, and call the compiled effect APIs. It is not tied to C++ Modules.
+
+However, the current managed NuGet target does **not** automatically turn `<HlslCompositionShader>` into Visual C++ `FxCompile`, because SDK-style C# projects do not import the Visual C++ HLSL build task pipeline. Automatic managed-project HLSL compilation therefore remains a build-integration gap. A future shared shader-build target should either invoke the Windows SDK FXC tool explicitly with equivalent `lib_4_0` arguments or use a dedicated MSBuild task, while keeping the emitted `.dxbc` contract identical.
+
+## Why FXC instead of DXC
+
+This runtime is not creating an ordinary application-owned D3D12 shader. The reverse-engineered DWM/WUCEffectsI path consumes SM4 shader-linking libraries and links exported functions with Microsoft's private fragments. The observed private profile byte maps to the `lib_4_0_level_9_1_ps_only`, `lib_4_0_level_9_3_ps_only`, or `lib_4_0` family. DXC-produced SM6/DXIL is therefore not a drop-in payload for this ABI.
