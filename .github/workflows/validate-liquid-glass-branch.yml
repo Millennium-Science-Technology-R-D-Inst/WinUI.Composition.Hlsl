@@ -1,0 +1,30 @@
+name: Validate liquid glass branch
+
+on:
+  push:
+    branches:
+      - fix/liquid-glass-topology-blur-precompiled-hlsl
+    paths:
+      - .github/workflows/validate-liquid-glass-branch.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native x64 Debug
+        shell: pwsh
+        run: .\build.ps1 -Configuration Debug
+      - name: Verify generated shader assets
+        shell: pwsh
+        run: |
+          $header = Get-ChildItem -Recurse -Filter LiquidGlassShader.g.h | Select-Object -First 1
+          $dxbc = Get-ChildItem -Recurse -Filter LiquidGlassShader.dxbc | Select-Object -First 1
+          if (!$header) { throw 'LiquidGlassShader.g.h was not generated.' }
+          if (!$dxbc) { throw 'LiquidGlassShader.dxbc was not generated.' }
+          Write-Host "Generated header: $($header.FullName)"
+          Write-Host "Generated DXBC: $($dxbc.FullName) ($($dxbc.Length) bytes)"
