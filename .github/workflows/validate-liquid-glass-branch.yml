@@ -3,7 +3,7 @@ name: Validate liquid glass branch
 on:
   push:
     branches:
-      - fix/liquid-glass-topology-blur-precompiled-hlsl
+      - 'fix/**'
     paths:
       - .github/workflows/validate-liquid-glass-branch.yml
       - src/WinUI.Composition.Hlsl/WinUI.Composition.Hlsl.vcxproj
@@ -11,6 +11,8 @@ on:
       - src/WinUI.Composition.Hlsl/Materials/**
       - src/WinUI.Composition.Hlsl/Public/**
       - src/WinUI.Composition.Hlsl/Runtime/**
+      - packaging/**
+      - tests/**
   workflow_dispatch:
 
 permissions:
