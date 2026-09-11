@@ -54,6 +54,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				default: throw hresult_invalid_argument(L"Unknown shader profile.");
 			}
 			AppendProperties(definition, properties);
+			std::vector<std::wstring> propertyNames;
+			propertyNames.reserve(definition->properties.size());
+			for (auto const& property : definition->properties)
+			{
+				propertyNames.push_back(property.name);
+			}
+			library->ValidateForEffect(sampler, propertyNames);
 			hlsl::engine::Validate(*definition);
 			definition->id = id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
 			return make<HlslEffect>(definition);
