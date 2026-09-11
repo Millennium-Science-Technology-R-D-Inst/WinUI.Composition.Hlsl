@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef WINRT_IMPORT_MODULE
 #define WINRT_IMPORT_MODULE
 #endif
@@ -21,9 +21,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		static Hlsl::HlslEffect CreateCompiledColor(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateCompiledSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateColorWithProperties(hstring const& shader, hstring const& sourceName,
-														  Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateSamplerWithProperties(hstring const& shader, hstring const& sourceName,
-															Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+		static Hlsl::HlslEffect CreateCompiledColorWithProperties(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, hstring const& sourceName,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+		static Hlsl::HlslEffect CreateCompiledSamplerWithProperties(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, hstring const& sourceName,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		winrt::guid Id() const
 		{
 			return m_definition->id;
