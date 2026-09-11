@@ -16,6 +16,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare local NuGet source
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
       - name: Build native x64 Debug
         shell: pwsh
         run: .\build.ps1 -Configuration Debug
