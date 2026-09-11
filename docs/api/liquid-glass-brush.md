@@ -6,7 +6,6 @@ An XAML brush that renders the built-in Liquid Glass material.
 **Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
-
 ```idl
 [default_interface]
 runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
@@ -26,7 +25,7 @@ runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
 
 The numeric dependency properties use `Double`, matching WinUI XAML text conversion. Values are validated and converted to GPU `float` values internally.
 
-The material uses a native Gaussian effect brush as the materialized source of the custom HLSL glass sampler. This is the safe lowering path until the private backend can emit mixed native/custom compiled-subgraph records.
+The material is compiled as one effect graph containing the native Gaussian stage and the custom sampler. The private backend lowers the native upstream graph through a `MaterializedTexture` intermediate, then links the custom sampler into the final consumer. It does not pass a `CompositionEffectBrush` as the source of another `CompositionEffectBrush`.
 
 ## Theme resources
 
@@ -51,5 +50,3 @@ Use `{ThemeResource CardMaterialBrush}` from controls. To switch visual material
 ## Remarks
 
 The brush checks `CompositionCapabilities.AreEffectsSupported()` when connected. If effects are disabled, initialization fails, or `IsEnabled` is false, it uses `FallbackColor`. It closes replaced Composition brushes when disconnected or rebuilt.
-
-
