@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{6CC7C1E5-8D0E-4F06-B625-7B92B663A6B8}</ProjectGuid>
+    <RootNamespace>NativeShaderConsumer</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <OutDir>$(MSBuildThisFileDirectory)Output\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(MSBuildThisFileDirectory)Output\obj\$(Platform)\$(Configuration)\</IntDir>
+    <HlslWinmd>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\artifacts\x64\Debug\WinUI.Composition.Hlsl.winmd'))</HlslWinmd>
+    <HlslNativeDll>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\artifacts\x64\Debug\WinUI.Composition.Hlsl.dll'))</HlslNativeDll>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <LanguageStandard>stdcpp23</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <HlslCompositionShader Include="ConsumerSampler.hlsl">
+      <Kind>Sampler</Kind>
+      <ShaderModel>4.0</ShaderModel>
+    </HlslCompositionShader>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(MSBuildThisFileDirectory)..\..\packaging\WinUI.Composition.Hlsl.Native.targets" />
+</Project>
