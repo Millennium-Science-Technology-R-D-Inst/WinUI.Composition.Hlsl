@@ -1,0 +1,384 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pack-nuget:
+    name: Pack preview NuGet
+    runs-on: windows-2025-vs2026
+    outputs:
+      package-version: ${{ steps.version.outputs.package-version }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: NuGet/setup-nuget@v4
+        with:
+          nuget-version: latest
+
+      - name: Compute unique preview version
+        id: version
+        shell: pwsh
+        run: |
+          # github.run_id is globally unique; run_attempt also keeps a rerun distinct.
+          $version = "1.0.0-preview.${{ github.run_id }}.${{ github.run_attempt }}"
+          "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "package-version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Preview package version: $version"
+
+      - name: Prepare package output
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
+
+      - name: Resolve Visual Studio and Windows SDK
+        shell: pwsh
+        run: |
+          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Lib"
+          $sdk = Get-ChildItem $sdkRoot -Directory |
+            Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            Select-Object -First 1
+          if (!$sdk) { throw 'No Windows 10/11 SDK was found on the runner.' }
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+          if (!$msbuild) { throw 'Visual Studio MSBuild not found.' }
+
+          "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Windows SDK: $($sdk.Name)"
+          Write-Host "MSBuild: $msbuild"
+
+      - name: Build native package assets
+        shell: pwsh
+        run: |
+          # Keep these as top-level MSBuild invocations. WinAppSDK native props use
+          # $(Platform) while they are evaluated, so each architecture must receive
+          # Platform as a global property from the start of evaluation.
+          foreach ($platform in @('x64', 'Win32', 'ARM64')) {
+            Write-Host "Building native Release/$platform"
+            & $env:MSBUILD `
+              'src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj' `
+              /restore `
+              /t:Build `
+              /p:Configuration=Release `
+              "/p:Platform=$platform" `
+              /p:NuGetAudit=false `
+              "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+              /m /v:minimal /nologo `
+              /fl "/flp:logfile=native-$platform.log;verbosity=minimal"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+
+      - name: Verify generated built-in shader assets
+        shell: pwsh
+        run: |
+          $header = Get-ChildItem 'src\WinUI.Composition.Hlsl\obj\x64\Release' -Recurse -Filter LiquidGlassShader.g.h -ErrorAction SilentlyContinue | Select-Object -First 1
+          $dxbc = Get-ChildItem 'src\WinUI.Composition.Hlsl\obj\x64\Release' -Recurse -Filter LiquidGlassShader.dxbc -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (!$header) { throw 'LiquidGlassShader.g.h was not generated.' }
+          if (!$dxbc) { throw 'LiquidGlassShader.dxbc was not generated.' }
+          Write-Host "Generated header: $($header.FullName)"
+          Write-Host "Generated DXBC: $($dxbc.FullName) ($($dxbc.Length) bytes)"
+
+      - name: Build projection package asset
+        shell: pwsh
+        run: |
+          & $env:MSBUILD `
+            'projection\WinUI.Composition.Hlsl.Projection.csproj' `
+            /restore `
+            /t:Build `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:NuGetAudit=false `
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+            /m /v:minimal /nologo `
+            /fl "/flp:logfile=projection-build.log;verbosity=minimal"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Validate native HLSL build integration
+        shell: pwsh
+        run: |
+          $winmd = (Resolve-Path 'artifacts\x64\Release\WinUI.Composition.Hlsl.winmd').Path
+          $nativeDll = (Resolve-Path 'artifacts\x64\Release\WinUI.Composition.Hlsl.dll').Path
+          & $env:MSBUILD `
+            'tests\BuildIntegration\NativeShaderConsumer.vcxproj' `
+            /p:Configuration=Debug `
+            /p:Platform=x64 `
+            "/p:HlslWinmd=$winmd" `
+            "/p:HlslNativeDll=$nativeDll" `
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+            /m /v:minimal /nologo `
+            /fl "/flp:logfile=native-shader-consumer.log;verbosity=minimal"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          $fixtureDxbc = 'tests\BuildIntegration\Output\x64\Debug\Hlsl\ConsumerSampler.dxbc'
+          if (!(Test-Path $fixtureDxbc)) { throw "Consumer build target did not emit $fixtureDxbc" }
+          $bytes = [System.IO.File]::ReadAllBytes($fixtureDxbc)
+          if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
+            throw 'Consumer shader output is not a DXBC container.'
+          }
+
+      - name: Verify package inputs
+        shell: pwsh
+        run: |
+          $required = @(
+            'artifacts\x64\Release\WinUI.Composition.Hlsl.winmd',
+            'artifacts\x64\Release\WinUI.Composition.Hlsl.dll',
+            'artifacts\Win32\Release\WinUI.Composition.Hlsl.dll',
+            'artifacts\ARM64\Release\WinUI.Composition.Hlsl.dll',
+            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll'
+          )
+          foreach ($path in $required) {
+            if (!(Test-Path $path)) { throw "Missing package input: $path" }
+            Write-Host "Found: $path"
+          }
+
+      - name: Pack unique preview NuGet
+        shell: pwsh
+        run: |
+          & nuget pack `
+            'packaging\WinUI.Composition.Hlsl.nuspec' `
+            -BasePath . `
+            -OutputDirectory 'artifacts\packages' `
+            -Version $env:PACKAGE_VERSION `
+            -NoPackageAnalysis `
+            -Verbosity detailed 2>&1 | Tee-Object -FilePath nuget-pack.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
+          $package = Get-ChildItem 'artifacts\packages' -Filter $expected -File | Select-Object -First 1
+          if (!$package) { throw "NuGet pack succeeded but $expected was not produced." }
+          Write-Host "Package: $($package.FullName)"
+
+      - name: Upload preview NuGet package
+        uses: actions/upload-artifact@v7
+        with:
+          name: WinUI.Composition.Hlsl-${{ steps.version.outputs.package-version }}
+          if-no-files-found: error
+          path: artifacts/packages/WinUI.Composition.Hlsl.*.nupkg
+
+      - name: Upload pack logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: WinUI.Composition.Hlsl-pack-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: |
+            native-*.log
+            projection-build.log
+            native-shader-consumer.log
+            nuget-pack.log
+
+  build-cpp-xaml-demo:
+    name: Build C++ XAML demo from packed NuGet
+    needs: pack-nuget
+    runs-on: windows-2025-vs2026
+    env:
+      PACKAGE_VERSION: ${{ needs.pack-nuget.outputs.package-version }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Prepare local NuGet source
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
+
+      - name: Download packed NuGet
+        uses: actions/download-artifact@v8
+        with:
+          name: WinUI.Composition.Hlsl-${{ needs.pack-nuget.outputs.package-version }}
+          path: artifacts/packages
+
+      - name: Configure exact package consumer
+        shell: pwsh
+        run: |
+          $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
+          $package = Get-ChildItem 'artifacts\packages' -Filter $expected -File | Select-Object -First 1
+          if (!$package) { throw "Expected package $expected was not downloaded." }
+          Write-Host "Consumer package: $($package.FullName)"
+
+          # Local development uses a ProjectReference. CI deliberately rewrites only
+          # this checkout to a PackageReference so the test covers the exact .nupkg
+          # produced by the previous job.
+          $projectPath = (Resolve-Path 'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj').Path
+          [xml]$project = Get-Content $projectPath -Raw
+          $ns = [System.Xml.XmlNamespaceManager]::new($project.NameTable)
+          $ns.AddNamespace('msb', 'http://schemas.microsoft.com/developer/msbuild/2003')
+          $projectRef = $project.SelectSingleNode('//msb:ProjectReference[contains(@Include, "WinUI.Composition.Hlsl.vcxproj")]', $ns)
+          if (!$projectRef) { throw 'WinUI.Composition.Hlsl ProjectReference was not found in the C++ demo.' }
+          $itemGroup = $projectRef.ParentNode
+          [void]$itemGroup.RemoveChild($projectRef)
+          $packageRef = $project.CreateElement('PackageReference', $project.DocumentElement.NamespaceURI)
+          $packageRef.SetAttribute('Include', 'WinUI.Composition.Hlsl')
+          $packageRef.SetAttribute('VersionOverride', $env:PACKAGE_VERSION)
+          [void]$itemGroup.AppendChild($packageRef)
+          $project.Save($projectPath)
+
+          @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="LocalHlsl" value="artifacts/packages" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+            <packageSourceMapping>
+              <packageSource key="LocalHlsl">
+                <package pattern="WinUI.Composition.Hlsl" />
+              </packageSource>
+              <packageSource key="nuget.org">
+                <package pattern="Microsoft.*" />
+                <package pattern="YexuanXiao.*" />
+              </packageSource>
+            </packageSourceMapping>
+          </configuration>
+          '@ | Set-Content -Path NuGet.CI.Config -Encoding utf8
+
+      - name: Resolve Visual Studio and Windows SDK
+        shell: pwsh
+        run: |
+          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Lib"
+          $sdk = Get-ChildItem $sdkRoot -Directory |
+            Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            Select-Object -First 1
+          if (!$sdk) { throw 'No Windows 10/11 SDK was found on the runner.' }
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+          if (!$msbuild) { throw 'Visual Studio MSBuild not found.' }
+
+          "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build demo from packed NuGet
+        shell: pwsh
+        run: |
+          & $env:MSBUILD `
+            'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj' `
+            /restore `
+            /p:Configuration=Debug `
+            /p:Platform=x64 `
+            /p:NuGetAudit=false `
+            "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+            /m /v:minimal /nologo `
+            /fl "/flp:logfile=Cpp-test-build.log;verbosity=minimal"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Upload C++ demo build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cpp-xaml-demo-build-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: |
+            Cpp-test-build.log
+            tests/Cpp/Output/**/*.log
+
+  build-csharp-demo:
+    name: Build C# demo from packed NuGet
+    needs: pack-nuget
+    runs-on: windows-2025-vs2026
+    env:
+      PACKAGE_VERSION: ${{ needs.pack-nuget.outputs.package-version }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Prepare local NuGet source
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
+
+      - name: Download packed NuGet
+        uses: actions/download-artifact@v8
+        with:
+          name: WinUI.Composition.Hlsl-${{ needs.pack-nuget.outputs.package-version }}
+          path: artifacts/packages
+
+      - name: Configure exact managed package consumer
+        shell: pwsh
+        run: |
+          $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
+          if (!(Test-Path "artifacts\packages\$expected")) { throw "Expected package $expected was not downloaded." }
+
+          $projectPath = (Resolve-Path 'tests\CSharp\HlslCSharpConsumer.csproj').Path
+          [xml]$project = Get-Content $projectPath -Raw
+          $packageRef = $project.Project.ItemGroup.PackageReference | Where-Object { $_.Include -eq 'WinUI.Composition.Hlsl' } | Select-Object -First 1
+          if (!$packageRef) { throw 'WinUI.Composition.Hlsl PackageReference was not found in the C# demo.' }
+          $packageRef.SetAttribute('VersionOverride', $env:PACKAGE_VERSION)
+          $project.Save($projectPath)
+
+          @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="LocalHlsl" value="artifacts/packages" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+            <packageSourceMapping>
+              <packageSource key="LocalHlsl">
+                <package pattern="WinUI.Composition.Hlsl" />
+              </packageSource>
+              <packageSource key="nuget.org">
+                <package pattern="Microsoft.*" />
+                <package pattern="YexuanXiao.*" />
+              </packageSource>
+            </packageSourceMapping>
+          </configuration>
+          '@ | Set-Content -Path NuGet.CI.Config -Encoding utf8
+
+      - name: Resolve Visual Studio and Windows SDK
+        shell: pwsh
+        run: |
+          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Lib"
+          $sdk = Get-ChildItem $sdkRoot -Directory |
+            Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            Select-Object -First 1
+          if (!$sdk) { throw 'No Windows 10/11 SDK was found on the runner.' }
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+          if (!$msbuild) { throw 'Visual Studio MSBuild not found.' }
+
+          "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build managed demo from packed NuGet
+        shell: pwsh
+        run: |
+          & $env:MSBUILD `
+            'tests\CSharp\HlslCSharpConsumer.csproj' `
+            /restore `
+            /p:Configuration=Debug `
+            /p:Platform=x64 `
+            /p:NuGetAudit=false `
+            "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+            /m /v:minimal /nologo `
+            /fl "/flp:logfile=CSharp-test-build.log;verbosity=minimal"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Upload C# demo build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: csharp-demo-build-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: CSharp-test-build.log
