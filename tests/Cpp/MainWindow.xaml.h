@@ -1,7 +1,10 @@
 ﻿#pragma once
 
+#include <microsoft.ui.xaml.window.h>
+
 #include "MainWindow.g.h"
-#include <winrt/WinUI.Composition.Hlsl.h>
+import winrt.WinUI.Composition.Hlsl;
+import winrt.Microsoft.UI.Dispatching;
 
 namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 {

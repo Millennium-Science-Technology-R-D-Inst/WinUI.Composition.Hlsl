@@ -1,4 +1,5 @@
-﻿#include "pch.h"
+﻿#include "XamlWorkaround.h"
+
 #include "App.xaml.h"
 #include "MainWindow.xaml.h"
 

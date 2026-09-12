@@ -1,9 +1,18 @@
-﻿#include "pch.h"
+﻿#include <unknwn.h>
+#include <Windows.h>
+#include <shobjidl.h>
+#include <microsoft.ui.xaml.window.h>
+#include <windows.graphics.effects.h>
+
+#include "XamlWorkaround.h"
 #include "MainWindow.xaml.h"
-#include <fstream>
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
+
+import windows.graphic.effects.interop;
+import winrt.Windows.Storage;
+import winrt.Windows.Storage.Pickers;
 
 using namespace winrt;
 using namespace Windows::ApplicationModel::DataTransfer;
@@ -99,12 +108,12 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		{
 			Title(L"HLSL Composition API smoke test");
 			std::ofstream("smoke.log") << "started: automatic resolver + App SDK 2.4.0\n";
-			m_smokeTimer=DispatcherQueue().CreateTimer();
+			m_smokeTimer = DispatcherQueue().CreateTimer();
 			m_smokeTimer.Interval(std::chrono::seconds(2));
-			auto weak=get_weak();
-			m_smokeTimer.Tick([weak, phase=0](auto const&, auto const&) mutable
+			auto weak = get_weak();
+			m_smokeTimer.Tick([weak, phase = 0](auto const&, auto const&) mutable
 							  {
-								  auto self=weak.get(); if (!self) return;
+								  auto self = weak.get(); if (!self) return;
 								  try
 								  {
 									  switch (phase++)
