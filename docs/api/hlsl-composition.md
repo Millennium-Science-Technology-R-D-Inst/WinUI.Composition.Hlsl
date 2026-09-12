@@ -20,7 +20,9 @@ Returns the packaged native-adapter capability level without installing private 
 public static HlslEffectFactory CreateEffectFactory(Compositor compositor, HlslEffect effect);
 ```
 
-Creates/caches the Composition factory for an `HlslEffect` description. For custom upstream `IGraphicsEffect` graphs, first call `HlslEffect.CreateGraphicsEffectWithSource` and pass the returned graph to the standard `Compositor.CreateEffectFactory` API.
+Creates/caches the Composition factory for the effect's normal one-source description.
+
+When a custom shader must consume an already-built **native `IGraphicsEffect` graph**, use `HlslEffectKind.MaterializedSampler`, call `CreateGraphicsEffectWithSource(upstream)`, obtain `GetAnimatablePropertyPaths()`, and then call the standard `Compositor.CreateEffectFactory(graph, paths)`. Ordinary `Color/Sampler` mixed-native upstream graphs are intentionally rejected until their private linked-subgraph ABI is verified.
 
 ## CreateBackdropBrush
 
@@ -44,11 +46,11 @@ Wraps an HLSL effect brush in `XamlCompositionBrushBase` for XAML brush properti
 public static Brush CreateXamlBrushFromCompositionBrush(CompositionBrush brush);
 ```
 
-Bridges any compatible `CompositionBrush` to XAML. This is useful when the graph was assembled through the standard Windows Graphics Effects/Composition API rather than the HLSL convenience factory.
+Bridges any compatible `CompositionBrush` to XAML. This is useful when the graph was assembled through standard Windows Graphics Effects/Composition APIs rather than the HLSL convenience factory.
 
 The bridge stays in the XAML/Composition visual system. It does not create a `SwapChainPanel`, app-owned swap chain, independent HWND overlay, or another rendering tree.
 
-## Example graph
+## Validated mixed-graph shape
 
 ```text
 XAML/Backdrop source

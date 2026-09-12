@@ -31,9 +31,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 					definition.materializedSampler = false;
 					break;
 				case Hlsl::HlslEffectKind::MaterializedSampler:
+#if !defined(_M_X64)
+					throw hresult_not_implemented(L"Public MaterializedSampler execution is currently validated only for the x64 Composition adapter. HlslCompiler can still precompile/cache its DXBC on this architecture.");
+#else
 					definition.sampler = true;
 					definition.materializedSampler = true;
 					break;
+#endif
 				default:
 					throw hresult_invalid_argument(L"Unknown HLSL effect kind.");
 			}
@@ -184,6 +188,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	Windows::Graphics::Effects::IGraphicsEffect HlslEffect::CreateGraphicsEffectWithSource(Windows::Graphics::Effects::IGraphicsEffectSource const& source) const
 	{
 		if (!source) throw hresult_invalid_argument(L"The graphics-effect source is null.");
+		if (!m_definition->materializedSampler && source.try_as<Windows::Graphics::Effects::IGraphicsEffect>())
+		{
+			throw hresult_not_implemented(L"An upstream graphics-effect graph requires MaterializedSampler. Color/Sampler currently accept source parameters/brush sources but do not lower mixed native effect nodes safely.");
+		}
 		return hlsl::engine::Compile(m_definition, source);
 	}
 }

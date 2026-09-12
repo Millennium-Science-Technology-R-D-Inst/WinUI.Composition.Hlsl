@@ -34,7 +34,7 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData);
 
 The explicit-GUID counterparts are `CreateColor`, `CreateSampler`, and `CreateMaterializedSampler`. Passing `Guid.Empty` also derives a deterministic ID, but the `CreateCustom*` forms are clearer for application-owned source shaders.
 
-`MaterializedSampler` is intended for `native Composition effect graph -> materialized texture -> HLSL sampler`. It currently supports one upstream source and one isolated terminal custom shader node.
+`MaterializedSampler` is intended for `native Composition effect graph -> materialized texture -> HLSL sampler`. Public materialized execution is currently enabled only on the validated x64 adapter. `HlslCompiler` can still precompile/cache the materialized DXBC contract on other architectures.
 
 The `*WithProperties` overloads add a named source and `HlslFloatProperty` descriptors. Properties become entries in `UserConstants` and can be animated through the underlying Composition property set.
 
@@ -51,7 +51,7 @@ public string GetPropertyPath(string name);
 public IReadOnlyList<string> GetAnimatablePropertyPaths();
 ```
 
-These methods expose the exact effect property paths required by standard `Compositor.CreateEffectFactory(graph, animatableProperties)`. They are especially useful when `CreateGraphicsEffectWithSource` is used to insert HLSL into a graph assembled directly with Windows Graphics Effects APIs.
+These methods expose the exact property paths required by `Compositor.CreateEffectFactory(graph, animatableProperties)`, so standard Composition graph construction does not need to know the library's internal effect name.
 
 ## Standard graph node methods
 
@@ -60,18 +60,20 @@ public IGraphicsEffect CreateGraphicsEffect();
 public IGraphicsEffect CreateGraphicsEffectWithSource(IGraphicsEffectSource source);
 ```
 
-These create standard Windows Graphics Effects nodes. The second form embeds an explicit upstream effect/source, enabling graphs such as:
+`CreateGraphicsEffect` produces the standard Windows Graphics Effects node for the description.
+
+`CreateGraphicsEffectWithSource` accepts an explicit source. `Color` and ordinary `Sampler` can use a source parameter/brush source, but the current `SingleCustom` backend deliberately rejects another `IGraphicsEffect` as their upstream node because mixed native/custom subgraph linking has not been verified. Use `MaterializedSampler` when the upstream source is a native effect graph:
 
 ```text
 CompositionEffectSourceParameter
         -> native blur/transform/etc.
-        -> HlslEffect.CreateGraphicsEffectWithSource(...)
+        -> MaterializedSampler.CreateGraphicsEffectWithSource(upstream)
         -> Compositor.CreateEffectFactory(graph, effect.GetAnimatablePropertyPaths())
         -> CompositionEffectBrush
         -> XamlCompositionBrushBase
 ```
 
-No `SwapChainPanel`, app-owned swap chain, or separate overlay visual is required.
+This keeps the graph inside Composition/XAML without `SwapChainPanel`, an app-owned swap chain, or an overlay renderer.
 
 ## Performance guidance
 
@@ -79,4 +81,4 @@ For production shaders, prefer the NuGet `<HlslCompositionShader>` build item or
 
 ## Current scope
 
-The public model intentionally remains narrow: one named source, scalar public properties, fixed linker contracts, and at most one custom HLSL node in the current lowered graph. Multiple custom texture sources, arbitrary custom-node chains, and guessed private vector/matrix metadata are not exposed until the corresponding private ABI is verified.
+The public model intentionally remains narrow: one named source, scalar public properties, fixed linker contracts, and at most one custom HLSL node in the current lowered graph. Multiple custom texture sources, arbitrary custom-node chains, ordinary `Color/Sampler` mixed with upstream native effect nodes, and guessed private vector/matrix metadata are not exposed until the corresponding private ABI is verified.
