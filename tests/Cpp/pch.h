@@ -1,0 +1,1 @@
+﻿// We keep it as the XamlMetaDataProvider.cpp still uses.

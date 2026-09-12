@@ -126,6 +126,7 @@
     <ClInclude Include="MainWindow.xaml.h">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </ClInclude>
+    <ClInclude Include="pch.h" />
     <ClInclude Include="XamlWorkaround.h" />
   </ItemGroup>
   <ItemGroup>
