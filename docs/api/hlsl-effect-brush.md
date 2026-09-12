@@ -3,38 +3,52 @@
 Wraps the native `CompositionEffectBrush` created for an `HlslEffect` schema.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
+**Package:** `WinUI.Composition.Hlsl` v1.0.0  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
-
 
 ## Properties
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `Brush` | `CompositionBrush` | Gets the underlying brush for use with Composition visuals or `CreateXamlBrush`. |
+| `Brush` | `CompositionBrush` | General brush view for Composition/XAML bridging. |
+| `EffectBrush` | `CompositionEffectBrush` | Direct access to the native effect brush. |
+| `Properties` | `CompositionPropertySet` | Native property set used by Composition animations. |
 
-## Methods
+## GetPropertyPath
 
-### SetSource
+```csharp
+public string GetPropertyPath(string name);
+```
+
+Returns the native animatable path for a declared scalar property, for example `HlslEffect.RefractionStrength`. It validates the property name once when requested.
+
+## SetSource
 
 ```csharp
 public void SetSource(string name, CompositionBrush source);
 ```
 
-Assigns the single source declared by the effect. The source must belong to the same compositor.
+Assigns the effect's declared source. The source must belong to the same compositor.
 
-### SetFloat
+## SetFloat
 
 ```csharp
 public void SetFloat(string name, float value);
 ```
 
-Assigns a declared scalar property. The name must exist in the effect schema and the value must be finite and inside its inclusive range.
+Convenience setter for low-frequency application updates. The wrapper checks declaration, finiteness, and the declared range before updating the underlying property set.
+
+For frame-rate animation, do not call `SetFloat` every frame. Start a Composition animation on `Properties`/`EffectBrush` using `GetPropertyPath`; the update then stays on the Composition animation path and feeds the native constant-buffer updater without a managed/native application callback per frame.
+
+## Example
+
+```cpp
+auto property = brush.GetPropertyPath(L"Strength");
+auto animation = compositor.CreateScalarKeyFrameAnimation();
+animation.InsertKeyFrame(1.0f, 24.0f);
+brush.EffectBrush().StartAnimation(property, animation);
+```
 
 ## Exceptions
 
-| Exception | Condition |
-| --- | --- |
-| `ArgumentException` | Source/property name is undeclared, a source belongs to another compositor, or a value is outside its schema. |
-
-
+`ArgumentException` is thrown for undeclared source/property names, cross-compositor sources, non-finite values, and values outside the declared scalar range.

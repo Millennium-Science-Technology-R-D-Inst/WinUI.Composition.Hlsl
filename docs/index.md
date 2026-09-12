@@ -1,67 +1,73 @@
 # WinUI.Composition.Hlsl documentation
 
-`WinUI.Composition.Hlsl` is a native Windows Runtime component for creating HLSL-backed Microsoft.UI.Composition effects and XAML material brushes in WinUI 3 applications.
+`WinUI.Composition.Hlsl` is a native Windows Runtime component that turns custom HLSL into Windows Graphics Effects / Microsoft.UI.Composition nodes and bridges the resulting Composition brushes back into WinUI 3 XAML.
+
+The rendering model stays inside Composition/XAML; the library does not require `SwapChainPanel`, an application-owned swap chain, or a separate overlay renderer.
 
 ## Install
 
 ```xml
-<PackageReference Include="WinUI.Composition.Hlsl" Version="0.1.0-preview.8" />
+<PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.0" />
 ```
 
-The package contains the native implementation and the build assets required by C++/WinRT and C# WinUI applications. Consumers do not create or configure a projection project.
+The package contains native x64/x86/ARM64 assets, a .NET projection, and shared C++/C# shader build targets.
 
-## Get started
+## Recommended production path
 
-### Use Liquid Glass in XAML
+Declare known shaders at build time:
 
 ```xml
-<Page
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:hlsl="using:WinUI.Composition.Hlsl">
-    <Border>
-        <Border.Background>
-            <hlsl:LiquidGlassBrush
-                BlurRadius="10"
-                RefractionStrength="18"
-                CornerRadius="24"
-                FallbackColor="#CC202020" />
-        </Border.Background>
-    </Border>
-</Page>
+<HlslCompositionShader Include="Effects\Glass.hlsl">
+  <Kind>MaterializedSampler</Kind>
+  <Profile>Pixel40</Profile>
+</HlslCompositionShader>
 ```
 
-### Create a custom color effect
+FXC then validates source and entry-point contracts during MSBuild and emits Composition-compatible DXBC. Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchronously and persist [HlslShaderLibrary.Bytecode](api/hlsl-shader-library.md) for later runs.
 
-```csharp
-var effect = HlslEffect.CreateColorTransform(
-    "export float4 PSBody(float4 color) { return float4(color.a - color.rgb, color.a); }");
+## Effect contracts
 
-var brush = HlslComposition.CreateBackdropBrush(compositor, effect);
-var xamlBrush = HlslComposition.CreateXamlBrush(brush);
+- `Color`: `float4 PSBody(float4 color)`.
+- `Sampler`: `float4 Shade(float2 uv, float4 samplerDataExt)`.
+- `MaterializedSampler`: `float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)` for one materialized upstream native graph.
+
+The build/runtime front end generates private sampler edge-mode wrappers. Do not hand-code them in application shaders.
+
+## Standard Composition graph
+
+```text
+IGraphicsEffectSource / native Composition effects
+    -> HlslEffect.CreateGraphicsEffectWithSource(...)
+    -> Compositor.CreateEffectFactory(...)
+    -> CompositionEffectBrush
+    -> HlslComposition.CreateXamlBrushFromCompositionBrush(...)
+    -> XAML Brush property
 ```
+
+For simple backdrop effects, `HlslComposition.CreateBackdropBrush` remains the convenience API.
 
 ## API reference
 
 - [WinUI.Composition.Hlsl namespace](api/winui-composition-hlsl.md)
+- [HlslComposition](api/hlsl-composition.md)
+- [HlslCompiler](api/hlsl-compiler.md)
 - [HlslEffect](api/hlsl-effect.md)
 - [HlslEffectKind](api/hlsl-effect-kind.md)
 - [HlslFloatProperty](api/hlsl-float-property.md)
 - [HlslEffectFactory](api/hlsl-effect-factory.md)
 - [HlslEffectBrush](api/hlsl-effect-brush.md)
-- [HlslComposition](api/hlsl-composition.md)
+- [HlslRuntimeCapabilities](api/hlsl-runtime-capabilities.md)
+- [HlslShaderLibrary](api/hlsl-shader-library.md)
 - [LiquidGlassMaterial](api/liquid-glass-material.md)
 - [LiquidGlassBrush](api/liquid-glass-brush.md)
 
-## Samples
+## Design notes
 
-- `tests/Cpp`: complete C++/WinRT Liquid Glass demo.
-- `tests/CSharp`: standard C# WinUI 3 application using `LiquidGlassBrush` and theme resources.
+- [Materialized graph compilation](design/materialized-graph-runtime.md)
+- [Precompiled and asynchronous shader libraries](design/precompiled-shaders.md)
 
-## Applies to
+## Support boundary
 
-| Product | Version |
-| --- | --- |
-| Windows App SDK | 2.4 |
-| WinUI.Composition.Hlsl | 0.1.0-preview.8 |
+Windows App SDK 2.4 x64 is the validated private-ABI baseline. x86 and ARM64 adapters are experimental. Query `HlslComposition.GetRuntimeCapabilities()` before enabling optional materialized effects on architectures/builds where your application requires a fallback.
 
-
+The current backend intentionally supports one named public source and at most one custom HLSL node in a lowered graph. Multi-texture custom inputs, arbitrary custom-node chains, and unverified private vector/matrix property metadata remain unsupported rather than guessed.
