@@ -18,6 +18,7 @@ namespace WinUI.Composition.Hlsl
     {
         static HlslShaderLibrary Create(Windows.Storage.Streams.IBuffer bytecode, HlslShaderProfile profile);
         HlslShaderProfile Profile{ get; };
+        Windows.Storage.Streams.IBuffer Bytecode{ get; };
     }
     [default_interface] runtimeclass HlslFloatProperty
     {

@@ -45,7 +45,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			auto definition = std::make_shared<hlsl::engine::EffectDefinition>();
 			definition->sampler = sampler;
 			definition->sourceName = sourceName;
-			definition->shaderBytecode = library->Bytecode();
+			definition->shaderBytecode = library->BytecodeBytes();
 			switch (library->Profile())
 			{
 				case Hlsl::HlslShaderProfile::Level91: definition->shaderProfile = CustomEffectRuntime::kShaderProfileLevel91; break;

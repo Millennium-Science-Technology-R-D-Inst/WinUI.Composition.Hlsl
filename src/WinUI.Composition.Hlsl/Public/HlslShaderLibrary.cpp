@@ -108,6 +108,20 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		return make<HlslShaderLibrary>(std::move(owned), profile);
 	}
 
+	Windows::Storage::Streams::IBuffer HlslShaderLibrary::Bytecode() const
+	{
+		auto buffer = Windows::Storage::Streams::Buffer(static_cast<uint32_t>(m_bytecode.size()));
+		buffer.Length(static_cast<uint32_t>(m_bytecode.size()));
+		auto access = buffer.as<::Windows::Storage::Streams::IBufferByteAccess>();
+		byte* destination{};
+		check_hresult(access->Buffer(&destination));
+		if (!m_bytecode.empty())
+		{
+			memcpy(destination, m_bytecode.data(), m_bytecode.size());
+		}
+		return buffer;
+	}
+
 	void HlslShaderLibrary::ValidateForEffect(bool sampler, std::span<std::wstring const> propertyNames) const
 	{
 		auto reflection = ReflectLibrary(m_bytecode);
