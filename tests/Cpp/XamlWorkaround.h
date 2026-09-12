@@ -17,15 +17,18 @@
 #include <shobjidl.h>
 #include <microsoft.ui.xaml.window.h>
 
-// Include the STL headers used by the authored/generated XAML code before any
-// module import. MSVC supports include-then-import; the reverse ordering can
-// produce duplicate declaration diagnostics when a later header is included.
+// Include STL headers that authored/generated XAML code may include later before
+// any C++/WinRT module import. MSVC supports include-then-import, but not the
+// reverse ordering for the same STL declarations. In particular, generated XAML
+// code reaches <map>; if it is first included after a WinRT module has imported
+// std, MSVC reports xtree/map redefinitions.
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cwctype>
 #include <fstream>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
