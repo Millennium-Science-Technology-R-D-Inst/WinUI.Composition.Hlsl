@@ -17,10 +17,9 @@
     -->
     <TargetName>$(RootNamespace)</TargetName>
     <DefaultLanguage>en-US</DefaultLanguage>
-    <MinimumVisualStudioVersion>16.0</MinimumVisualStudioVersion>
+    <MinimumVisualStudioVersion>18.8</MinimumVisualStudioVersion>
     <AppContainerApplication>false</AppContainerApplication>
-    <AppxPackage>false</AppxPackage>
-    <WindowsPackageType>None</WindowsPackageType>
+    <AppxPackage>true</AppxPackage>
     <ApplicationType>Windows Store</ApplicationType>
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
@@ -128,6 +127,7 @@
     </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="XamlWorkaround.h" />
+    <ClCompile Include="windows.graphic.effects.interop.ixx" />
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml" />
@@ -170,11 +170,6 @@
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <ProjectCapability Include="Msix" />
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="windows.graphic.effects.interop.ixx">
-      <FileType>Document</FileType>
-    </ClCompile>
-  </ItemGroup>
   <!-- Inject module imports into XAML-generated source files. XAML is a two-pass
        build, so the same metadata must be applied before both compile phases. -->
   <Target Name="InjectModuleImportsIntoXamlGenerated" AfterTargets="ComputeXamlGeneratedCompileInputs" BeforeTargets="ClCompile">
@@ -208,6 +203,10 @@
     <PackageReference Include="Microsoft.Windows.ImplementationLibrary" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
-    <PackageReference Include="WinUI.Composition.Hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj">
+      <Project>{52a0f546-89a6-4fd2-ba87-f8f06b5542a8}</Project>
+    </ProjectReference>
   </ItemGroup>
 </Project>

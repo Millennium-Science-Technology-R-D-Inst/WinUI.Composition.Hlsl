@@ -135,9 +135,10 @@
     <ClCompile Include="Public\LiquidGlassMaterial.cpp" />
     <ClInclude Include="Public\LiquidGlassMaterial.h" />
     <ClCompile Include="Runtime\CustomEffectRuntime.cpp">
-      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64' and '$(Platform)'!='Win32' and '$(Platform)'!='ARM64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Runtime\CustomEffectRuntime.ixx" />
+    <ClInclude Include="Runtime\NativeArchitecture.h" />
     <ClCompile Include="Internal/Validation.ixx" />
     <Midl Include="Public/Api.idl" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
@@ -147,7 +148,7 @@
     <ClInclude Include="Public/HlslFloatProperty.h" />
     <ClCompile Include="Public/HlslFloatProperty.cpp" />
     <ClCompile Include="Runtime/UnsupportedRuntime.cpp">
-      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64' or '$(Platform)'=='Win32' or '$(Platform)'=='ARM64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="Internal/XamlHlslBrushBase.h" />
   </ItemGroup>

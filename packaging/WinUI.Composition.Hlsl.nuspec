@@ -23,7 +23,7 @@
   </metadata>
   <files>
     <!-- Meta -->
-    <file src="..\MainLogo.png" target="assets\"/>
+    <file src="assets\MainLogo.png" target="assets\"/>
     <file src="README.md" target="README.md"/>
     <file src="LICENSE.txt" target="LICENSE.txt"/>
 

@@ -7,7 +7,6 @@
 #include <d2d1_1.h>
 #include <d3dcompiler.h>
 #include <d3d11shader.h>
-#include <bcrypt.h>
 
 module WinUI.Composition.Hlsl.CustomEffectRuntime;
 
@@ -16,6 +15,20 @@ import winrt_base;
 import winrt.Windows.Foundation;
 import winrt.Windows.Graphics.Effects;
 import winrt.Microsoft.UI.Composition;
+
+#if defined(_M_IX86)
+#define HLSL_CALLBACK __stdcall
+#define HLSL_MEMBER __thiscall
+#define HLSL_METHOD(name) name##Thiscall
+#define HLSL_THUNK(name) __declspec(naked) void name##Thiscall() { __asm pop eax __asm push ecx __asm push eax __asm jmp name }
+#else
+#define HLSL_CALLBACK __fastcall
+#define HLSL_MEMBER __fastcall
+#define HLSL_METHOD(name) name
+#define HLSL_THUNK(name)
+#endif
+
+#include "NativeArchitecture.h"
 
 #pragma once
 
@@ -160,15 +173,15 @@ namespace HlslComposition
 			auto dos = reinterpret_cast<IMAGE_DOS_HEADER*>(m_base);
 			auto nt = reinterpret_cast<IMAGE_NT_HEADERS*>(m_base + dos->e_lfanew);
 			if (dos->e_magic != IMAGE_DOS_SIGNATURE || nt->Signature != IMAGE_NT_SIGNATURE ||
-				nt->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64) Fail();
+				nt->FileHeader.Machine != HlslNativeAbi::Machine) Fail();
 			for (auto section = IMAGE_FIRST_SECTION(nt); section < IMAGE_FIRST_SECTION(nt) + nt->FileHeader.NumberOfSections; ++section)
 				m_sections.push_back({ m_base + section->VirtualAddress,section->Misc.VirtualSize,section->Characteristics });
 		}
 
 		[[noreturn]] static void Fail()
 		{
-			throw winrt::hresult_error(HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
-									   L"HLSL Composition: native ABI fingerprint is missing or ambiguous.");
+			throw winrt::hresult_error(E_FAIL,
+									   L"HLSL Composition could not resolve the required native effect entrypoints.");
 		}
 
 		bool Contains(void const* pointer, size_t size, DWORD flags) const
@@ -213,9 +226,42 @@ namespace HlslComposition
 		NativeEntrypoints Resolve() const
 		{
 			constexpr DWORD code = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
+			uint8_t* lookup{};
+			void** table{};
+#if defined(_M_IX86)
+			// PDB: Microsoft::UI::Composition::EffectType::FromGuid. The absolute
+			// table operand is relocated by the loader and is therefore decoded here.
+			lookup = Unique({
+				0x8b,0xff,0x55,0x8b,0xec,0x51,0x53,0x56,0x57,0x89,0x4d,-1,0x33,0xff,
+				0x8b,0x9f,-1,-1,-1,-1,0x8b,0x03,0x8b,0x70,0x04
+							}, code);
+			memcpy(&table, lookup + 16, sizeof(table));
+#elif defined(_M_ARM64)
+			// Same function on ARM64. Decode its ADRP+ADD pair rather than retaining
+			// the RVA produced by one Windows App SDK build.
+			lookup = Unique({
+				0x7f,0x23,0x03,0xd5,
+				-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+				0xfd,0x03,0x00,0x91,
+				-1,-1,-1,-1,-1,-1,-1,-1,
+				0xf4,0x03,0x00,0xaa,0x15,0x00,0x80,0x52,0xd3,0x5a,0x75,0xf8
+							}, code);
+			uint32_t adrp{}, add{};
+			memcpy(&adrp, lookup + 20, sizeof(adrp));
+			memcpy(&add, lookup + 24, sizeof(add));
+			int64_t pageOffset = static_cast<int64_t>(
+				(((adrp >> 5) & 0x7ffff) << 2) | ((adrp >> 29) & 3));
+			if (pageOffset & (1 << 20)) pageOffset -= (1 << 21);
+			auto page = reinterpret_cast<uintptr_t>(lookup) & ~uintptr_t{ 0xfff };
+			auto immediate = static_cast<uintptr_t>((add >> 10) & 0xfff);
+			if (add & (1 << 22)) immediate <<= 12;
+			auto tableAddress = static_cast<intptr_t>(page) + pageOffset * 4096 +
+				static_cast<intptr_t>(immediate);
+			table = reinterpret_cast<void**>(tableAddress);
+#else
 			// Match the GUID lookup loop, not merely a common function prologue.
 			// -1 represents relocation-dependent bytes. No module-relative address is embedded.
-			auto lookup = Unique({
+			lookup = Unique({
 				0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x74,0x24,0x10,0x48,0x89,0x7c,0x24,0x18,
 				0x41,0x56,0x48,0x83,0xec,0x20,0x4c,0x8b,0xf1,
 				0x48,0x8d,0x3d,-1,-1,-1,-1,0x33,0xdb,0x48,0x8b,0x37,0x48,0x8b,0xce,
@@ -223,30 +269,53 @@ namespace HlslComposition
 				0x48,0x8b,0xc8,0x49,0x8b,0x06,0x48,0x3b,0x01,0x75,0x0a,
 				0x49,0x8b,0x46,0x08,0x48,0x3b,0x41,0x08,0x74,0x24,0xff,0xc3,
 				0x48,0x83,0xc7,0x08,0x83,0xfb,-1,0x72,0xce
-								 }, code);
+							}, code);
 			int32_t displacement{};
 			memcpy(&displacement, lookup + 27, 4);
-			auto table = reinterpret_cast<void**>(lookup + 31 + displacement);
-			auto count = static_cast<size_t>(lookup[80]);
-			if (count < 1 || count>128 || !Contains(table, count * sizeof(void*), IMAGE_SCN_MEM_READ))
-				Fail();
+			table = reinterpret_cast<void**>(lookup + 31 + displacement);
+#endif
+
+			// Discover the table length from valid EffectType objects. FromGuid's
+			// loop bound is compiler-specific; the object/vtable/GUID shape is the ABI.
+			size_t count{};
 			void** neutral{};
-			for (size_t i = 0; i < count; ++i)
+			for (; count < 128; ++count)
 			{
-				auto object = table[i];
-				if (!Contains(object, sizeof(void*), IMAGE_SCN_MEM_READ)) Fail();
+				if (!Contains(table + count, sizeof(void*), IMAGE_SCN_MEM_READ)) break;
+				auto object = table[count];
+				if (!Contains(object, sizeof(void*), IMAGE_SCN_MEM_READ)) break;
 				auto vt = *reinterpret_cast<void***>(object);
-				if (!Contains(vt, 22 * sizeof(void*), IMAGE_SCN_MEM_READ)) Fail();
-				for (size_t slot = 0; slot < 22; ++slot) if (!Contains(vt[slot], 1, code)) Fail();
-				auto getGuid = reinterpret_cast<GUID const* (*)(void*)>(vt[1]);
+				if (!Contains(vt, 22 * sizeof(void*), IMAGE_SCN_MEM_READ)) break;
+				bool valid = true;
+				for (size_t slot = 0; slot < 22; ++slot)
+					valid = valid && Contains(vt[slot], 1, code);
+				if (!valid) break;
+				auto getGuid = reinterpret_cast<GUID const* (HLSL_MEMBER*)(void*)>(vt[1]);
 				auto guid = getGuid(object);
-				if (!Contains(guid, sizeof(GUID), IMAGE_SCN_MEM_READ)) Fail();
+				if (!Contains(guid, sizeof(GUID), IMAGE_SCN_MEM_READ)) break;
 				if (IsEqualGUID(*guid, CLSID_D2D1ColorMatrix)) neutral = vt;
 			}
-			if (!neutral) Fail();
-			auto copy = Unique({ 0x4d,0x8b,0xc8,0x48,0x8b,0xc2,0x44,0x8b,0x41,0x1c,0x8b,0x51,0x10,
+			if (!count || !neutral) Fail();
+
+			uint8_t* copy{};
+#if defined(_M_IX86)
+			// PDB: std::_Func_impl_no_alloc_<...DirectPropertyUpdater...>::_Do_call.
+			copy = Unique({
+				0x8b,0xff,0x55,0x8b,0xec,0x8b,0x41,0x14,0x8b,0x49,0x08,0xc1,0xe0,0x02,
+				0x50,0x8b,0x45,0x08,0x03,0x08,0x8b,0x45,0x0c,0x51,0xff,0x30,0xe8,
+				-1,-1,-1,-1,0x83,0xc4,0x0c,0x5d,0xc2,0x08,0x00
+						  }, code);
+#elif defined(_M_ARM64)
+			copy = Unique({
+				0x0a,0x1c,0x40,0xb9,0xeb,0x03,0x02,0xaa,0x09,0x10,0x40,0xb9,
+				0x28,0x00,0x40,0xf9,0x60,0x01,0x40,0xf9,0x42,0x7d,0x7e,0xd3,
+				0x01,0x41,0x29,0x8b,-1,-1,-1,-1
+						  }, code);
+#else
+			copy = Unique({ 0x4d,0x8b,0xc8,0x48,0x8b,0xc2,0x44,0x8b,0x41,0x1c,0x8b,0x51,0x10,
 				0x49,0xc1,0xe0,0x02,0x48,0x03,0x10,0x49,0x8b,0x09,0xe9
-							   }, code);
+						  }, code);
+#endif
 			void** updater{};
 			for (auto const& s : m_sections)
 			{
@@ -305,7 +374,7 @@ namespace
 	// (+0xa8, GetEffectOpacityRelation) in this WinAppSDK build. Slot 22+
 	// is not part of the callable ABI we need to model for private GUIDs.
 	constexpr size_t kEffectTypeVtableSlotCount = 22;
-	constexpr size_t kFromGuidPatchSize = 15;
+	constexpr size_t kFromGuidPatchSize = HlslNativeAbi::PatchSize;
 	constexpr uint32_t kCompiledEffectSubgraphOutputFlag = 0x8;
 
 	struct RuntimeEffectEntry;
@@ -340,15 +409,15 @@ namespace
 		RuntimeEffectEntry* next{};
 	};
 
-	// ABI returned by ICompiledEffect::GetSubgraphShaderLinkingBody. dwmcorei copies
+	// ABI returned by ICompiledEffect::GetSubgraphShaderLinkingBody (native size_t fields). dwmcorei copies
 	// this POD by value, then feeds bytecodeData/functionName/argData into its shader
 	// linker. The static_assert pins the reverse-engineered struct size so accidental
 	// field changes fail at compile time instead of corrupting DWM reads.
 	struct ShaderLinkingBody
 	{
-		uint64_t argCount;
+		size_t argCount;
 		void const* argData;
-		uint64_t bytecodeSize;
+		size_t bytecodeSize;
 		void const* bytecodeData;
 		char const* functionName;
 		uint32_t constantBufferSize;
@@ -359,7 +428,7 @@ namespace
 		uint8_t padding;
 	};
 
-	static_assert(sizeof(ShaderLinkingBody) == 48);
+	static_assert(sizeof(ShaderLinkingBody) == (sizeof(void*) == 8 ? 48 : 28));
 
 	// Mirrors CompiledEffectSubgraph::InputBindings: an input either maps to a named
 	// brush input (isSubgraphOutput=false) or to a previously emitted subgraph output
@@ -383,10 +452,10 @@ namespace
 	};
 
 	static_assert(sizeof(SurfaceData) == 4);
-	static_assert(sizeof(CustomEffectRuntime::NativePropertyMetadata) == 32);
-	static_assert(offsetof(CustomEffectRuntime::NativePropertyMetadata, propertyOffset) == 8);
-	static_assert(offsetof(CustomEffectRuntime::NativePropertyMetadata, propertyType) == 16);
-	static_assert(offsetof(CustomEffectRuntime::NativePropertyMetadata, valueCount) == 20);
+	static_assert(sizeof(CustomEffectRuntime::NativePropertyMetadata) == (sizeof(void*) == 8 ? 32 : 24));
+	static_assert(offsetof(CustomEffectRuntime::NativePropertyMetadata, propertyOffset) == (sizeof(void*) == 8 ? 8 : 4));
+	static_assert(offsetof(CustomEffectRuntime::NativePropertyMetadata, propertyType) == (sizeof(void*) == 8 ? 16 : 12));
+	static_assert(offsetof(CustomEffectRuntime::NativePropertyMetadata, valueCount) == (sizeof(void*) == 8 ? 20 : 16));
 
 	// Native property animation does not call our WinRT IGraphicsEffect again after
 	// factory creation. wuceffectsi stores std::function-like updater callables in
@@ -395,11 +464,11 @@ namespace
 	// by the built-in DirectPropertyUpdater path.
 	struct NativeFunctionStorage
 	{
-		uint8_t inlineStorage[56];
+		uint8_t inlineStorage[sizeof(void*) == 8 ? 56 : 36];
 		void* callable;
 	};
 
-	static_assert(sizeof(NativeFunctionStorage) == 64);
+	static_assert(sizeof(NativeFunctionStorage) == (sizeof(void*) == 8 ? 64 : 40));
 
 	struct NativePropertyUpdaterCallable
 	{
@@ -407,7 +476,7 @@ namespace
 		CustomEffectRuntime::NativePropertyMetadata metadata;
 	};
 
-	static_assert(sizeof(NativePropertyUpdaterCallable) == 40);
+	static_assert(sizeof(NativePropertyUpdaterCallable) == (sizeof(void*) == 8 ? 40 : 28));
 
 	struct ConstantBufferUpdater
 	{
@@ -416,11 +485,11 @@ namespace
 		NativeFunctionStorage update;
 	};
 
-	static_assert(sizeof(ConstantBufferUpdater) == 72);
+	static_assert(sizeof(ConstantBufferUpdater) == (sizeof(void*) == 8 ? 72 : 48));
 	static_assert(offsetof(ConstantBufferUpdater, update) == 8);
-	static_assert(offsetof(ConstantBufferUpdater, update.callable) == 64);
+	static_assert(offsetof(ConstantBufferUpdater, update.callable) == (sizeof(void*) == 8 ? 64 : 44));
 
-	// Native CompiledEffectSubgraph layout. DWM indexes this array directly through
+	// Native CompiledEffectSubgraph layout: 136 bytes on x64/ARM64, 72 on x86. DWM indexes this array directly through
 	// ICompiledEffect methods, but wuceffectsi later also reads vector ranges for
 	// constant buffer creation. The offsets therefore matter as much as the getters.
 	struct CompiledSubgraph
@@ -446,10 +515,10 @@ namespace
 		void* inputBindingCapacity;
 	};
 
-	static_assert(sizeof(CompiledSubgraph) == 136);
-	static_assert(offsetof(CompiledSubgraph, constantBufferUpdaterBegin) == 40);
-	static_assert(offsetof(CompiledSubgraph, constantBufferInitialBegin) == 64);
-	static_assert(offsetof(CompiledSubgraph, inputBindingBegin) == 112);
+	static_assert(sizeof(CompiledSubgraph) == (sizeof(void*) == 8 ? 136 : 72));
+	static_assert(offsetof(CompiledSubgraph, constantBufferUpdaterBegin) == (sizeof(void*) == 8 ? 40 : 24));
+	static_assert(offsetof(CompiledSubgraph, constantBufferInitialBegin) == (sizeof(void*) == 8 ? 64 : 36));
+	static_assert(offsetof(CompiledSubgraph, inputBindingBegin) == (sizeof(void*) == 8 ? 112 : 60));
 
 	// Synthetic ICompiledEffect object returned by DetourCompileEffectDescription.
 	// It is COM-like enough for AddRef/Release and has the native vector fields at
@@ -459,7 +528,9 @@ namespace
 	{
 		void** vtable;
 		volatile long refCount;
+#if !defined(_M_IX86)
 		uint32_t padding;
+#endif
 		CompiledSubgraph* subgraphBegin;
 		CompiledSubgraph* subgraphEnd;
 		CompiledSubgraph* subgraphCapacity;
@@ -469,8 +540,8 @@ namespace
 		uint32_t mainSubgraphIndex;
 	};
 
-	static_assert(offsetof(CompiledResult, subgraphBegin) == 16);
-	static_assert(offsetof(CompiledResult, entry) == 40);
+	static_assert(offsetof(CompiledResult, subgraphBegin) == (sizeof(void*) == 8 ? 16 : 8));
+	static_assert(offsetof(CompiledResult, entry) == (sizeof(void*) == 8 ? 40 : 20));
 
 	// Import patch records are name-aware because delay import thunks cannot always
 	// be matched by function address before the delay loader resolves them.
@@ -486,7 +557,7 @@ namespace
 	HMODULE g_wuceffectsiModule{};
 	std::once_flag g_hookOnce;
 
-	using CompileEffectDescriptionFn = HRESULT(__fastcall*)(void*, void**);
+	using CompileEffectDescriptionFn = HRESULT(__stdcall*)(void*, void**);
 	CompileEffectDescriptionFn g_originalCompileEffectDescription{};
 
 	bool SameGuid(GUID const& left, GUID const& right)
@@ -641,7 +712,7 @@ namespace
 					   });
 	}
 
-	char const* __fastcall EffectType_GetShaderFragmentName(RuntimeEffectType* self)
+	char const* HLSL_CALLBACK EffectType_GetShaderFragmentName(RuntimeEffectType* self)
 	{
 		// Used by wuceffectsi for diagnostics/hash names and by generated shader
 		// naming. It is not the HLSL entrypoint; GetSubgraphShaderLinkingBody
@@ -649,7 +720,7 @@ namespace
 		return self->entry->definition->fragmentName;
 	}
 
-	GUID const* __fastcall EffectType_GetGuid(RuntimeEffectType* self)
+	GUID const* HLSL_CALLBACK EffectType_GetGuid(RuntimeEffectType* self)
 	{
 		// EffectType::FromGuid callers expect this slot to return stable storage.
 		// Returning the address inside CustomEffectDefinition avoids temporary GUID
@@ -657,7 +728,7 @@ namespace
 		return &self->entry->definition->id;
 	}
 
-	bool __fastcall EffectType_IsValidInputCount(RuntimeEffectType* self, uint32_t sourceCount)
+	bool HLSL_CALLBACK EffectType_IsValidInputCount(RuntimeEffectType* self, uint32_t sourceCount)
 	{
 		// Traverser rejects the graph before CompileEffectDescription if the source
 		// count does not match the EffectType metadata. Keep this strict so the
@@ -665,7 +736,7 @@ namespace
 		return sourceCount == self->entry->definition->sourceCount;
 	}
 
-	bool __fastcall EffectType_IsValidInputType(RuntimeEffectType*, uint32_t inputType)
+	bool HLSL_CALLBACK EffectType_IsValidInputType(RuntimeEffectType*, uint32_t inputType)
 	{
 		// Native EffectType uses small input-type enums. Zero is the "null input"
 		// case; all non-null source forms accepted by IGraphicsEffectD2D1Interop are
@@ -673,7 +744,7 @@ namespace
 		return inputType != 0;
 	}
 
-	uint32_t __fastcall EffectType_GetPropertiesStructSize(RuntimeEffectType* self)
+	uint32_t HLSL_CALLBACK EffectType_GetPropertiesStructSize(RuntimeEffectType* self)
 	{
 		// Traverser allocates/copies the default property blob using this size before
 		// native metadata is consulted. It must match the struct layout used by the
@@ -681,7 +752,7 @@ namespace
 		return self->entry->definition->propertiesStructSize;
 	}
 
-	uint32_t __fastcall EffectType_GetEffectSamplingBehavior(RuntimeEffectType*)
+	uint32_t HLSL_CALLBACK EffectType_GetEffectSamplingBehavior(RuntimeEffectType*)
 	{
 		// Neutral/default sampling behavior. Custom sampler details are not exposed
 		// from this slot; DWM later asks ICompiledEffect for samplerData flags and
@@ -689,7 +760,7 @@ namespace
 		return 0;
 	}
 
-	bool __fastcall EffectType_ReturnFalse(RuntimeEffectType*)
+	bool HLSL_CALLBACK EffectType_ReturnFalse(RuntimeEffectType*)
 	{
 		// Several EffectType slots are boolean feature probes. The custom runtime
 		// opts out of those native special cases unless a slot is modeled explicitly,
@@ -697,7 +768,7 @@ namespace
 		return false;
 	}
 
-	bool __fastcall EffectType_RequiresSourceFlattening(RuntimeEffectType* self)
+	bool HLSL_CALLBACK EffectType_RequiresSourceFlattening(RuntimeEffectType* self)
 	{
 		// wuceffectsi!Traverser uses EffectType slot 5 as the native source-flattening
 		// gate: when it is true, named inputs are first wrapped in
@@ -707,7 +778,7 @@ namespace
 			CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture;
 	}
 
-	bool __fastcall EffectType_ReturnTrue(RuntimeEffectType*)
+	bool HLSL_CALLBACK EffectType_ReturnTrue(RuntimeEffectType*)
 	{
 		// Slot 12 is observed as a positive capability bit for generated shader
 		// effects in this build. Keeping it true matches the native generated-effect
@@ -715,7 +786,7 @@ namespace
 		return true;
 	}
 
-	bool __fastcall EffectType_IsInputTransform(RuntimeEffectType*, uint32_t* mode)
+	bool HLSL_CALLBACK EffectType_IsInputTransform(RuntimeEffectType*, uint32_t* mode)
 	{
 		// Input-transform effects such as AffineTransform2D change bounds and source
 		// coordinate propagation. Custom glass/blur effects here are ordinary render
@@ -728,7 +799,7 @@ namespace
 		return false;
 	}
 
-	bool __fastcall EffectType_IsIntersectionCombinator(RuntimeEffectType*, void const*)
+	bool HLSL_CALLBACK EffectType_IsIntersectionCombinator(RuntimeEffectType*, void const*)
 	{
 		// Intersection/combinator effects alter how source bounds are merged. Custom
 		// sampler effects here consume one already-resolved source surface, so they
@@ -736,7 +807,7 @@ namespace
 		return false;
 	}
 
-	bool __fastcall EffectType_IsNoOp(RuntimeEffectType*, uint32_t, void const*)
+	bool HLSL_CALLBACK EffectType_IsNoOp(RuntimeEffectType*, uint32_t, void const*)
 	{
 		// Never let wuceffectsi elide a private effect as a no-op. Even a passthrough
 		// shader is useful as a probe because it proves the synthetic compile result
@@ -744,7 +815,7 @@ namespace
 		return false;
 	}
 
-	uint32_t __fastcall EffectType_GetEffectOpacityRelation(RuntimeEffectType*, void const*)
+	uint32_t HLSL_CALLBACK EffectType_GetEffectOpacityRelation(RuntimeEffectType*, void const*)
 	{
 		// Report the neutral opacity relation. DWM can still blend the final brush
 		// normally, but this avoids claiming built-in opacity preservation rules that
@@ -752,7 +823,7 @@ namespace
 		return 0;
 	}
 
-	void __fastcall EffectType_GetPropertiesMetadata(
+	void HLSL_CALLBACK EffectType_GetPropertiesMetadata(
 		RuntimeEffectType* self,
 		uint32_t* count,
 		void const** metadata)
@@ -773,7 +844,7 @@ namespace
 		}
 	}
 
-	void __fastcall EffectType_Validate(RuntimeEffectType*, void const*)
+	void HLSL_CALLBACK EffectType_Validate(RuntimeEffectType*, void const*)
 	{
 		// Built-in effects validate property ranges here. This runtime validates
 		// structural metadata while building ConstantBufferUpdater records; per-effect
@@ -792,10 +863,10 @@ namespace
 		void* properties;
 		void* propertyMappings;
 	};
-	static_assert(sizeof(NativeEffectNode) == 40);
-	static_assert(offsetof(NativeEffectNode, properties) == 24);
+	static_assert(sizeof(NativeEffectNode) == (sizeof(void*) == 8 ? 40 : 24));
+	static_assert(offsetof(NativeEffectNode, properties) == (sizeof(void*) == 8 ? 24 : 16));
 
-	void __fastcall EffectType_GenerateCode(RuntimeEffectType*, void const* node, void* generator, char const* name)
+	void HLSL_CALLBACK EffectType_GenerateCode(RuntimeEffectType*, void const* node, void* generator, char const* name)
 	{
 		// Generate a disposable native body so the native compiler can retain the
 		// upstream passes and bindings. Only this isolated body's shader is replaced.
@@ -805,11 +876,28 @@ namespace
 		passthroughNode.effectType = g_nativePassthroughType;
 		passthroughNode.properties = &mode;
 		auto vtable = *static_cast<void***>(g_nativePassthroughType);
-		using Generate = void(__fastcall*)(void*, void const*, void*, char const*);
+		using Generate = void(HLSL_MEMBER*)(void*, void const*, void*, char const*);
 		reinterpret_cast<Generate>(vtable[20])(g_nativePassthroughType, &passthroughNode, generator, name);
 	}
 
-	void InitializeEffectType(RuntimeEffectEntry* entry, HMODULE wuceffectsi)
+	HLSL_THUNK(EffectType_GetShaderFragmentName)
+		HLSL_THUNK(EffectType_GetGuid)
+		HLSL_THUNK(EffectType_IsValidInputCount)
+		HLSL_THUNK(EffectType_IsValidInputType)
+		HLSL_THUNK(EffectType_GetPropertiesStructSize)
+		HLSL_THUNK(EffectType_GetEffectSamplingBehavior)
+		HLSL_THUNK(EffectType_ReturnFalse)
+		HLSL_THUNK(EffectType_RequiresSourceFlattening)
+		HLSL_THUNK(EffectType_ReturnTrue)
+		HLSL_THUNK(EffectType_IsInputTransform)
+		HLSL_THUNK(EffectType_IsIntersectionCombinator)
+		HLSL_THUNK(EffectType_IsNoOp)
+		HLSL_THUNK(EffectType_GetEffectOpacityRelation)
+		HLSL_THUNK(EffectType_GetPropertiesMetadata)
+		HLSL_THUNK(EffectType_Validate)
+		HLSL_THUNK(EffectType_GenerateCode)
+
+		void InitializeEffectType(RuntimeEffectEntry* entry, HMODULE wuceffectsi)
 	{
 		auto const base = reinterpret_cast<uint8_t*>(wuceffectsi);
 		auto* vtable = entry->effectTypeVtable;
@@ -821,28 +909,28 @@ namespace
 		// observed EffectType virtual call from traversal, flattening, hashing, opacity
 		// propagation, and generator code in this wuceffectsi build. The neutral native
 		// bounds helpers are reused because their ABI includes struct-return details.
-		vtable[0] = reinterpret_cast<void*>(EffectType_GetShaderFragmentName);
-		vtable[1] = reinterpret_cast<void*>(EffectType_GetGuid);
-		vtable[2] = reinterpret_cast<void*>(EffectType_GetEffectSamplingBehavior);
-		vtable[3] = reinterpret_cast<void*>(EffectType_IsValidInputCount);
-		vtable[4] = reinterpret_cast<void*>(EffectType_IsValidInputType);
-		vtable[5] = reinterpret_cast<void*>(EffectType_RequiresSourceFlattening);
-		vtable[6] = reinterpret_cast<void*>(EffectType_IsInputTransform);
-		vtable[7] = reinterpret_cast<void*>(EffectType_ReturnFalse);
-		vtable[8] = reinterpret_cast<void*>(EffectType_ReturnFalse);
-		vtable[9] = reinterpret_cast<void*>(EffectType_ReturnFalse);
-		vtable[10] = reinterpret_cast<void*>(EffectType_ReturnFalse);
-		vtable[11] = reinterpret_cast<void*>(EffectType_ReturnFalse);
-		vtable[12] = reinterpret_cast<void*>(EffectType_ReturnTrue);
-		vtable[13] = reinterpret_cast<void*>(EffectType_IsIntersectionCombinator);
-		vtable[14] = reinterpret_cast<void*>(EffectType_IsNoOp);
+		vtable[0] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_GetShaderFragmentName));
+		vtable[1] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_GetGuid));
+		vtable[2] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_GetEffectSamplingBehavior));
+		vtable[3] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_IsValidInputCount));
+		vtable[4] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_IsValidInputType));
+		vtable[5] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_RequiresSourceFlattening));
+		vtable[6] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_IsInputTransform));
+		vtable[7] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_ReturnFalse));
+		vtable[8] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_ReturnFalse));
+		vtable[9] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_ReturnFalse));
+		vtable[10] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_ReturnFalse));
+		vtable[11] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_ReturnFalse));
+		vtable[12] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_ReturnTrue));
+		vtable[13] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_IsIntersectionCombinator));
+		vtable[14] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_IsNoOp));
 		vtable[15] = base + kEffectTypeGetBoundsRva;
 		vtable[16] = base + kEffectTypeCalcInputBoundsRva;
-		vtable[17] = reinterpret_cast<void*>(EffectType_GetPropertiesStructSize);
-		vtable[18] = reinterpret_cast<void*>(EffectType_GetPropertiesMetadata);
-		vtable[19] = reinterpret_cast<void*>(EffectType_Validate);
-		vtable[20] = reinterpret_cast<void*>(EffectType_GenerateCode);
-		vtable[21] = reinterpret_cast<void*>(EffectType_GetEffectOpacityRelation);
+		vtable[17] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_GetPropertiesStructSize));
+		vtable[18] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_GetPropertiesMetadata));
+		vtable[19] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_Validate));
+		vtable[20] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_GenerateCode));
+		vtable[21] = reinterpret_cast<void*>(HLSL_METHOD(EffectType_GetEffectOpacityRelation));
 	}
 
 	void InitializeAllEffectTypes(HMODULE wuceffectsi)
@@ -891,7 +979,7 @@ namespace
 			}
 
 			auto* vtable = *reinterpret_cast<void***>(effectType);
-			auto const getGuid = reinterpret_cast<GUID const* (__fastcall*)(void*)>(vtable[1]);
+			auto const getGuid = reinterpret_cast<GUID const* (HLSL_MEMBER*)(void*)>(vtable[1]);
 			auto const knownGuid = getGuid(effectType);
 			if (knownGuid && SameGuid(*knownGuid, *guid))
 			{
@@ -909,29 +997,11 @@ namespace
 		// compile detour never runs. Patching this function is therefore the first
 		// gate that makes private GUIDs possible.
 		auto* target = reinterpret_cast<uint8_t*>(wuceffectsi) + kEffectTypeFromGuidRva;
-		uint8_t const expected[kFromGuidPatchSize] = {
-			0x48, 0x89, 0x5c, 0x24, 0x08,
-			0x48, 0x89, 0x74, 0x24, 0x10,
-			0x48, 0x89, 0x7c, 0x24, 0x18,
-		};
-
-		if (memcmp(target, expected, sizeof(expected)) != 0)
-		{
-			// Fail closed on unknown builds. Jump-patching the wrong bytes would
-			// corrupt wuceffectsi globally and produce misleading DWM crashes.
-			check_hresult(HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH));
-		}
-
-		uint8_t patch[kFromGuidPatchSize] = {
-			0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0,
-			0xff, 0xe0,
-			0x90, 0x90, 0x90,
-		};
-		*reinterpret_cast<void**>(patch + 2) = reinterpret_cast<void*>(DetourEffectTypeFromGuid);
+		auto patch = HlslNativeAbi::MakeEntryPatch(target, reinterpret_cast<void*>(DetourEffectTypeFromGuid));
 
 		DWORD oldProtect{};
 		check_bool(VirtualProtect(target, sizeof(patch), PAGE_EXECUTE_READWRITE, &oldProtect));
-		memcpy(target, patch, sizeof(patch));
+		memcpy(target, patch.data(), patch.size());
 		FlushInstructionCache(GetCurrentProcess(), target, sizeof(patch));
 		DWORD unused{};
 		VirtualProtect(target, sizeof(patch), oldProtect, &unused);
@@ -956,7 +1026,7 @@ namespace
 	bool UsesFlattenSourceSubgraph(CustomEffectRuntime::CustomEffectDefinition const& definition);
 	uint32_t GetMainSubgraphIndex(CustomEffectRuntime::CustomEffectDefinition const& definition);
 
-	ULONG __fastcall Wrapper_AddRef(CompiledResult* self)
+	ULONG HLSL_CALLBACK Wrapper_AddRef(CompiledResult* self)
 	{
 		// DWM treats ICompiledEffect as ref-counted even though this object is not a
 		// C++/WinRT implements type. Keep the lifetime independent from the public
@@ -1006,14 +1076,14 @@ namespace
 		}
 		if (self->nativeBacking)
 		{
-			using Release = ULONG(__fastcall*)(CompiledResult*);
+			using Release = ULONG(__stdcall*)(CompiledResult*);
 			reinterpret_cast<Release>(self->nativeBacking->vtable[1])(self->nativeBacking);
 		}
 
 		HeapFree(GetProcessHeap(), 0, self);
 	}
 
-	ULONG __fastcall Wrapper_Release(CompiledResult* self)
+	ULONG HLSL_CALLBACK Wrapper_Release(CompiledResult* self)
 	{
 		// This is paired with Wrapper_AddRef rather than C++/WinRT lifetime support.
 		// Native callers only know the first vtable pointer and the reference count
@@ -1027,7 +1097,7 @@ namespace
 		return ref;
 	}
 
-	uint32_t __fastcall Wrapper_GetSubgraphCount(CompiledResult* self)
+	uint32_t HLSL_CALLBACK Wrapper_GetSubgraphCount(CompiledResult* self)
 	{
 		// DWM uses this count to size its SubgraphOutput array. wuceffectsi later
 		// iterates the same subgraph vector for constant-buffer creation, so this
@@ -1042,7 +1112,7 @@ namespace
 		return static_cast<uint32_t>(subgraphEnd - subgraphBegin);
 	}
 
-	ShaderLinkingBody* __fastcall Wrapper_GetSubgraphShaderLinkingBody(
+	ShaderLinkingBody* HLSL_CALLBACK Wrapper_GetSubgraphShaderLinkingBody(
 		CompiledResult* self,
 		ShaderLinkingBody* body,
 		uint32_t subgraphIndex)
@@ -1061,18 +1131,18 @@ namespace
 		if (self->nativeBacking && subgraphIndex != self->mainSubgraphIndex &&
 			subgraphIndex != Wrapper_GetSubgraphCount(self) - 1)
 		{
-			using GetBody = ShaderLinkingBody * (__fastcall*)(CompiledResult*, ShaderLinkingBody*, uint32_t);
+			using GetBody = ShaderLinkingBody * (HLSL_MEMBER*)(CompiledResult*, ShaderLinkingBody*, uint32_t);
 			return reinterpret_cast<GetBody>(self->nativeBacking->vtable[3])(self->nativeBacking, body, subgraphIndex);
 		}
 
 		auto* subgraph = self->subgraphBegin + subgraphIndex;
 		auto const isMainSubgraph = subgraphIndex == self->mainSubgraphIndex;
 		auto const argCount = subgraph && subgraph->shaderArgumentBegin && subgraph->shaderArgumentEnd
-			? static_cast<uint64_t>(
+			? static_cast<size_t>(
 				(static_cast<uint8_t*>(subgraph->shaderArgumentEnd) -
 				 static_cast<uint8_t*>(subgraph->shaderArgumentBegin)) /
 				sizeof(uint16_t))
-			: definition.shaderArgumentCount;
+			: static_cast<size_t>(definition.shaderArgumentCount);
 
 		body->argCount = argCount;
 		body->argData = subgraph && subgraph->shaderArgumentBegin
@@ -1106,7 +1176,7 @@ namespace
 		return body;
 	}
 
-	uint32_t __fastcall Wrapper_GetSubgraphInputCount(CompiledResult* self, uint32_t subgraphIndex)
+	uint32_t HLSL_CALLBACK Wrapper_GetSubgraphInputCount(CompiledResult* self, uint32_t subgraphIndex)
 	{
 		// Input count is per subgraph, not per effect. A flatten/custom-sampler graph
 		// has different input meanings at each subgraph: source brush, previous
@@ -1127,7 +1197,7 @@ namespace
 		return static_cast<uint32_t>(inputEnd - inputBegin);
 	}
 
-	uint32_t __fastcall Wrapper_GetSubgraphFlags(CompiledResult* self, uint32_t subgraphIndex)
+	uint32_t HLSL_CALLBACK Wrapper_GetSubgraphFlags(CompiledResult* self, uint32_t subgraphIndex)
 	{
 		// Flag 0x8 is observed by CBrushRenderingGraphBuilder as "keep this subgraph
 		// as a fragment output". For the LiquidGlass shape this prevents the custom
@@ -1140,7 +1210,7 @@ namespace
 		return self->subgraphBegin[subgraphIndex].flags;
 	}
 
-	uint32_t __fastcall Wrapper_GetInputMapping(
+	uint32_t HLSL_CALLBACK Wrapper_GetInputMapping(
 		CompiledResult* self,
 		uint32_t subgraphIndex,
 		uint32_t inputIndex,
@@ -1173,44 +1243,30 @@ namespace
 		return binding.inputIndex;
 	}
 
-	bool __fastcall Wrapper_IsUVClampingRequired(
+	bool HLSL_CALLBACK Wrapper_IsUVClampingRequired(
 		CompiledResult* self,
 		uint32_t subgraphIndex,
 		uint32_t inputIndex,
-		uint32_t* horizontalMode,
-		uint32_t* verticalMode)
+		uint8_t* horizontalMode,
+		uint8_t* verticalMode)
 	{
-		// The method name is misleading for this use case: DWM's shader argument
-		// population also checks it to decide whether samplerDataN is available.
-		// SurfaceData byte 2 therefore controls more than plain edge clamping.
-		bool required = false;
-		auto* subgraphBegin = self->subgraphBegin;
-		auto* subgraphEnd = self->subgraphEnd;
-		if (subgraphBegin && subgraphEnd &&
-			subgraphIndex < static_cast<uint32_t>(subgraphEnd - subgraphBegin))
+		// Native callers reserve ONE byte for each edge mode. A uint32_t store
+		// corrupts the caller's frame on x86 (and adjacent locals on 64-bit).
+		SurfaceData data{};
+		if (subgraphIndex < Wrapper_GetSubgraphCount(self))
 		{
-			auto const& subgraph = subgraphBegin[subgraphIndex];
-			auto* surfaceDataBegin = static_cast<SurfaceData*>(subgraph.surfaceDataBegin);
-			auto* surfaceDataEnd = static_cast<SurfaceData*>(subgraph.surfaceDataEnd);
-			required = surfaceDataBegin && surfaceDataEnd &&
-				inputIndex < static_cast<uint32_t>(surfaceDataEnd - surfaceDataBegin) &&
-				surfaceDataBegin[inputIndex].data[2] != 0;
+			auto const& subgraph = self->subgraphBegin[subgraphIndex];
+			auto begin = static_cast<SurfaceData const*>(subgraph.surfaceDataBegin);
+			auto end = static_cast<SurfaceData const*>(subgraph.surfaceDataEnd);
+			if (begin && end && inputIndex < static_cast<size_t>(end - begin))
+				data = begin[inputIndex];
 		}
-
-		if (horizontalMode)
-		{
-			*horizontalMode = required ? 1 : 0;
-		}
-
-		if (verticalMode)
-		{
-			*verticalMode = required ? 1 : 0;
-		}
-
-		return required;
+		if (horizontalMode) *horizontalMode = data.data[0];
+		if (verticalMode) *verticalMode = data.data[1];
+		return data.data[2] != 0;
 	}
 
-	bool __fastcall Wrapper_IsSamplerDataExtRequired(
+	bool HLSL_CALLBACK Wrapper_IsSamplerDataExtRequired(
 		CompiledResult* self,
 		uint32_t subgraphIndex,
 		uint32_t inputIndex)
@@ -1237,7 +1293,7 @@ namespace
 		return surfaceDataBegin[inputIndex].data[3] != 0;
 	}
 
-	uint32_t __fastcall Wrapper_GetConstantBufferSize(CompiledResult* self, uint32_t subgraphIndex)
+	uint32_t HLSL_CALLBACK Wrapper_GetConstantBufferSize(CompiledResult* self, uint32_t subgraphIndex)
 	{
 		// EffectInstance allocates one constant buffer per flattened subgraph. Most
 		// helper/flatten subgraphs intentionally return zero here; the main subgraph
@@ -1253,7 +1309,7 @@ namespace
 			subgraph.constantBufferInitialEnd);
 	}
 
-	void const* __fastcall Wrapper_GetConstantBufferInitialValue(CompiledResult* self, uint32_t subgraphIndex)
+	void const* HLSL_CALLBACK Wrapper_GetConstantBufferInitialValue(CompiledResult* self, uint32_t subgraphIndex)
 	{
 		// Native code copies this initial blob before applying direct property
 		// updates. It must remain valid for the lifetime of the CompiledResult.
@@ -1266,7 +1322,7 @@ namespace
 		return subgraph.constantBufferInitialBegin;
 	}
 
-	void* __fastcall Wrapper_ScalarDeletingDestructor(CompiledResult* self, uint32_t flags)
+	void* HLSL_CALLBACK Wrapper_ScalarDeletingDestructor(CompiledResult* self, uint32_t flags)
 	{
 		// MSVC scalar-deleting destructor slot. Some native cleanup paths call this
 		// instead of Release when they believe they own the compiled effect directly;
@@ -1279,7 +1335,7 @@ namespace
 		return self;
 	}
 
-	void __fastcall Wrapper_FinalRelease(CompiledResult*)
+	void HLSL_CALLBACK Wrapper_FinalRelease(CompiledResult*)
 	{
 		// Native ICompiledEffect has a final-release-style slot after the deleting
 		// destructor. The synthetic object has no secondary resources outside the
@@ -1293,20 +1349,32 @@ namespace
 	// wuceffectsi!EffectInstance read that wrapper's +0x10/+0x18 as an empty subgraph
 	// vector, so this intentionally diverges from the earlier v3 note's extra-wrapper
 	// wording for this WinUI3 build.
-	void* g_wrapperVtable[] = {
-		reinterpret_cast<void*>(Wrapper_AddRef),
-		reinterpret_cast<void*>(Wrapper_Release),
-		reinterpret_cast<void*>(Wrapper_GetSubgraphCount),
-		reinterpret_cast<void*>(Wrapper_GetSubgraphShaderLinkingBody),
-		reinterpret_cast<void*>(Wrapper_GetSubgraphInputCount),
-		reinterpret_cast<void*>(Wrapper_GetSubgraphFlags),
-		reinterpret_cast<void*>(Wrapper_GetInputMapping),
-		reinterpret_cast<void*>(Wrapper_IsUVClampingRequired),
-		reinterpret_cast<void*>(Wrapper_IsSamplerDataExtRequired),
-		reinterpret_cast<void*>(Wrapper_GetConstantBufferSize),
-		reinterpret_cast<void*>(Wrapper_GetConstantBufferInitialValue),
-		reinterpret_cast<void*>(Wrapper_ScalarDeletingDestructor),
-		reinterpret_cast<void*>(Wrapper_FinalRelease),
+	HLSL_THUNK(Wrapper_GetSubgraphCount)
+		HLSL_THUNK(Wrapper_GetSubgraphShaderLinkingBody)
+		HLSL_THUNK(Wrapper_GetSubgraphInputCount)
+		HLSL_THUNK(Wrapper_GetSubgraphFlags)
+		HLSL_THUNK(Wrapper_GetInputMapping)
+		HLSL_THUNK(Wrapper_IsUVClampingRequired)
+		HLSL_THUNK(Wrapper_IsSamplerDataExtRequired)
+		HLSL_THUNK(Wrapper_GetConstantBufferSize)
+		HLSL_THUNK(Wrapper_GetConstantBufferInitialValue)
+		HLSL_THUNK(Wrapper_ScalarDeletingDestructor)
+		HLSL_THUNK(Wrapper_FinalRelease)
+
+		void* g_wrapperVtable[] = {
+			reinterpret_cast<void*>(Wrapper_AddRef),
+			reinterpret_cast<void*>(Wrapper_Release),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_GetSubgraphCount)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_GetSubgraphShaderLinkingBody)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_GetSubgraphInputCount)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_GetSubgraphFlags)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_GetInputMapping)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_IsUVClampingRequired)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_IsSamplerDataExtRequired)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_GetConstantBufferSize)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_GetConstantBufferInitialValue)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_ScalarDeletingDestructor)),
+			reinterpret_cast<void*>(HLSL_METHOD(Wrapper_FinalRelease)),
 	};
 
 	void* AllocateBytes(size_t size)
@@ -1682,12 +1750,12 @@ namespace
 		}
 
 		// CompileEffectDescription receives the IEffectDescriptionWithNames interface
-		// pointer at FlattenedEffectGraph + 0x10, not the object base. Reversing the
+		// pointer at FlattenedEffectGraph + two pointers, not the object base. Reversing the
 		// export showed it subtracts 0x10 before invoking EffectGenerator::Compile, so
 		// the detour must do the same when it inspects the node vector.
-		auto* graph = static_cast<uint8_t*>(description) - 0x10;
-		auto* nodeBegin = *reinterpret_cast<void***>(graph + 0x30);
-		auto* nodeEnd = *reinterpret_cast<void***>(graph + 0x38);
+		auto* graph = static_cast<uint8_t*>(description) - 2 * sizeof(void*);
+		auto* nodeBegin = *reinterpret_cast<void***>(graph + 6 * sizeof(void*));
+		auto* nodeEnd = *reinterpret_cast<void***>(graph + 7 * sizeof(void*));
 		auto const beginAddress = reinterpret_cast<uintptr_t>(nodeBegin);
 		auto const endAddress = reinterpret_cast<uintptr_t>(nodeEnd);
 		if (!nodeBegin || !nodeEnd || endAddress < beginAddress)
@@ -1760,7 +1828,7 @@ namespace
 				customNodeIndex = index;
 			else
 			{
-				using GetGuid = GUID const* (__fastcall*)(void*);
+				using GetGuid = GUID const* (HLSL_MEMBER*)(void*);
 				auto vtable = *static_cast<void***>(type);
 				if (*reinterpret_cast<GetGuid>(vtable[1])(type) == CLSID_D2D1Composite)
 					compositeType = type;
@@ -1770,9 +1838,9 @@ namespace
 
 		// FlattenedEffectGraph owns a vector of EffectSubgraph pointers at +0x18.
 		// Each EffectSubgraph starts with its vector of graph-global node indices.
-		auto base = static_cast<uint8_t*>(description) - 0x10;
-		auto begin = *reinterpret_cast<uint8_t***>(base + 0x18);
-		auto end = *reinterpret_cast<uint8_t***>(base + 0x20);
+		auto base = static_cast<uint8_t*>(description) - 2 * sizeof(void*);
+		auto begin = *reinterpret_cast<uint8_t***>(base + 3 * sizeof(void*));
+		auto end = *reinterpret_cast<uint8_t***>(base + 4 * sizeof(void*));
 		if (!begin || end < begin || end - begin > 0x19)
 			throw hresult_invalid_argument(L"Invalid flattened subgraph range.");
 		auto count = static_cast<uint32_t>(end - begin);
@@ -1781,7 +1849,7 @@ namespace
 		{
 			check_pointer(begin[index]);
 			auto nodes = *reinterpret_cast<uint32_t**>(begin[index]);
-			auto nodesEnd = *reinterpret_cast<uint32_t**>(begin[index] + 8);
+			auto nodesEnd = *reinterpret_cast<uint32_t**>(begin[index] + sizeof(void*));
 			if (!nodes || nodesEnd < nodes || static_cast<size_t>(nodesEnd - nodes) > graph.nodes.size())
 				throw hresult_invalid_argument(L"Invalid flattened node range.");
 			for (auto current = nodes; current != nodesEnd; ++current)
@@ -1814,7 +1882,8 @@ namespace
 			} scope;
 			g_nativePassthroughType = compositeType;
 			check_hresult(g_originalCompileEffectDescription(description, reinterpret_cast<void**>(&native)));
-			if (!native || native->subgraphEnd - native->subgraphBegin != count)
+			if (!native || !native->subgraphBegin || native->subgraphEnd < native->subgraphBegin ||
+				static_cast<size_t>(native->subgraphEnd - native->subgraphBegin) != count)
 				throw hresult_invalid_argument(L"Native compiled subgraphs do not match the flattened graph.");
 			shader = static_cast<CompiledResult*>(CreateCompiledResult(entry, customNodeIndex));
 			merged = static_cast<CompiledResult*>(AllocateBytes(sizeof(CompiledResult)));
@@ -1845,6 +1914,15 @@ namespace
 					(index == count - 1 && binding.inputIndex != mainIndex))
 					throw hresult_not_implemented(L"The custom sampler and output wrapper require preceding subgraph outputs.");
 				*static_cast<InputBinding*>(target.inputBindingBegin) = binding;
+				// Keep the native input's edge modes while adding the custom
+				// sampler's metadata requirements in bytes 2 and 3.
+				auto modes = static_cast<SurfaceData const*>(source.surfaceDataBegin);
+				if (modes && source.surfaceDataEnd != source.surfaceDataBegin)
+				{
+					auto targetData = static_cast<SurfaceData*>(target.surfaceDataBegin);
+					targetData[0].data[0] = modes[0].data[0];
+					targetData[0].data[1] = modes[0].data[1];
+				}
 			}
 			DestroyCompiledResult(shader);
 			return merged;
@@ -1855,13 +1933,13 @@ namespace
 			if (merged) DestroyCompiledResult(merged);
 			if (native)
 			{
-				using Release = ULONG(__fastcall*)(CompiledResult*);
+				using Release = ULONG(__stdcall*)(CompiledResult*);
 				reinterpret_cast<Release>(native->vtable[1])(native);
 			}
 			throw;
 		}
 	}
-	HRESULT __fastcall DetourCompileEffectDescription(void* description, void** result)
+	HRESULT __stdcall DetourCompileEffectDescription(void* description, void** result)
 	{
 		// This detour is reached on DWM's effect compilation worker path after
 		// wuceffectsi has already traversed and flattened the public IGraphicsEffect

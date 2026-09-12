@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="assets/MainLogo.png" alt="WinUI.Composition.Hlsl logo" width="220" />
 </p>
 
@@ -218,3 +218,7 @@ For build details, use the repository scripts and the GitHub Actions workflow as
 ## License
 
 WinUI.Composition.Hlsl is licensed under the [MIT License](LICENSE.txt).
+
+## Thanks
+
+This is inspired by @apkipa [WUILiquidGlassDemo](https://github.com/hoshiizumiya/WUILiquidGlassDemo)
