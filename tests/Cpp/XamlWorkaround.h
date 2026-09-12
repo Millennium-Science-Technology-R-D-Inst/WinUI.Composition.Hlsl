@@ -45,6 +45,7 @@
 #include <optional>
 #include <ostream>
 #include <ratio>
+#include <regex>
 #include <span>
 #include <stdexcept>
 #include <stop_token>
