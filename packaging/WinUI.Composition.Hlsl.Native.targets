@@ -8,6 +8,11 @@
 		<HlslCompositionOutputRoot Condition="'$(HlslCompositionOutputRoot)'==''">$(OutDir)Hlsl\</HlslCompositionOutputRoot>
 		<HlslCompositionGenerateHeaders Condition="'$(HlslCompositionGenerateHeaders)'==''">true</HlslCompositionGenerateHeaders>
 	</PropertyGroup>
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(HlslCompositionIntermediateRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+	</ItemDefinitionGroup>
 	<ItemGroup>
 		<Reference Include="$(HlslWinmd)">
 			<Implementation>WinUI.Composition.Hlsl.dll</Implementation>
