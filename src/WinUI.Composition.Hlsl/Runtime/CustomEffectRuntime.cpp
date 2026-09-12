@@ -4,6 +4,7 @@
 #include <guiddef.h>
 #include <windows.graphics.effects.interop.h>
 #include <d2d1effects.h>
+#include <d2d1_1.h>
 #include <d3dcompiler.h>
 #include <d3d11shader.h>
 #include <bcrypt.h>
@@ -46,66 +47,66 @@ struct OwnedEffectDefinition
 			(input.constantBufferPropertyCount && !input.constantBufferProperties) ||
 			(input.constantBufferSize && !input.constantBufferInitialValue))
 			throw winrt::hresult_invalid_argument(L"Invalid native effect definition.");
-		effectName=input.effectName; fragmentName=input.fragmentName;
+		effectName = input.effectName; fragmentName = input.fragmentName;
 		if (hasSource) shaderSource.assign(input.shaderSource, input.shaderSourceSize);
 		if (hasBytecode)
 		{
-			auto begin=static_cast<unsigned char const*>(input.shaderBytecode);
+			auto begin = static_cast<unsigned char const*>(input.shaderBytecode);
 			shaderBytecode.assign(begin, begin + input.shaderBytecodeSize);
 		}
-		shaderFunctionName=input.shaderFunctionName;
-		materializationName=input.materializationShaderFunctionName ? input.materializationShaderFunctionName : "";
-		descriptorKey=input.descriptorKey ? input.descriptorKey : ""; value.descriptorKey=descriptorKey.c_str();
-		value.effectName=effectName.c_str(); value.fragmentName=fragmentName.c_str();
-		value.shaderSource=shaderSource.empty() ? nullptr : shaderSource.data();
-		value.shaderSourceSize=shaderSource.size();
-		value.shaderBytecode=shaderBytecode.empty() ? nullptr : shaderBytecode.data();
-		value.shaderBytecodeSize=shaderBytecode.size();
-		value.shaderFunctionName=shaderFunctionName.c_str();
-		value.materializationShaderFunctionName=materializationName.empty() ? nullptr : materializationName.c_str();
+		shaderFunctionName = input.shaderFunctionName;
+		materializationName = input.materializationShaderFunctionName ? input.materializationShaderFunctionName : "";
+		descriptorKey = input.descriptorKey ? input.descriptorKey : ""; value.descriptorKey = descriptorKey.c_str();
+		value.effectName = effectName.c_str(); value.fragmentName = fragmentName.c_str();
+		value.shaderSource = shaderSource.empty() ? nullptr : shaderSource.data();
+		value.shaderSourceSize = shaderSource.size();
+		value.shaderBytecode = shaderBytecode.empty() ? nullptr : shaderBytecode.data();
+		value.shaderBytecodeSize = shaderBytecode.size();
+		value.shaderFunctionName = shaderFunctionName.c_str();
+		value.materializationShaderFunctionName = materializationName.empty() ? nullptr : materializationName.c_str();
 		sources.assign(input.sources, input.sources + input.sourceCount);
 		sourceNames.resize(sources.size());
-		for (size_t i=0; i < sources.size(); ++i)
+		for (size_t i = 0; i < sources.size(); ++i)
 		{
-			sourceNames[i]=sources[i].name; sources[i].name=sourceNames[i].c_str();
+			sourceNames[i] = sources[i].name; sources[i].name = sourceNames[i].c_str();
 		}
 		if (input.propertyCount)properties.assign(input.properties, input.properties + input.propertyCount);
 		propertyNames.resize(properties.size());
-		for (size_t i=0; i < properties.size(); ++i)
+		for (size_t i = 0; i < properties.size(); ++i)
 		{
-			propertyNames[i]=properties[i].publicName; properties[i].publicName=propertyNames[i].c_str();
+			propertyNames[i] = properties[i].publicName; properties[i].publicName = propertyNames[i].c_str();
 			if (properties[i].getDefaultValue)
 			{
 				winrt::Windows::Foundation::IPropertyValue initial{ nullptr };
 				winrt::check_hresult(properties[i].getDefaultValue(reinterpret_cast<ABI::Windows::Foundation::IPropertyValue**>(winrt::put_abi(initial))));
-				properties[i].initialScalar=initial.GetSingle(); properties[i].getDefaultValue=nullptr;
+				properties[i].initialScalar = initial.GetSingle(); properties[i].getDefaultValue = nullptr;
 			}
 		}
 		if (input.nativePropertyMetadataCount)
 		{
-			auto begin=static_cast<CustomEffectRuntime::NativePropertyMetadata const*>(input.nativePropertyMetadata);
+			auto begin = static_cast<CustomEffectRuntime::NativePropertyMetadata const*>(input.nativePropertyMetadata);
 			metadata.assign(begin, begin + input.nativePropertyMetadataCount);
 		}
 		shaderNames.resize(metadata.size());
-		for (size_t i=0; i < metadata.size(); ++i)
+		for (size_t i = 0; i < metadata.size(); ++i)
 		{
-			shaderNames[i]=metadata[i].shaderName; metadata[i].shaderName=shaderNames[i].c_str();
+			shaderNames[i] = metadata[i].shaderName; metadata[i].shaderName = shaderNames[i].c_str();
 		}
 		if (input.constantBufferPropertyCount)mappings.assign(input.constantBufferProperties, input.constantBufferProperties + input.constantBufferPropertyCount);
 		if (input.shaderArgumentCount)arguments.assign(input.shaderArguments, input.shaderArguments + input.shaderArgumentCount);
 		if (input.constantBufferSize)
 		{
-			auto begin=static_cast<unsigned char const*>(input.constantBufferInitialValue);
+			auto begin = static_cast<unsigned char const*>(input.constantBufferInitialValue);
 			constants.assign(begin, begin + input.constantBufferSize);
 		}
-		value.sources=sources.data(); value.properties=properties.data(); value.nativePropertyMetadata=metadata.data();
-		value.constantBufferProperties=mappings.data(); value.shaderArguments=arguments.data();
-		value.constantBufferInitialValue=constants.empty() ? nullptr : constants.data();
+		value.sources = sources.data(); value.properties = properties.data(); value.nativePropertyMetadata = metadata.data();
+		value.constantBufferProperties = mappings.data(); value.shaderArguments = arguments.data();
+		value.constantBufferInitialValue = constants.empty() ? nullptr : constants.data();
 	}
 
 	bool Equivalent(OwnedEffectDefinition const& other) const
 	{
-		auto const& b=other.value;
+		auto const& b = other.value;
 		if (descriptorKey != other.descriptorKey || effectName != other.effectName || fragmentName != other.fragmentName ||
 			shaderSource != other.shaderSource || shaderBytecode != other.shaderBytecode ||
 			shaderFunctionName != other.shaderFunctionName || materializationName != other.materializationName ||
@@ -115,20 +116,20 @@ struct OwnedEffectDefinition
 			value.propertiesStructSize != b.propertiesStructSize ||
 			value.inputMode != b.inputMode || value.graphPolicy != b.graphPolicy ||
 			metadata.size() != other.metadata.size() || mappings.size() != other.mappings.size())return false;
-		for (size_t i=0; i < sources.size(); ++i)
+		for (size_t i = 0; i < sources.size(); ++i)
 			if (sources[i].kind != other.sources[i].kind ||
 				sources[i].requiresSamplerData != other.sources[i].requiresSamplerData ||
 				sources[i].requiresSamplerDataExt != other.sources[i].requiresSamplerDataExt)return false;
-		for (size_t i=0; i < properties.size(); ++i)
+		for (size_t i = 0; i < properties.size(); ++i)
 			if (properties[i].index != other.properties[i].index || properties[i].mapping != other.properties[i].mapping ||
 				properties[i].initialScalar != other.properties[i].initialScalar)return false;
-		for (size_t i=0; i < metadata.size(); ++i)
+		for (size_t i = 0; i < metadata.size(); ++i)
 			if (metadata[i].propertyOffset != other.metadata[i].propertyOffset ||
 				metadata[i].expressionType != other.metadata[i].expressionType ||
 				metadata[i].propertyType != other.metadata[i].propertyType ||
 				metadata[i].valueCount != other.metadata[i].valueCount ||
 				metadata[i].validator != other.metadata[i].validator)return false;
-		for (size_t i=0; i < mappings.size(); ++i)
+		for (size_t i = 0; i < mappings.size(); ++i)
 			if (mappings[i].propertyIndex != other.mappings[i].propertyIndex ||
 				mappings[i].constantBufferOffset != other.mappings[i].constantBufferOffset)return false;
 		return true;
@@ -156,11 +157,11 @@ namespace HlslComposition
 		explicit RuntimeImage(HMODULE module) :m_base(reinterpret_cast<uint8_t*>(module))
 		{
 			if (!module) winrt::throw_hresult(E_INVALIDARG);
-			auto dos=reinterpret_cast<IMAGE_DOS_HEADER*>(m_base);
-			auto nt=reinterpret_cast<IMAGE_NT_HEADERS*>(m_base + dos->e_lfanew);
+			auto dos = reinterpret_cast<IMAGE_DOS_HEADER*>(m_base);
+			auto nt = reinterpret_cast<IMAGE_NT_HEADERS*>(m_base + dos->e_lfanew);
 			if (dos->e_magic != IMAGE_DOS_SIGNATURE || nt->Signature != IMAGE_NT_SIGNATURE ||
 				nt->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64) Fail();
-			for (auto section=IMAGE_FIRST_SECTION(nt); section < IMAGE_FIRST_SECTION(nt) + nt->FileHeader.NumberOfSections; ++section)
+			for (auto section = IMAGE_FIRST_SECTION(nt); section < IMAGE_FIRST_SECTION(nt) + nt->FileHeader.NumberOfSections; ++section)
 				m_sections.push_back({ m_base + section->VirtualAddress,section->Misc.VirtualSize,section->Characteristics });
 		}
 
@@ -172,10 +173,10 @@ namespace HlslComposition
 
 		bool Contains(void const* pointer, size_t size, DWORD flags) const
 		{
-			auto address=reinterpret_cast<uintptr_t>(pointer);
+			auto address = reinterpret_cast<uintptr_t>(pointer);
 			for (auto const& s : m_sections)
 			{
-				auto start=reinterpret_cast<uintptr_t>(s.begin);
+				auto start = reinterpret_cast<uintptr_t>(s.begin);
 				if ((s.flags & flags) == flags && address >= start && address - start <= s.size && size <= s.size - (address - start)) return true;
 			}
 			return false;
@@ -187,16 +188,16 @@ namespace HlslComposition
 			for (auto const& s : m_sections)
 			{
 				if ((s.flags & flags) != flags || s.size < pattern.size()) continue;
-				for (size_t i=0; i <= s.size - pattern.size(); ++i)
+				for (size_t i = 0; i <= s.size - pattern.size(); ++i)
 				{
-					size_t j=0;
+					size_t j = 0;
 					for (auto byte : pattern)
 					{
 						if (byte >= 0 && s.begin[i + j] != byte) break; ++j;
 					}
 					if (j == pattern.size())
 					{
-						if (found) Fail(); found=s.begin + i;
+						if (found) Fail(); found = s.begin + i;
 					}
 				}
 			}
@@ -211,10 +212,10 @@ namespace HlslComposition
 
 		NativeEntrypoints Resolve() const
 		{
-			constexpr DWORD code=IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
+			constexpr DWORD code = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
 			// Match the GUID lookup loop, not merely a common function prologue.
 			// -1 represents relocation-dependent bytes. No module-relative address is embedded.
-			auto lookup=Unique({
+			auto lookup = Unique({
 				0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x74,0x24,0x10,0x48,0x89,0x7c,0x24,0x18,
 				0x41,0x56,0x48,0x83,0xec,0x20,0x4c,0x8b,0xf1,
 				0x48,0x8d,0x3d,-1,-1,-1,-1,0x33,0xdb,0x48,0x8b,0x37,0x48,0x8b,0xce,
@@ -222,7 +223,7 @@ namespace HlslComposition
 				0x48,0x8b,0xc8,0x49,0x8b,0x06,0x48,0x3b,0x01,0x75,0x0a,
 				0x49,0x8b,0x46,0x08,0x48,0x3b,0x41,0x08,0x74,0x24,0xff,0xc3,
 				0x48,0x83,0xc7,0x08,0x83,0xfb,-1,0x72,0xce
-							   }, code);
+								 }, code);
 			int32_t displacement{};
 			memcpy(&displacement, lookup + 27, 4);
 			auto table = reinterpret_cast<void**>(lookup + 31 + displacement);
@@ -230,33 +231,33 @@ namespace HlslComposition
 			if (count < 1 || count>128 || !Contains(table, count * sizeof(void*), IMAGE_SCN_MEM_READ))
 				Fail();
 			void** neutral{};
-			for (size_t i=0; i < count; ++i)
+			for (size_t i = 0; i < count; ++i)
 			{
-				auto object=table[i];
+				auto object = table[i];
 				if (!Contains(object, sizeof(void*), IMAGE_SCN_MEM_READ)) Fail();
-				auto vt=*reinterpret_cast<void***>(object);
+				auto vt = *reinterpret_cast<void***>(object);
 				if (!Contains(vt, 22 * sizeof(void*), IMAGE_SCN_MEM_READ)) Fail();
-				for (size_t slot=0; slot < 22; ++slot) if (!Contains(vt[slot], 1, code)) Fail();
-				auto getGuid=reinterpret_cast<GUID const* (*)(void*)>(vt[1]);
-				auto guid=getGuid(object);
+				for (size_t slot = 0; slot < 22; ++slot) if (!Contains(vt[slot], 1, code)) Fail();
+				auto getGuid = reinterpret_cast<GUID const* (*)(void*)>(vt[1]);
+				auto guid = getGuid(object);
 				if (!Contains(guid, sizeof(GUID), IMAGE_SCN_MEM_READ)) Fail();
-				if (IsEqualGUID(*guid, CLSID_D2D1ColorMatrix)) neutral=vt;
+				if (IsEqualGUID(*guid, CLSID_D2D1ColorMatrix)) neutral = vt;
 			}
 			if (!neutral) Fail();
-			auto copy=Unique({ 0x4d,0x8b,0xc8,0x48,0x8b,0xc2,0x44,0x8b,0x41,0x1c,0x8b,0x51,0x10,
+			auto copy = Unique({ 0x4d,0x8b,0xc8,0x48,0x8b,0xc2,0x44,0x8b,0x41,0x1c,0x8b,0x51,0x10,
 				0x49,0xc1,0xe0,0x02,0x48,0x03,0x10,0x49,0x8b,0x09,0xe9
-							 }, code);
+							   }, code);
 			void** updater{};
 			for (auto const& s : m_sections)
 			{
 				if (!(s.flags & IMAGE_SCN_MEM_READ) || (s.flags & (IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_WRITE))) continue;
-				for (size_t i=0; i + 4 * sizeof(void*) <= s.size; i+=sizeof(void*))
+				for (size_t i = 0; i + 4 * sizeof(void*) <= s.size; i += sizeof(void*))
 				{
 					auto candidate = reinterpret_cast<void**>(s.begin + i);
 					if (candidate[2] != copy || candidate[0] != candidate[1] ||
 						!Contains(candidate[0], 1, code) || !Contains(candidate[3], 1, code)) continue;
 					if (updater) Fail();
-					updater=candidate;
+					updater = candidate;
 				}
 			}
 			if (!updater) Fail();
@@ -273,12 +274,8 @@ using namespace Windows::Graphics::Effects;
 
 namespace
 {
-	// TODO: Re-audit and rename the graph-layer terminology in this runtime.
-	// In particular, keep EffectNode indices, CompiledEffectSubgraph indices,
-	// shader-linking main/dependency bodies, CRenderingTechnique boundaries, and
-	// intermediate materialization decisions distinct. Current names such as
-	// mainSubgraph rely on the synthetic topology making the custom node index and
-	// custom-effect subgraph index coincide; that is not a general graph invariant.
+	// EffectNode indices address property blobs; subgraph indices address shader
+	// bodies and intermediate outputs. The native traversal determines both maps.
 
 	// This file is a deliberately narrow compatibility layer for one WinAppSDK /
 	// Windows composition build. The public WinRT object returned by CreateEffect()
@@ -292,8 +289,8 @@ namespace
 	//   1. RuntimeGraphicsEffect exposes a private effect GUID to WinUI.
 	//   2. EffectType::FromGuid is patched so wuceffectsi accepts that GUID.
 	//   3. CompileEffectDescription is patched in dcompi/dwmcorei import tables.
-	//   4. When the flattened graph contains our EffectType, the detour returns a
-	//      synthetic CompiledResult instead of asking wuceffectsi to generate code.
+	//   4. When the flattened graph contains our EffectType, the detour supplies its
+	//      shader body while retaining native compilation for materialized inputs.
 	//   5. DWM consumes CompiledResult through the ICompiledEffect vtable below.
 	//
 	// The RVAs are not symbolic API contracts. They must be treated as build-specific
@@ -468,6 +465,8 @@ namespace
 		CompiledSubgraph* subgraphCapacity;
 
 		RuntimeEffectEntry* entry;
+		CompiledResult* nativeBacking;
+		uint32_t mainSubgraphIndex;
 	};
 
 	static_assert(offsetof(CompiledResult, subgraphBegin) == 16);
@@ -574,7 +573,7 @@ namespace
 		char const* profile = GetShaderLibraryProfile(shaderProfileVersion);
 
 		winrt::com_ptr<ID3DBlob> errors;
-		auto result=D3DCompile(
+		auto result = D3DCompile(
 			source,
 			sourceSize,
 			nullptr,
@@ -588,7 +587,7 @@ namespace
 			errors.put());
 		if (FAILED(result))
 		{
-			std::string message="HLSL compilation failed.";
+			std::string message = "HLSL compilation failed.";
 			if (errors) message.assign(static_cast<char const*>(errors->GetBufferPointer()), errors->GetBufferSize());
 			while (!message.empty() && message.back() == '\0')message.pop_back();
 			throw hresult_error(result, to_hstring(message));
@@ -702,9 +701,8 @@ namespace
 	{
 		// wuceffectsi!Traverser uses EffectType slot 5 as the native source-flattening
 		// gate: when it is true, named inputs are first wrapped in
-		// CSingleInputCompositeEffect and become their own EffectSubgraph. Returning true
-		// here only for effects whose compiled result also exposes a flatten subgraph
-		// keeps FlattenedEffectGraph and ICompiledEffect subgraph counts aligned.
+		// CSingleInputCompositeEffect and become their own EffectSubgraph. The native
+		// compiler preserves the resulting boundaries in CompileMaterializedGraph.
 		return self->entry->definition->inputMode ==
 			CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture;
 	}
@@ -783,12 +781,32 @@ namespace
 		// once the native validator ABI is modeled.
 	}
 
-	void __fastcall EffectType_GenerateCode(RuntimeEffectType*, void const*, void*, char const*)
+	thread_local void* g_nativePassthroughType{};
+
+	struct NativeEffectNode
 	{
-		// CompileEffectDescription detects runtime EffectType objects and returns a
-		// CompiledEffect-shaped object directly. This no-op is a defensive slot so an
-		// accidental fallback does not run a built-in GenerateCode path and hide whether
-		// our private shader path ran.
+		void* effectType;
+		void* inputs;
+		uint32_t index;
+		uint32_t inputCount;
+		void* properties;
+		void* propertyMappings;
+	};
+	static_assert(sizeof(NativeEffectNode) == 40);
+	static_assert(offsetof(NativeEffectNode, properties) == 24);
+
+	void __fastcall EffectType_GenerateCode(RuntimeEffectType*, void const* node, void* generator, char const* name)
+	{
+		// Generate a disposable native body so the native compiler can retain the
+		// upstream passes and bindings. Only this isolated body's shader is replaced.
+		check_pointer(g_nativePassthroughType);
+		auto passthroughNode = *static_cast<NativeEffectNode const*>(node);
+		uint32_t mode = D2D1_COMPOSITE_MODE_SOURCE_OVER;
+		passthroughNode.effectType = g_nativePassthroughType;
+		passthroughNode.properties = &mode;
+		auto vtable = *static_cast<void***>(g_nativePassthroughType);
+		using Generate = void(__fastcall*)(void*, void const*, void*, char const*);
+		reinterpret_cast<Generate>(vtable[20])(g_nativePassthroughType, &passthroughNode, generator, name);
 	}
 
 	void InitializeEffectType(RuntimeEffectEntry* entry, HMODULE wuceffectsi)
@@ -955,6 +973,9 @@ namespace
 		{
 			for (auto* subgraph = self->subgraphBegin; subgraph != self->subgraphEnd; ++subgraph)
 			{
+				if (self->nativeBacking && subgraph != self->subgraphBegin + self->mainSubgraphIndex &&
+					subgraph != self->subgraphEnd - 1)
+					continue; // Borrowed native vectors stay alive through nativeBacking.
 				if (subgraph->inputBindingBegin)
 				{
 					HeapFree(GetProcessHeap(), 0, subgraph->inputBindingBegin);
@@ -982,6 +1003,11 @@ namespace
 			}
 
 			HeapFree(GetProcessHeap(), 0, self->subgraphBegin);
+		}
+		if (self->nativeBacking)
+		{
+			using Release = ULONG(__fastcall*)(CompiledResult*);
+			reinterpret_cast<Release>(self->nativeBacking->vtable[1])(self->nativeBacking);
 		}
 
 		HeapFree(GetProcessHeap(), 0, self);
@@ -1032,9 +1058,15 @@ namespace
 		{
 			check_hresult(E_INVALIDARG);
 		}
+		if (self->nativeBacking && subgraphIndex != self->mainSubgraphIndex &&
+			subgraphIndex != Wrapper_GetSubgraphCount(self) - 1)
+		{
+			using GetBody = ShaderLinkingBody * (__fastcall*)(CompiledResult*, ShaderLinkingBody*, uint32_t);
+			return reinterpret_cast<GetBody>(self->nativeBacking->vtable[3])(self->nativeBacking, body, subgraphIndex);
+		}
 
 		auto* subgraph = self->subgraphBegin + subgraphIndex;
-		auto const isMainSubgraph = subgraphIndex == GetMainSubgraphIndex(definition);
+		auto const isMainSubgraph = subgraphIndex == self->mainSubgraphIndex;
 		auto const argCount = subgraph && subgraph->shaderArgumentBegin && subgraph->shaderArgumentEnd
 			? static_cast<uint64_t>(
 				(static_cast<uint8_t*>(subgraph->shaderArgumentEnd) -
@@ -1307,9 +1339,7 @@ namespace
 
 	bool UsesFlattenSourceSubgraph(CustomEffectRuntime::CustomEffectDefinition const& definition)
 	{
-		// Keep this helper separate because the same boolean must drive both sides of
-		// the ABI: EffectType slot 5 controls Traverser flattening, while
-		// CreateCompiledResult controls the ICompiledEffect subgraph layout.
+		// Match EffectType slot 5 when selecting native materialized compilation.
 		return definition.inputMode ==
 			CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture;
 	}
@@ -1323,11 +1353,9 @@ namespace
 
 	uint32_t GetCompiledSubgraphCount(CustomEffectRuntime::CustomEffectDefinition const& definition)
 	{
-		// slot 5 source flattening creates three FlattenedEffectGraph subgraphs:
-		// source composite, the custom effect, then a final composite wrapper around
-		// the custom effect. ICompiledEffect must expose the same count because
-		// EffectInstance iterates the flattened subgraph vector when allocating
-		// constant buffers.
+		// This is only the standalone shader template. Materialized graphs borrow
+		// native stages and relocate its main/output bodies using the traversed map;
+		// they must never return this template as the whole compiled graph.
 		return UsesFlattenSourceSubgraph(definition) ? 3u : 1u;
 	}
 
@@ -1429,7 +1457,7 @@ namespace
 		subgraph.shaderArgumentCapacity = shaderArguments + argumentCount;
 	}
 
-	void* CreateCompiledResult(RuntimeEffectEntry* entry)
+	void* CreateCompiledResult(RuntimeEffectEntry* entry, uint32_t propertyNodeIndex)
 	{
 		// Build the native-shaped compiled graph DWM expects after
 		// CompileEffectDescription. Nothing in this function is cosmetic: every
@@ -1475,6 +1503,7 @@ namespace
 			result->subgraphCapacity = subgraph + subgraphCount;
 
 			auto const mainSubgraphIndex = GetMainSubgraphIndex(definition);
+			result->mainSubgraphIndex = mainSubgraphIndex;
 			auto& mainSubgraph = subgraph[mainSubgraphIndex];
 
 			if (UsesFlattenSourceSubgraph(definition))
@@ -1593,7 +1622,8 @@ namespace
 						directUpdaterFunctionVtable,
 						property,
 						mapping.constantBufferOffset,
-						mainSubgraphIndex);
+						// EffectInstance reads the original graph's property blob here.
+						propertyNodeIndex);
 				}
 
 				mainSubgraph.constantBufferUpdaterBegin = updaters;
@@ -1682,10 +1712,9 @@ namespace
 		for (auto** current = nodeBegin; current != nodeEnd; ++current)
 		{
 			auto* node = *current;
-			if (node)
-			{
-				inspected.nodes.push_back({ node, *reinterpret_cast<void**>(node) });
-			}
+			if (!node)
+				throw hresult_invalid_argument(L"A flattened effect node is null.");
+			inspected.nodes.push_back({ node, *reinterpret_cast<void**>(node) });
 		}
 		return inspected;
 	}
@@ -1699,7 +1728,7 @@ namespace
 		{
 			if (auto* entry = FindEntryByEffectTypeLocked(node.effectType))
 			{
-				found=entry; ++customCount;
+				found = entry; ++customCount;
 			}
 		}
 		if (!found)return {};
@@ -1719,6 +1748,119 @@ namespace
 		}
 		return { found, policy };
 	}
+
+	CompiledResult* CompileMaterializedGraph(void* description, InspectedEffectGraph const& graph, RuntimeEffectEntry* entry)
+	{
+		uint32_t customNodeIndex{};
+		void* compositeType{};
+		for (uint32_t index = 0; index < graph.nodes.size(); ++index)
+		{
+			auto const type = graph.nodes[index].effectType;
+			if (type == &entry->effectType)
+				customNodeIndex = index;
+			else
+			{
+				using GetGuid = GUID const* (__fastcall*)(void*);
+				auto vtable = *static_cast<void***>(type);
+				if (*reinterpret_cast<GetGuid>(vtable[1])(type) == CLSID_D2D1Composite)
+					compositeType = type;
+			}
+		}
+		check_pointer(compositeType);
+
+		// FlattenedEffectGraph owns a vector of EffectSubgraph pointers at +0x18.
+		// Each EffectSubgraph starts with its vector of graph-global node indices.
+		auto base = static_cast<uint8_t*>(description) - 0x10;
+		auto begin = *reinterpret_cast<uint8_t***>(base + 0x18);
+		auto end = *reinterpret_cast<uint8_t***>(base + 0x20);
+		if (!begin || end < begin || end - begin > 0x19)
+			throw hresult_invalid_argument(L"Invalid flattened subgraph range.");
+		auto count = static_cast<uint32_t>(end - begin);
+		uint32_t mainIndex = count;
+		for (uint32_t index = 0; index < count; ++index)
+		{
+			check_pointer(begin[index]);
+			auto nodes = *reinterpret_cast<uint32_t**>(begin[index]);
+			auto nodesEnd = *reinterpret_cast<uint32_t**>(begin[index] + 8);
+			if (!nodes || nodesEnd < nodes || static_cast<size_t>(nodesEnd - nodes) > graph.nodes.size())
+				throw hresult_invalid_argument(L"Invalid flattened node range.");
+			for (auto current = nodes; current != nodesEnd; ++current)
+				if (*current >= graph.nodes.size())
+					throw hresult_invalid_argument(L"A flattened subgraph refers to an invalid node.");
+			if (index == count - 1 && (nodesEnd - nodes != 1 || graph.nodes[*nodes].effectType != compositeType))
+				throw hresult_not_implemented(L"The final subgraph must be a single composite wrapper.");
+			if (std::find(nodes, nodesEnd, customNodeIndex) != nodesEnd)
+			{
+				if (nodesEnd - nodes != 1 || mainIndex != count)
+					throw hresult_not_implemented(L"The custom sampler must occupy one isolated subgraph.");
+				mainIndex = index;
+			}
+		}
+		if (count < 3 || mainIndex != count - 2)
+			throw hresult_not_implemented(L"Materialized lowering requires a terminal custom sampler and output wrapper.");
+
+		CompiledResult* native{};
+		CompiledResult* shader{};
+		CompiledResult* merged{};
+		try
+		{
+			struct CodegenScope
+			{
+				void* previous = g_nativePassthroughType;
+				~CodegenScope()
+				{
+					g_nativePassthroughType = previous;
+				}
+			} scope;
+			g_nativePassthroughType = compositeType;
+			check_hresult(g_originalCompileEffectDescription(description, reinterpret_cast<void**>(&native)));
+			if (!native || native->subgraphEnd - native->subgraphBegin != count)
+				throw hresult_invalid_argument(L"Native compiled subgraphs do not match the flattened graph.");
+			shader = static_cast<CompiledResult*>(CreateCompiledResult(entry, customNodeIndex));
+			merged = static_cast<CompiledResult*>(AllocateBytes(sizeof(CompiledResult)));
+			merged->vtable = g_wrapperVtable;
+			merged->refCount = 1;
+			merged->entry = entry;
+			merged->mainSubgraphIndex = mainIndex;
+			merged->nativeBacking = native;
+			native = nullptr;
+			merged->subgraphBegin = static_cast<CompiledSubgraph*>(AllocateBytes(sizeof(CompiledSubgraph) * count));
+			merged->subgraphEnd = merged->subgraphBegin + count;
+			merged->subgraphCapacity = merged->subgraphEnd;
+			memcpy(merged->subgraphBegin, merged->nativeBacking->subgraphBegin, sizeof(CompiledSubgraph) * count);
+			merged->subgraphBegin[mainIndex] = shader->subgraphBegin[1];
+			shader->subgraphBegin[1] = {};
+			merged->subgraphBegin[count - 1] = shader->subgraphBegin[2];
+			shader->subgraphBegin[2] = {};
+			// Retain native input bindings rather than assuming node/subgraph indices coincide.
+			for (auto index : { mainIndex, count - 1 })
+			{
+				auto& target = merged->subgraphBegin[index];
+				auto const& source = merged->nativeBacking->subgraphBegin[index];
+				if (!source.inputBindingBegin ||
+					static_cast<InputBinding*>(source.inputBindingEnd) - static_cast<InputBinding*>(source.inputBindingBegin) != 1)
+					throw hresult_not_implemented(L"The materialized sampler requires one input per stage.");
+				auto const binding = *static_cast<InputBinding*>(source.inputBindingBegin);
+				if (!binding.isSubgraphOutput || binding.inputIndex >= index ||
+					(index == count - 1 && binding.inputIndex != mainIndex))
+					throw hresult_not_implemented(L"The custom sampler and output wrapper require preceding subgraph outputs.");
+				*static_cast<InputBinding*>(target.inputBindingBegin) = binding;
+			}
+			DestroyCompiledResult(shader);
+			return merged;
+		}
+		catch (...)
+		{
+			if (shader) DestroyCompiledResult(shader);
+			if (merged) DestroyCompiledResult(merged);
+			if (native)
+			{
+				using Release = ULONG(__fastcall*)(CompiledResult*);
+				reinterpret_cast<Release>(native->vtable[1])(native);
+			}
+			throw;
+		}
+	}
 	HRESULT __fastcall DetourCompileEffectDescription(void* description, void** result)
 	{
 		// This detour is reached on DWM's effect compilation worker path after
@@ -1732,16 +1874,19 @@ namespace
 
 		try
 		{
-			auto const plan = ValidateAndPlan(InspectEffectGraph(description));
+			auto const inspected = InspectEffectGraph(description);
+			auto const plan = ValidateAndPlan(inspected);
 			if (auto* entry = plan.customEffect)
 			{
-				*result = CreateCompiledResult(entry);
+				*result = UsesFlattenSourceSubgraph(*entry->definition)
+					? CompileMaterializedGraph(description, inspected, entry)
+					: CreateCompiledResult(entry, 0);
 				return S_OK;
 			}
 		}
 		catch (...)
 		{
-			*result=nullptr; return to_hresult();
+			*result = nullptr; return to_hresult();
 		}
 		return g_originalCompileEffectDescription(description, result);
 	}
@@ -1938,7 +2083,7 @@ namespace
 
 						   for (auto name : { L"dcompi.dll",L"dwmcorei.dll" })
 						   {
-							   auto caller=GetModuleHandleW(name);
+							   auto caller = GetModuleHandleW(name);
 							   check_pointer(caller);
 							   PatchImport(caller, patches, ARRAYSIZE(patches));
 							   PatchDelayImport(caller, patches, ARRAYSIZE(patches));
@@ -2080,8 +2225,8 @@ namespace
 			if (property.getDefaultValue) return property.getDefaultValue(value);
 			try
 			{
-				auto initial=Windows::Foundation::PropertyValue::CreateSingle(property.initialScalar).as<Windows::Foundation::IPropertyValue>();
-				*value=reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(detach_abi(initial));
+				auto initial = Windows::Foundation::PropertyValue::CreateSingle(property.initialScalar).as<Windows::Foundation::IPropertyValue>();
+				*value = reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(detach_abi(initial));
 				return S_OK;
 			}
 			catch (...)
@@ -2151,14 +2296,14 @@ namespace CustomEffectRuntime
 		// happen if the app creates the same effect description for several brushes;
 		// all of them should share the same synthetic EffectType and shader blob.
 		std::lock_guard<std::mutex> guard(g_registryMutex);
-		if (auto* existing=FindEntryByGuidLocked(definition.id))
+		if (auto* existing = FindEntryByGuidLocked(definition.id))
 		{
 			OwnedEffectDefinition candidate{ definition };
 			if (!existing->owned.Equivalent(candidate)) throw hresult_invalid_argument(L"Effect GUID is already registered with a different shader definition.");
 			return;
 		}
-		size_t registrations=0;
-		for (auto* current=g_effects; current; current=current->next)++registrations;
+		size_t registrations = 0;
+		for (auto* current = g_effects; current; current = current->next)++registrations;
 		if (registrations >= 1024) throw hresult_error(E_OUTOFMEMORY, L"The process has reached the limit of 1024 distinct HLSL definitions. Reuse deterministic descriptors.");
 
 		auto* entry = new RuntimeEffectEntry(definition);
@@ -2192,7 +2337,7 @@ namespace CustomEffectRuntime
 		RegisterEffect(definition);
 		RuntimeEffectEntry* entry{};
 		{
-			std::lock_guard<std::mutex> guard(g_registryMutex); entry=FindEntryByGuidLocked(definition.id);
+			std::lock_guard<std::mutex> guard(g_registryMutex); entry = FindEntryByGuidLocked(definition.id);
 		}
 		EnsureShader(entry);
 		InstallHook();

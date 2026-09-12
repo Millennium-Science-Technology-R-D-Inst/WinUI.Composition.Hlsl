@@ -121,10 +121,15 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 										  case 0: self->EffectSelector().SelectedIndex(4); break;
 										  case 1: self->RefractionStrengthSlider().Value(42); self->CornerRadiusSlider().Value(40); self->BlurRadiusSlider().Value(18); break;
 										  case 2: self->BackdropFrame().Width(500); self->BackdropFrame().Height(300); break;
-										  case 3: self->EffectSelector().SelectedIndex(3); break;
-										  case 4: self->EffectSelector().SelectedIndex(2); break;
+										  case 3: self->m_liquidGlassMaterial.BlurRadius(0); break;
+										  case 4: self->m_liquidGlassMaterial.BlurRadius(64); self->m_liquidGlassMaterial.DispersionStrength(2); break;
+										  case 5: self->m_liquidGlassMaterial.BlurRadius(18); break;
+										  case 6: self->EffectSelector().SelectedIndex(3); break;
+										  case 7: self->EffectSelector().SelectedIndex(2); break;
+										  case 8: self->EffectSelector().SelectedIndex(4); break;
+										  case 9: self->m_liquidGlassMaterial.BlurRadius(0); self->m_liquidGlassMaterial.RefractionStrength(0); break;
 										  default:
-											  std::ofstream("smoke.log", std::ios::app) << "PASS: invert, sampler blur, glass, properties, resize\n";
+											  std::ofstream("smoke.log", std::ios::app) << "PASS: invert, sampler blur, glass, properties, resize, blur 0/64, material recreation\n";
 											  self->m_smokeTimer.Stop(); self->Close(); return;
 									  }
 									  std::ofstream("smoke.log", std::ios::app) << "phase " << phase << " applied\n";
