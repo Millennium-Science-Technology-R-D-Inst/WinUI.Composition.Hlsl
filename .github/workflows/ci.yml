@@ -34,7 +34,6 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          # run_id is globally unique; run_attempt makes reruns unique too.
           $version = "1.0.0-preview.${{ github.run_id }}.${{ github.run_attempt }}"
           "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "package-version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -66,8 +65,6 @@ jobs:
       - name: Build native package assets
         shell: pwsh
         run: |
-          # Use top-level invocations so WinAppSDK native props see Platform as a
-          # global property from the beginning of project evaluation.
           foreach ($platform in @('x64', 'Win32', 'ARM64')) {
             Write-Host "Building native Release/$platform"
             & $env:MSBUILD `
@@ -124,11 +121,16 @@ jobs:
             /fl "/flp:logfile=native-shader-consumer.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-          $fixtureDxbc = 'tests\BuildIntegration\Output\x64\Debug\Hlsl\ConsumerSampler.dxbc'
-          if (!(Test-Path $fixtureDxbc)) { throw "Consumer build target did not emit $fixtureDxbc" }
-          $bytes = [System.IO.File]::ReadAllBytes($fixtureDxbc)
-          if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
-            throw 'Consumer shader output is not a DXBC container.'
+          foreach ($name in @('ConsumerSampler.dxbc', 'ConsumerMaterializedSampler.dxbc')) {
+            $fixture = Get-ChildItem 'tests\BuildIntegration\Output' -Recurse -Filter $name -File -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '[\\/]Hlsl[\\/]' } |
+              Select-Object -First 1
+            if (!$fixture) { throw "Consumer build target did not emit $name" }
+            $bytes = [System.IO.File]::ReadAllBytes($fixture.FullName)
+            if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
+              throw "$name is not a DXBC container."
+            }
+            Write-Host "Verified $($fixture.FullName) ($($fixture.Length) bytes)"
           }
 
       - name: Verify package inputs
@@ -210,8 +212,6 @@ jobs:
           if (!$package) { throw "Expected package $expected was not downloaded." }
           Write-Host "Consumer package: $($package.FullName)"
 
-          # Local development uses a ProjectReference. CI rewrites only this checkout
-          # so this job tests the exact .nupkg produced by pack-nuget.
           $projectPath = (Resolve-Path 'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj').Path
           [xml]$project = Get-Content $projectPath -Raw
           $ns = [System.Xml.XmlNamespaceManager]::new($project.NameTable)
@@ -354,6 +354,21 @@ jobs:
             /m /v:minimal /nologo `
             /fl "/flp:logfile=CSharp-test-build.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Verify managed HLSL build outputs
+        shell: pwsh
+        run: |
+          foreach ($name in @('ConsumerColor.dxbc', 'ConsumerMaterializedSampler.dxbc')) {
+            $fixture = Get-ChildItem 'tests\CSharp' -Recurse -Filter $name -File -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '[\\/]Hlsl[\\/]' } |
+              Select-Object -First 1
+            if (!$fixture) { throw "Managed build target did not emit $name" }
+            $bytes = [System.IO.File]::ReadAllBytes($fixture.FullName)
+            if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
+              throw "$name is not a DXBC container."
+            }
+            Write-Host "Verified $($fixture.FullName) ($($fixture.Length) bytes)"
+          }
 
       - name: Upload C# demo build logs
         if: always()
