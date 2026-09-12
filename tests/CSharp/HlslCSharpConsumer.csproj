@@ -16,6 +16,12 @@
 		<PackageReference Include="WinUI.Composition.Hlsl"/>
 	</ItemGroup>
 	<ItemGroup>
+		<HlslCompositionShader Include="ConsumerColor.hlsl">
+			<Kind>Color</Kind>
+			<Profile>Pixel40</Profile>
+		</HlslCompositionShader>
+	</ItemGroup>
+	<ItemGroup>
 		<Manifest Include="app.manifest" />
 	</ItemGroup>
 </Project>

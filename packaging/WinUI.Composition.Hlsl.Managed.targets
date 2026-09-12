@@ -1,5 +1,11 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup>
+		<HlslCompositionIntermediateRoot Condition="'$(HlslCompositionIntermediateRoot)'==''">$(IntermediateOutputPath)Hlsl\</HlslCompositionIntermediateRoot>
+		<HlslCompositionOutputRoot Condition="'$(HlslCompositionOutputRoot)'==''">$(OutputPath)Hlsl\</HlslCompositionOutputRoot>
+		<HlslCompositionGenerateHeaders Condition="'$(HlslCompositionGenerateHeaders)'==''">false</HlslCompositionGenerateHeaders>
+	</PropertyGroup>
 	<ItemGroup>
 		<WindowsMetadataReference Include="$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.Composition.Hlsl.winmd" Implementation="WinUI.Composition.Hlsl.dll"/>
 	</ItemGroup>
+	<Import Project="$(MSBuildThisFileDirectory)WinUI.Composition.Hlsl.Build.targets" />
 </Project>
