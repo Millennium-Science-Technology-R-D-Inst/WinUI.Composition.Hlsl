@@ -1,0 +1,81 @@
+name: Validate C++ XAML modules
+
+on:
+  push:
+    branches:
+      - 'fix/**'
+    paths:
+      - .github/workflows/validate-cpp-xaml-modules.yml
+      - Directory.Packages.props
+      - NuGet.Config
+      - projection/**
+      - packaging/**
+      - src/**
+      - tests/Cpp/**
+      - tests/build.ps1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-cpp-xaml-consumer:
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare local NuGet source
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
+
+      - name: Resolve Visual Studio and Windows SDK
+        shell: pwsh
+        run: |
+          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Lib"
+          $sdk = Get-ChildItem $sdkRoot -Directory |
+            Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            Select-Object -First 1
+          if (!$sdk) { throw 'No Windows 10/11 SDK was found on the runner.' }
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+          if (!$msbuild) { throw 'Visual Studio MSBuild not found.' }
+
+          "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Windows SDK: $($sdk.Name)"
+          Write-Host "MSBuild: $msbuild"
+
+      - name: Pack local WinUI.Composition.Hlsl package
+        shell: pwsh
+        run: |
+          & $env:MSBUILD `
+            'projection\WinUI.Composition.Hlsl.Projection.csproj' `
+            /restore `
+            /t:Pack `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:NuGetAudit=false `
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+            /m /v:minimal /nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          $package = Get-ChildItem artifacts\packages -Filter 'WinUI.Composition.Hlsl.*.nupkg' | Select-Object -First 1
+          if (!$package) { throw 'Local WinUI.Composition.Hlsl package was not produced.' }
+          Write-Host "Package: $($package.FullName)"
+
+      - name: Build C++ XAML consumer
+        shell: pwsh
+        run: ./tests/build.ps1 -Language Cpp
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpp-xaml-module-build-logs
+          if-no-files-found: ignore
+          path: |
+            pack.log
+            Cpp-test-build.log
+            tests/Cpp/Output/**/*.log
