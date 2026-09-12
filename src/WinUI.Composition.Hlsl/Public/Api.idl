@@ -32,6 +32,11 @@ namespace WinUI.Composition.Hlsl
         static HlslEffect CreateCompiledSamplerWithProperties(Guid id, HlslShaderLibrary shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         Guid Id{ get; };
         HlslEffectKind Kind{ get; };
+        String SourceName{ get; };
+        Boolean IsPrecompiled{ get; };
+        Windows.Foundation.Collections.IVectorView<String> PropertyNames{ get; };
+        Windows.Graphics.Effects.IGraphicsEffect CreateGraphicsEffect();
+        Windows.Graphics.Effects.IGraphicsEffect CreateGraphicsEffectWithSource(Windows.Graphics.Effects.IGraphicsEffectSource source);
     }
     [default_interface] runtimeclass HlslEffectFactory
     {

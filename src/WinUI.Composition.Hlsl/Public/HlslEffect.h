@@ -6,6 +6,8 @@
 
 import WinUI.Composition.Hlsl.EffectDef;
 import std;
+import winrt.Windows.Foundation.Collections;
+import winrt.Windows.Graphics.Effects;
 
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
@@ -36,6 +38,17 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			return m_definition->sampler ? HlslEffectKind::Sampler : HlslEffectKind::Color;
 		}
+		hstring SourceName() const
+		{
+			return m_definition->sourceName;
+		}
+		bool IsPrecompiled() const
+		{
+			return !m_definition->shaderBytecode.empty();
+		}
+		Windows::Foundation::Collections::IVectorView<hstring> PropertyNames() const;
+		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffect() const;
+		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffectWithSource(Windows::Graphics::Effects::IGraphicsEffectSource const& source) const;
 		hlsl::engine::Definition const& Definition() const
 		{
 			return m_definition;

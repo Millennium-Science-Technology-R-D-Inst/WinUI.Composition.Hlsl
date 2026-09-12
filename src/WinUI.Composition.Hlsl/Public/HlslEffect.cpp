@@ -106,4 +106,22 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	{
 		return DescribeCompiled(shader, true, id, sourceName, properties);
 	}
+	Windows::Foundation::Collections::IVectorView<hstring> HlslEffect::PropertyNames() const
+	{
+		auto names = single_threaded_vector<hstring>();
+		for (auto const& property : m_definition->properties)
+		{
+			names.Append(property.name);
+		}
+		return names.GetView();
+	}
+	Windows::Graphics::Effects::IGraphicsEffect HlslEffect::CreateGraphicsEffect() const
+	{
+		return hlsl::engine::Compile(m_definition);
+	}
+	Windows::Graphics::Effects::IGraphicsEffect HlslEffect::CreateGraphicsEffectWithSource(Windows::Graphics::Effects::IGraphicsEffectSource const& source) const
+	{
+		if (!source) throw hresult_invalid_argument(L"The graphics-effect source is null.");
+		return hlsl::engine::Compile(m_definition, source);
+	}
 }

@@ -155,6 +155,16 @@ namespace hlsl::engine
 		Program program{ *definition };
 		return CustomEffectRuntime::CreateEffect(program.native);
 	}
+	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(
+		std::shared_ptr<EffectDefinition const> const& definition,
+		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source)
+	{
+		if (!definition || !source)throw winrt::hresult_invalid_argument();
+		if (definition->nativeTemplate)return CustomEffectRuntime::CreateEffect(*definition->nativeTemplate, source);
+		Validate(*definition);
+		Program program{ *definition };
+		return CustomEffectRuntime::CreateEffect(program.native, source);
+	}
 	winrt::Microsoft::UI::Composition::CompositionEffectFactory GetFactory(winrt::Microsoft::UI::Composition::Compositor const& compositor, std::shared_ptr<EffectDefinition const> const& definition)
 	{
 		if (!compositor || !definition)throw winrt::hresult_invalid_argument();
