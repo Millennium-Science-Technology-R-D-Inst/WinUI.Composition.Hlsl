@@ -23,7 +23,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Hlsl::HlslShaderProfile Profile() const noexcept { return m_profile; }
 		Windows::Storage::Streams::IBuffer Bytecode() const;
 		std::vector<std::uint8_t> const& BytecodeBytes() const noexcept { return m_bytecode; }
-		void ValidateForEffect(bool sampler, std::span<std::wstring const> propertyNames) const;
+		void ValidateForEffect(Hlsl::HlslEffectKind kind, std::span<std::wstring const> propertyNames) const;
 
 	private:
 		std::vector<std::uint8_t> m_bytecode;

@@ -13,10 +13,11 @@ export namespace hlsl::compiler
 	inline std::string BuildPublicShaderSource(
 		std::string_view declarations,
 		std::string_view userShader,
-		bool sampler)
+		bool sampler,
+		bool materializedSampler = false)
 	{
 		std::string code;
-		code.reserve(declarations.size() + userShader.size() + (sampler ? 2048u : 128u));
+		code.reserve(declarations.size() + userShader.size() + (sampler ? 3072u : 256u));
 		if (sampler)
 		{
 			code += "Texture2D texture0; SamplerState sampler0;\n";
@@ -24,13 +25,23 @@ export namespace hlsl::compiler
 		code.append(declarations);
 		code += "#line 1 \"UserShader.hlsl\"\n";
 		code.append(userShader);
-		if (sampler)
+		if (materializedSampler)
+		{
+			code += "\n#line 1 \"WinUI.Composition.Hlsl.Generated.hlsl\"\nexport float4 MaterializeColor(float4 color){return color;}\n";
+			for (auto suffix : SamplerSuffixes)
+			{
+				code += "#line 1 \"WinUI.Composition.Hlsl.Generated.hlsl\"\nexport float4 PSBody";
+				code.append(suffix);
+				code += "(float2 uv,float4 samplerDataExt,float4 samplerData){return Shade(uv,samplerDataExt,samplerData);}\n";
+			}
+		}
+		else if (sampler)
 		{
 			for (auto suffix : SamplerSuffixes)
 			{
 				code += "\n#line 1 \"WinUI.Composition.Hlsl.Generated.hlsl\"\nexport float4 PSBody";
 				code.append(suffix);
-				code += "(float2 uv,float4 info){return Shade(uv,info);}\n";
+				code += "(float2 uv,float4 samplerDataExt){return Shade(uv,samplerDataExt);}\n";
 			}
 		}
 		return code;

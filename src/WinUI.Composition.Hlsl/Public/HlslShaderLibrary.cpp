@@ -47,14 +47,28 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				desc.Columns == columns;
 		}
 
-		bool HasSamplerAbi(ID3D11FunctionReflection* function)
+		bool HasColorAbi(ID3D11FunctionReflection* function)
 		{
 			if (!function) return false;
 			D3D11_FUNCTION_DESC desc{};
-			return SUCCEEDED(function->GetDesc(&desc)) && desc.HasReturn && desc.FunctionParameterCount == 2 &&
+			return SUCCEEDED(function->GetDesc(&desc)) && desc.HasReturn && desc.FunctionParameterCount == 1 &&
 				IsFloatVector(function->GetFunctionParameter(-1), 4) &&
-				IsFloatVector(function->GetFunctionParameter(0), 2) &&
-				IsFloatVector(function->GetFunctionParameter(1), 4);
+				IsFloatVector(function->GetFunctionParameter(0), 4);
+		}
+
+		bool HasSamplerAbi(ID3D11FunctionReflection* function, bool materialized)
+		{
+			if (!function) return false;
+			D3D11_FUNCTION_DESC desc{};
+			if (FAILED(function->GetDesc(&desc)) || !desc.HasReturn ||
+				desc.FunctionParameterCount != (materialized ? 3 : 2) ||
+				!IsFloatVector(function->GetFunctionParameter(-1), 4) ||
+				!IsFloatVector(function->GetFunctionParameter(0), 2) ||
+				!IsFloatVector(function->GetFunctionParameter(1), 4))
+			{
+				return false;
+			}
+			return !materialized || IsFloatVector(function->GetFunctionParameter(2), 4);
 		}
 	}
 
@@ -122,20 +136,23 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		return buffer;
 	}
 
-	void HlslShaderLibrary::ValidateForEffect(bool sampler, std::span<std::wstring const> propertyNames) const
+	void HlslShaderLibrary::ValidateForEffect(Hlsl::HlslEffectKind kind, std::span<std::wstring const> propertyNames) const
 	{
+		bool sampler{};
+		bool materialized{};
+		switch (kind)
+		{
+			case Hlsl::HlslEffectKind::Color: break;
+			case Hlsl::HlslEffectKind::Sampler: sampler = true; break;
+			case Hlsl::HlslEffectKind::MaterializedSampler: sampler = true; materialized = true; break;
+			default: throw hresult_invalid_argument(L"Unknown HLSL effect kind.");
+		}
+
 		auto reflection = ReflectLibrary(m_bytecode);
 		auto* function = FindFunction(reflection.get(), "PSBody");
 		if (!function)
 		{
 			throw hresult_invalid_argument(L"The DXBC library does not export the required PSBody function.");
-		}
-
-		D3D11_FUNCTION_DESC functionDesc{};
-		check_hresult(function->GetDesc(&functionDesc));
-		if (!functionDesc.HasReturn || !IsFloatVector(function->GetFunctionParameter(-1), 4))
-		{
-			throw hresult_invalid_argument(L"Compiled PSBody must return float4.");
 		}
 
 		if (sampler)
@@ -146,14 +163,19 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			};
 			for (auto const* exportName : requiredSamplerExports)
 			{
-				if (!HasSamplerAbi(FindFunction(reflection.get(), exportName)))
+				if (!HasSamplerAbi(FindFunction(reflection.get(), exportName), materialized))
 				{
-					throw hresult_invalid_argument(
-						L"Compiled sampler libraries must export PSBody plus all clamp/wrap/mirror PSBody variants with ABI float4(float2 uv, float4 samplerDataExt).");
+					throw hresult_invalid_argument(materialized
+						? L"Compiled materialized sampler libraries must export all PSBody edge-mode variants with ABI float4(float2 uv, float4 samplerDataExt, float4 samplerData)."
+						: L"Compiled sampler libraries must export all PSBody edge-mode variants with ABI float4(float2 uv, float4 samplerDataExt).");
 				}
 			}
+			if (materialized && !HasColorAbi(FindFunction(reflection.get(), "MaterializeColor")))
+			{
+				throw hresult_invalid_argument(L"Compiled materialized sampler libraries must export float4 MaterializeColor(float4 color).");
+			}
 		}
-		else if (functionDesc.FunctionParameterCount != 1 || !IsFloatVector(function->GetFunctionParameter(0), 4))
+		else if (!HasColorAbi(function))
 		{
 			throw hresult_invalid_argument(L"Compiled color PSBody must have ABI float4 PSBody(float4 color).");
 		}

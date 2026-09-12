@@ -22,6 +22,7 @@ export namespace hlsl::engine
 	{
 		winrt::guid id{};
 		bool sampler{};
+		bool materializedSampler{};
 		std::string shader;
 		std::vector<std::uint8_t> shaderBytecode;
 		std::uint8_t shaderProfile{ CustomEffectRuntime::kShaderProfileLevel93 };

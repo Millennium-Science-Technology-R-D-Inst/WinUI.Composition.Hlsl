@@ -1,6 +1,6 @@
 namespace WinUI.Composition.Hlsl
 {
-    enum HlslEffectKind { Color, Sampler };
+    enum HlslEffectKind { Color, Sampler, MaterializedSampler };
     enum HlslShaderProfile { Level91, Level93, Pixel40 };
     enum HlslNativeArchitecture { Unknown, X86, X64, Arm64 };
     enum HlslRuntimeSupportLevel { Unsupported, Experimental, Validated };
@@ -40,14 +40,18 @@ namespace WinUI.Composition.Hlsl
     {
         static HlslEffect CreateColor(Guid id, String shader);
         static HlslEffect CreateSampler(Guid id, String shader);
+        static HlslEffect CreateMaterializedSampler(Guid id, String shader);
         static HlslEffect CreateColorTransform(String shader);
         static HlslEffect CreateCustomSampler(String shader);
         static HlslEffect CreateCompiledColor(Guid id, HlslShaderLibrary shader);
         static HlslEffect CreateCompiledSampler(Guid id, HlslShaderLibrary shader);
+        static HlslEffect CreateCompiledMaterializedSampler(Guid id, HlslShaderLibrary shader);
         static HlslEffect CreateColorWithProperties(String shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         static HlslEffect CreateSamplerWithProperties(String shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
+        static HlslEffect CreateMaterializedSamplerWithProperties(String shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         static HlslEffect CreateCompiledColorWithProperties(Guid id, HlslShaderLibrary shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         static HlslEffect CreateCompiledSamplerWithProperties(Guid id, HlslShaderLibrary shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
+        static HlslEffect CreateCompiledMaterializedSamplerWithProperties(Guid id, HlslShaderLibrary shader, String sourceName, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         Guid Id{ get; };
         HlslEffectKind Kind{ get; };
         String SourceName{ get; };

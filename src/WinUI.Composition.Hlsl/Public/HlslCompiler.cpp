@@ -11,12 +11,19 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	namespace
 	{
-		bool IsSampler(Hlsl::HlslEffectKind kind)
+		struct EffectKindInfo
+		{
+			bool sampler{};
+			bool materialized{};
+		};
+
+		EffectKindInfo GetEffectKindInfo(Hlsl::HlslEffectKind kind)
 		{
 			switch (kind)
 			{
-				case Hlsl::HlslEffectKind::Color: return false;
-				case Hlsl::HlslEffectKind::Sampler: return true;
+				case Hlsl::HlslEffectKind::Color: return {};
+				case Hlsl::HlslEffectKind::Sampler: return { true, false };
+				case Hlsl::HlslEffectKind::MaterializedSampler: return { true, true };
 				default: throw hresult_invalid_argument(L"Unknown HLSL effect kind.");
 			}
 		}
@@ -69,7 +76,9 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			std::string shader;
 			std::string declarations;
 			std::vector<std::wstring> propertyNames;
+			Hlsl::HlslEffectKind kind{};
 			bool sampler{};
+			bool materialized{};
 			Hlsl::HlslShaderProfile profile{};
 		};
 
@@ -85,7 +94,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			{
 				throw hresult_invalid_argument(L"Shader source must be non-empty, contain no embedded NUL, and be no larger than 1 MiB.");
 			}
-			input.sampler = IsSampler(kind);
+			auto const kindInfo = GetEffectKindInfo(kind);
+			input.kind = kind;
+			input.sampler = kindInfo.sampler;
+			input.materialized = kindInfo.materialized;
 			(void)ShaderTarget(profile);
 			input.profile = profile;
 			if (properties && properties.Size())
@@ -107,10 +119,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompilePreparedAsync(CompileInput input)
 		{
 			co_await resume_background();
-			auto source = hlsl::compiler::BuildPublicShaderSource(input.declarations, input.shader, input.sampler);
+			auto source = hlsl::compiler::BuildPublicShaderSource(input.declarations, input.shader, input.sampler, input.materialized);
 			auto bytes = CompileLibrary(source, input.profile);
 			auto projected = make<HlslShaderLibrary>(std::move(bytes), input.profile);
-			get_self<HlslShaderLibrary>(projected)->ValidateForEffect(input.sampler, input.propertyNames);
+			get_self<HlslShaderLibrary>(projected)->ValidateForEffect(input.kind, input.propertyNames);
 			co_return projected;
 		}
 	}

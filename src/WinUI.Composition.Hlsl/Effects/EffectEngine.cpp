@@ -24,7 +24,7 @@ namespace hlsl::engine
 		}
 		std::string Key(EffectDefinition const& definition)
 		{
-			std::string result = definition.sampler ? "sampler-v2:" : "color-v2:";
+			std::string result = definition.materializedSampler ? "materialized-sampler-v1:" : (definition.sampler ? "sampler-v2:" : "color-v2:");
 			auto append = [&](std::string const& value)
 				{
 					result += std::to_string(value.size()) + ":" + value;
@@ -50,7 +50,7 @@ namespace hlsl::engine
 			std::vector<std::string> names;
 			std::vector<float> constants;
 			CustomEffectRuntime::SourceDescriptor source{};
-			uint16_t arguments[2]{ 0x0200,0 };
+			uint16_t arguments[3]{ 0x0200,0,0 };
 			CustomEffectRuntime::CustomEffectDefinition native{};
 			explicit Program(EffectDefinition const& description) :key(Key(description))
 			{
@@ -72,10 +72,25 @@ namespace hlsl::engine
 				}
 				if (description.shaderBytecode.empty())
 				{
-					code = hlsl::compiler::BuildPublicShaderSource(declarations, description.shader, description.sampler);
+					code = hlsl::compiler::BuildPublicShaderSource(declarations, description.shader, description.sampler, description.materializedSampler);
 				}
-				if (description.sampler) { arguments[0] = 0x0100; arguments[1] = 0x0400; }
-				source = { description.sourceName.c_str(),CustomEffectRuntime::SourceKind::Backdrop,false,description.sampler };
+				if (description.materializedSampler)
+				{
+					arguments[0] = 0x0100;
+					arguments[1] = 0x0400;
+					arguments[2] = 0x0300;
+				}
+				else if (description.sampler)
+				{
+					arguments[0] = 0x0100;
+					arguments[1] = 0x0400;
+				}
+				source = {
+					description.sourceName.c_str(),
+					CustomEffectRuntime::SourceKind::Backdrop,
+					description.materializedSampler,
+					description.sampler
+				};
 				native.descriptorKey = key.c_str(); native.id = description.id; native.effectName = description.effectName.c_str(); native.fragmentName = "AppHlslEffect";
 				if (description.shaderBytecode.empty())
 				{
@@ -91,8 +106,17 @@ namespace hlsl::engine
 				native.propertiesStructSize = static_cast<uint32_t>(constants.size() * 4);
 				native.constantBufferProperties = mappings.data(); native.constantBufferPropertyCount = static_cast<uint32_t>(mappings.size());
 				native.constantBufferSize = static_cast<uint32_t>(constants.size() * 4); native.constantBufferInitialValue = constants.data();
-				native.shaderArguments = arguments; native.shaderArgumentCount = description.sampler ? 2 : 1; native.linkingArgType = description.sampler ? 0x0200 : 0;
+				native.shaderArguments = arguments;
+				native.shaderArgumentCount = description.materializedSampler ? 3 : (description.sampler ? 2 : 1);
+				native.linkingArgType = description.sampler ? 0x0200 : 0;
 				native.shaderProfileVersion = description.shaderProfile;
+				native.inputMode = description.materializedSampler
+					? CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture
+					: CustomEffectRuntime::CustomEffectInputMode::LinkedColor;
+				native.graphPolicy = description.materializedSampler
+					? CustomEffectRuntime::GraphLoweringPolicy::MaterializedInput
+					: CustomEffectRuntime::GraphLoweringPolicy::SingleCustom;
+				native.materializationShaderFunctionName = description.materializedSampler ? "MaterializeColor" : nullptr;
 			}
 		};
 		struct CachedFactory
@@ -126,6 +150,8 @@ namespace hlsl::engine
 		if (hasSource == hasBytecode || definition.shader.size() > 1024 * 1024 || definition.shader.find('\0') != std::string::npos ||
 			definition.shaderBytecode.size() > 16 * 1024 * 1024)
 			throw winrt::hresult_invalid_argument(L"Specify exactly one valid HLSL source or DXBC library payload.");
+		if (definition.materializedSampler && !definition.sampler)
+			throw winrt::hresult_invalid_argument(L"MaterializedTexture lowering is valid only for sampler effects.");
 		if (!Identifier(definition.sourceName) || definition.properties.size() > 64)throw winrt::hresult_invalid_argument(L"Invalid source name or too many scalar properties.");
 		std::set<std::wstring> names;
 		for (auto const& p : definition.properties)
