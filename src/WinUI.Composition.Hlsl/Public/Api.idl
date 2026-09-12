@@ -15,6 +15,11 @@ namespace WinUI.Composition.Hlsl
         Single Minimum{ get; };
         Single Maximum{ get; };
     }
+    runtimeclass HlslCompiler
+    {
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileWithPropertiesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
+    }
     runtimeclass HlslEffect;
     runtimeclass HlslEffectFactory;
     runtimeclass HlslEffectBrush;

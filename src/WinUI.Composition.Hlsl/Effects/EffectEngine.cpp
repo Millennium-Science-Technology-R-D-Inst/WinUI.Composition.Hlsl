@@ -7,6 +7,7 @@
 
 import WinUI.Composition.Hlsl.EffectDef;
 import WinUI.Composition.Hlsl.CustomEffectRuntime;
+import WinUI.Composition.Hlsl.ShaderSource;
 import std;
 import winrt_base;
 import winrt.Windows.Foundation;
@@ -42,7 +43,7 @@ namespace hlsl::engine
 		}
 		struct Program
 		{
-			std::string code, key;
+			std::string code, key, declarations;
 			std::vector<CustomEffectRuntime::PropertyDescriptor> properties;
 			std::vector<CustomEffectRuntime::NativePropertyMetadata> metadata;
 			std::vector<CustomEffectRuntime::ConstantBufferPropertyMapping> mappings;
@@ -53,31 +54,25 @@ namespace hlsl::engine
 			CustomEffectRuntime::CustomEffectDefinition native{};
 			explicit Program(EffectDefinition const& description) :key(Key(description))
 			{
-				if (description.shaderBytecode.empty() && description.sampler)code = "Texture2D texture0; SamplerState sampler0;\n";
 				if (!description.properties.empty())
 				{
-					code += "cbuffer UserConstants : register(b0) {\n";
+					declarations += "cbuffer UserConstants : register(b0) {\n";
 					names.resize(description.properties.size());
 					constants.resize((description.properties.size() + 3) / 4 * 4);
 					for (size_t i = 0; i < description.properties.size(); ++i)
 					{
 						auto const& p = description.properties[i];
-						names[i] = winrt::to_string(p.name); code += "float " + names[i] + ";\n";
+						names[i] = winrt::to_string(p.name); declarations += "float " + names[i] + ";\n";
 						properties.push_back({ p.name.c_str(),static_cast<uint32_t>(i),ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT,nullptr,p.initial });
 						constants[i] = p.initial;
 						mappings.push_back({ static_cast<uint32_t>(i),static_cast<uint32_t>(i * 4) });
 					}
 					for (size_t i = 0; i < names.size(); ++i)metadata.push_back({ names[i].c_str(),static_cast<uint32_t>(i * 4),18,8,1,nullptr });
-					code += "};\n";
+					declarations += "};\n";
 				}
 				if (description.shaderBytecode.empty())
 				{
-					code += "#line 1 \"UserShader.hlsl\"\n" + description.shader;
-					if (description.sampler)
-					{
-						for (auto suffix : { "","CC","CW","CM","WC","WW","WM","MC","MW","MM","C","W","M" })
-							code += "\n#line 1 \"GeneratedShader.hlsl\"\nexport float4 PSBody" + std::string(suffix) + "(float2 uv,float4 info){return Shade(uv,info);}\n";
-					}
+					code = hlsl::compiler::BuildPublicShaderSource(declarations, description.shader, description.sampler);
 				}
 				if (description.sampler) { arguments[0] = 0x0100; arguments[1] = 0x0400; }
 				source = { description.sourceName.c_str(),CustomEffectRuntime::SourceKind::Backdrop,false,description.sampler };
