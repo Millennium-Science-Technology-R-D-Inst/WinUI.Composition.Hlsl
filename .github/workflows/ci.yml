@@ -34,7 +34,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          # github.run_id is globally unique; run_attempt also keeps a rerun distinct.
+          # run_id is globally unique; run_attempt makes reruns unique too.
           $version = "1.0.0-preview.${{ github.run_id }}.${{ github.run_attempt }}"
           "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "package-version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -66,9 +66,8 @@ jobs:
       - name: Build native package assets
         shell: pwsh
         run: |
-          # Keep these as top-level MSBuild invocations. WinAppSDK native props use
-          # $(Platform) while they are evaluated, so each architecture must receive
-          # Platform as a global property from the start of evaluation.
+          # Use top-level invocations so WinAppSDK native props see Platform as a
+          # global property from the beginning of project evaluation.
           foreach ($platform in @('x64', 'Win32', 'ARM64')) {
             Write-Host "Building native Release/$platform"
             & $env:MSBUILD `
@@ -211,9 +210,8 @@ jobs:
           if (!$package) { throw "Expected package $expected was not downloaded." }
           Write-Host "Consumer package: $($package.FullName)"
 
-          # Local development uses a ProjectReference. CI deliberately rewrites only
-          # this checkout to a PackageReference so the test covers the exact .nupkg
-          # produced by the previous job.
+          # Local development uses a ProjectReference. CI rewrites only this checkout
+          # so this job tests the exact .nupkg produced by pack-nuget.
           $projectPath = (Resolve-Path 'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj').Path
           [xml]$project = Get-Content $projectPath -Raw
           $ns = [System.Xml.XmlNamespaceManager]::new($project.NameTable)
@@ -236,15 +234,6 @@ jobs:
               <add key="LocalHlsl" value="artifacts/packages" />
               <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
             </packageSources>
-            <packageSourceMapping>
-              <packageSource key="LocalHlsl">
-                <package pattern="WinUI.Composition.Hlsl" />
-              </packageSource>
-              <packageSource key="nuget.org">
-                <package pattern="Microsoft.*" />
-                <package pattern="YexuanXiao.*" />
-              </packageSource>
-            </packageSourceMapping>
           </configuration>
           '@ | Set-Content -Path NuGet.CI.Config -Encoding utf8
 
@@ -331,15 +320,6 @@ jobs:
               <add key="LocalHlsl" value="artifacts/packages" />
               <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
             </packageSources>
-            <packageSourceMapping>
-              <packageSource key="LocalHlsl">
-                <package pattern="WinUI.Composition.Hlsl" />
-              </packageSource>
-              <packageSource key="nuget.org">
-                <package pattern="Microsoft.*" />
-                <package pattern="YexuanXiao.*" />
-              </packageSource>
-            </packageSourceMapping>
           </configuration>
           '@ | Set-Content -Path NuGet.CI.Config -Encoding utf8
 
