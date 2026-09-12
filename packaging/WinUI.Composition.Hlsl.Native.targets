@@ -8,17 +8,19 @@
 		<HlslCompositionOutputRoot Condition="'$(HlslCompositionOutputRoot)'==''">$(OutDir)Hlsl\</HlslCompositionOutputRoot>
 		<HlslCompositionGenerateHeaders Condition="'$(HlslCompositionGenerateHeaders)'==''">true</HlslCompositionGenerateHeaders>
 	</PropertyGroup>
-	<ItemDefinitionGroup>
-		<ClCompile>
-			<AdditionalIncludeDirectories>$(HlslCompositionIntermediateRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-		</ClCompile>
-	</ItemDefinitionGroup>
 	<ItemGroup>
 		<Reference Include="$(HlslWinmd)">
 			<Implementation>WinUI.Composition.Hlsl.dll</Implementation>
 		</Reference>
 		<ReferenceCopyLocalPaths Include="$(HlslNativeDll)"/>
 	</ItemGroup>
+	<Target Name="HlslConfigureGeneratedShaderIncludes" BeforeTargets="ClCompile" Condition="'@(HlslCompositionShader)'!='' and '$(HlslCompositionGenerateHeaders)'=='true'">
+		<ItemGroup>
+			<ClCompile Update="@(ClCompile)">
+				<AdditionalIncludeDirectories>$(HlslCompositionIntermediateRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			</ClCompile>
+		</ItemGroup>
+	</Target>
 	<Target Name="HlslCheckNativeAsset" BeforeTargets="PrepareForBuild" Condition="!Exists('$(HlslNativeDll)')">
 		<Error Text="This WinUI.Composition.Hlsl package does not contain a native binary for $(HlslNativeArchitecture)."/>
 	</Target>
