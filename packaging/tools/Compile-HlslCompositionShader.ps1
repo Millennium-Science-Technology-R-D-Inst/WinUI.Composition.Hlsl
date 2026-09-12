@@ -90,6 +90,12 @@ if ($Kind -eq 'Sampler') {
         [void]$builder.AppendLine("export float4 PSBody$suffix(float2 uv,float4 info){return Shade(uv,info);}")
     }
 }
+else {
+    # Force the public color ABI to resolve at build time. FXC reports a missing or
+    # incompatible PSBody(float4) here instead of deferring that error to app startup.
+    [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+    [void]$builder.AppendLine('export float4 __WinUICompositionHlslValidateColor(float4 color){return PSBody(color);}')
+}
 
 [IO.File]::WriteAllText($prepared, $builder.ToString(), [Text.UTF8Encoding]::new($false))
 

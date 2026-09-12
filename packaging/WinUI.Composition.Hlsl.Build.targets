@@ -23,7 +23,7 @@
   </Target>
 
   <Target Name="HlslCompileCompositionShaders"
-          BeforeTargets="CoreCompile"
+          BeforeTargets="ClCompile;CoreCompile"
           DependsOnTargets="HlslValidateCompositionShaderMetadata"
           Condition="'@(HlslCompositionShader)'!=''"
           Inputs="@(HlslCompositionShader);$(HlslCompositionCompilerScript)"
@@ -34,6 +34,8 @@
         <DxbcPath Condition="'%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).dxbc</DxbcPath>
         <HeaderPath Condition="'%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).g.h</HeaderPath>
         <HeaderPath Condition="'%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).g.h</HeaderPath>
+        <PreparedPath Condition="'%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).prepared.hlsl</PreparedPath>
+        <PreparedPath Condition="'%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).prepared.hlsl</PreparedPath>
         <PublishedPath Condition="'%(OutputName)'==''">$(HlslCompositionOutputRoot)%(RelativeDir)%(Filename).dxbc</PublishedPath>
         <PublishedPath Condition="'%(OutputName)'!=''">$(HlslCompositionOutputRoot)%(OutputName).dxbc</PublishedPath>
         <VariableName>g_%(Filename)_Shader</VariableName>
@@ -53,6 +55,10 @@
 
     <ItemGroup>
       <HlslCompositionShaderOutput Include="@(_HlslCompositionCompile->'%(PublishedPath)')" />
+      <FileWrites Include="@(_HlslCompositionCompile->'%(DxbcPath)')" />
+      <FileWrites Include="@(_HlslCompositionCompile->'%(PreparedPath)')" />
+      <FileWrites Include="@(_HlslCompositionCompile->'%(PublishedPath)')" />
+      <FileWrites Condition="'$(HlslCompositionGenerateHeaders)'=='true'" Include="@(_HlslCompositionCompile->'%(HeaderPath)')" />
     </ItemGroup>
   </Target>
 </Project>
