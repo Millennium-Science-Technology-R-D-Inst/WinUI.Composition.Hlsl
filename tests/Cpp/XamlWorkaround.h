@@ -17,26 +17,49 @@
 #include <shobjidl.h>
 #include <microsoft.ui.xaml.window.h>
 
-// Include STL headers that authored/generated XAML code may include later before
-// any C++/WinRT module import. MSVC supports include-then-import, but not the
-// reverse ordering for the same STL declarations.
+// MSVC supports include-then-import for the standard library, but importing a
+// module first and then textually including a header that declares the same STL
+// entities produces redefinition errors. Keep this list aligned with the public
+// standard-library surface consumed by C++/WinRT's winrt/base.h, plus headers the
+// authored/XAML-generated demo uses directly.
+#include <intrin.h>
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <charconv>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <cwchar>
 #include <cwctype>
+#include <exception>
 #include <fstream>
 #include <functional>
+#include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <ostream>
+#include <ratio>
+#include <span>
+#include <stdexcept>
 #include <stop_token>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <tuple>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+#include <version>
+#include <format>
+#include <source_location>
+#include <coroutine>
 
 // Once the projection modules are imported, generated #include <winrt/...>
 // directives must become inert so the same WinRT declarations are not parsed
