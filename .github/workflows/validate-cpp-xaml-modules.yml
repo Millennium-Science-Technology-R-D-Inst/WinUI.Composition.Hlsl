@@ -24,6 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: NuGet/setup-nuget@v2
+        with:
+          nuget-version: latest
+
       - name: Prepare package output
         shell: pwsh
         run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
@@ -47,26 +51,71 @@ jobs:
           Write-Host "Windows SDK: $($sdk.Name)"
           Write-Host "MSBuild: $msbuild"
 
-      - name: Pack WinUI.Composition.Hlsl.Projection
+      - name: Build native package assets
         shell: pwsh
         run: |
-          # The native project is a WinRT component DLL, not an application entry point.
-          # WindowsPackageType=None otherwise enables the WinAppSDK bootstrapper and makes
-          # Win32 link against Microsoft.WindowsAppRuntime.Bootstrap.lib on a clean runner.
+          # Do these as top-level MSBuild invocations. With the nested MSBuild calls
+          # inside the Pack target, WinAppSDK Foundation was evaluated with an empty
+          # $(Platform) on the hosted runner and produced lib\native\ instead of
+          # lib\native\x86 for Win32.
+          foreach ($platform in @('x64', 'Win32', 'ARM64')) {
+            Write-Host "Building native Release/$platform"
+            & $env:MSBUILD `
+              'src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj' `
+              /restore `
+              /t:Build `
+              /p:Configuration=Release `
+              "/p:Platform=$platform" `
+              /p:NuGetAudit=false `
+              "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+              /m /v:minimal /nologo `
+              /fl "/flp:logfile=native-$platform.log;verbosity=minimal"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+
+      - name: Build projection package asset
+        shell: pwsh
+        run: |
           & $env:MSBUILD `
             'projection\WinUI.Composition.Hlsl.Projection.csproj' `
             /restore `
-            /t:Pack `
+            /t:Build `
             /p:Configuration=Release `
-            /p:WindowsAppSdkBootstrapInitialize=false `
+            /p:Platform=x64 `
             /p:NuGetAudit=false `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
-            /fl "/flp:logfile=pack.log;verbosity=minimal"
+            /fl "/flp:logfile=projection-build.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-          $packages = Get-ChildItem 'artifacts\packages' -Filter '*.nupkg' -File
-          if (!$packages) { throw 'Pack succeeded but no .nupkg was produced.' }
+      - name: Verify package inputs
+        shell: pwsh
+        run: |
+          $required = @(
+            'artifacts\x64\Release\WinUI.Composition.Hlsl.winmd',
+            'artifacts\x64\Release\WinUI.Composition.Hlsl.dll',
+            'artifacts\Win32\Release\WinUI.Composition.Hlsl.dll',
+            'artifacts\ARM64\Release\WinUI.Composition.Hlsl.dll',
+            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll'
+          )
+          foreach ($path in $required) {
+            if (!(Test-Path $path)) { throw "Missing package input: $path" }
+            Write-Host "Found: $path"
+          }
+
+      - name: Pack NuGet from nuspec
+        shell: pwsh
+        run: |
+          & nuget pack `
+            'packaging\WinUI.Composition.Hlsl.nuspec' `
+            -BasePath . `
+            -OutputDirectory 'artifacts\packages' `
+            -NoPackageAnalysis `
+            -Verbosity detailed 2>&1 | Tee-Object -FilePath nuget-pack.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          $packages = Get-ChildItem 'artifacts\packages' -Filter 'WinUI.Composition.Hlsl.0.1.0-preview.8.nupkg' -File
+          if (!$packages) { throw 'NuGet pack succeeded but the expected .nupkg was not produced.' }
           $packages | ForEach-Object { Write-Host "Package: $($_.FullName)" }
 
       - name: Upload NuGet package
@@ -74,15 +123,18 @@ jobs:
         with:
           name: WinUI.Composition.Hlsl-nupkg
           if-no-files-found: error
-          path: artifacts/packages/*.nupkg
+          path: artifacts/packages/WinUI.Composition.Hlsl.0.1.0-preview.8.nupkg
 
-      - name: Upload pack log
+      - name: Upload pack logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: WinUI.Composition.Hlsl-pack-log
+          name: WinUI.Composition.Hlsl-pack-logs
           if-no-files-found: ignore
-          path: pack.log
+          path: |
+            native-*.log
+            projection-build.log
+            nuget-pack.log
 
   build-cpp-xaml-demo:
     name: Build C++ XAML demo from packed NuGet
