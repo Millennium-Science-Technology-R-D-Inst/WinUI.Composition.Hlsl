@@ -2,6 +2,18 @@ namespace WinUI.Composition.Hlsl
 {
     enum HlslEffectKind { Color, Sampler };
     enum HlslShaderProfile { Level91, Level93, Pixel40 };
+    enum HlslNativeArchitecture { Unknown, X86, X64, Arm64 };
+    enum HlslRuntimeSupportLevel { Unsupported, Experimental, Validated };
+    [default_interface] runtimeclass HlslRuntimeCapabilities
+    {
+        HlslNativeArchitecture Architecture{ get; };
+        HlslRuntimeSupportLevel SupportLevel{ get; };
+        Boolean NativeAdapterAvailable{ get; };
+        Boolean SupportsCompositionGraphNodes{ get; };
+        Boolean SupportsMaterializedGraphs{ get; };
+        Boolean SupportsAsyncCompilation{ get; };
+        Boolean UsesPrivateCompositionAbi{ get; };
+    }
     [default_interface] runtimeclass HlslShaderLibrary
     {
         static HlslShaderLibrary Create(Windows.Storage.Streams.IBuffer bytecode, HlslShaderProfile profile);
@@ -50,11 +62,15 @@ namespace WinUI.Composition.Hlsl
     [default_interface] runtimeclass HlslEffectBrush
     {
         Microsoft.UI.Composition.CompositionBrush Brush{ get; };
+        Microsoft.UI.Composition.CompositionEffectBrush EffectBrush{ get; };
+        Microsoft.UI.Composition.CompositionPropertySet Properties{ get; };
+        String GetPropertyPath(String name);
         void SetSource(String name, Microsoft.UI.Composition.CompositionBrush source);
         void SetFloat(String name, Single value);
     }
     runtimeclass HlslComposition
     {
+        static HlslRuntimeCapabilities GetRuntimeCapabilities();
         static HlslEffectFactory CreateEffectFactory(Microsoft.UI.Composition.Compositor compositor, HlslEffect effect);
         static HlslEffectBrush CreateBackdropBrush(Microsoft.UI.Composition.Compositor compositor, HlslEffect effect);
         static Microsoft.UI.Xaml.Media.Brush CreateXamlBrush(HlslEffectBrush brush);
