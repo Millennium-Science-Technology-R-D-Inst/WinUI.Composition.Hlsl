@@ -54,4 +54,9 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		if (!brush) throw hresult_invalid_argument();
 		return hlsl::engine::AsXamlBrush(brush.Brush());
 	}
+	Microsoft::UI::Xaml::Media::Brush HlslComposition::CreateXamlBrushFromCompositionBrush(Microsoft::UI::Composition::CompositionBrush const& brush)
+	{
+		if (!brush) throw hresult_invalid_argument();
+		return hlsl::engine::AsXamlBrush(brush);
+	}
 }
