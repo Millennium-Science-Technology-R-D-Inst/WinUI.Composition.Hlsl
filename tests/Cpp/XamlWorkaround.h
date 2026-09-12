@@ -19,9 +19,7 @@
 
 // Include STL headers that authored/generated XAML code may include later before
 // any C++/WinRT module import. MSVC supports include-then-import, but not the
-// reverse ordering for the same STL declarations. In particular, generated XAML
-// code reaches <map>; if it is first included after a WinRT module has imported
-// std, MSVC reports xtree/map redefinitions.
+// reverse ordering for the same STL declarations.
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -30,9 +28,12 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -49,6 +50,7 @@ import winrt.Windows.Foundation.Collections;
 import winrt.Windows.Foundation.Numerics;
 import winrt.Windows.Graphics.Effects;
 import winrt.Windows.UI;
+import winrt.Windows.UI.Xaml.Interop;
 import winrt.Windows.ApplicationModel.Activation;
 import winrt.Windows.ApplicationModel.DataTransfer;
 import winrt.Windows.Storage;
