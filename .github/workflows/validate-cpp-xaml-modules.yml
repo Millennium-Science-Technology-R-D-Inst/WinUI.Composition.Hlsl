@@ -7,26 +7,18 @@ on:
     paths:
       - .github/workflows/validate-cpp-xaml-modules.yml
       - Directory.Packages.props
-      - NuGet.Config
-      - projection/**
-      - packaging/**
       - src/**
       - tests/Cpp/**
-      - tests/build.ps1
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build-cpp-xaml-consumer:
+  build-cpp-xaml-demo:
     runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@v6
-
-      - name: Prepare local NuGet source
-        shell: pwsh
-        run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
 
       - name: Resolve Visual Studio and Windows SDK
         shell: pwsh
@@ -47,44 +39,33 @@ jobs:
           Write-Host "Windows SDK: $($sdk.Name)"
           Write-Host "MSBuild: $msbuild"
 
-      - name: Build projection for packing
+      - name: Point demo at source project
+        shell: pwsh
+        run: |
+          # Packaging is validated separately. This workflow exists specifically to
+          # compile the modularized C++/WinRT XAML demo, so do not let nupkg creation
+          # prevent the consumer project from reaching ClCompile.
+          $path = 'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj'
+          $text = Get-Content $path -Raw
+          $old = '<PackageReference Include="WinUI.Composition.Hlsl" />'
+          $new = '<ProjectReference Include="..\..\src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj" />'
+          if (!$text.Contains($old)) { throw 'Expected WinUI.Composition.Hlsl PackageReference was not found.' }
+          $text = $text.Replace($old, $new)
+          Set-Content -Path $path -Value $text -Encoding utf8
+
+      - name: Build C++ XAML demo
         shell: pwsh
         run: |
           & $env:MSBUILD `
-            'projection\WinUI.Composition.Hlsl.Projection.csproj' `
+            'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj' `
             /restore `
-            /t:Build `
-            /p:Configuration=Release `
+            /p:Configuration=Debug `
             /p:Platform=x64 `
             /p:NuGetAudit=false `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
-            /fl "/flp:logfile=projection-build.log;verbosity=minimal"
+            /fl "/flp:logfile=Cpp-test-build.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
-      - name: Pack local WinUI.Composition.Hlsl package
-        shell: pwsh
-        run: |
-          # Deliberately do not pass /p:Platform here. BuildNativeRuntimesForPack
-          # must be able to select x64, Win32, and ARM64 independently.
-          & $env:MSBUILD `
-            'projection\WinUI.Composition.Hlsl.Projection.csproj' `
-            /t:Pack `
-            /p:Configuration=Release `
-            /p:NoBuild=true `
-            /p:NuGetAudit=false `
-            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo `
-            /fl "/flp:logfile=pack.log;verbosity=minimal"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
-          $package = Get-ChildItem artifacts\packages -Filter 'WinUI.Composition.Hlsl.*.nupkg' | Select-Object -First 1
-          if (!$package) { throw 'Local WinUI.Composition.Hlsl package was not produced.' }
-          Write-Host "Package: $($package.FullName)"
-
-      - name: Build C++ XAML consumer
-        shell: pwsh
-        run: ./tests/build.ps1 -Language Cpp
 
       - name: Upload build logs
         if: always()
@@ -93,7 +74,5 @@ jobs:
           name: cpp-xaml-module-build-logs
           if-no-files-found: ignore
           path: |
-            projection-build.log
-            pack.log
             Cpp-test-build.log
             tests/Cpp/Output/**/*.log
