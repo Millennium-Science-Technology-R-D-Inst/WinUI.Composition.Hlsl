@@ -50,6 +50,18 @@ function Get-Target([string]$ShaderProfile) {
     }
 }
 
+function Get-SafeIdentifier([string]$Name) {
+    if (!$Name) { return '' }
+    $safe = [Text.RegularExpressions.Regex]::Replace($Name, '[^A-Za-z0-9_]', '_')
+    if ($safe -notmatch '^[A-Za-z_]') {
+        $safe = "_$safe"
+    }
+    if ($safe -ne $Name) {
+        Write-Host "Sanitized generated HLSL header variable '$Name' -> '$safe'."
+    }
+    return $safe
+}
+
 $inputFull = [IO.Path]::GetFullPath($InputPath)
 $outputFull = [IO.Path]::GetFullPath($OutputPath)
 if (!(Test-Path $inputFull)) {
@@ -123,7 +135,7 @@ if ($HeaderPath) {
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($headerFull)) | Out-Null
     $arguments += @('/Fh', $headerFull)
     if ($VariableName) {
-        $arguments += @('/Vn', $VariableName)
+        $arguments += @('/Vn', (Get-SafeIdentifier $VariableName))
     }
 }
 $arguments += $prepared

@@ -38,7 +38,9 @@ public void SetFloat(string name, float value);
 
 Convenience setter for low-frequency application updates. The wrapper checks declaration, finiteness, and the declared range before updating the underlying property set.
 
-For frame-rate animation, do not call `SetFloat` every frame. Start a Composition animation on `Properties`/`EffectBrush` using `GetPropertyPath`; the update then stays on the Composition animation path and feeds the native constant-buffer updater without a managed/native application callback per frame.
+For frame-rate animation, do not call `SetFloat` every frame. Start a Composition animation on `EffectBrush` using `GetPropertyPath`; updates then stay on the native Composition animation/constant-buffer path without an application callback per frame.
+
+The declared min/max range is enforced by `SetFloat`, not re-run by this wrapper for every native Composition animation sample. Keep keyframes/expressions inside the shader's valid operating range (or clamp inside the shader) when animating directly.
 
 ## Example
 
@@ -51,4 +53,4 @@ brush.EffectBrush().StartAnimation(property, animation);
 
 ## Exceptions
 
-`ArgumentException` is thrown for undeclared source/property names, cross-compositor sources, non-finite values, and values outside the declared scalar range.
+`ArgumentException` is thrown for undeclared source/property names, cross-compositor sources, non-finite values, and values outside the declared scalar range when using `SetFloat`.
