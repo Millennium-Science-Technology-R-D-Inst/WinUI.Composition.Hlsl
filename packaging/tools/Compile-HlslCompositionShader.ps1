@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$InputPath,
     [Parameter(Mandatory = $true)][string]$OutputPath,
-    [Parameter(Mandatory = $true)][ValidateSet('Color', 'Sampler')][string]$Kind,
+    [Parameter(Mandatory = $true)][ValidateSet('Color', 'Sampler', 'MaterializedSampler')][string]$Kind,
     [ValidateSet('Level91', 'Level93', 'Pixel40')][string]$Profile = 'Pixel40',
     [string]$HeaderPath = '',
     [string]$VariableName = ''
@@ -74,7 +74,7 @@ $prepared = [IO.Path]::Combine(
 
 $displayPath = $inputFull.Replace('\', '/')
 $builder = [Text.StringBuilder]::new()
-if ($Kind -eq 'Sampler') {
+if ($Kind -ne 'Color') {
     [void]$builder.AppendLine('Texture2D texture0; SamplerState sampler0;')
 }
 [void]$builder.AppendLine("#line 1 `"$displayPath`"")
@@ -83,11 +83,20 @@ if (!$source.EndsWith("`n")) {
     [void]$builder.AppendLine()
 }
 
-if ($Kind -eq 'Sampler') {
+if ($Kind -eq 'MaterializedSampler') {
+    [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+    [void]$builder.AppendLine('export float4 MaterializeColor(float4 color){return color;}')
     $suffixes = @('', 'CC', 'CW', 'CM', 'WC', 'WW', 'WM', 'MC', 'MW', 'MM', 'C', 'W', 'M')
     foreach ($suffix in $suffixes) {
         [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
-        [void]$builder.AppendLine("export float4 PSBody$suffix(float2 uv,float4 info){return Shade(uv,info);}")
+        [void]$builder.AppendLine("export float4 PSBody$suffix(float2 uv,float4 samplerDataExt,float4 samplerData){return Shade(uv,samplerDataExt,samplerData);}")
+    }
+}
+elseif ($Kind -eq 'Sampler') {
+    $suffixes = @('', 'CC', 'CW', 'CM', 'WC', 'WW', 'WM', 'MC', 'MW', 'MM', 'C', 'W', 'M')
+    foreach ($suffix in $suffixes) {
+        [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+        [void]$builder.AppendLine("export float4 PSBody$suffix(float2 uv,float4 samplerDataExt){return Shade(uv,samplerDataExt);}")
     }
 }
 else {

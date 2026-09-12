@@ -35,7 +35,11 @@
     <ClCompile Include="main.cpp" />
     <HlslCompositionShader Include="ConsumerSampler.hlsl">
       <Kind>Sampler</Kind>
-      <ShaderModel>4.0</ShaderModel>
+      <Profile>Pixel40</Profile>
+    </HlslCompositionShader>
+    <HlslCompositionShader Include="ConsumerMaterializedSampler.hlsl">
+      <Kind>MaterializedSampler</Kind>
+      <Profile>Pixel40</Profile>
     </HlslCompositionShader>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
