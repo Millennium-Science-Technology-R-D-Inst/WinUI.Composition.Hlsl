@@ -47,18 +47,35 @@ jobs:
           Write-Host "Windows SDK: $($sdk.Name)"
           Write-Host "MSBuild: $msbuild"
 
-      - name: Pack local WinUI.Composition.Hlsl package
+      - name: Build projection for packing
         shell: pwsh
         run: |
           & $env:MSBUILD `
             'projection\WinUI.Composition.Hlsl.Projection.csproj' `
             /restore `
-            /t:Pack `
+            /t:Build `
             /p:Configuration=Release `
             /p:Platform=x64 `
             /p:NuGetAudit=false `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo
+            /m /v:minimal /nologo `
+            /fl "/flp:logfile=projection-build.log;verbosity=minimal"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Pack local WinUI.Composition.Hlsl package
+        shell: pwsh
+        run: |
+          # Deliberately do not pass /p:Platform here. BuildNativeRuntimesForPack
+          # must be able to select x64, Win32, and ARM64 independently.
+          & $env:MSBUILD `
+            'projection\WinUI.Composition.Hlsl.Projection.csproj' `
+            /t:Pack `
+            /p:Configuration=Release `
+            /p:NoBuild=true `
+            /p:NuGetAudit=false `
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+            /m /v:minimal /nologo `
+            /fl "/flp:logfile=pack.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
           $package = Get-ChildItem artifacts\packages -Filter 'WinUI.Composition.Hlsl.*.nupkg' | Select-Object -First 1
@@ -76,6 +93,7 @@ jobs:
           name: cpp-xaml-module-build-logs
           if-no-files-found: ignore
           path: |
+            projection-build.log
             pack.log
             Cpp-test-build.log
             tests/Cpp/Output/**/*.log
