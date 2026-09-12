@@ -108,6 +108,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	{
 		return Describe(shader, Hlsl::HlslEffectKind::Sampler, {}, L"Backdrop");
 	}
+	Hlsl::HlslEffect HlslEffect::CreateCustomMaterializedSampler(hstring const& shader)
+	{
+		return Describe(shader, Hlsl::HlslEffectKind::MaterializedSampler, {}, L"Backdrop");
+	}
 	Hlsl::HlslEffect HlslEffect::CreateCompiledColor(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader)
 	{
 		return DescribeCompiled(shader, Hlsl::HlslEffectKind::Color, id);
@@ -152,6 +156,26 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			names.Append(property.name);
 		}
 		return names.GetView();
+	}
+	hstring HlslEffect::GetPropertyPath(hstring const& name) const
+	{
+		for (auto const& property : m_definition->properties)
+		{
+			if (name == property.name)
+			{
+				return m_definition->effectName + L"." + property.name;
+			}
+		}
+		throw hresult_invalid_argument(L"The float property is not declared by this effect.");
+	}
+	Windows::Foundation::Collections::IVectorView<hstring> HlslEffect::GetAnimatablePropertyPaths() const
+	{
+		auto paths = single_threaded_vector<hstring>();
+		for (auto const& property : m_definition->properties)
+		{
+			paths.Append(m_definition->effectName + L"." + property.name);
+		}
+		return paths.GetView();
 	}
 	Windows::Graphics::Effects::IGraphicsEffect HlslEffect::CreateGraphicsEffect() const
 	{

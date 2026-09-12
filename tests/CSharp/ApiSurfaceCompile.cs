@@ -24,9 +24,11 @@ internal static class ApiSurfaceCompile
             HlslEffectKind.MaterializedSampler,
             HlslShaderProfile.Pixel40);
 
-        var effect = HlslEffect.CreateMaterializedSampler(Guid.Empty, MaterializedShader);
+        var effect = HlslEffect.CreateCustomMaterializedSampler(MaterializedShader);
         _ = HlslEffect.CreateCompiledMaterializedSampler(Guid.Empty, library);
-        _ = effect.CreateGraphicsEffect();
+        var graph = effect.CreateGraphicsEffect();
+        var paths = effect.GetAnimatablePropertyPaths();
+        _ = compositor.CreateEffectFactory(graph, paths);
 
         var factory = HlslComposition.CreateEffectFactory(compositor, effect);
         var brush = factory.CreateBrush();

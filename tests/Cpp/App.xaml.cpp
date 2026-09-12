@@ -24,11 +24,13 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
 			materializedShader,
 			WinUI::Composition::Hlsl::HlslEffectKind::MaterializedSampler,
 			WinUI::Composition::Hlsl::HlslShaderProfile::Pixel40);
-		auto effect = WinUI::Composition::Hlsl::HlslEffect::CreateMaterializedSampler({}, materializedShader);
+		auto effect = WinUI::Composition::Hlsl::HlslEffect::CreateCustomMaterializedSampler(materializedShader);
 		auto compiled = WinUI::Composition::Hlsl::HlslEffect::CreateCompiledMaterializedSampler({}, library);
-		auto source = Microsoft::UI::Composition::CompositionEffectSourceParameter(L"Input")
+		auto propertyPaths = effect.GetAnimatablePropertyPaths();
+		auto source = Microsoft::UI::Composition::CompositionEffectSourceParameter(effect.SourceName())
 			.as<Windows::Graphics::Effects::IGraphicsEffectSource>();
 		auto graph = effect.CreateGraphicsEffectWithSource(source);
+		auto standardFactory = compositor.CreateEffectFactory(graph, propertyPaths);
 		auto factory = WinUI::Composition::Hlsl::HlslComposition::CreateEffectFactory(compositor, effect);
 		auto brush = factory.CreateBrush();
 		auto nativeFactory = factory.Factory();
@@ -40,6 +42,7 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
 		(void)pending;
 		(void)compiled;
 		(void)graph;
+		(void)standardFactory;
 		(void)nativeFactory;
 		(void)nativeBrush;
 		(void)properties;

@@ -43,6 +43,7 @@ namespace WinUI.Composition.Hlsl
         static HlslEffect CreateMaterializedSampler(Guid id, String shader);
         static HlslEffect CreateColorTransform(String shader);
         static HlslEffect CreateCustomSampler(String shader);
+        static HlslEffect CreateCustomMaterializedSampler(String shader);
         static HlslEffect CreateCompiledColor(Guid id, HlslShaderLibrary shader);
         static HlslEffect CreateCompiledSampler(Guid id, HlslShaderLibrary shader);
         static HlslEffect CreateCompiledMaterializedSampler(Guid id, HlslShaderLibrary shader);
@@ -57,6 +58,8 @@ namespace WinUI.Composition.Hlsl
         String SourceName{ get; };
         Boolean IsPrecompiled{ get; };
         Windows.Foundation.Collections.IVectorView<String> PropertyNames{ get; };
+        String GetPropertyPath(String name);
+        Windows.Foundation.Collections.IVectorView<String> GetAnimatablePropertyPaths();
         Windows.Graphics.Effects.IGraphicsEffect CreateGraphicsEffect();
         Windows.Graphics.Effects.IGraphicsEffect CreateGraphicsEffectWithSource(Windows.Graphics.Effects.IGraphicsEffectSource source);
     }

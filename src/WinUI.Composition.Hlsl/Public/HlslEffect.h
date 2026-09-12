@@ -21,6 +21,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		static Hlsl::HlslEffect CreateMaterializedSampler(winrt::guid const& id, hstring const& shader);
 		static Hlsl::HlslEffect CreateColorTransform(hstring const& shader);
 		static Hlsl::HlslEffect CreateCustomSampler(hstring const& shader);
+		static Hlsl::HlslEffect CreateCustomMaterializedSampler(hstring const& shader);
 		static Hlsl::HlslEffect CreateCompiledColor(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateCompiledSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateCompiledMaterializedSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
@@ -54,6 +55,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			return !m_definition->shaderBytecode.empty();
 		}
 		Windows::Foundation::Collections::IVectorView<hstring> PropertyNames() const;
+		hstring GetPropertyPath(hstring const& name) const;
+		Windows::Foundation::Collections::IVectorView<hstring> GetAnimatablePropertyPaths() const;
 		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffect() const;
 		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffectWithSource(Windows::Graphics::Effects::IGraphicsEffectSource const& source) const;
 		hlsl::engine::Definition const& Definition() const

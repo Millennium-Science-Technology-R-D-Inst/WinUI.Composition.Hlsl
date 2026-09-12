@@ -18,27 +18,23 @@ Describes an immutable HLSL-backed Composition effect.
 
 ## Creating effects
 
-`CreateColorTransform` derives an ID and uses the color ABI:
+`CreateColorTransform` derives an ID and uses `float4 PSBody(float4 color)`.
 
-```hlsl
-export float4 PSBody(float4 color);
-```
-
-`CreateCustomSampler` derives an ID and uses the lightweight sampler ABI:
+`CreateCustomSampler` derives an ID and uses:
 
 ```hlsl
 float4 Shade(float2 uv, float4 samplerDataExt);
 ```
 
-`CreateMaterializedSampler` uses the materialized sampler ABI:
+`CreateCustomMaterializedSampler` derives an ID and uses:
 
 ```hlsl
 float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData);
 ```
 
-The materialized form is intended for `native Composition effect graph -> materialized texture -> HLSL sampler`. It exposes both sampler metadata structures used by the validated private linker path. It currently supports one upstream source and one isolated terminal custom shader node.
+The explicit-GUID counterparts are `CreateColor`, `CreateSampler`, and `CreateMaterializedSampler`. Passing `Guid.Empty` also derives a deterministic ID, but the `CreateCustom*` forms are clearer for application-owned source shaders.
 
-`CreateColor`, `CreateSampler`, and `CreateMaterializedSampler` accept an explicit GUID. Use explicit IDs only when an external contract owns the identifier; registering a different schema under the same private effect GUID is rejected.
+`MaterializedSampler` is intended for `native Composition effect graph -> materialized texture -> HLSL sampler`. It currently supports one upstream source and one isolated terminal custom shader node.
 
 The `*WithProperties` overloads add a named source and `HlslFloatProperty` descriptors. Properties become entries in `UserConstants` and can be animated through the underlying Composition property set.
 
@@ -48,31 +44,29 @@ The `*WithProperties` overloads add a named source and `HlslFloatProperty` descr
 
 For arbitrary externally supplied DXBC, the library performs one-time defensive reflection to verify required exports and scalar constant-buffer layout before the private Composition runtime consumes the payload. This is not per-frame validation.
 
-## Standard graph node methods
+## Property paths for standard Composition factories
 
-### CreateGraphicsEffect
+```csharp
+public string GetPropertyPath(string name);
+public IReadOnlyList<string> GetAnimatablePropertyPaths();
+```
+
+These methods expose the exact effect property paths required by standard `Compositor.CreateEffectFactory(graph, animatableProperties)`. They are especially useful when `CreateGraphicsEffectWithSource` is used to insert HLSL into a graph assembled directly with Windows Graphics Effects APIs.
+
+## Standard graph node methods
 
 ```csharp
 public IGraphicsEffect CreateGraphicsEffect();
-```
-
-Creates the standard Windows Graphics Effects node represented by this description. This makes HLSL usable through normal `Compositor.CreateEffectFactory` graph construction rather than through a separate swap-chain rendering path.
-
-### CreateGraphicsEffectWithSource
-
-```csharp
 public IGraphicsEffect CreateGraphicsEffectWithSource(IGraphicsEffectSource source);
 ```
 
-Creates the node with an explicit upstream graphics-effect source. This is the preferred API when inserting `MaterializedSampler` after an existing native Composition/D2D effect graph.
-
-Example shape:
+These create standard Windows Graphics Effects nodes. The second form embeds an explicit upstream effect/source, enabling graphs such as:
 
 ```text
 CompositionEffectSourceParameter
         -> native blur/transform/etc.
         -> HlslEffect.CreateGraphicsEffectWithSource(...)
-        -> Compositor.CreateEffectFactory(...)
+        -> Compositor.CreateEffectFactory(graph, effect.GetAnimatablePropertyPaths())
         -> CompositionEffectBrush
         -> XamlCompositionBrushBase
 ```
@@ -81,7 +75,7 @@ No `SwapChainPanel`, app-owned swap chain, or separate overlay visual is require
 
 ## Performance guidance
 
-For production shaders, prefer the NuGet `<HlslCompositionShader>` build item or persist the `Bytecode` returned from [HlslCompiler](hlsl-compiler.md). Build-time FXC catches source/entry-point failures and avoids runtime compilation. Use direct Composition animations on [HlslEffectBrush.Properties](hlsl-effect-brush.md) for high-frequency updates rather than calling `SetFloat` every frame.
+For production shaders, prefer the NuGet `<HlslCompositionShader>` build item or persist the `Bytecode` returned from [HlslCompiler](hlsl-compiler.md). Build-time FXC catches source/entry-point failures and avoids runtime compilation. Use direct Composition animations on [HlslEffectBrush](hlsl-effect-brush.md) for high-frequency updates rather than calling `SetFloat` every frame.
 
 ## Current scope
 
