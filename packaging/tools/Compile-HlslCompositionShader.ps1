@@ -209,8 +209,25 @@ if ($Kind -eq 'Auto') {
         try {
             Write-PreparedShader $candidate $probePrepared $displayPath $source $Profile
             $probeArguments = $commonArguments + @('/Fo', $probeOutput, $probePrepared)
-            $probeMessages = & $fxc @probeArguments 2>&1
-            if ($LASTEXITCODE -eq 0) {
+
+            # A failed probe means only that this public contract does not match the
+            # user's source. Windows PowerShell 5.1 turns native stderr into a
+            # NativeCommandError when ErrorActionPreference=Stop, so temporarily
+            # suppress native probe diagnostics and judge the candidate solely by
+            # FXC's exit code. The final selected compile still runs under Stop and
+            # reports its diagnostics normally.
+            $probeExitCode = 1
+            $previousErrorActionPreference = $ErrorActionPreference
+            try {
+                $ErrorActionPreference = 'SilentlyContinue'
+                & $fxc @probeArguments *> $null
+                $probeExitCode = $LASTEXITCODE
+            }
+            finally {
+                $ErrorActionPreference = $previousErrorActionPreference
+            }
+
+            if ($probeExitCode -eq 0) {
                 $matches += $candidate
             }
         }
