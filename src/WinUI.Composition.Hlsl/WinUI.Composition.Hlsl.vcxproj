@@ -52,6 +52,7 @@
     <GenerateManifest>false</GenerateManifest>
     <!-- This runtime component has no XAML Page/PriResource inputs. -->
     <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
+    <IncludeProjectPriFile>false</IncludeProjectPriFile>
     <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)/Microsoft.Cpp.props" />
@@ -149,10 +150,10 @@
     <ClCompile Include="Effects\EffectDefinition.ixx">
       <FileType>Document</FileType>
     </ClCompile>
-      <ClInclude Include="Public/HlslFloatProperty.h" />
-      <ClCompile Include="Public/HlslFloatProperty.cpp" />
-      <ClInclude Include="Public/HlslProperty.h" />
-      <ClCompile Include="Public/HlslProperty.cpp" />
+    <ClInclude Include="Public/HlslFloatProperty.h" />
+    <ClCompile Include="Public/HlslFloatProperty.cpp" />
+    <ClInclude Include="Public/HlslProperty.h" />
+    <ClCompile Include="Public/HlslProperty.cpp" />
     <ClCompile Include="Runtime/UnsupportedRuntime.cpp">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64' or '$(Platform)'=='Win32' or '$(Platform)'=='ARM64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -163,7 +164,6 @@
     <PackageReference Include="Microsoft.Windows.ImplementationLibrary" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
-    <PackageReference Include="YexuanXiao.CppWinRTPlus.Ext" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)/Microsoft.Cpp.targets" />
   <ItemGroup>
