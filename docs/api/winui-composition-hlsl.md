@@ -12,6 +12,7 @@ Provides HLSL-backed Windows Graphics Effects/Composition nodes, async/build-tim
 | [HlslEffectBrush](hlsl-effect-brush.md) | Wraps `CompositionEffectBrush` and exposes its native animation property set. |
 | [HlslEffectFactory](hlsl-effect-factory.md) | Wraps the standard `CompositionEffectFactory`. |
 | [HlslFloatProperty](hlsl-float-property.md) | Declares a named scalar shader property and range. |
+| [HlslProperty](hlsl-property.md) | Advanced property descriptor; non-scalar private updater contracts currently fail closed. |
 | [HlslRuntimeCapabilities](hlsl-runtime-capabilities.md) | Side-effect-free packaged runtime support information. |
 | [HlslShaderLibrary](hlsl-shader-library.md) | Owns precompiled/cached FXC SM4 shader libraries; generated libraries can recover their effect kind/profile from embedded metadata. |
 | [LiquidGlassBrush](liquid-glass-brush.md) | XAML Liquid Glass brush with fallback. |
@@ -21,14 +22,20 @@ Provides HLSL-backed Windows Graphics Effects/Composition nodes, async/build-tim
 
 | Enum | Description |
 | --- | --- |
-| [HlslEffectKind](hlsl-effect-kind.md) | `Color`, `Sampler`, or `MaterializedSampler` Composition calling contract. |
+| [HlslEffectKind](hlsl-effect-kind.md) | `Color`, `Sampler`, or `MaterializedSampler` Composition contract; `Auto` asks compiler/build tooling to infer the concrete contract. |
 | `HlslShaderProfile` | SM4 shader-linking profile (`Level91`, `Level93`, `Pixel40`). |
 | `HlslNativeArchitecture` | Packaged native adapter architecture. |
 | `HlslRuntimeSupportLevel` | Validated/experimental/unsupported support claim. |
 
 ## Generated shader assets
 
-`<HlslCompositionShader>` is the preferred production path for source known at build time. Package-generated shader libraries are self-describing: the selected `HlslEffectKind` and `HlslShaderProfile` are embedded into the compiled library and checked against its reflected shader ABI.
+`<HlslCompositionShader>` is the preferred production path for source known at build time. `Kind` defaults to `Auto` and `Profile` defaults to `Pixel40`, so a normal shader can be declared as simply as:
+
+```xml
+<HlslCompositionShader Include="Effects\Glass.hlsl" />
+```
+
+The build front end probes the supported public HLSL contracts and requires exactly one match. Package-generated shader libraries are self-describing: the resolved concrete `HlslEffectKind` and selected `HlslShaderProfile` are embedded into the compiled library and checked against its reflected shader ABI.
 
 Native C++ projects embed the generated `.g.h` by default:
 
