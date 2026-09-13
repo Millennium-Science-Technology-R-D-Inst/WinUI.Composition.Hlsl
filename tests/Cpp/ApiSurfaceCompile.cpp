@@ -26,6 +26,7 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
 
 		auto defines = single_threaded_vector<hstring>();
 		defines.Append(L"RUNTIME_VARIANT=1");
+		auto properties = single_threaded_vector<HlslFloatProperty>();
 		auto defineView = defines.GetView();
 		(void)HlslCompiler::CompileAsync(
 			kCompileSurfaceShader,
@@ -40,7 +41,7 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
 			kCompileSurfaceShader,
 			HlslEffectKind::MaterializedSampler,
 			HlslShaderProfile::Pixel40,
-			single_threaded_vector<HlslFloatProperty>().GetView(),
+			properties.GetView(),
 			defineView);
 
 		(void)HlslShaderLibrary::LoadFromFileAsync(file, HlslShaderProfile::Pixel40);
@@ -49,7 +50,7 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
 			HlslShaderProfile::Pixel40);
 
 		auto effect = HlslEffect::CreateCustomMaterializedSampler(kCompileSurfaceShader);
-		(void)HlslEffect::CreateCompiledMaterializedSampler({}, library);
+		(void)HlslEffect::CreateCompiledMaterializedSampler(winrt::guid{}, library);
 		auto graph = effect.CreateGraphicsEffect();
 		auto paths = effect.GetAnimatablePropertyPaths();
 		(void)compositor.CreateEffectFactory(graph, paths);
