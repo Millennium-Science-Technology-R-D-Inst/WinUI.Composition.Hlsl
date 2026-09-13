@@ -16,11 +16,24 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslEffectKind kind,
 			Hlsl::HlslShaderProfile profile);
 
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompileWithDefinesAsync(
+			hstring const& shader,
+			Hlsl::HlslEffectKind kind,
+			Hlsl::HlslShaderProfile profile,
+			Windows::Foundation::Collections::IVectorView<hstring> const& defines);
+
 		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompileWithPropertiesAsync(
 			hstring const& shader,
 			Hlsl::HlslEffectKind kind,
 			Hlsl::HlslShaderProfile profile,
 			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompileWithPropertiesAndDefinesAsync(
+			hstring const& shader,
+			Hlsl::HlslEffectKind kind,
+			Hlsl::HlslShaderProfile profile,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties,
+			Windows::Foundation::Collections::IVectorView<hstring> const& defines);
 	};
 }
 

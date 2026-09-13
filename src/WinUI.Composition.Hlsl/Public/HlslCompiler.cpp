@@ -17,6 +17,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			bool materialized{};
 		};
 
+		struct MacroDefinition
+		{
+			std::string name;
+			std::string value;
+		};
+
 		EffectKindInfo GetEffectKindInfo(Hlsl::HlslEffectKind kind)
 		{
 			switch (kind)
@@ -39,16 +45,78 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			}
 		}
 
-		std::vector<std::uint8_t> CompileLibrary(std::string const& source, Hlsl::HlslShaderProfile profile)
+		bool IsIdentifier(std::string_view value)
 		{
+			if (value.empty() || value.size() > 128) return false;
+			auto isAlpha = [](char c) noexcept
+				{
+					return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_';
+				};
+			auto isDigit = [](char c) noexcept { return c >= '0' && c <= '9'; };
+			if (!isAlpha(value.front())) return false;
+			for (char c : value)
+			{
+				if (!isAlpha(c) && !isDigit(c)) return false;
+			}
+			return true;
+		}
+
+		std::vector<MacroDefinition> CopyDefines(
+			Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
+		{
+			std::vector<MacroDefinition> result;
+			if (!definitions) return result;
+			if (definitions.Size() > 64)
+			{
+				throw hresult_invalid_argument(L"At most 64 HLSL preprocessor definitions are supported.");
+			}
+			result.reserve(definitions.Size());
+			std::set<std::string> names;
+			for (auto const& projected : definitions)
+			{
+				auto text = to_string(projected);
+				if (text.empty() || text.size() > 1152 || text.find('\0') != std::string::npos)
+				{
+					throw hresult_invalid_argument(L"Each HLSL definition must be NAME or NAME=VALUE and no larger than 1152 bytes.");
+				}
+				auto const separator = text.find('=');
+				auto name = text.substr(0, separator);
+				auto value = separator == std::string::npos ? std::string{ "1" } : text.substr(separator + 1);
+				if (!IsIdentifier(name) || value.size() > 1024 || !names.insert(name).second)
+				{
+					throw hresult_invalid_argument(L"HLSL definitions must use unique ASCII identifiers and values no larger than 1024 bytes.");
+				}
+				result.push_back({ std::move(name),std::move(value) });
+			}
+			return result;
+		}
+
+		std::vector<std::uint8_t> CompileLibrary(
+			std::string const& source,
+			Hlsl::HlslShaderProfile profile,
+			std::span<MacroDefinition const> definitions)
+		{
+			std::vector<D3D_SHADER_MACRO> macros;
+			if (!definitions.empty())
+			{
+				macros.reserve(definitions.size() + 1);
+				for (auto const& definition : definitions)
+				{
+					macros.push_back({ definition.name.c_str(),definition.value.c_str() });
+				}
+				macros.push_back({ nullptr,nullptr });
+			}
+
 			com_ptr<ID3DBlob> bytecode;
 			com_ptr<ID3DBlob> errors;
-			auto const flags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3;
+			auto const flags = D3DCOMPILE_ENABLE_STRICTNESS |
+				D3DCOMPILE_OPTIMIZATION_LEVEL3 |
+				D3DCOMPILE_WARNINGS_ARE_ERRORS;
 			auto const result = D3DCompile(
 				source.data(),
 				source.size(),
 				"UserShader.hlsl",
-				nullptr,
+				macros.empty() ? nullptr : macros.data(),
 				nullptr,
 				nullptr,
 				ShaderTarget(profile),
@@ -63,6 +131,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 					auto text = std::string_view(
 						static_cast<char const*>(errors->GetBufferPointer()),
 						errors->GetBufferSize());
+					while (!text.empty() && text.back() == '\0') text.remove_suffix(1);
 					throw hresult_error(result, to_hstring(text));
 				}
 				throw_hresult(result);
@@ -76,6 +145,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			std::string shader;
 			std::string declarations;
 			std::vector<std::wstring> propertyNames;
+			std::vector<MacroDefinition> definitions;
 			Hlsl::HlslEffectKind kind{};
 			bool sampler{};
 			bool materialized{};
@@ -86,7 +156,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			hstring const& shader,
 			Hlsl::HlslEffectKind kind,
 			Hlsl::HlslShaderProfile profile,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties)
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties,
+			Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
 		{
 			CompileInput input;
 			input.shader = to_string(shader);
@@ -100,6 +171,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			input.materialized = kindInfo.materialized;
 			(void)ShaderTarget(profile);
 			input.profile = profile;
+			input.definitions = CopyDefines(definitions);
 			if (properties && properties.Size())
 			{
 				input.declarations = "cbuffer UserConstants : register(b0) {\n";
@@ -120,7 +192,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			co_await resume_background();
 			auto source = hlsl::compiler::BuildPublicShaderSource(input.declarations, input.shader, input.sampler, input.materialized);
-			auto bytes = CompileLibrary(source, input.profile);
+			auto bytes = CompileLibrary(source, input.profile, input.definitions);
 			auto projected = make<HlslShaderLibrary>(std::move(bytes), input.profile);
 			get_self<HlslShaderLibrary>(projected)->ValidateForEffect(input.kind, input.propertyNames);
 			co_return projected;
@@ -132,7 +204,16 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Hlsl::HlslEffectKind kind,
 		Hlsl::HlslShaderProfile profile)
 	{
-		return CompilePreparedAsync(PrepareInput(shader, kind, profile, nullptr));
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, nullptr, nullptr));
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileWithDefinesAsync(
+		hstring const& shader,
+		Hlsl::HlslEffectKind kind,
+		Hlsl::HlslShaderProfile profile,
+		Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
+	{
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, nullptr, definitions));
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileWithPropertiesAsync(
@@ -141,6 +222,16 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Hlsl::HlslShaderProfile profile,
 		Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties)
 	{
-		return CompilePreparedAsync(PrepareInput(shader, kind, profile, properties));
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, properties, nullptr));
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileWithPropertiesAndDefinesAsync(
+		hstring const& shader,
+		Hlsl::HlslEffectKind kind,
+		Hlsl::HlslShaderProfile profile,
+		Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties,
+		Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
+	{
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, properties, definitions));
 	}
 }

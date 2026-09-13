@@ -24,6 +24,17 @@ internal static class ApiSurfaceCompile
             MaterializedShader,
             HlslEffectKind.MaterializedSampler,
             HlslShaderProfile.Pixel40);
+        _ = HlslCompiler.CompileWithDefinesAsync(
+            MaterializedShader,
+            HlslEffectKind.MaterializedSampler,
+            HlslShaderProfile.Pixel40,
+            new[] { "RUNTIME_VARIANT=1" });
+        _ = HlslCompiler.CompileWithPropertiesAndDefinesAsync(
+            MaterializedShader,
+            HlslEffectKind.MaterializedSampler,
+            HlslShaderProfile.Pixel40,
+            Array.Empty<HlslFloatProperty>(),
+            new[] { "RUNTIME_VARIANT=2" });
         _ = HlslShaderLibrary.LoadFromFileAsync(file, HlslShaderProfile.Pixel40);
         _ = HlslShaderLibrary.LoadFromApplicationUriAsync(
             new Uri("ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"),

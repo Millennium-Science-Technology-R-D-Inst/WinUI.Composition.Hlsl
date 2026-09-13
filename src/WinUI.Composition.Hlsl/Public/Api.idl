@@ -33,7 +33,9 @@ namespace WinUI.Composition.Hlsl
     runtimeclass HlslCompiler
     {
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileWithDefinesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, Windows.Foundation.Collections.IVectorView<String> defines);
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileWithPropertiesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileWithPropertiesAndDefinesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties, Windows.Foundation.Collections.IVectorView<String> defines);
     }
     runtimeclass HlslEffect;
     runtimeclass HlslEffectFactory;
