@@ -18,14 +18,14 @@
        changes also invalidate the incremental build. -->
   <ItemGroup>
     <_HlslCompositionTracked Include="@(HlslCompositionShader)">
-      <TrackedDxbc Condition="'%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).dxbc</TrackedDxbc>
-      <TrackedDxbc Condition="'%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).dxbc</TrackedDxbc>
-      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).g.h</TrackedHeader>
-      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).g.h</TrackedHeader>
-      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).dxbc</TrackedHeader>
-      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).dxbc</TrackedHeader>
-      <AssetRelativePath Condition="'%(OutputName)'==''">%(RelativeDir)%(Filename).dxbc</AssetRelativePath>
-      <AssetRelativePath Condition="'%(OutputName)'!=''">%(OutputName).dxbc</AssetRelativePath>
+      <TrackedDxbc Condition="'%(HlslCompositionShader.OutputName)'==''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.RelativeDir)%(HlslCompositionShader.Filename).dxbc</TrackedDxbc>
+      <TrackedDxbc Condition="'%(HlslCompositionShader.OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.OutputName).dxbc</TrackedDxbc>
+      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(HlslCompositionShader.OutputName)'==''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.RelativeDir)%(HlslCompositionShader.Filename).g.h</TrackedHeader>
+      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(HlslCompositionShader.OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.OutputName).g.h</TrackedHeader>
+      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(HlslCompositionShader.OutputName)'==''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.RelativeDir)%(HlslCompositionShader.Filename).dxbc</TrackedHeader>
+      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(HlslCompositionShader.OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.OutputName).dxbc</TrackedHeader>
+      <AssetRelativePath Condition="'%(HlslCompositionShader.OutputName)'==''">%(HlslCompositionShader.RelativeDir)%(HlslCompositionShader.Filename).dxbc</AssetRelativePath>
+      <AssetRelativePath Condition="'%(HlslCompositionShader.OutputName)'!=''">%(HlslCompositionShader.OutputName).dxbc</AssetRelativePath>
     </_HlslCompositionTracked>
   </ItemGroup>
 
@@ -33,9 +33,9 @@
           BeforeTargets="HlslCompileCompositionShaders"
           Condition="'@(HlslCompositionShader)'!=''">
     <Error Condition="'%(HlslCompositionShader.Kind)'!='Color' and '%(HlslCompositionShader.Kind)'!='Sampler' and '%(HlslCompositionShader.Kind)'!='MaterializedSampler'"
-           Text="HlslCompositionShader %(Identity) must set Kind to Color, Sampler, or MaterializedSampler." />
+           Text="HlslCompositionShader %(HlslCompositionShader.Identity) must set Kind to Color, Sampler, or MaterializedSampler." />
     <Error Condition="'%(HlslCompositionShader.Profile)'!='Level91' and '%(HlslCompositionShader.Profile)'!='Level93' and '%(HlslCompositionShader.Profile)'!='Pixel40'"
-           Text="HlslCompositionShader %(Identity) has invalid Profile '%(HlslCompositionShader.Profile)'. Use Level91, Level93, or Pixel40." />
+           Text="HlslCompositionShader %(HlslCompositionShader.Identity) has invalid Profile '%(HlslCompositionShader.Profile)'. Use Level91, Level93, or Pixel40." />
     <Error Condition="!Exists('%(HlslCompositionShader.FullPath)')"
            Text="HlslCompositionShader input does not exist: %(HlslCompositionShader.FullPath)" />
     <Error Condition="!Exists('$(HlslCompositionCompilerScript)')"
@@ -50,14 +50,14 @@
           Outputs="@(_HlslCompositionTracked->'%(TrackedDxbc)');@(_HlslCompositionTracked->'%(TrackedHeader)')">
     <ItemGroup>
       <_HlslCompositionCompile Include="@(_HlslCompositionTracked)">
-        <DxbcPath>%(TrackedDxbc)</DxbcPath>
-        <HeaderPath>%(TrackedHeader)</HeaderPath>
-        <PreparedPath Condition="'%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).prepared.hlsl</PreparedPath>
-        <PreparedPath Condition="'%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).prepared.hlsl</PreparedPath>
-        <PublishedPath Condition="'%(OutputName)'==''">$(HlslCompositionOutputRoot)%(RelativeDir)%(Filename).dxbc</PublishedPath>
-        <PublishedPath Condition="'%(OutputName)'!=''">$(HlslCompositionOutputRoot)%(OutputName).dxbc</PublishedPath>
-        <VariableName Condition="'%(HeaderVariableName)'==''">g_%(RelativeDir)%(Filename)_Shader</VariableName>
-        <VariableName Condition="'%(HeaderVariableName)'!=''">%(HeaderVariableName)</VariableName>
+        <DxbcPath>%(_HlslCompositionTracked.TrackedDxbc)</DxbcPath>
+        <HeaderPath>%(_HlslCompositionTracked.TrackedHeader)</HeaderPath>
+        <PreparedPath Condition="'%(_HlslCompositionTracked.OutputName)'==''">$(HlslCompositionIntermediateRoot)%(_HlslCompositionTracked.RelativeDir)%(_HlslCompositionTracked.Filename).prepared.hlsl</PreparedPath>
+        <PreparedPath Condition="'%(_HlslCompositionTracked.OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(_HlslCompositionTracked.OutputName).prepared.hlsl</PreparedPath>
+        <PublishedPath Condition="'%(_HlslCompositionTracked.OutputName)'==''">$(HlslCompositionOutputRoot)%(_HlslCompositionTracked.RelativeDir)%(_HlslCompositionTracked.Filename).dxbc</PublishedPath>
+        <PublishedPath Condition="'%(_HlslCompositionTracked.OutputName)'!=''">$(HlslCompositionOutputRoot)%(_HlslCompositionTracked.OutputName).dxbc</PublishedPath>
+        <VariableName Condition="'%(_HlslCompositionTracked.HeaderVariableName)'==''">g_%(_HlslCompositionTracked.RelativeDir)%(_HlslCompositionTracked.Filename)_Shader</VariableName>
+        <VariableName Condition="'%(_HlslCompositionTracked.HeaderVariableName)'!=''">%(_HlslCompositionTracked.HeaderVariableName)</VariableName>
       </_HlslCompositionCompile>
     </ItemGroup>
 
