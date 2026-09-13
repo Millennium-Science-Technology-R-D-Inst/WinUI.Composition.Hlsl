@@ -1,6 +1,6 @@
 ﻿namespace WinUI.Composition.Hlsl
 {
-    enum HlslEffectKind { Color, Sampler, MaterializedSampler };
+    enum HlslEffectKind { Color, Sampler, MaterializedSampler, Auto };
     enum HlslPropertyType { Scalar, Vector2, Vector3, Vector4, Matrix3x2, Matrix4x4 };
     enum HlslShaderProfile { Level91, Level93, Pixel40 };
     enum HlslNativeArchitecture { Unknown, X86, X64, Arm64 };
