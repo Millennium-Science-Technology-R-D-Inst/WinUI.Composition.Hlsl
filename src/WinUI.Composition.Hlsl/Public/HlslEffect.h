@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef WINRT_IMPORT_MODULE
 #define WINRT_IMPORT_MODULE
 #endif
@@ -26,17 +26,23 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		static Hlsl::HlslEffect CreateCompiledSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateCompiledMaterializedSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateColorWithProperties(hstring const& shader, hstring const& sourceName,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+														  Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateSamplerWithProperties(hstring const& shader, hstring const& sourceName,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+															Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateMaterializedSamplerWithProperties(hstring const& shader, hstring const& sourceName,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+																		Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateCompiledColorWithProperties(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, hstring const& sourceName,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+																  Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateCompiledSamplerWithProperties(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, hstring const& sourceName,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+																	Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateCompiledMaterializedSamplerWithProperties(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, hstring const& sourceName,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+																				Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+		static Hlsl::HlslEffect CreateAdvanced(hstring const& shader, Hlsl::HlslEffectKind kind,
+											   Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
+											   Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties);
+		static Hlsl::HlslEffect CreateCompiledAdvanced(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, Hlsl::HlslEffectKind kind,
+													   Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
+													   Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties);
 		winrt::guid Id() const
 		{
 			return m_definition->id;
@@ -50,6 +56,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			return hstring{ m_definition->sourceName };
 		}
+		Windows::Foundation::Collections::IVectorView<hstring> SourceNames() const;
 		bool IsPrecompiled() const
 		{
 			return !m_definition->shaderBytecode.empty();
@@ -59,6 +66,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Windows::Foundation::Collections::IVectorView<hstring> GetAnimatablePropertyPaths() const;
 		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffect() const;
 		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffectWithSource(Windows::Graphics::Effects::IGraphicsEffectSource const& source) const;
+		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffectWithSources(Windows::Foundation::Collections::IVectorView<Windows::Graphics::Effects::IGraphicsEffectSource> const& sources) const;
 		hlsl::engine::Definition const& Definition() const
 		{
 			return m_definition;

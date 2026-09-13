@@ -23,6 +23,41 @@ namespace hlsl::engine
 			return true;
 		}
 
+		struct PropertySpec
+		{
+			char const* hlslType;
+			std::uint32_t expressionType;
+			std::uint32_t channels;
+			std::uint32_t alignment;
+			bool rowMajor;
+		};
+
+		PropertySpec GetPropertySpec(PropertyType type)
+		{
+			switch (type)
+			{
+				case PropertyType::Scalar: return { "float",18,1,4,false };
+				case PropertyType::Vector2: return { "float2",35,2,8,false };
+				case PropertyType::Vector3: return { "float3",52,3,16,false };
+				case PropertyType::Vector4: return { "float4",69,4,16,false };
+				case PropertyType::Matrix3x2: return { "float3x2",104,6,16,false };
+				case PropertyType::Matrix4x4: return { "float4x4",265,16,16,true };
+			}
+			throw winrt::hresult_invalid_argument(L"Unknown HLSL property type.");
+		}
+
+		std::vector<std::wstring> SourceNames(EffectDefinition const& definition)
+		{
+			return definition.sourceNames.empty()
+				? std::vector<std::wstring>{ definition.sourceName }
+			: definition.sourceNames;
+		}
+
+		size_t AlignUp(size_t value, size_t alignment)
+		{
+			return (value + alignment - 1) & ~(alignment - 1);
+		}
+
 		std::array<unsigned char, 32> Sha256(std::span<std::uint8_t const> bytes)
 		{
 			if (bytes.size() > std::numeric_limits<ULONG>::max())
@@ -57,7 +92,7 @@ namespace hlsl::engine
 		{
 			if (!definition.shaderBytecode.empty())
 			{
-				auto digest = Sha256(std::span<std::uint8_t const>{ definition.shaderBytecode.data(),definition.shaderBytecode.size() });
+				auto digest = Sha256(std::span<std::uint8_t const>{ definition.shaderBytecode.data(), definition.shaderBytecode.size() });
 				return "dxbc:" + Hex(digest);
 			}
 			auto const* begin = reinterpret_cast<std::uint8_t const*>(definition.shader.data());
@@ -74,11 +109,14 @@ namespace hlsl::engine
 				};
 			append(PayloadFingerprint(definition));
 			result += ":" + std::to_string(definition.shaderProfile);
-			append(winrt::to_string(definition.sourceName)); append(winrt::to_string(definition.effectName));
+			for (auto const& source : SourceNames(definition)) append(winrt::to_string(source));
+			append(winrt::to_string(definition.effectName));
 			for (auto const& p : definition.properties)
 			{
 				append(winrt::to_string(p.name));
-				result += ":" + std::to_string(std::bit_cast<uint32_t>(p.initial)) + ":" + std::to_string(std::bit_cast<uint32_t>(p.minimum)) + ":" + std::to_string(std::bit_cast<uint32_t>(p.maximum));
+				result += ":" + std::to_string(static_cast<uint32_t>(p.type));
+				for (auto value : p.initial) result += ":" + std::to_string(std::bit_cast<uint32_t>(value));
+				result += ":" + std::to_string(std::bit_cast<uint32_t>(p.minimum)) + ":" + std::to_string(std::bit_cast<uint32_t>(p.maximum));
 			}
 			return result;
 		}
@@ -89,49 +127,63 @@ namespace hlsl::engine
 			std::vector<CustomEffectRuntime::NativePropertyMetadata> metadata;
 			std::vector<CustomEffectRuntime::ConstantBufferPropertyMapping> mappings;
 			std::vector<std::string> names;
-			std::vector<float> constants;
-			CustomEffectRuntime::SourceDescriptor source{};
-			uint16_t arguments[3]{ 0x0200,0,0 };
+			std::vector<uint8_t> constants;
+			std::vector<CustomEffectRuntime::SourceDescriptor> sources;
+			std::vector<std::wstring> sourceNames;
+			std::vector<uint16_t> arguments;
 			CustomEffectRuntime::CustomEffectDefinition native{};
 			explicit Program(EffectDefinition const& description) :key(Key(description))
 			{
+				sourceNames = SourceNames(description);
 				if (!description.properties.empty())
 				{
 					declarations += "cbuffer UserConstants : register(b0) {\n";
 					names.resize(description.properties.size());
-					constants.resize((description.properties.size() + 3) / 4 * 4);
 					for (size_t i = 0; i < description.properties.size(); ++i)
 					{
 						auto const& p = description.properties[i];
-						names[i] = winrt::to_string(p.name); declarations += "float " + names[i] + ";\n";
-						properties.push_back({ p.name.c_str(),static_cast<uint32_t>(i),ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT,nullptr,p.initial });
-						constants[i] = p.initial;
-						mappings.push_back({ static_cast<uint32_t>(i),static_cast<uint32_t>(i * 4) });
+						auto const spec = GetPropertySpec(p.type);
+						auto const offset = AlignUp(constants.size(), spec.alignment);
+						constants.resize(offset + spec.channels * sizeof(float));
+						memcpy(constants.data() + offset, p.initial.data(), spec.channels * sizeof(float));
+						names[i] = winrt::to_string(p.name);
+						declarations += spec.rowMajor ? "row_major " : "";
+						declarations += std::string(spec.hlslType) + " " + names[i] + " : packoffset(c" +
+							std::to_string(offset / 16);
+						auto component = (offset % 16) / 4;
+						if (component) declarations += std::string(".") + "xyzw"[component];
+						declarations += ");\n";
+						properties.push_back({ p.name.c_str(),static_cast<uint32_t>(i),ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT,nullptr,p.initial[0] });
+						metadata.push_back({ names[i].c_str(),static_cast<uint32_t>(offset),spec.expressionType,8,spec.channels,nullptr });
+						mappings.push_back({ static_cast<uint32_t>(i),static_cast<uint32_t>(offset) });
 					}
-					for (size_t i = 0; i < names.size(); ++i)metadata.push_back({ names[i].c_str(),static_cast<uint32_t>(i * 4),18,8,1,nullptr });
+					constants.resize(AlignUp(constants.size(), 16));
 					declarations += "};\n";
 				}
 				if (description.shaderBytecode.empty())
 				{
-					code = hlsl::compiler::BuildPublicShaderSource(declarations, description.shader, description.sampler, description.materializedSampler);
+					code = hlsl::compiler::BuildPublicShaderSource(
+						declarations, description.shader, description.sampler,
+						description.materializedSampler, sourceNames.size());
 				}
-				if (description.materializedSampler)
+				for (size_t index = 0; index < sourceNames.size(); ++index)
 				{
-					arguments[0] = 0x0100;
-					arguments[1] = 0x0400;
-					arguments[2] = 0x0300;
+					if (description.sampler)
+					{
+						arguments.push_back(0x0100);
+						arguments.push_back(0x0400);
+						if (description.materializedSampler) arguments.push_back(0x0300);
+					}
+					else
+					{
+						arguments.push_back(0x0200);
+					}
+					sources.push_back({
+						sourceNames[index].c_str(),
+						CustomEffectRuntime::SourceKind::Backdrop,
+						description.materializedSampler,
+						description.sampler });
 				}
-				else if (description.sampler)
-				{
-					arguments[0] = 0x0100;
-					arguments[1] = 0x0400;
-				}
-				source = {
-					description.sourceName.c_str(),
-					CustomEffectRuntime::SourceKind::Backdrop,
-					description.materializedSampler,
-					description.sampler
-				};
 				native.descriptorKey = key.c_str(); native.id = description.id; native.effectName = description.effectName.c_str(); native.fragmentName = "AppHlslEffect";
 				if (description.shaderBytecode.empty())
 				{
@@ -142,13 +194,13 @@ namespace hlsl::engine
 					native.shaderBytecode = description.shaderBytecode.data(); native.shaderBytecodeSize = description.shaderBytecode.size();
 				}
 				native.shaderFunctionName = "PSBody";
-				native.sources = &source; native.sourceCount = 1; native.properties = properties.data(); native.propertyCount = static_cast<uint32_t>(properties.size());
+				native.sources = sources.data(); native.sourceCount = static_cast<uint32_t>(sources.size()); native.properties = properties.data(); native.propertyCount = static_cast<uint32_t>(properties.size());
 				native.nativePropertyMetadata = metadata.data(); native.nativePropertyMetadataCount = static_cast<uint32_t>(metadata.size());
-				native.propertiesStructSize = static_cast<uint32_t>(constants.size() * 4);
+				native.propertiesStructSize = static_cast<uint32_t>(constants.size());
 				native.constantBufferProperties = mappings.data(); native.constantBufferPropertyCount = static_cast<uint32_t>(mappings.size());
-				native.constantBufferSize = static_cast<uint32_t>(constants.size() * 4); native.constantBufferInitialValue = constants.data();
-				native.shaderArguments = arguments;
-				native.shaderArgumentCount = description.materializedSampler ? 3 : (description.sampler ? 2 : 1);
+				native.constantBufferSize = static_cast<uint32_t>(constants.size()); native.constantBufferInitialValue = constants.data();
+				native.shaderArguments = arguments.data();
+				native.shaderArgumentCount = arguments.size();
 				native.linkingArgType = description.sampler ? 0x0200 : 0;
 				native.shaderProfileVersion = description.shaderProfile;
 				native.inputMode = description.materializedSampler
@@ -193,13 +245,25 @@ namespace hlsl::engine
 			throw winrt::hresult_invalid_argument(L"Specify exactly one valid HLSL source or DXBC library payload.");
 		if (definition.materializedSampler && !definition.sampler)
 			throw winrt::hresult_invalid_argument(L"MaterializedTexture lowering is valid only for sampler effects.");
-		if (!Identifier(definition.sourceName) || definition.properties.size() > 64)throw winrt::hresult_invalid_argument(L"Invalid source name or too many scalar properties.");
+		auto sources = SourceNames(definition);
+		if (sources.empty() || sources.size() > 16 || definition.properties.size() > 64)
+			throw winrt::hresult_invalid_argument(L"An effect supports 1-16 sources and up to 64 properties.");
 		std::set<std::wstring> names;
+		for (auto const& source : sources)
+			if (!Identifier(source) || !names.insert(source).second)
+				throw winrt::hresult_invalid_argument(L"Invalid or duplicate source name.");
+		names.clear();
 		for (auto const& p : definition.properties)
 		{
-			if (!Identifier(p.name) || !names.insert(p.name).second || p.name == L"texture0" || p.name == L"sampler0" || p.name == L"PSBody" || p.name == L"Shade" ||
-				!std::isfinite(p.initial) || !std::isfinite(p.minimum) || !std::isfinite(p.maximum) || p.minimum > p.maximum || p.initial<p.minimum || p.initial>p.maximum)
-				throw winrt::hresult_invalid_argument(L"Invalid or duplicate scalar property definition.");
+			auto const spec = GetPropertySpec(p.type);
+			if (!Identifier(p.name) || !names.insert(p.name).second || p.name == L"PSBody" || p.name == L"Shade" ||
+				p.initial.size() != spec.channels || !std::ranges::all_of(p.initial, [](float value)
+																		  {
+																			  return std::isfinite(value);
+																		  }) ||
+				!std::isfinite(p.minimum) || !std::isfinite(p.maximum) || p.minimum > p.maximum ||
+																			  (p.type == PropertyType::Scalar && (p.initial[0] < p.minimum || p.initial[0] > p.maximum)))
+				throw winrt::hresult_invalid_argument(L"Invalid or duplicate property definition.");
 		}
 	}
 	winrt::guid DeriveId(EffectDefinition const& definition)
@@ -220,11 +284,18 @@ namespace hlsl::engine
 		std::shared_ptr<EffectDefinition const> const& definition,
 		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source)
 	{
-		if (!definition || !source)throw winrt::hresult_invalid_argument();
-		if (definition->nativeTemplate)return CustomEffectRuntime::CreateEffect(*definition->nativeTemplate, source);
+		if (!source) throw winrt::hresult_invalid_argument();
+		return Compile(definition, std::span<winrt::Windows::Graphics::Effects::IGraphicsEffectSource const>{ &source, 1 });
+	}
+	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(
+		std::shared_ptr<EffectDefinition const> const& definition,
+		std::span<winrt::Windows::Graphics::Effects::IGraphicsEffectSource const> sources)
+	{
+		if (!definition || sources.empty())throw winrt::hresult_invalid_argument();
+		if (definition->nativeTemplate)return CustomEffectRuntime::CreateEffect(*definition->nativeTemplate, sources);
 		Validate(*definition);
 		Program program{ *definition };
-		return CustomEffectRuntime::CreateEffect(program.native, source);
+		return CustomEffectRuntime::CreateEffect(program.native, sources);
 	}
 	winrt::Microsoft::UI::Composition::CompositionEffectFactory GetFactory(winrt::Microsoft::UI::Composition::Compositor const& compositor, std::shared_ptr<EffectDefinition const> const& definition)
 	{

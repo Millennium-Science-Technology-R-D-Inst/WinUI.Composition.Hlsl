@@ -64,4 +64,7 @@ export namespace CustomEffectRuntime
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
 		CustomEffectDefinition const& definition,
 		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source);
+	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
+		CustomEffectDefinition const& definition,
+		std::span<winrt::Windows::Graphics::Effects::IGraphicsEffectSource const> sources);
 }

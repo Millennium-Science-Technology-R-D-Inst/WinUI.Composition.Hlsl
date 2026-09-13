@@ -79,13 +79,13 @@ struct OwnedEffectDefinition
 		value.materializationShaderFunctionName = materializationName.empty() ? nullptr : materializationName.c_str();
 		sources.assign(input.sources, input.sources + input.sourceCount);
 		sourceNames.resize(sources.size());
-		for (size_t i = 0; i < sources.size(); ++i)
+		for (std::size_t i = 0; i < sources.size(); ++i)
 		{
 			sourceNames[i] = sources[i].name; sources[i].name = sourceNames[i].c_str();
 		}
 		if (input.propertyCount)properties.assign(input.properties, input.properties + input.propertyCount);
 		propertyNames.resize(properties.size());
-		for (size_t i = 0; i < properties.size(); ++i)
+		for (std::size_t i = 0; i < properties.size(); ++i)
 		{
 			propertyNames[i] = properties[i].publicName; properties[i].publicName = propertyNames[i].c_str();
 			if (properties[i].getDefaultValue)
@@ -101,7 +101,7 @@ struct OwnedEffectDefinition
 			metadata.assign(begin, begin + input.nativePropertyMetadataCount);
 		}
 		shaderNames.resize(metadata.size());
-		for (size_t i = 0; i < metadata.size(); ++i)
+		for (std::size_t i = 0; i < metadata.size(); ++i)
 		{
 			shaderNames[i] = metadata[i].shaderName; metadata[i].shaderName = shaderNames[i].c_str();
 		}
@@ -155,19 +155,19 @@ namespace HlslComposition
 {
 	struct NativeEntrypoints
 	{
-		uintptr_t fromGuid{}, table{}, getBounds{}, calcInputBounds{}, updater{};
-		size_t effectCount{};
+		std::uintptr_t fromGuid{}, table{}, getBounds{}, calcInputBounds{}, updater{};
+		std::size_t effectCount{};
 	};
 	class RuntimeImage
 	{
 		struct Section
 		{
-			uint8_t* begin; size_t size; DWORD flags;
+			std::uint8_t* begin; std::size_t size; DWORD flags;
 		};
-		uint8_t* m_base;
+		std::uint8_t* m_base;
 		std::vector<Section> m_sections;
 	public:
-		explicit RuntimeImage(HMODULE module) :m_base(reinterpret_cast<uint8_t*>(module))
+		explicit RuntimeImage(HMODULE module) :m_base(reinterpret_cast<std::uint8_t*>(module))
 		{
 			if (!module) winrt::throw_hresult(E_INVALIDARG);
 			auto dos = reinterpret_cast<IMAGE_DOS_HEADER*>(m_base);
@@ -184,26 +184,26 @@ namespace HlslComposition
 									   L"HLSL Composition could not resolve the required native effect entrypoints.");
 		}
 
-		bool Contains(void const* pointer, size_t size, DWORD flags) const
+		bool Contains(void const* pointer, std::size_t size, DWORD flags) const
 		{
-			auto address = reinterpret_cast<uintptr_t>(pointer);
+			auto address = reinterpret_cast<std::uintptr_t>(pointer);
 			for (auto const& s : m_sections)
 			{
-				auto start = reinterpret_cast<uintptr_t>(s.begin);
+				auto start = reinterpret_cast<std::uintptr_t>(s.begin);
 				if ((s.flags & flags) == flags && address >= start && address - start <= s.size && size <= s.size - (address - start)) return true;
 			}
 			return false;
 		}
 
-		uint8_t* Unique(std::initializer_list<int> pattern, DWORD flags) const
+		std::uint8_t* Unique(std::initializer_list<int> pattern, DWORD flags) const
 		{
-			uint8_t* found{};
+			std::uint8_t* found{};
 			for (auto const& s : m_sections)
 			{
 				if ((s.flags & flags) != flags || s.size < pattern.size()) continue;
-				for (size_t i = 0; i <= s.size - pattern.size(); ++i)
+				for (std::size_t i = 0; i <= s.size - pattern.size(); ++i)
 				{
-					size_t j = 0;
+					std::size_t j = 0;
 					for (auto byte : pattern)
 					{
 						if (byte >= 0 && s.begin[i + j] != byte) break; ++j;
@@ -218,15 +218,15 @@ namespace HlslComposition
 			return found;
 		}
 
-		uintptr_t Rva(void const* pointer) const
+		std::uintptr_t Rva(void const* pointer) const
 		{
-			return reinterpret_cast<uintptr_t>(pointer) - reinterpret_cast<uintptr_t>(m_base);
+			return reinterpret_cast<std::uintptr_t>(pointer) - reinterpret_cast<std::uintptr_t>(m_base);
 		}
 
 		NativeEntrypoints Resolve() const
 		{
 			constexpr DWORD code = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
-			uint8_t* lookup{};
+			std::uint8_t* lookup{};
 			void** table{};
 #if defined(_M_IX86)
 			// PDB: Microsoft::UI::Composition::EffectType::FromGuid. The absolute
@@ -246,17 +246,17 @@ namespace HlslComposition
 				-1,-1,-1,-1,-1,-1,-1,-1,
 				0xf4,0x03,0x00,0xaa,0x15,0x00,0x80,0x52,0xd3,0x5a,0x75,0xf8
 							}, code);
-			uint32_t adrp{}, add{};
+			std::uint32_t adrp{}, add{};
 			memcpy(&adrp, lookup + 20, sizeof(adrp));
 			memcpy(&add, lookup + 24, sizeof(add));
 			int64_t pageOffset = static_cast<int64_t>(
 				(((adrp >> 5) & 0x7ffff) << 2) | ((adrp >> 29) & 3));
 			if (pageOffset & (1 << 20)) pageOffset -= (1 << 21);
-			auto page = reinterpret_cast<uintptr_t>(lookup) & ~uintptr_t{ 0xfff };
-			auto immediate = static_cast<uintptr_t>((add >> 10) & 0xfff);
+			auto page = reinterpret_cast<std::uintptr_t>(lookup) & ~std::uintptr_t{ 0xfff };
+			auto immediate = static_cast<std::uintptr_t>((add >> 10) & 0xfff);
 			if (add & (1 << 22)) immediate <<= 12;
-			auto tableAddress = static_cast<intptr_t>(page) + pageOffset * 4096 +
-				static_cast<intptr_t>(immediate);
+			auto tableAddress = static_cast<std::intptr_t>(page) + pageOffset * 4096 +
+				static_cast<std::intptr_t>(immediate);
 			table = reinterpret_cast<void**>(tableAddress);
 #else
 			// Match the GUID lookup loop, not merely a common function prologue.
@@ -277,7 +277,7 @@ namespace HlslComposition
 
 			// Discover the table length from valid EffectType objects. FromGuid's
 			// loop bound is compiler-specific; the object/vtable/GUID shape is the ABI.
-			size_t count{};
+			std::size_t count{};
 			void** neutral{};
 			for (; count < 128; ++count)
 			{
@@ -287,7 +287,7 @@ namespace HlslComposition
 				auto vt = *reinterpret_cast<void***>(object);
 				if (!Contains(vt, 22 * sizeof(void*), IMAGE_SCN_MEM_READ)) break;
 				bool valid = true;
-				for (size_t slot = 0; slot < 22; ++slot)
+				for (std::size_t slot = 0; slot < 22; ++slot)
 					valid = valid && Contains(vt[slot], 1, code);
 				if (!valid) break;
 				auto getGuid = reinterpret_cast<GUID const* (HLSL_MEMBER*)(void*)>(vt[1]);
@@ -297,7 +297,7 @@ namespace HlslComposition
 			}
 			if (!count || !neutral) Fail();
 
-			uint8_t* copy{};
+			std::uint8_t* copy{};
 #if defined(_M_IX86)
 			// PDB: std::_Func_impl_no_alloc_<...DirectPropertyUpdater...>::_Do_call.
 			copy = Unique({
@@ -364,18 +364,18 @@ namespace
 	//
 	// The RVAs are not symbolic API contracts. They must be treated as build-specific
 	// offsets and guarded by byte-pattern checks where code patching is involved.
-	uintptr_t kEffectTypeFromGuidRva{};
-	uintptr_t kEffectTypeTableRva{};
-	uintptr_t kEffectTypeGetBoundsRva{};
-	uintptr_t kEffectTypeCalcInputBoundsRva{};
-	uintptr_t kDirectPropertyUpdaterFunctionVtableRva{};
-	size_t kEffectTypeCount{};
+	std::uintptr_t kEffectTypeFromGuidRva{};
+	std::uintptr_t kEffectTypeTableRva{};
+	std::uintptr_t kEffectTypeGetBoundsRva{};
+	std::uintptr_t kEffectTypeCalcInputBoundsRva{};
+	std::uintptr_t kDirectPropertyUpdaterFunctionVtableRva{};
+	std::size_t kEffectTypeCount{};
 	// Reverse engineering shows EffectType virtual calls stop at slot 21
 	// (+0xa8, GetEffectOpacityRelation) in this WinAppSDK build. Slot 22+
 	// is not part of the callable ABI we need to model for private GUIDs.
-	constexpr size_t kEffectTypeVtableSlotCount = 22;
-	constexpr size_t kFromGuidPatchSize = HlslNativeAbi::PatchSize;
-	constexpr uint32_t kCompiledEffectSubgraphOutputFlag = 0x8;
+	constexpr std::size_t kEffectTypeVtableSlotCount = 22;
+	constexpr std::size_t kFromGuidPatchSize = HlslNativeAbi::PatchSize;
+	constexpr std::uint32_t kCompiledEffectSubgraphOutputFlag = 0x8;
 
 	struct RuntimeEffectEntry;
 
@@ -415,17 +415,17 @@ namespace
 	// field changes fail at compile time instead of corrupting DWM reads.
 	struct ShaderLinkingBody
 	{
-		size_t argCount;
+		std::size_t argCount;
 		void const* argData;
-		size_t bytecodeSize;
+		std::size_t bytecodeSize;
 		void const* bytecodeData;
 		char const* functionName;
-		uint32_t constantBufferSize;
-		uint16_t linkingArgType;
+		std::uint32_t constantBufferSize;
+		std::uint16_t linkingArgType;
 		// D3DShaderProfileVersion (1 byte). Misnamed historically as
 		// hasCustomSamplers because wuceffectsi almost always wrote 1 here.
-		uint8_t shaderProfileVersion;
-		uint8_t padding;
+		std::uint8_t shaderProfileVersion;
+		std::uint8_t padding;
 	};
 
 	static_assert(sizeof(ShaderLinkingBody) == (sizeof(void*) == 8 ? 48 : 28));
@@ -436,9 +436,9 @@ namespace
 	// CBrushRenderingGraphBuilder::AddEffectBrush.
 	struct InputBinding
 	{
-		uint32_t inputIndex;
+		std::uint32_t inputIndex;
 		bool isSubgraphOutput;
-		uint8_t padding[3];
+		std::uint8_t padding[3];
 	};
 
 	static_assert(sizeof(InputBinding) == 8);
@@ -448,7 +448,7 @@ namespace
 	// The other bytes are kept so the vector stride matches native compiled graphs.
 	struct SurfaceData
 	{
-		uint8_t data[4];
+		std::uint8_t data[4];
 	};
 
 	static_assert(sizeof(SurfaceData) == 4);
@@ -464,7 +464,7 @@ namespace
 	// by the built-in DirectPropertyUpdater path.
 	struct NativeFunctionStorage
 	{
-		uint8_t inlineStorage[sizeof(void*) == 8 ? 56 : 36];
+		std::uint8_t inlineStorage[sizeof(void*) == 8 ? 56 : 36];
 		void* callable;
 	};
 
@@ -529,7 +529,7 @@ namespace
 		void** vtable;
 		volatile long refCount;
 #if !defined(_M_IX86)
-		uint32_t padding;
+		std::uint32_t padding;
 #endif
 		CompiledSubgraph* subgraphBegin;
 		CompiledSubgraph* subgraphEnd;
@@ -537,7 +537,15 @@ namespace
 
 		RuntimeEffectEntry* entry;
 		CompiledResult* nativeBacking;
-		uint32_t mainSubgraphIndex;
+		std::uint32_t mainSubgraphIndex;
+		struct CustomBody
+		{
+			std::uint32_t subgraphIndex;
+			RuntimeEffectEntry* entry;
+		};
+		CustomBody* customBodyBegin;
+		CustomBody* customBodyEnd;
+		std::uint8_t* ownedSubgraphs;
 	};
 
 	static_assert(offsetof(CompiledResult, subgraphBegin) == (sizeof(void*) == 8 ? 16 : 8));
@@ -774,8 +782,8 @@ namespace
 		// gate: when it is true, named inputs are first wrapped in
 		// CSingleInputCompositeEffect and become their own EffectSubgraph. The native
 		// compiler preserves the resulting boundaries in CompileMaterializedGraph.
-		return self->entry->definition->inputMode ==
-			CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture;
+		(void)self;
+		return true;
 	}
 
 	bool HLSL_CALLBACK EffectType_ReturnTrue(RuntimeEffectType*)
@@ -1043,9 +1051,9 @@ namespace
 		{
 			for (auto* subgraph = self->subgraphBegin; subgraph != self->subgraphEnd; ++subgraph)
 			{
-				if (self->nativeBacking && subgraph != self->subgraphBegin + self->mainSubgraphIndex &&
-					subgraph != self->subgraphEnd - 1)
-					continue; // Borrowed native vectors stay alive through nativeBacking.
+				auto index = static_cast<size_t>(subgraph - self->subgraphBegin);
+				if (self->nativeBacking && (!self->ownedSubgraphs || !self->ownedSubgraphs[index]))
+					continue;
 				if (subgraph->inputBindingBegin)
 				{
 					HeapFree(GetProcessHeap(), 0, subgraph->inputBindingBegin);
@@ -1074,6 +1082,8 @@ namespace
 
 			HeapFree(GetProcessHeap(), 0, self->subgraphBegin);
 		}
+		if (self->customBodyBegin) HeapFree(GetProcessHeap(), 0, self->customBodyBegin);
+		if (self->ownedSubgraphs) HeapFree(GetProcessHeap(), 0, self->ownedSubgraphs);
 		if (self->nativeBacking)
 		{
 			using Release = ULONG(__stdcall*)(CompiledResult*);
@@ -1121,22 +1131,24 @@ namespace
 		// loadable shader library, the exported HLSL function name, and the packed
 		// shader-linking argument list (color input, uv, samplerData, samplerDataExt,
 		// custom sampler result, etc.).
-		EnsureShader(self->entry);
-
-		auto const& definition = *self->entry->definition;
 		if (subgraphIndex >= Wrapper_GetSubgraphCount(self))
 		{
 			check_hresult(E_INVALIDARG);
 		}
-		if (self->nativeBacking && subgraphIndex != self->mainSubgraphIndex &&
-			subgraphIndex != Wrapper_GetSubgraphCount(self) - 1)
+		RuntimeEffectEntry* entry = self->entry;
+		for (auto current = self->customBodyBegin; current && current != self->customBodyEnd; ++current)
+			if (current->subgraphIndex == subgraphIndex) entry = current->entry;
+		if (self->nativeBacking && !entry)
 		{
 			using GetBody = ShaderLinkingBody * (HLSL_MEMBER*)(CompiledResult*, ShaderLinkingBody*, uint32_t);
 			return reinterpret_cast<GetBody>(self->nativeBacking->vtable[3])(self->nativeBacking, body, subgraphIndex);
 		}
+		check_pointer(entry);
+		EnsureShader(entry);
+		auto const& definition = *entry->definition;
 
 		auto* subgraph = self->subgraphBegin + subgraphIndex;
-		auto const isMainSubgraph = subgraphIndex == self->mainSubgraphIndex;
+		auto const isMainSubgraph = self->customBodyBegin || subgraphIndex == self->mainSubgraphIndex;
 		auto const argCount = subgraph && subgraph->shaderArgumentBegin && subgraph->shaderArgumentEnd
 			? static_cast<size_t>(
 				(static_cast<uint8_t*>(subgraph->shaderArgumentEnd) -
@@ -1155,8 +1167,8 @@ namespace
 		}
 		else
 		{
-			body->bytecodeSize = self->entry->shaderBlob->GetBufferSize();
-			body->bytecodeData = self->entry->shaderBlob->GetBufferPointer();
+			body->bytecodeSize = entry->shaderBlob->GetBufferSize();
+			body->bytecodeData = entry->shaderBlob->GetBufferPointer();
 		}
 		body->functionName = isMainSubgraph ? definition.shaderFunctionName : definition.materializationShaderFunctionName;
 		body->constantBufferSize = PointerRangeByteSize(
@@ -1733,10 +1745,11 @@ namespace
 		std::vector<EffectNodeView> nodes;
 	};
 
-	struct LoweringPlan
+	struct CustomNode
 	{
-		RuntimeEffectEntry* customEffect{};
-		CustomEffectRuntime::GraphLoweringPolicy policy{};
+		uint32_t nodeIndex{};
+		uint32_t subgraphIndex{ std::numeric_limits<uint32_t>::max() };
+		RuntimeEffectEntry* entry{};
 	};
 
 	InspectedEffectGraph InspectEffectGraph(void* description)
@@ -1770,7 +1783,7 @@ namespace
 		}
 
 		auto const nodeCount = nodeBytes / sizeof(void*);
-		if (nodeCount > 0x19)
+		if (nodeCount > 4096)
 		{
 			return {};
 		}
@@ -1787,52 +1800,30 @@ namespace
 		return inspected;
 	}
 
-	LoweringPlan ValidateAndPlan(InspectedEffectGraph const& graph)
+	std::vector<CustomNode> FindCustomNodes(InspectedEffectGraph const& graph)
 	{
 		std::lock_guard<std::mutex> guard(g_registryMutex);
-		RuntimeEffectEntry* found{};
-		size_t customCount{};
-		for (auto const& node : graph.nodes)
-		{
-			if (auto* entry = FindEntryByEffectTypeLocked(node.effectType))
-			{
-				found = entry; ++customCount;
-			}
-		}
-		if (!found)return {};
-		if (customCount != 1)
-			throw hresult_not_implemented(L"The current custom-effect lowering backend supports exactly one custom shader node.");
-
-		auto const policy = found->definition->graphPolicy;
-		if (policy == CustomEffectRuntime::GraphLoweringPolicy::SingleCustom &&
-			graph.nodes.size() != customCount)
-		{
-			throw hresult_not_implemented(L"This custom effect does not declare a materialized native input boundary.");
-		}
-		if (policy == CustomEffectRuntime::GraphLoweringPolicy::MaterializedInput &&
-			found->definition->inputMode != CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture)
-		{
-			throw hresult_invalid_argument(L"A materialized-input graph requires a texture-sampling custom effect.");
-		}
-		return { found, policy };
-	}
-
-	CompiledResult* CompileMaterializedGraph(void* description, InspectedEffectGraph const& graph, RuntimeEffectEntry* entry)
-	{
-		uint32_t customNodeIndex{};
-		void* compositeType{};
+		std::vector<CustomNode> result;
 		for (uint32_t index = 0; index < graph.nodes.size(); ++index)
 		{
-			auto const type = graph.nodes[index].effectType;
-			if (type == &entry->effectType)
-				customNodeIndex = index;
-			else
-			{
-				using GetGuid = GUID const* (HLSL_MEMBER*)(void*);
-				auto vtable = *static_cast<void***>(type);
-				if (*reinterpret_cast<GetGuid>(vtable[1])(type) == CLSID_D2D1Composite)
-					compositeType = type;
-			}
+			if (auto* entry = FindEntryByEffectTypeLocked(graph.nodes[index].effectType))
+				result.push_back({ index, std::numeric_limits<uint32_t>::max(), entry });
+		}
+		return result;
+	}
+
+	CompiledResult* CompileCustomGraph(
+		void* description,
+		InspectedEffectGraph const& graph,
+		std::vector<CustomNode> customNodes)
+	{
+		void* compositeType{};
+		for (auto const& node : graph.nodes)
+		{
+			using GetGuid = GUID const* (HLSL_MEMBER*)(void*);
+			auto vtable = *static_cast<void***>(node.effectType);
+			if (*reinterpret_cast<GetGuid>(vtable[1])(node.effectType) == CLSID_D2D1Composite)
+				compositeType = node.effectType;
 		}
 		check_pointer(compositeType);
 
@@ -1841,10 +1832,9 @@ namespace
 		auto base = static_cast<uint8_t*>(description) - 2 * sizeof(void*);
 		auto begin = *reinterpret_cast<uint8_t***>(base + 3 * sizeof(void*));
 		auto end = *reinterpret_cast<uint8_t***>(base + 4 * sizeof(void*));
-		if (!begin || end < begin || end - begin > 0x19)
+		if (!begin || end < begin || end - begin > 4096)
 			throw hresult_invalid_argument(L"Invalid flattened subgraph range.");
 		auto count = static_cast<uint32_t>(end - begin);
-		uint32_t mainIndex = count;
 		for (uint32_t index = 0; index < count; ++index)
 		{
 			check_pointer(begin[index]);
@@ -1855,20 +1845,19 @@ namespace
 			for (auto current = nodes; current != nodesEnd; ++current)
 				if (*current >= graph.nodes.size())
 					throw hresult_invalid_argument(L"A flattened subgraph refers to an invalid node.");
-			if (index == count - 1 && (nodesEnd - nodes != 1 || graph.nodes[*nodes].effectType != compositeType))
-				throw hresult_not_implemented(L"The final subgraph must be a single composite wrapper.");
-			if (std::find(nodes, nodesEnd, customNodeIndex) != nodesEnd)
+			for (auto& custom : customNodes)
 			{
-				if (nodesEnd - nodes != 1 || mainIndex != count)
-					throw hresult_not_implemented(L"The custom sampler must occupy one isolated subgraph.");
-				mainIndex = index;
+				if (std::find(nodes, nodesEnd, custom.nodeIndex) == nodesEnd) continue;
+				if (nodesEnd - nodes != 1 || custom.subgraphIndex != std::numeric_limits<uint32_t>::max())
+					throw hresult_not_implemented(L"Each custom shader must occupy one isolated compiled subgraph.");
+				custom.subgraphIndex = index;
 			}
 		}
-		if (count < 3 || mainIndex != count - 2)
-			throw hresult_not_implemented(L"Materialized lowering requires a terminal custom sampler and output wrapper.");
+		for (auto const& custom : customNodes)
+			if (custom.subgraphIndex == std::numeric_limits<uint32_t>::max())
+				throw hresult_invalid_argument(L"A custom effect node has no compiled subgraph.");
 
 		CompiledResult* native{};
-		CompiledResult* shader{};
 		CompiledResult* merged{};
 		try
 		{
@@ -1885,51 +1874,64 @@ namespace
 			if (!native || !native->subgraphBegin || native->subgraphEnd < native->subgraphBegin ||
 				static_cast<size_t>(native->subgraphEnd - native->subgraphBegin) != count)
 				throw hresult_invalid_argument(L"Native compiled subgraphs do not match the flattened graph.");
-			shader = static_cast<CompiledResult*>(CreateCompiledResult(entry, customNodeIndex));
 			merged = static_cast<CompiledResult*>(AllocateBytes(sizeof(CompiledResult)));
 			merged->vtable = g_wrapperVtable;
 			merged->refCount = 1;
-			merged->entry = entry;
-			merged->mainSubgraphIndex = mainIndex;
 			merged->nativeBacking = native;
 			native = nullptr;
 			merged->subgraphBegin = static_cast<CompiledSubgraph*>(AllocateBytes(sizeof(CompiledSubgraph) * count));
 			merged->subgraphEnd = merged->subgraphBegin + count;
 			merged->subgraphCapacity = merged->subgraphEnd;
 			memcpy(merged->subgraphBegin, merged->nativeBacking->subgraphBegin, sizeof(CompiledSubgraph) * count);
-			merged->subgraphBegin[mainIndex] = shader->subgraphBegin[1];
-			shader->subgraphBegin[1] = {};
-			merged->subgraphBegin[count - 1] = shader->subgraphBegin[2];
-			shader->subgraphBegin[2] = {};
-			// Retain native input bindings rather than assuming node/subgraph indices coincide.
-			for (auto index : { mainIndex, count - 1 })
+			merged->customBodyBegin = static_cast<CompiledResult::CustomBody*>(
+				AllocateBytes(sizeof(CompiledResult::CustomBody) * customNodes.size()));
+			merged->customBodyEnd = merged->customBodyBegin + customNodes.size();
+			merged->ownedSubgraphs = static_cast<uint8_t*>(AllocateBytes(count));
+
+			for (size_t customIndex = 0; customIndex < customNodes.size(); ++customIndex)
 			{
-				auto& target = merged->subgraphBegin[index];
-				auto const& source = merged->nativeBacking->subgraphBegin[index];
-				if (!source.inputBindingBegin ||
-					static_cast<InputBinding*>(source.inputBindingEnd) - static_cast<InputBinding*>(source.inputBindingBegin) != 1)
-					throw hresult_not_implemented(L"The materialized sampler requires one input per stage.");
-				auto const binding = *static_cast<InputBinding*>(source.inputBindingBegin);
-				if (!binding.isSubgraphOutput || binding.inputIndex >= index ||
-					(index == count - 1 && binding.inputIndex != mainIndex))
-					throw hresult_not_implemented(L"The custom sampler and output wrapper require preceding subgraph outputs.");
-				*static_cast<InputBinding*>(target.inputBindingBegin) = binding;
-				// Keep the native input's edge modes while adding the custom
-				// sampler's metadata requirements in bytes 2 and 3.
+				auto const custom = customNodes[customIndex];
+				auto shader = static_cast<CompiledResult*>(CreateCompiledResult(custom.entry, custom.nodeIndex));
+				auto const shaderIndex = GetMainSubgraphIndex(*custom.entry->definition);
+				auto& target = merged->subgraphBegin[custom.subgraphIndex];
+				auto const& source = merged->nativeBacking->subgraphBegin[custom.subgraphIndex];
+				target = shader->subgraphBegin[shaderIndex];
+				shader->subgraphBegin[shaderIndex] = {};
+				merged->ownedSubgraphs[custom.subgraphIndex] = 1;
+				merged->customBodyBegin[customIndex] = { custom.subgraphIndex, custom.entry };
+
+				if (!source.inputBindingBegin || !source.inputBindingEnd ||
+					source.inputBindingEnd < source.inputBindingBegin)
+					throw hresult_invalid_argument(L"Native custom shader inputs are malformed.");
+				auto const inputCount = static_cast<size_t>(
+					static_cast<InputBinding*>(source.inputBindingEnd) -
+					static_cast<InputBinding*>(source.inputBindingBegin));
+				if (inputCount != custom.entry->definition->sourceCount)
+					throw hresult_invalid_argument(L"Native and custom shader input counts differ.");
+				memcpy(target.inputBindingBegin, source.inputBindingBegin, inputCount * sizeof(InputBinding));
+
 				auto modes = static_cast<SurfaceData const*>(source.surfaceDataBegin);
-				if (modes && source.surfaceDataEnd != source.surfaceDataBegin)
+				auto targetData = static_cast<SurfaceData*>(target.surfaceDataBegin);
+				auto modeCount = modes && source.surfaceDataEnd >= source.surfaceDataBegin
+					? static_cast<size_t>(static_cast<SurfaceData const*>(source.surfaceDataEnd) - modes)
+					: 0;
+				for (size_t input = 0; targetData && input < inputCount; ++input)
 				{
-					auto targetData = static_cast<SurfaceData*>(target.surfaceDataBegin);
-					targetData[0].data[0] = modes[0].data[0];
-					targetData[0].data[1] = modes[0].data[1];
+					if (input < modeCount)
+					{
+						targetData[input].data[0] = modes[input].data[0];
+						targetData[input].data[1] = modes[input].data[1];
+					}
 				}
+				// A custom pass is materialized. This gives later custom or native
+				// nodes a real surface and avoids cross-profile fragment linking.
+				target.flags = 0;
+				DestroyCompiledResult(shader);
 			}
-			DestroyCompiledResult(shader);
 			return merged;
 		}
 		catch (...)
 		{
-			if (shader) DestroyCompiledResult(shader);
 			if (merged) DestroyCompiledResult(merged);
 			if (native)
 			{
@@ -1953,12 +1955,10 @@ namespace
 		try
 		{
 			auto const inspected = InspectEffectGraph(description);
-			auto const plan = ValidateAndPlan(inspected);
-			if (auto* entry = plan.customEffect)
+			auto customNodes = FindCustomNodes(inspected);
+			if (!customNodes.empty())
 			{
-				*result = UsesFlattenSourceSubgraph(*entry->definition)
-					? CompileMaterializedGraph(description, inspected, entry)
-					: CreateCompiledResult(entry, 0);
+				*result = CompileCustomGraph(description, inspected, std::move(customNodes));
 				return S_OK;
 			}
 		}
@@ -2183,18 +2183,20 @@ namespace
 		// and synthetic EffectType pointer.
 		explicit RuntimeGraphicsEffect(
 			CustomEffectRuntime::CustomEffectDefinition const* definition,
-			IGraphicsEffectSource const& source = nullptr) :
+			std::span<IGraphicsEffectSource const> sources = {}) :
 			m_definition(definition),
 			m_name(definition->effectName)
 		{
 			m_sources.reserve(definition->sourceCount);
-			if (source)
+			if (!sources.empty())
 			{
-				if (definition->sourceCount != 1)
+				if (sources.size() != definition->sourceCount)
+					throw hresult_invalid_argument(L"The explicit source count does not match the shader definition.");
+				for (auto const& source : sources)
 				{
-					throw hresult_invalid_argument(L"An explicit source requires a single-input custom effect.");
+					if (!source) throw hresult_invalid_argument(L"A custom effect source is null.");
+					m_sources.push_back(source);
 				}
-				m_sources.push_back(source);
 				return;
 			}
 			for (uint32_t index = 0; index < definition->sourceCount; ++index)
@@ -2303,7 +2305,20 @@ namespace
 			if (property.getDefaultValue) return property.getDefaultValue(value);
 			try
 			{
-				auto initial = Windows::Foundation::PropertyValue::CreateSingle(property.initialScalar).as<Windows::Foundation::IPropertyValue>();
+				auto metadata = static_cast<CustomEffectRuntime::NativePropertyMetadata const*>(
+					m_definition->nativePropertyMetadata);
+				if (!metadata || property.index >= m_definition->nativePropertyMetadataCount ||
+					!m_definition->constantBufferInitialValue)
+					return E_INVALIDARG;
+				auto const& native = metadata[property.index];
+				auto values = static_cast<float const*>(m_definition->constantBufferInitialValue) +
+					native.propertyOffset / sizeof(float);
+				Windows::Foundation::IPropertyValue initial{ nullptr };
+				if (native.valueCount == 1)
+					initial = Windows::Foundation::PropertyValue::CreateSingle(values[0]).as<Windows::Foundation::IPropertyValue>();
+				else
+					initial = Windows::Foundation::PropertyValue::CreateSingleArray(
+						array_view<float const>{ values, values + native.valueCount }).as<Windows::Foundation::IPropertyValue>();
 				*value = reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(detach_abi(initial));
 				return S_OK;
 			}
@@ -2380,7 +2395,7 @@ namespace CustomEffectRuntime
 			if (!existing->owned.Equivalent(candidate)) throw hresult_invalid_argument(L"Effect GUID is already registered with a different shader definition.");
 			return;
 		}
-		size_t registrations = 0;
+		std::size_t registrations = 0;
 		for (auto* current = g_effects; current; current = current->next)++registrations;
 		if (registrations >= 1024) throw hresult_error(E_OUTOFMEMORY, L"The process has reached the limit of 1024 distinct HLSL definitions. Reuse deterministic descriptors.");
 
@@ -2396,12 +2411,20 @@ namespace CustomEffectRuntime
 
 	IGraphicsEffect CreateEffect(CustomEffectDefinition const& definition)
 	{
-		return CreateEffect(definition, nullptr);
+		return CreateEffect(definition, std::span<IGraphicsEffectSource const>{});
 	}
 
 	IGraphicsEffect CreateEffect(
 		CustomEffectDefinition const& definition,
 		IGraphicsEffectSource const& source)
+	{
+		if (!source) return CreateEffect(definition);
+		return CreateEffect(definition, std::span<IGraphicsEffectSource const>{ &source, 1 });
+	}
+
+	IGraphicsEffect CreateEffect(
+		CustomEffectDefinition const& definition,
+		std::span<IGraphicsEffectSource const> sources)
 	{
 		// The public shape must be the same shape WinUI expects from built-in effects:
 		// an IGraphicsEffect that can be passed directly to Compositor::CreateEffectFactory.
@@ -2419,7 +2442,7 @@ namespace CustomEffectRuntime
 		}
 		EnsureShader(entry);
 		InstallHook();
-		return make<RuntimeGraphicsEffect>(entry->definition, source);
+		return make<RuntimeGraphicsEffect>(entry->definition, sources);
 	}
 
 }

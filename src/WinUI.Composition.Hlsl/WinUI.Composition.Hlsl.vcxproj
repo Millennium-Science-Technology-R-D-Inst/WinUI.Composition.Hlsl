@@ -149,8 +149,10 @@
     <ClCompile Include="Effects\EffectDefinition.ixx">
       <FileType>Document</FileType>
     </ClCompile>
-    <ClInclude Include="Public/HlslFloatProperty.h" />
-    <ClCompile Include="Public/HlslFloatProperty.cpp" />
+      <ClInclude Include="Public/HlslFloatProperty.h" />
+      <ClCompile Include="Public/HlslFloatProperty.cpp" />
+      <ClInclude Include="Public/HlslProperty.h" />
+      <ClCompile Include="Public/HlslProperty.cpp" />
     <ClCompile Include="Runtime/UnsupportedRuntime.cpp">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64' or '$(Platform)'=='Win32' or '$(Platform)'=='ARM64'">true</ExcludedFromBuild>
     </ClCompile>

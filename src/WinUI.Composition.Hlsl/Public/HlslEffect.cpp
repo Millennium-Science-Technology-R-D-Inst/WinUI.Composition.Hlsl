@@ -1,6 +1,7 @@
-#include "HlslEffect.h"
+﻿#include "HlslEffect.h"
 #include "HlslEffect.g.cpp"
 #include "HlslShaderLibrary.h"
+#include "HlslProperty.h"
 import WinUI.Composition.Hlsl.CustomEffectRuntime;
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
@@ -31,15 +32,35 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 					definition.materializedSampler = false;
 					break;
 				case Hlsl::HlslEffectKind::MaterializedSampler:
-#if !defined(_M_X64)
-					throw hresult_not_implemented(L"Public MaterializedSampler execution is currently validated only for the x64 Composition adapter. HlslCompiler can still precompile/cache its DXBC on this architecture.");
-#else
 					definition.sampler = true;
 					definition.materializedSampler = true;
 					break;
-#endif
 				default:
 					throw hresult_invalid_argument(L"Unknown HLSL effect kind.");
+			}
+		}
+
+		void ApplySources(hlsl::engine::EffectDefinition& definition,
+						  Windows::Foundation::Collections::IVectorView<hstring> const& sources)
+		{
+			if (!sources || !sources.Size()) throw hresult_invalid_argument(L"At least one source name is required.");
+			definition.sourceNames.reserve(sources.Size());
+			for (auto const& source : sources) definition.sourceNames.emplace_back(source);
+			definition.sourceName = definition.sourceNames.front();
+		}
+
+		void AppendAdvancedProperties(hlsl::engine::EffectDefinition& definition,
+									  Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
+		{
+			if (!properties) return;
+			for (auto const& projected : properties)
+			{
+				if (!projected) throw hresult_invalid_argument(L"A property descriptor is null.");
+				auto property = get_self<HlslProperty>(projected);
+				definition.properties.emplace_back(
+					std::wstring(property->Name()),
+					static_cast<hlsl::engine::PropertyType>(property->Type()),
+					property->Values());
 			}
 		}
 
@@ -48,14 +69,14 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslEffectKind kind,
 			winrt::guid id,
 			hstring const& sourceName,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties=nullptr)
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties = nullptr)
 		{
-			auto definition=std::make_shared<hlsl::engine::EffectDefinition>();
-			definition->shader=to_string(shader); definition->sourceName=sourceName;
+			auto definition = std::make_shared<hlsl::engine::EffectDefinition>();
+			definition->shader = to_string(shader); definition->sourceName = sourceName;
 			ApplyKind(*definition, kind);
 			AppendProperties(*definition, properties);
 			hlsl::engine::Validate(*definition);
-			definition->id=id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
+			definition->id = id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
 			return make<HlslEffect>(definition);
 		}
 
@@ -63,8 +84,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslShaderLibrary const& shader,
 			Hlsl::HlslEffectKind kind,
 			winrt::guid id,
-			hstring const& sourceName=L"Backdrop",
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties=nullptr)
+			hstring const& sourceName = L"Backdrop",
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties = nullptr)
 		{
 			if (!shader) throw hresult_invalid_argument(L"The shader library is null.");
 			auto library = get_self<HlslShaderLibrary>(shader);
@@ -152,6 +173,38 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	{
 		return DescribeCompiled(shader, Hlsl::HlslEffectKind::MaterializedSampler, id, sourceName, properties);
 	}
+	Hlsl::HlslEffect HlslEffect::CreateAdvanced(hstring const& shader, Hlsl::HlslEffectKind kind,
+												Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
+												Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
+	{
+		auto definition = std::make_shared<hlsl::engine::EffectDefinition>();
+		definition->shader = to_string(shader);
+		ApplyKind(*definition, kind);
+		ApplySources(*definition, sourceNames);
+		AppendAdvancedProperties(*definition, properties);
+		hlsl::engine::Validate(*definition);
+		definition->id = hlsl::engine::DeriveId(*definition);
+		return make<HlslEffect>(definition);
+	}
+	Hlsl::HlslEffect HlslEffect::CreateCompiledAdvanced(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, Hlsl::HlslEffectKind kind,
+														Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
+														Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
+	{
+		if (!shader) throw hresult_invalid_argument(L"The shader library is null.");
+		auto library = get_self<HlslShaderLibrary>(shader);
+		auto definition = std::make_shared<hlsl::engine::EffectDefinition>();
+		ApplyKind(*definition, kind);
+		ApplySources(*definition, sourceNames);
+		AppendAdvancedProperties(*definition, properties);
+		definition->shaderBytecode = library->BytecodeBytes();
+		definition->shaderProfile = static_cast<uint8_t>(library->Profile());
+		std::vector<std::wstring> names;
+		for (auto const& property : definition->properties) names.push_back(property.name);
+		library->ValidateForEffect(kind, names);
+		hlsl::engine::Validate(*definition);
+		definition->id = id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
+		return make<HlslEffect>(definition);
+	}
 	Windows::Foundation::Collections::IVectorView<hstring> HlslEffect::PropertyNames() const
 	{
 		auto names = single_threaded_vector<hstring>();
@@ -172,6 +225,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 		throw hresult_invalid_argument(L"The float property is not declared by this effect.");
 	}
+	Windows::Foundation::Collections::IVectorView<hstring> HlslEffect::SourceNames() const
+	{
+		auto result = single_threaded_vector<hstring>();
+		if (m_definition->sourceNames.empty()) result.Append(hstring{ m_definition->sourceName });
+		else for (auto const& name : m_definition->sourceNames) result.Append(hstring{ name });
+		return result.GetView();
+	}
 	Windows::Foundation::Collections::IVectorView<hstring> HlslEffect::GetAnimatablePropertyPaths() const
 	{
 		auto paths = single_threaded_vector<hstring>();
@@ -188,10 +248,19 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	Windows::Graphics::Effects::IGraphicsEffect HlslEffect::CreateGraphicsEffectWithSource(Windows::Graphics::Effects::IGraphicsEffectSource const& source) const
 	{
 		if (!source) throw hresult_invalid_argument(L"The graphics-effect source is null.");
-		if (!m_definition->materializedSampler && source.try_as<Windows::Graphics::Effects::IGraphicsEffect>())
-		{
-			throw hresult_not_implemented(L"An upstream graphics-effect graph requires MaterializedSampler. Color/Sampler currently accept source parameters/brush sources but do not lower mixed native effect nodes safely.");
-		}
 		return hlsl::engine::Compile(m_definition, source);
+	}
+	Windows::Graphics::Effects::IGraphicsEffect HlslEffect::CreateGraphicsEffectWithSources(
+		Windows::Foundation::Collections::IVectorView<Windows::Graphics::Effects::IGraphicsEffectSource> const& sources) const
+	{
+		if (!sources || !sources.Size()) throw hresult_invalid_argument(L"At least one graphics-effect source is required.");
+		std::vector<Windows::Graphics::Effects::IGraphicsEffectSource> values;
+		values.reserve(sources.Size());
+		for (auto const& source : sources)
+		{
+			if (!source) throw hresult_invalid_argument(L"A graphics-effect source is null.");
+			values.push_back(source);
+		}
+		return hlsl::engine::Compile(m_definition, values);
 	}
 }
