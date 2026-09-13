@@ -127,7 +127,11 @@ jobs:
             /fl "/flp:logfile=native-shader-consumer.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-          foreach ($name in @('ConsumerSampler.dxbc', 'ConsumerMaterializedSampler.dxbc')) {
+          foreach ($name in @(
+            'ConsumerSampler.dxbc',
+            'ConsumerMaterializedSampler.dxbc',
+            'ConsumerMultiSourceColor.dxbc',
+            'ConsumerMultiSourceSampler.dxbc')) {
             $fixture = Get-ChildItem 'tests\BuildIntegration\Output' -Recurse -Filter $name -File -ErrorAction SilentlyContinue |
               Where-Object { $_.FullName -match '[\\/]Hlsl[\\/]' } |
               Select-Object -First 1
