@@ -105,6 +105,13 @@ float4 Shade(float2 uv0, float4 samplerDataExt0, float2 uv1, float4 samplerDataE
 		sourceNames.Append(L"First");
 		sourceNames.Append(L"Second");
 		auto advancedProperties = single_threaded_vector<HlslProperty>();
+		auto advancedEffect = HlslEffect::CreateAdvanced(
+			kMultiSourceSamplerShader,
+			HlslEffectKind::Sampler,
+			sourceNames.GetView(),
+			advancedProperties.GetView());
+		(void)advancedEffect.SourceNames();
+		(void)HlslComposition::CreateBackdropBrush(compositor, advancedEffect);
 		(void)HlslEffect::CreateCompiledAdvanced(
 			winrt::guid{},
 			library,
