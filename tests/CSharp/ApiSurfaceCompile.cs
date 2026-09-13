@@ -22,7 +22,7 @@ internal static class ApiSurfaceCompile
         _ = HlslComposition.GetRuntimeCapabilities();
         _ = HlslCompiler.CompileAsync(
             MaterializedShader,
-            HlslEffectKind.MaterializedSampler,
+            HlslEffectKind.Auto,
             HlslShaderProfile.Pixel40);
         _ = HlslCompiler.CompileWithDefinesAsync(
             MaterializedShader,
