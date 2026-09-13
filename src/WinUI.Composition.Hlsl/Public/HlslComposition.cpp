@@ -47,7 +47,21 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	}
 	Hlsl::HlslEffectBrush HlslComposition::CreateBackdropBrush(Microsoft::UI::Composition::Compositor const& compositor, Hlsl::HlslEffect const& effect)
 	{
-		auto brush=CreateEffectFactory(compositor, effect).CreateBrush(); brush.SetSource(get_self<implementation::HlslEffect>(effect)->Definition()->sourceName, compositor.CreateBackdropBrush()); return brush;
+		auto brush = CreateEffectFactory(compositor, effect).CreateBrush();
+		auto const definition = get_self<implementation::HlslEffect>(effect)->Definition();
+		auto const backdrop = compositor.CreateBackdropBrush();
+		if (definition->sourceNames.empty())
+		{
+			brush.SetSource(definition->sourceName, backdrop);
+		}
+		else
+		{
+			for (auto const& sourceName : definition->sourceNames)
+			{
+				brush.SetSource(hstring{ sourceName }, backdrop);
+			}
+		}
+		return brush;
 	}
 	Microsoft::UI::Xaml::Media::Brush HlslComposition::CreateXamlBrush(Hlsl::HlslEffectBrush const& brush)
 	{
