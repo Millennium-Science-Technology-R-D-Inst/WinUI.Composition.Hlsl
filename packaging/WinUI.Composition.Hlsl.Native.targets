@@ -18,7 +18,7 @@
 	<Target Name="HlslConfigureGeneratedShaderIncludes" BeforeTargets="ClCompile" Condition="'@(HlslCompositionShader)'!='' and '$(HlslCompositionGenerateHeaders)'=='true'">
 		<ItemGroup>
 			<ClCompile Update="@(ClCompile)">
-				<AdditionalIncludeDirectories>$(HlslCompositionIntermediateRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+				<AdditionalIncludeDirectories>$(HlslCompositionIntermediateRoot);%(ClCompile.AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 			</ClCompile>
 		</ItemGroup>
 	</Target>
