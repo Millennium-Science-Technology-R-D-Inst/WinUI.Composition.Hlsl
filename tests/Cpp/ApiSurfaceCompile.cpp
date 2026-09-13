@@ -49,6 +49,14 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
 			Windows::Foundation::Uri(L"ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"),
 			HlslShaderProfile::Pixel40);
 
+		// A build-generated .g.h exposes the same shape: const unsigned char[].
+		// C++/WinRT projects can pass that raw array directly through the projected
+		// UInt8[] parameter without constructing an IBuffer or copying it first.
+		std::uint8_t embeddedShaderBytes[]{ 'D', 'X', 'B', 'C' };
+		(void)HlslShaderLibrary::CreateFromByteArray(
+			embeddedShaderBytes,
+			HlslShaderProfile::Pixel40);
+
 		auto effect = HlslEffect::CreateCustomMaterializedSampler(kCompileSurfaceShader);
 		(void)HlslEffect::CreateCompiledMaterializedSampler(winrt::guid{}, library);
 		auto graph = effect.CreateGraphicsEffect();
