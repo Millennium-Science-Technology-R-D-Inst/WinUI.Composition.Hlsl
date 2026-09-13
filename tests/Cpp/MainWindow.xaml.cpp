@@ -50,6 +50,41 @@ float4 Shade(float2 uv, float4 samplerDataExt)
 }
 )";
 
+	wchar_t const kMultiSourceColorShader[] = LR"(
+float4 Shade(float4 color0, float4 color1)
+{
+    return lerp(color0, color1, 0.35f);
+}
+)";
+
+	wchar_t const kMultiSourceSamplerShader[] = LR"(
+float4 Shade(float2 uv0, float4 samplerDataExt0, float2 uv1, float4 samplerDataExt1)
+{
+    float2 offset = float2(samplerDataExt0.z, samplerDataExt1.w) * 2.0f;
+    float4 first = texture0.Sample(sampler0, uv0 + offset);
+    float4 second = texture1.Sample(sampler1, uv1 - offset);
+    return lerp(first, second, 0.5f);
+}
+)";
+
+	WinUI::Composition::Hlsl::HlslEffectBrush CreateMultiSourceBackdropBrush(
+		Compositor const& compositor,
+		WinUI::Composition::Hlsl::HlslEffectKind kind)
+	{
+		auto sourceNames = single_threaded_vector<hstring>();
+		sourceNames.Append(L"First");
+		sourceNames.Append(L"Second");
+		auto properties = single_threaded_vector<WinUI::Composition::Hlsl::HlslProperty>();
+		auto effect = WinUI::Composition::Hlsl::HlslEffect::CreateAdvanced(
+			kind == WinUI::Composition::Hlsl::HlslEffectKind::Color
+				? hstring{ kMultiSourceColorShader }
+				: hstring{ kMultiSourceSamplerShader },
+			kind,
+			sourceNames.GetView(),
+			properties.GetView());
+		return WinUI::Composition::Hlsl::HlslComposition::CreateBackdropBrush(compositor, effect);
+	}
+
 	constexpr float kInitialBackdropWidth = 420.0f;
 	constexpr float kInitialBackdropHeight = 260.0f;
 	constexpr float kInitialBackdropOffsetX = 268.0f;
@@ -118,18 +153,37 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 								  {
 									  switch (phase++)
 									  {
-										  case 0: self->EffectSelector().SelectedIndex(4); break;
-										  case 1: self->RefractionStrengthSlider().Value(42); self->CornerRadiusSlider().Value(40); self->BlurRadiusSlider().Value(18); break;
-										  case 2: self->BackdropFrame().Width(500); self->BackdropFrame().Height(300); break;
-										  case 3: self->m_liquidGlassMaterial.BlurRadius(0); break;
-										  case 4: self->m_liquidGlassMaterial.BlurRadius(64); self->m_liquidGlassMaterial.DispersionStrength(2); break;
-										  case 5: self->m_liquidGlassMaterial.BlurRadius(18); break;
-										  case 6: self->EffectSelector().SelectedIndex(3); break;
-										  case 7: self->EffectSelector().SelectedIndex(2); break;
-										  case 8: self->EffectSelector().SelectedIndex(4); break;
-										  case 9: self->m_liquidGlassMaterial.BlurRadius(0); self->m_liquidGlassMaterial.RefractionStrength(0); break;
+										  case 0:
+										  {
+											  auto compositor = Media::CompositionTarget::GetCompositorForCurrentThread();
+											  self->m_liquidGlassMaterial = nullptr;
+											  self->m_backdropEffectBrush = CreateMultiSourceBackdropBrush(
+												  compositor,
+												  WinUI::Composition::Hlsl::HlslEffectKind::Color);
+											  self->m_backdropBrushProtected.CompositionBrush(self->m_backdropEffectBrush.Brush());
+											  break;
+										  }
+										  case 1:
+										  {
+											  auto compositor = Media::CompositionTarget::GetCompositorForCurrentThread();
+											  self->m_backdropEffectBrush = CreateMultiSourceBackdropBrush(
+												  compositor,
+												  WinUI::Composition::Hlsl::HlslEffectKind::Sampler);
+											  self->m_backdropBrushProtected.CompositionBrush(self->m_backdropEffectBrush.Brush());
+											  break;
+										  }
+										  case 2: self->EffectSelector().SelectedIndex(4); break;
+										  case 3: self->RefractionStrengthSlider().Value(42); self->CornerRadiusSlider().Value(40); self->BlurRadiusSlider().Value(18); break;
+										  case 4: self->BackdropFrame().Width(500); self->BackdropFrame().Height(300); break;
+										  case 5: self->m_liquidGlassMaterial.BlurRadius(0); break;
+										  case 6: self->m_liquidGlassMaterial.BlurRadius(64); self->m_liquidGlassMaterial.DispersionStrength(2); break;
+										  case 7: self->m_liquidGlassMaterial.BlurRadius(18); break;
+										  case 8: self->EffectSelector().SelectedIndex(3); break;
+										  case 9: self->EffectSelector().SelectedIndex(2); break;
+										  case 10: self->EffectSelector().SelectedIndex(4); break;
+										  case 11: self->m_liquidGlassMaterial.BlurRadius(0); self->m_liquidGlassMaterial.RefractionStrength(0); break;
 										  default:
-											  std::ofstream("smoke.log", std::ios::app) << "PASS: invert, sampler blur, glass, properties, resize, blur 0/64, material recreation\n";
+											  std::ofstream("smoke.log", std::ios::app) << "PASS: multi-source color/sampler, invert, sampler blur, glass, properties, resize, blur 0/64, material recreation\n";
 											  self->m_smokeTimer.Stop(); self->Close(); return;
 									  }
 									  std::ofstream("smoke.log", std::ios::app) << "phase " << phase << " applied\n";

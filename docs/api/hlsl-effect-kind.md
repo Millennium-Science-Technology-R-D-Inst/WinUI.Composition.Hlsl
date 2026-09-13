@@ -1,6 +1,6 @@
 # HlslEffectKind enum
 
-Identifies the shader and graph-lowering contract represented by an [HlslEffect](hlsl-effect.md).
+Identifies the shader and graph-lowering contract represented by an [HlslEffect](hlsl-effect.md), or asks the compiler to infer that contract from HLSL source.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
 **Package:** `WinUI.Composition.Hlsl` v1.0.0  
@@ -17,6 +17,11 @@ public enum HlslEffectKind
 | `Color` | 0 | `float4 PSBody(float4 color)` | Linked color transform. |
 | `Sampler` | 1 | `float4 Shade(float2 uv, float4 samplerDataExt)` | Custom sampler using the linked Composition sampler contract. |
 | `MaterializedSampler` | 2 | `float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)` | Materializes one upstream native effect graph to a texture before custom sampling. |
+| `Auto` | 3 | Compiler probes the three contracts above. | Compiler/build-time convenience value only; the resulting `HlslShaderLibrary.EffectKind` is always a concrete kind. |
+
+`Auto` is accepted by `HlslCompiler` and is the default `<HlslCompositionShader>` build metadata. The compiler constructs each supported public wrapper contract, asks FXC to compile it, and accepts the source only when exactly one contract succeeds. If no contract or more than one contract matches, compilation fails and the caller must specify a concrete kind.
+
+`Auto` is deliberately **not** a fourth Composition execution mode. APIs that create or describe an effect graph require `Color`, `Sampler`, or `MaterializedSampler`; passing `Auto` there is invalid. This keeps compiler convenience separate from the private Composition ABI.
 
 For source-based and `<HlslCompositionShader>` builds, the library generates the private `PSBody*` edge-mode wrappers. `MaterializedSampler` also generates the identity `MaterializeColor` helper required by the currently validated materialized graph lowering.
 

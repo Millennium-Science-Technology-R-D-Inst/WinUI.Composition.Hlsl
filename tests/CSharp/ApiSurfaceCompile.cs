@@ -14,6 +14,15 @@ internal static class ApiSurfaceCompile
         }
         """;
 
+    private const string MultiSourceSamplerShader = """
+        float4 Shade(float2 uv0, float4 samplerDataExt0, float2 uv1, float4 samplerDataExt1)
+        {
+            float4 first = texture0.Sample(sampler0, uv0);
+            float4 second = texture1.Sample(sampler1, uv1);
+            return lerp(first, second, 0.5f + (samplerDataExt0.x + samplerDataExt1.x) * 0.0f);
+        }
+        """;
+
     // Intentionally never called. This keeps the managed projection/API surface in
     // the normal compiler graph so CI catches IDL/projection drift without touching
     // the private Composition runtime during the build.
@@ -22,7 +31,7 @@ internal static class ApiSurfaceCompile
         _ = HlslComposition.GetRuntimeCapabilities();
         _ = HlslCompiler.CompileAsync(
             MaterializedShader,
-            HlslEffectKind.MaterializedSampler,
+            HlslEffectKind.Auto,
             HlslShaderProfile.Pixel40);
         _ = HlslCompiler.CompileWithDefinesAsync(
             MaterializedShader,
@@ -35,13 +44,64 @@ internal static class ApiSurfaceCompile
             HlslShaderProfile.Pixel40,
             Array.Empty<HlslFloatProperty>(),
             new[] { "RUNTIME_VARIANT=2" });
+        _ = HlslCompiler.CompileAdvancedAsync(
+            MultiSourceSamplerShader,
+            HlslEffectKind.Auto,
+            HlslShaderProfile.Pixel40,
+            2);
+        _ = HlslCompiler.CompileAdvancedWithPropertiesAndDefinesAsync(
+            MultiSourceSamplerShader,
+            HlslEffectKind.Sampler,
+            HlslShaderProfile.Pixel40,
+            2,
+            Array.Empty<HlslFloatProperty>(),
+            new[] { "MULTI_SOURCE=1" });
         _ = HlslShaderLibrary.LoadFromFileAsync(file, HlslShaderProfile.Pixel40);
         _ = HlslShaderLibrary.LoadFromApplicationUriAsync(
             new Uri("ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"),
             HlslShaderProfile.Pixel40);
+        _ = HlslShaderLibrary.LoadGeneratedFromFileAsync(file);
+        _ = HlslShaderLibrary.LoadGeneratedFromApplicationUriAsync(
+            new Uri("ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"));
+
+        // Compile-only checks for the generated-bytecode convenience surface. The
+        // placeholder bytes are never evaluated because this method is never called.
+        byte[] generatedBytes = [0x44, 0x58, 0x42, 0x43];
+        _ = HlslShaderLibrary.CreateFromGeneratedByteArray(generatedBytes);
+        _ = library.EffectKind;
+        _ = library.SourceCount;
 
         var effect = HlslEffect.CreateCustomMaterializedSampler(MaterializedShader);
+        _ = HlslEffect.CreateCompiled(Guid.Empty, library);
+        _ = HlslEffect.CreateCompiledFromGeneratedByteArray(Guid.Empty, generatedBytes);
         _ = HlslEffect.CreateCompiledMaterializedSampler(Guid.Empty, library);
+
+        string[] sourceNames = ["First", "Second"];
+        var multiSourceEffect = HlslEffect.CreateAdvanced(
+            MultiSourceSamplerShader,
+            HlslEffectKind.Sampler,
+            sourceNames,
+            Array.Empty<HlslProperty>());
+        _ = multiSourceEffect.SourceNames;
+        _ = HlslComposition.CreateBackdropBrush(compositor, multiSourceEffect);
+
+        CompositionBrush[] compositionSources =
+        [
+            compositor.CreateBackdropBrush(),
+            compositor.CreateBackdropBrush(),
+        ];
+        _ = HlslComposition.CreateBrushWithSources(
+            compositor,
+            multiSourceEffect,
+            compositionSources);
+
+        _ = HlslEffect.CreateCompiledAdvanced(
+            Guid.Empty,
+            library,
+            HlslEffectKind.Sampler,
+            sourceNames,
+            Array.Empty<HlslProperty>());
+
         var graph = effect.CreateGraphicsEffect();
         var paths = effect.GetAnimatablePropertyPaths();
         _ = compositor.CreateEffectFactory(graph, paths);

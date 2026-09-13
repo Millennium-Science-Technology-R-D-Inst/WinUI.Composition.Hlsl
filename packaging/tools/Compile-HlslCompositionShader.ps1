@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$InputPath,
     [Parameter(Mandatory = $true)][string]$OutputPath,
-    [Parameter(Mandatory = $true)][ValidateSet('Color', 'Sampler', 'MaterializedSampler')][string]$Kind,
+    [Parameter(Mandatory = $true)][ValidateSet('Auto', 'Color', 'Sampler', 'MaterializedSampler')][string]$Kind,
+    [ValidateRange(1, 16)][int]$SourceCount = 1,
     [ValidateSet('Level91', 'Level93', 'Pixel40')][string]$Profile = 'Pixel40',
     [string]$IncludeDirectories = '',
     [string]$Defines = '',
@@ -52,6 +53,24 @@ function Get-Target([string]$ShaderProfile) {
     }
 }
 
+function Get-KindValue([string]$EffectKind) {
+    switch ($EffectKind) {
+        'Color' { return 0 }
+        'Sampler' { return 1 }
+        'MaterializedSampler' { return 2 }
+        default { throw "Unsupported concrete effect kind '$EffectKind'." }
+    }
+}
+
+function Get-ProfileValue([string]$ShaderProfile) {
+    switch ($ShaderProfile) {
+        'Level91' { return 0 }
+        'Level93' { return 1 }
+        'Pixel40' { return 2 }
+        default { throw "Unsupported shader profile '$ShaderProfile'." }
+    }
+}
+
 function Get-SafeIdentifier([string]$Name) {
     if (!$Name) { return '' }
     $safe = [Text.RegularExpressions.Regex]::Replace($Name, '[^A-Za-z0-9_]', '_')
@@ -65,11 +84,6 @@ function Get-SafeIdentifier([string]$Name) {
 }
 
 function Make-GeneratedHeaderSelfContained([string]$Path) {
-    # FXC /Fh emits `const BYTE name[] = ...`, which requires callers to include
-    # Windows.h (or another header that defines BYTE) before the generated file.
-    # Generated package headers should not impose that textual Windows-header
-    # dependency, especially for C++ module consumers. Preserve FXC's byte array
-    # representation while spelling the element type in standard C++.
     $text = [IO.File]::ReadAllText($Path)
     $normalized = [Text.RegularExpressions.Regex]::Replace(
         $text,
@@ -81,6 +95,88 @@ function Make-GeneratedHeaderSelfContained([string]$Path) {
     }
 
     [IO.File]::WriteAllText($Path, $normalized, [Text.UTF8Encoding]::new($false))
+}
+
+function Write-PreparedShader(
+    [string]$ResolvedKind,
+    [string]$PreparedPath,
+    [string]$DisplayPath,
+    [string]$UserSource,
+    [string]$ShaderProfile,
+    [int]$ResolvedSourceCount) {
+    if ($ResolvedKind -eq 'MaterializedSampler' -and $ResolvedSourceCount -ne 1) {
+        throw 'MaterializedSampler currently supports exactly one source.'
+    }
+
+    $builder = [Text.StringBuilder]::new()
+    if ($ResolvedKind -ne 'Color') {
+        for ($inputIndex = 0; $inputIndex -lt $ResolvedSourceCount; ++$inputIndex) {
+            [void]$builder.AppendLine("Texture2D texture$inputIndex; SamplerState sampler$inputIndex;")
+        }
+    }
+    [void]$builder.AppendLine("#line 1 `"$DisplayPath`"")
+    [void]$builder.Append($UserSource)
+    if (!$UserSource.EndsWith("`n")) {
+        [void]$builder.AppendLine()
+    }
+
+    if ($ResolvedKind -eq 'MaterializedSampler' -or $ResolvedKind -eq 'Sampler') {
+        $includeContentRect = $ResolvedKind -eq 'MaterializedSampler'
+        $parameters = @()
+        $arguments = @()
+        for ($inputIndex = 0; $inputIndex -lt $ResolvedSourceCount; ++$inputIndex) {
+            $suffix = if ($ResolvedSourceCount -eq 1) { '' } else { [string]$inputIndex }
+            $parameters += "float2 uv$suffix"
+            $parameters += "float4 samplerDataExt$suffix"
+            $arguments += "uv$suffix"
+            $arguments += "samplerDataExt$suffix"
+            if ($includeContentRect) {
+                $parameters += "float4 samplerData$suffix"
+                $arguments += "samplerData$suffix"
+            }
+        }
+        $parameterList = $parameters -join ','
+        $argumentList = $arguments -join ','
+
+        if ($includeContentRect) {
+            [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+            [void]$builder.AppendLine('export float4 MaterializeColor(float4 color){return color;}')
+        }
+        $suffixes = @('', 'CC', 'CW', 'CM', 'WC', 'WW', 'WM', 'MC', 'MW', 'MM', 'C', 'W', 'M')
+        foreach ($suffix in $suffixes) {
+            [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+            [void]$builder.AppendLine("export float4 PSBody$suffix($parameterList){return Shade($argumentList);}")
+        }
+    }
+    elseif ($ResolvedSourceCount -gt 1) {
+        $parameters = @()
+        $arguments = @()
+        for ($inputIndex = 0; $inputIndex -lt $ResolvedSourceCount; ++$inputIndex) {
+            $parameters += "float4 color$inputIndex"
+            $arguments += "color$inputIndex"
+        }
+        $parameterList = $parameters -join ','
+        $argumentList = $arguments -join ','
+        [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+        [void]$builder.AppendLine("export float4 PSBody($parameterList){return Shade($argumentList);}")
+    }
+    else {
+        # Preserve the original single-source Color contract: callers implement
+        # PSBody(float4 color) directly. This wrapper only makes FXC validate it.
+        [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+        [void]$builder.AppendLine('export float4 __WinUICompositionHlslValidateColor(float4 color){return PSBody(color);}')
+    }
+
+    $kindValue = Get-KindValue $ResolvedKind
+    $profileValue = Get-ProfileValue $ShaderProfile
+    [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Metadata.hlsl"')
+    [void]$builder.AppendLine("export float4 __WinUICompositionHlsl_Metadata_K${kindValue}_P${profileValue}_S${ResolvedSourceCount}(float4 value){return value;}")
+
+    [IO.File]::WriteAllText($PreparedPath, $builder.ToString(), [Text.UTF8Encoding]::new($false))
+}
+
+if ($Kind -eq 'MaterializedSampler' -and $SourceCount -ne 1) {
+    throw 'MaterializedSampler currently supports exactly one source.'
 }
 
 $inputFull = [IO.Path]::GetFullPath($InputPath)
@@ -101,54 +197,17 @@ if ($source.IndexOf([char]0) -ge 0) {
 
 $outputDirectory = [IO.Path]::GetDirectoryName($outputFull)
 [IO.Directory]::CreateDirectory($outputDirectory) | Out-Null
-$prepared = [IO.Path]::Combine(
-    $outputDirectory,
-    [IO.Path]::GetFileNameWithoutExtension($outputFull) + '.prepared.hlsl')
-
+$outputBaseName = [IO.Path]::GetFileNameWithoutExtension($outputFull)
+$prepared = [IO.Path]::Combine($outputDirectory, $outputBaseName + '.prepared.hlsl')
 $displayPath = $inputFull.Replace('\', '/')
-$builder = [Text.StringBuilder]::new()
-if ($Kind -ne 'Color') {
-    [void]$builder.AppendLine('Texture2D texture0; SamplerState sampler0;')
-}
-[void]$builder.AppendLine("#line 1 `"$displayPath`"")
-[void]$builder.Append($source)
-if (!$source.EndsWith("`n")) {
-    [void]$builder.AppendLine()
-}
-
-if ($Kind -eq 'MaterializedSampler') {
-    [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
-    [void]$builder.AppendLine('export float4 MaterializeColor(float4 color){return color;}')
-    $suffixes = @('', 'CC', 'CW', 'CM', 'WC', 'WW', 'WM', 'MC', 'MW', 'MM', 'C', 'W', 'M')
-    foreach ($suffix in $suffixes) {
-        [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
-        [void]$builder.AppendLine("export float4 PSBody$suffix(float2 uv,float4 samplerDataExt,float4 samplerData){return Shade(uv,samplerDataExt,samplerData);}")
-    }
-}
-elseif ($Kind -eq 'Sampler') {
-    $suffixes = @('', 'CC', 'CW', 'CM', 'WC', 'WW', 'WM', 'MC', 'MW', 'MM', 'C', 'W', 'M')
-    foreach ($suffix in $suffixes) {
-        [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
-        [void]$builder.AppendLine("export float4 PSBody$suffix(float2 uv,float4 samplerDataExt){return Shade(uv,samplerDataExt);}")
-    }
-}
-else {
-    # Force the public color ABI to resolve at build time. FXC reports a missing or
-    # incompatible PSBody(float4) here instead of deferring that error to app startup.
-    [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
-    [void]$builder.AppendLine('export float4 __WinUICompositionHlslValidateColor(float4 color){return PSBody(color);}')
-}
-
-[IO.File]::WriteAllText($prepared, $builder.ToString(), [Text.UTF8Encoding]::new($false))
-
 $fxc = Resolve-Fxc
-$arguments = @(
+
+$commonArguments = @(
     '/nologo',
     '/Ges',
     '/O3',
     '/WX',
     '/T', (Get-Target $Profile),
-    '/Fo', $outputFull,
     '/I', [IO.Path]::GetDirectoryName($inputFull)
 )
 
@@ -160,7 +219,7 @@ if ($IncludeDirectories) {
         if (!(Test-Path $resolvedDirectory -PathType Container)) {
             throw "HLSL include directory does not exist: '$resolvedDirectory'."
         }
-        $arguments += @('/I', $resolvedDirectory)
+        $commonArguments += @('/I', $resolvedDirectory)
     }
 }
 
@@ -173,9 +232,65 @@ if ($Defines) {
         if ($name -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
             throw "Invalid HLSL preprocessor definition '$trimmed'. Expected NAME or NAME=VALUE."
         }
-        $arguments += @('/D', $trimmed)
+        $commonArguments += @('/D', $trimmed)
     }
 }
+
+$resolvedKind = $Kind
+if ($Kind -eq 'Auto') {
+    $matches = @()
+    $candidates = if ($SourceCount -eq 1) {
+        @('Color', 'Sampler', 'MaterializedSampler')
+    }
+    else {
+        @('Color', 'Sampler')
+    }
+    foreach ($candidate in $candidates) {
+        $probePrepared = [IO.Path]::Combine($outputDirectory, "$outputBaseName.probe.$candidate.hlsl")
+        $probeOutput = [IO.Path]::Combine($outputDirectory, "$outputBaseName.probe.$candidate.dxbc")
+        try {
+            Write-PreparedShader $candidate $probePrepared $displayPath $source $Profile $SourceCount
+            $probeArguments = $commonArguments + @('/Fo', $probeOutput, $probePrepared)
+
+            # A failed probe means only that this public contract does not match the
+            # user's source. Windows PowerShell 5.1 turns native stderr into a
+            # NativeCommandError when ErrorActionPreference=Stop, so temporarily
+            # suppress native probe diagnostics and judge the candidate solely by
+            # FXC's exit code. The final selected compile still runs under Stop and
+            # reports its diagnostics normally.
+            $probeExitCode = 1
+            $previousErrorActionPreference = $ErrorActionPreference
+            try {
+                $ErrorActionPreference = 'SilentlyContinue'
+                & $fxc @probeArguments *> $null
+                $probeExitCode = $LASTEXITCODE
+            }
+            finally {
+                $ErrorActionPreference = $previousErrorActionPreference
+            }
+
+            if ($probeExitCode -eq 0) {
+                $matches += $candidate
+            }
+        }
+        finally {
+            Remove-Item $probePrepared -Force -ErrorAction SilentlyContinue
+            Remove-Item $probeOutput -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if ($matches.Count -eq 0) {
+        throw "Could not infer the Composition HLSL kind for '$inputFull' with SourceCount=$SourceCount. The shader must match exactly one supported Color or Sampler contract (plus MaterializedSampler for one source), or set <Kind> explicitly."
+    }
+    if ($matches.Count -ne 1) {
+        throw "The Composition HLSL kind for '$inputFull' is ambiguous ($($matches -join ', ')). Set <Kind> explicitly."
+    }
+    $resolvedKind = $matches[0]
+    Write-Host "Inferred Composition HLSL kind: $resolvedKind (SourceCount=$SourceCount)"
+}
+
+Write-PreparedShader $resolvedKind $prepared $displayPath $source $Profile $SourceCount
+$arguments = $commonArguments + @('/Fo', $outputFull)
 
 $headerFull = ''
 if ($HeaderPath) {
@@ -197,4 +312,4 @@ if ($headerFull) {
     Make-GeneratedHeaderSelfContained $headerFull
 }
 
-Write-Host "Compiled Composition HLSL: $inputFull -> $outputFull ($Kind/$Profile)"
+Write-Host "Compiled Composition HLSL: $inputFull -> $outputFull ($resolvedKind/$Profile, SourceCount=$SourceCount)"

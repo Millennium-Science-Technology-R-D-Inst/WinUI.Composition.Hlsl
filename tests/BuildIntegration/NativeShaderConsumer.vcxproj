@@ -30,20 +30,69 @@
       <WarningLevel>Level4</WarningLevel>
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <HlslCompositionInclude Include="Common.hlsli" />
+    <!-- Deliberately omit Kind/Profile: native package defaults should infer
+         Sampler and compile Pixel40 without repeating boilerplate metadata. -->
     <HlslCompositionShader Include="ConsumerSampler.hlsl">
-      <Kind>Sampler</Kind>
-      <Profile>Pixel40</Profile>
       <Defines>WINUI_COMPOSITION_HLSL_TEST=1</Defines>
     </HlslCompositionShader>
     <HlslCompositionShader Include="ConsumerMaterializedSampler.hlsl">
       <Kind>MaterializedSampler</Kind>
       <Profile>Pixel40</Profile>
     </HlslCompositionShader>
+    <!-- Multi-source fixtures deliberately omit Kind so Auto must distinguish
+         the linked Color and Sampler contracts at SourceCount=2. -->
+    <HlslCompositionShader Include="ConsumerMultiSourceColor.hlsl">
+      <SourceCount>2</SourceCount>
+    </HlslCompositionShader>
+    <HlslCompositionShader Include="ConsumerMultiSourceSampler.hlsl">
+      <SourceCount>2</SourceCount>
+    </HlslCompositionShader>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(MSBuildThisFileDirectory)..\..\packaging\WinUI.Composition.Hlsl.Native.targets" />
+
+  <!-- Lock the native package default to embedded generated headers. The compiled
+       DXBC remains an intermediate artifact, but it must not be duplicated under
+       the application output directory unless the consumer explicitly opts in. -->
+  <Target Name="ValidateNativeEmbeddedShaderDefaults" AfterTargets="Build">
+    <Error Condition="'$(HlslCompositionGenerateHeaders)'!='true'"
+           Text="Native HLSL integration must generate embedded headers by default." />
+    <Error Condition="'$(HlslCompositionPublishAsContent)'!='false'"
+           Text="Native HLSL integration must not publish loose DXBC by default." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerSampler.g.h')"
+           Text="ConsumerSampler.g.h was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMaterializedSampler.g.h')"
+           Text="ConsumerMaterializedSampler.g.h was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMultiSourceColor.g.h')"
+           Text="ConsumerMultiSourceColor.g.h was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMultiSourceSampler.g.h')"
+           Text="ConsumerMultiSourceSampler.g.h was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerSampler.dxbc')"
+           Text="ConsumerSampler intermediate DXBC was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMaterializedSampler.dxbc')"
+           Text="ConsumerMaterializedSampler intermediate DXBC was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMultiSourceColor.dxbc')"
+           Text="ConsumerMultiSourceColor intermediate DXBC was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMultiSourceSampler.dxbc')"
+           Text="ConsumerMultiSourceSampler intermediate DXBC was not generated." />
+    <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerSampler.dxbc')"
+           Text="ConsumerSampler.dxbc was unexpectedly published as native application content." />
+    <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerMaterializedSampler.dxbc')"
+           Text="ConsumerMaterializedSampler.dxbc was unexpectedly published as native application content." />
+    <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerMultiSourceColor.dxbc')"
+           Text="ConsumerMultiSourceColor.dxbc was unexpectedly published as native application content." />
+    <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerMultiSourceSampler.dxbc')"
+           Text="ConsumerMultiSourceSampler.dxbc was unexpectedly published as native application content." />
+    <!-- Execute the tiny validator after linking. It reflects the embedded DXBC
+         libraries and verifies the generated Kind/Profile/SourceCount exports,
+         without activating the private Composition runtime. -->
+    <Exec Command="&quot;$(TargetPath)&quot;" />
+  </Target>
 </Project>

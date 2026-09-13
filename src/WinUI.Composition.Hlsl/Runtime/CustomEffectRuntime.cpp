@@ -53,12 +53,13 @@ struct OwnedEffectDefinition
 		auto const hasSource = input.shaderSource && input.shaderSourceSize;
 		auto const hasBytecode = input.shaderBytecode && input.shaderBytecodeSize;
 		if (!input.effectName || !input.fragmentName || hasSource == hasBytecode || !input.shaderFunctionName ||
-			input.sourceCount != 1 || !input.sources || input.propertyCount > 64 ||
+			input.sourceCount == 0 || input.sourceCount > 16 || !input.sources || input.propertyCount > 64 ||
 			(input.propertyCount && !input.properties) ||
 			(input.nativePropertyMetadataCount && !input.nativePropertyMetadata) ||
 			(input.shaderArgumentCount && !input.shaderArguments) ||
 			(input.constantBufferPropertyCount && !input.constantBufferProperties) ||
-			(input.constantBufferSize && !input.constantBufferInitialValue))
+			(input.constantBufferSize && !input.constantBufferInitialValue) ||
+			(input.inputMode == CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture && input.sourceCount != 1))
 			throw winrt::hresult_invalid_argument(L"Invalid native effect definition.");
 		effectName = input.effectName; fragmentName = input.fragmentName;
 		if (hasSource) shaderSource.assign(input.shaderSource, input.shaderSourceSize);
@@ -81,6 +82,8 @@ struct OwnedEffectDefinition
 		sourceNames.resize(sources.size());
 		for (std::size_t i = 0; i < sources.size(); ++i)
 		{
+			if (!sources[i].name)
+				throw winrt::hresult_invalid_argument(L"Invalid native effect source.");
 			sourceNames[i] = sources[i].name; sources[i].name = sourceNames[i].c_str();
 		}
 		if (input.propertyCount)properties.assign(input.properties, input.properties + input.propertyCount);
@@ -1519,7 +1522,7 @@ namespace
 		// Shader arguments are the compact numbers consumed by dwmcorei's shader
 		// linker. They are not HLSL reflection data. Each value selects one linker
 		// input kind such as color sample, uv, samplerData, samplerDataExt, or the
-		// custom sampler return type.
+		// custom sampler result type.
 		if (!argumentCount)
 		{
 			return;
