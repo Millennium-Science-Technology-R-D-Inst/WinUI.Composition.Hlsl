@@ -22,6 +22,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Windows::Storage::Streams::IBuffer const& bytecode,
 			Hlsl::HlslShaderProfile profile);
 
+		static Hlsl::HlslShaderLibrary CreateFromByteArray(
+			winrt::array_view<std::uint8_t const> bytecode,
+			Hlsl::HlslShaderProfile profile);
+
 		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> LoadFromFileAsync(
 			Windows::Storage::StorageFile const& file,
 			Hlsl::HlslShaderProfile profile);
