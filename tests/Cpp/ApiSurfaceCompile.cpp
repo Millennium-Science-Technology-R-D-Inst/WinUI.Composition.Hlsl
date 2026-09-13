@@ -30,7 +30,7 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
 		auto defineView = defines.GetView();
 		(void)HlslCompiler::CompileAsync(
 			kCompileSurfaceShader,
-			HlslEffectKind::MaterializedSampler,
+			HlslEffectKind::Auto,
 			HlslShaderProfile::Pixel40);
 		(void)HlslCompiler::CompileWithDefinesAsync(
 			kCompileSurfaceShader,
