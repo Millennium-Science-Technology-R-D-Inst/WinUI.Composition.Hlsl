@@ -3,6 +3,7 @@
 		<HlslCompositionIntermediateRoot Condition="'$(HlslCompositionIntermediateRoot)'==''">$(IntermediateOutputPath)Hlsl\</HlslCompositionIntermediateRoot>
 		<HlslCompositionOutputRoot Condition="'$(HlslCompositionOutputRoot)'==''">$(OutputPath)Hlsl\</HlslCompositionOutputRoot>
 		<HlslCompositionGenerateHeaders Condition="'$(HlslCompositionGenerateHeaders)'==''">false</HlslCompositionGenerateHeaders>
+		<HlslCompositionPublishAsContent Condition="'$(HlslCompositionPublishAsContent)'==''">true</HlslCompositionPublishAsContent>
 	</PropertyGroup>
 	<ItemGroup>
 		<WindowsMetadataReference Include="$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.Composition.Hlsl.winmd" Implementation="WinUI.Composition.Hlsl.dll"/>

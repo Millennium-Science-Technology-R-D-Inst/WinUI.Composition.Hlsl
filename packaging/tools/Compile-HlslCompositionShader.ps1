@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory = $true)][ValidateSet('Color', 'Sampler', 'MaterializedSampler')][string]$Kind,
     [ValidateSet('Level91', 'Level93', 'Pixel40')][string]$Profile = 'Pixel40',
     [string]$IncludeDirectories = '',
+    [string]$Defines = '',
     [string]$HeaderPath = '',
     [string]$VariableName = ''
 )
@@ -141,6 +142,19 @@ if ($IncludeDirectories) {
             throw "HLSL include directory does not exist: '$resolvedDirectory'."
         }
         $arguments += @('/I', $resolvedDirectory)
+    }
+}
+
+if ($Defines) {
+    foreach ($definition in $Defines.Split(';', [StringSplitOptions]::RemoveEmptyEntries)) {
+        $trimmed = $definition.Trim()
+        if (!$trimmed) { continue }
+        $separator = $trimmed.IndexOf('=')
+        $name = if ($separator -ge 0) { $trimmed.Substring(0, $separator) } else { $trimmed }
+        if ($name -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
+            throw "Invalid HLSL preprocessor definition '$trimmed'. Expected NAME or NAME=VALUE."
+        }
+        $arguments += @('/D', $trimmed)
     }
 }
 
