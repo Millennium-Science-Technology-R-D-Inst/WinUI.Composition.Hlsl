@@ -30,7 +30,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				case Hlsl::HlslEffectKind::Color: return {};
 				case Hlsl::HlslEffectKind::Sampler: return { true, false };
 				case Hlsl::HlslEffectKind::MaterializedSampler: return { true, true };
-				default: throw hresult_invalid_argument(L"Unknown HLSL effect kind.");
+				default: throw hresult_invalid_argument(L"Auto is a compiler-only HLSL effect kind; a concrete Composition effect kind is required here.");
 			}
 		}
 
@@ -96,8 +96,6 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslShaderProfile profile,
 			std::span<MacroDefinition const> definitions)
 		{
-			// D3D_SHADER_MACRO is declared by the Windows SDK in the global namespace.
-			// Qualify it explicitly because this implementation itself lives under winrt::.
 			std::vector<::D3D_SHADER_MACRO> macros;
 			if (!definitions.empty())
 			{
@@ -119,6 +117,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				source.size(),
 				"UserShader.hlsl",
 				macros.empty() ? nullptr : macros.data(),
+				nullptr,
 				nullptr,
 				nullptr,
 				ShaderTarget(profile),
@@ -149,8 +148,6 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			std::vector<std::wstring> propertyNames;
 			std::vector<MacroDefinition> definitions;
 			Hlsl::HlslEffectKind kind{};
-			bool sampler{};
-			bool materialized{};
 			Hlsl::HlslShaderProfile profile{};
 		};
 
@@ -167,10 +164,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			{
 				throw hresult_invalid_argument(L"Shader source must be non-empty, contain no embedded NUL, and be no larger than 1 MiB.");
 			}
-			auto const kindInfo = GetEffectKindInfo(kind);
+			if (kind != Hlsl::HlslEffectKind::Auto) (void)GetEffectKindInfo(kind);
 			input.kind = kind;
-			input.sampler = kindInfo.sampler;
-			input.materialized = kindInfo.materialized;
 			(void)ShaderTarget(profile);
 			input.profile = profile;
 			input.definitions = CopyDefines(definitions);
@@ -190,18 +185,64 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			return input;
 		}
 
+		Hlsl::HlslShaderLibrary CompileConcreteKind(CompileInput const& input, Hlsl::HlslEffectKind kind)
+		{
+			auto const info = GetEffectKindInfo(kind);
+			auto source = hlsl::compiler::BuildPublicShaderSource(
+				input.declarations,
+				input.shader,
+				info.sampler,
+				info.materialized);
+			hlsl::compiler::AppendCompiledShaderMetadata(
+				source,
+				static_cast<std::uint32_t>(kind),
+				static_cast<std::uint32_t>(input.profile));
+			auto bytes = CompileLibrary(source, input.profile, input.definitions);
+			auto projected = make<HlslShaderLibrary>(std::move(bytes), input.profile, kind);
+			get_self<HlslShaderLibrary>(projected)->ValidateForEffect(kind, input.propertyNames);
+			return projected;
+		}
+
 		Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompilePreparedAsync(CompileInput input)
 		{
 			co_await resume_background();
-			auto source = hlsl::compiler::BuildPublicShaderSource(input.declarations, input.shader, input.sampler, input.materialized);
-			hlsl::compiler::AppendCompiledShaderMetadata(
-				source,
-				static_cast<std::uint32_t>(input.kind),
-				static_cast<std::uint32_t>(input.profile));
-			auto bytes = CompileLibrary(source, input.profile, input.definitions);
-			auto projected = make<HlslShaderLibrary>(std::move(bytes), input.profile, input.kind);
-			get_self<HlslShaderLibrary>(projected)->ValidateForEffect(input.kind, input.propertyNames);
-			co_return projected;
+			if (input.kind != Hlsl::HlslEffectKind::Auto)
+			{
+				co_return CompileConcreteKind(input, input.kind);
+			}
+
+			static constexpr Hlsl::HlslEffectKind candidates[]{
+				Hlsl::HlslEffectKind::Color,
+				Hlsl::HlslEffectKind::Sampler,
+				Hlsl::HlslEffectKind::MaterializedSampler,
+			};
+			Hlsl::HlslShaderLibrary match{ nullptr };
+			std::uint32_t matchCount{};
+			for (auto candidate : candidates)
+			{
+				try
+				{
+					auto compiled = CompileConcreteKind(input, candidate);
+					++matchCount;
+					if (matchCount == 1) match = std::move(compiled);
+				}
+				catch (hresult_error const&)
+				{
+					// Candidate compilation/reflection failures are expected while probing.
+				}
+			}
+
+			if (matchCount == 0)
+			{
+				throw hresult_invalid_argument(
+					L"HLSL effect kind could not be inferred. The shader must match exactly one Color, Sampler, or MaterializedSampler public contract, or specify the kind explicitly.");
+			}
+			if (matchCount != 1)
+			{
+				throw hresult_invalid_argument(
+					L"HLSL effect kind is ambiguous because the source matches more than one public contract. Specify Color, Sampler, or MaterializedSampler explicitly.");
+			}
+			co_return match;
 		}
 	}
 
