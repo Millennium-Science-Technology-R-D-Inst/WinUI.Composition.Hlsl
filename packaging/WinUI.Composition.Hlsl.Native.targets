@@ -7,6 +7,7 @@
 		<HlslCompositionIntermediateRoot Condition="'$(HlslCompositionIntermediateRoot)'==''">$(IntDir)Hlsl\</HlslCompositionIntermediateRoot>
 		<HlslCompositionOutputRoot Condition="'$(HlslCompositionOutputRoot)'==''">$(OutDir)Hlsl\</HlslCompositionOutputRoot>
 		<HlslCompositionGenerateHeaders Condition="'$(HlslCompositionGenerateHeaders)'==''">true</HlslCompositionGenerateHeaders>
+		<HlslCompositionPublishAsContent Condition="'$(HlslCompositionPublishAsContent)'==''">true</HlslCompositionPublishAsContent>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="$(HlslWinmd)">
@@ -19,6 +20,18 @@
 			<ClCompile Update="@(ClCompile)">
 				<AdditionalIncludeDirectories>$(HlslCompositionIntermediateRoot);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 			</ClCompile>
+		</ItemGroup>
+	</Target>
+	<Target Name="HlslRegisterNativeShaderContent"
+			BeforeTargets="PrepareForBuild"
+			Condition="'$(HlslCompositionPublishAsContent)'=='true' and '@(HlslCompositionShader)'!=''">
+		<ItemGroup>
+			<Content Include="%(_HlslCompositionTracked.TrackedDxbc)">
+				<Link>Hlsl\%(_HlslCompositionTracked.AssetRelativePath)</Link>
+				<TargetPath>Hlsl\%(_HlslCompositionTracked.AssetRelativePath)</TargetPath>
+				<DeploymentContent>true</DeploymentContent>
+				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			</Content>
 		</ItemGroup>
 	</Target>
 	<Target Name="HlslCheckNativeAsset" BeforeTargets="PrepareForBuild" Condition="!Exists('$(HlslNativeDll)')">
