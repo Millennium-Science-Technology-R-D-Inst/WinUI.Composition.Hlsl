@@ -40,7 +40,10 @@
            Text="HlslCompositionShader %(HlslCompositionShader.Identity) has invalid Kind '%(HlslCompositionShader.Kind)'. Use Auto, Color, Sampler, or MaterializedSampler." />
     <Error Condition="'%(HlslCompositionShader.Profile)'!='Level91' and '%(HlslCompositionShader.Profile)'!='Level93' and '%(HlslCompositionShader.Profile)'!='Pixel40'"
            Text="HlslCompositionShader %(HlslCompositionShader.Identity) has invalid Profile '%(HlslCompositionShader.Profile)'. Use Level91, Level93, or Pixel40." />
-    <Error Condition="'$([System.Text.RegularExpressions.Regex]::IsMatch('%(HlslCompositionShader.SourceCount)', '^(?:[1-9]|1[0-6])$'))'!='True'"
+    <!-- Keep SourceCount validation as ordinary MSBuild string comparisons. Using an
+         item-metadata reference inside a Regex property function is parsed differently
+         by some MSBuild versions and can fail before the validation target runs. -->
+    <Error Condition="'%(HlslCompositionShader.SourceCount)'!='1' and '%(HlslCompositionShader.SourceCount)'!='2' and '%(HlslCompositionShader.SourceCount)'!='3' and '%(HlslCompositionShader.SourceCount)'!='4' and '%(HlslCompositionShader.SourceCount)'!='5' and '%(HlslCompositionShader.SourceCount)'!='6' and '%(HlslCompositionShader.SourceCount)'!='7' and '%(HlslCompositionShader.SourceCount)'!='8' and '%(HlslCompositionShader.SourceCount)'!='9' and '%(HlslCompositionShader.SourceCount)'!='10' and '%(HlslCompositionShader.SourceCount)'!='11' and '%(HlslCompositionShader.SourceCount)'!='12' and '%(HlslCompositionShader.SourceCount)'!='13' and '%(HlslCompositionShader.SourceCount)'!='14' and '%(HlslCompositionShader.SourceCount)'!='15' and '%(HlslCompositionShader.SourceCount)'!='16'"
            Text="HlslCompositionShader %(HlslCompositionShader.Identity) has invalid SourceCount '%(HlslCompositionShader.SourceCount)'. Use an integer from 1 through 16." />
     <Error Condition="'%(HlslCompositionShader.Kind)'=='MaterializedSampler' and '%(HlslCompositionShader.SourceCount)'!='1'"
            Text="HlslCompositionShader %(HlslCompositionShader.Identity) uses MaterializedSampler, which currently supports exactly one source." />
