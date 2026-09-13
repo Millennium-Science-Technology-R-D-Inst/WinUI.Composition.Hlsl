@@ -39,4 +39,43 @@ namespace HlslNativeAbi
 #endif
 		return patch;
 	}
+
+	// The runtime patch path must fail closed. In particular, PatchSlot used to
+	// silently skip an IAT/delay-IAT entry when VirtualProtect failed, leaving the
+	// adapter only partially installed and deferring the error to a Composition
+	// worker. These wrappers preserve the Win32 BOOL signature used by the existing
+	// patch code but convert failures into immediate HRESULT exceptions. Defining
+	// the macros only after the wrappers keeps the ::Win32 calls inside them intact.
+	inline BOOL CheckedVirtualProtect(
+		LPVOID address,
+		SIZE_T size,
+		DWORD newProtect,
+		PDWORD oldProtect)
+	{
+		if (::VirtualProtect(address, size, newProtect, oldProtect))
+		{
+			return TRUE;
+		}
+		auto const error = ::GetLastError();
+		winrt::throw_hresult(HRESULT_FROM_WIN32(error ? error : ERROR_ACCESS_DENIED));
+	}
+
+	inline BOOL CheckedFlushInstructionCache(
+		HANDLE process,
+		LPCVOID address,
+		SIZE_T size)
+	{
+		if (::FlushInstructionCache(process, address, size))
+		{
+			return TRUE;
+		}
+		auto const error = ::GetLastError();
+		winrt::throw_hresult(HRESULT_FROM_WIN32(error ? error : ERROR_WRITE_FAULT));
+	}
 }
+
+// CustomEffectRuntime.cpp includes this header after Windows headers and winrt_base.
+// All subsequent patch-site calls therefore fail immediately instead of treating a
+// protection/cache-flush failure as a successful hook installation.
+#define VirtualProtect HlslNativeAbi::CheckedVirtualProtect
+#define FlushInstructionCache HlslNativeAbi::CheckedFlushInstructionCache
