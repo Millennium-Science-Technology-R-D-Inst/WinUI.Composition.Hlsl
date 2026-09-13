@@ -6,8 +6,11 @@
 		<HlslNativeDll Condition="'$(HlslNativeDll)'==''">$(MSBuildThisFileDirectory)..\..\runtimes\win-$(HlslNativeArchitecture)\native\WinUI.Composition.Hlsl.dll</HlslNativeDll>
 		<HlslCompositionIntermediateRoot Condition="'$(HlslCompositionIntermediateRoot)'==''">$(IntDir)Hlsl\</HlslCompositionIntermediateRoot>
 		<HlslCompositionOutputRoot Condition="'$(HlslCompositionOutputRoot)'==''">$(OutDir)Hlsl\</HlslCompositionOutputRoot>
+		<!-- Native consumers embed the generated .g.h byte array by default. Keep the
+		     compiled DXBC in the intermediate directory for validation/debugging, but
+		     do not duplicate it as loose application content unless explicitly asked. -->
 		<HlslCompositionGenerateHeaders Condition="'$(HlslCompositionGenerateHeaders)'==''">true</HlslCompositionGenerateHeaders>
-		<HlslCompositionPublishAsContent Condition="'$(HlslCompositionPublishAsContent)'==''">true</HlslCompositionPublishAsContent>
+		<HlslCompositionPublishAsContent Condition="'$(HlslCompositionPublishAsContent)'==''">false</HlslCompositionPublishAsContent>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="$(HlslWinmd)">
