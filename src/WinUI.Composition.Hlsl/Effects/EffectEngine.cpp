@@ -28,11 +28,12 @@ namespace hlsl::engine
 			if (bytes.size() > std::numeric_limits<ULONG>::max())
 				winrt::throw_hresult(E_INVALIDARG);
 			std::array<unsigned char, 32> digest{};
+			auto* mutableBytes = const_cast<std::uint8_t*>(bytes.data());
 			auto status = BCryptHash(
 				BCRYPT_SHA256_ALG_HANDLE,
 				nullptr,
 				0,
-				const_cast<PUCHAR>(reinterpret_cast<PUCHAR const>(bytes.data())),
+				reinterpret_cast<PUCHAR>(mutableBytes),
 				static_cast<ULONG>(bytes.size()),
 				digest.data(),
 				static_cast<ULONG>(digest.size()));
@@ -56,10 +57,12 @@ namespace hlsl::engine
 		{
 			if (!definition.shaderBytecode.empty())
 			{
-				return "dxbc:" + Hex(Sha256(definition.shaderBytecode));
+				auto digest = Sha256(std::span<std::uint8_t const>{ definition.shaderBytecode.data(),definition.shaderBytecode.size() });
+				return "dxbc:" + Hex(digest);
 			}
 			auto const* begin = reinterpret_cast<std::uint8_t const*>(definition.shader.data());
-			return "source:" + Hex(Sha256({ begin,definition.shader.size() }));
+			auto digest = Sha256({ begin,definition.shader.size() });
+			return "source:" + Hex(digest);
 		}
 
 		std::string Key(EffectDefinition const& definition)
