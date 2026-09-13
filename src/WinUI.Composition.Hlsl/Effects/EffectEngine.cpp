@@ -8,6 +8,7 @@
 import WinUI.Composition.Hlsl.EffectDef;
 import WinUI.Composition.Hlsl.CustomEffectRuntime;
 import WinUI.Composition.Hlsl.ShaderSource;
+import WinUI.Composition.Hlsl.TypedPropertyAbi;
 import std;
 import winrt_base;
 import winrt.Windows.Foundation;
@@ -23,39 +24,11 @@ namespace hlsl::engine
 			return true;
 		}
 
-		struct PropertySpec
-		{
-			char const* hlslType;
-			std::uint32_t expressionType;
-			std::uint32_t channels;
-			std::uint32_t alignment;
-			bool rowMajor;
-		};
-
-		PropertySpec GetPropertySpec(PropertyType type)
-		{
-			switch (type)
-			{
-				case PropertyType::Scalar: return { "float",18,1,4,false };
-				case PropertyType::Vector2: return { "float2",35,2,8,false };
-				case PropertyType::Vector3: return { "float3",52,3,16,false };
-				case PropertyType::Vector4: return { "float4",69,4,16,false };
-				case PropertyType::Matrix3x2: return { "float3x2",104,6,16,false };
-				case PropertyType::Matrix4x4: return { "float4x4",265,16,16,true };
-			}
-			throw winrt::hresult_invalid_argument(L"Unknown HLSL property type.");
-		}
-
 		std::vector<std::wstring> SourceNames(EffectDefinition const& definition)
 		{
 			return definition.sourceNames.empty()
 				? std::vector<std::wstring>{ definition.sourceName }
 			: definition.sourceNames;
-		}
-
-		size_t AlignUp(size_t value, size_t alignment)
-		{
-			return (value + alignment - 1) & ~(alignment - 1);
 		}
 
 		std::array<unsigned char, 32> Sha256(std::span<std::uint8_t const> bytes)
@@ -137,28 +110,26 @@ namespace hlsl::engine
 				sourceNames = SourceNames(description);
 				if (!description.properties.empty())
 				{
-					declarations += "cbuffer UserConstants : register(b0) {\n";
+					declarations = hlsl::propertyabi::BuildDeclarations(description.properties);
 					names.resize(description.properties.size());
+					hlsl::engine::PropertyLayoutCursor layoutCursor{};
 					for (size_t i = 0; i < description.properties.size(); ++i)
 					{
 						auto const& p = description.properties[i];
-						auto const spec = GetPropertySpec(p.type);
-						auto const offset = AlignUp(constants.size(), spec.alignment);
-						constants.resize(offset + spec.channels * sizeof(float));
-						memcpy(constants.data() + offset, p.initial.data(), spec.channels * sizeof(float));
+						auto const spec = GetPropertyAbiSpec(p.type);
+						auto const layout = AppendPropertyLayout(layoutCursor, p.type);
+						if (layout.propertyOffset != layout.constantBufferOffset)
+							throw winrt::hresult_error(E_FAIL, L"Typed property and constant-buffer layouts diverged unexpectedly.");
+						constants.resize(std::max<std::size_t>(
+							constants.size(), layout.constantBufferOffset + layout.propertySize));
+						memcpy(constants.data() + layout.constantBufferOffset, p.initial.data(), layout.propertySize);
 						names[i] = winrt::to_string(p.name);
-						declarations += spec.rowMajor ? "row_major " : "";
-						declarations += std::string(spec.hlslType) + " " + names[i] + " : packoffset(c" +
-							std::to_string(offset / 16);
-						auto component = (offset % 16) / 4;
-						if (component) declarations += std::string(".") + "xyzw"[component];
-						declarations += ");\n";
 						properties.push_back({ p.name.c_str(),static_cast<uint32_t>(i),ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT,nullptr,p.initial[0] });
-						metadata.push_back({ names[i].c_str(),static_cast<uint32_t>(offset),spec.expressionType,8,spec.channels,nullptr });
-						mappings.push_back({ static_cast<uint32_t>(i),static_cast<uint32_t>(offset) });
+						metadata.push_back({ names[i].c_str(),layout.propertyOffset,spec.expressionType,8,spec.valueCount,nullptr });
+						mappings.push_back({ static_cast<uint32_t>(i),layout.constantBufferOffset });
 					}
-					constants.resize(AlignUp(constants.size(), 16));
-					declarations += "};\n";
+					constants.resize(FinalConstantBufferSize(layoutCursor));
+					native.propertiesStructSize = FinalPropertyStructSize(layoutCursor);
 				}
 				if (description.shaderBytecode.empty())
 				{
@@ -196,7 +167,7 @@ namespace hlsl::engine
 				native.shaderFunctionName = "PSBody";
 				native.sources = sources.data(); native.sourceCount = static_cast<uint32_t>(sources.size()); native.properties = properties.data(); native.propertyCount = static_cast<uint32_t>(properties.size());
 				native.nativePropertyMetadata = metadata.data(); native.nativePropertyMetadataCount = static_cast<uint32_t>(metadata.size());
-				native.propertiesStructSize = static_cast<uint32_t>(constants.size());
+				if (description.properties.empty()) native.propertiesStructSize = 0;
 				native.constantBufferProperties = mappings.data(); native.constantBufferPropertyCount = static_cast<uint32_t>(mappings.size());
 				native.constantBufferSize = static_cast<uint32_t>(constants.size()); native.constantBufferInitialValue = constants.data();
 				native.shaderArguments = arguments.data();
@@ -255,9 +226,9 @@ namespace hlsl::engine
 		names.clear();
 		for (auto const& p : definition.properties)
 		{
-			auto const spec = GetPropertySpec(p.type);
+			auto const spec = GetPropertyAbiSpec(p.type);
 			if (!Identifier(p.name) || !names.insert(p.name).second || p.name == L"PSBody" || p.name == L"Shade" ||
-				p.initial.size() != spec.channels || !std::ranges::all_of(p.initial, [](float value)
+				p.initial.size() != spec.valueCount || !std::ranges::all_of(p.initial, [](float value)
 																		  {
 																			  return std::isfinite(value);
 																		  }) ||
@@ -300,7 +271,6 @@ namespace hlsl::engine
 	winrt::Microsoft::UI::Composition::CompositionEffectFactory GetFactory(winrt::Microsoft::UI::Composition::Compositor const& compositor, std::shared_ptr<EffectDefinition const> const& definition)
 	{
 		if (!compositor || !definition)throw winrt::hresult_invalid_argument();
-		// Always register/validate before cache lookup, including explicit-GUID collisions.
 		auto effect = Compile(definition);
 		for (auto it = factories.begin(); it != factories.end();)
 		{

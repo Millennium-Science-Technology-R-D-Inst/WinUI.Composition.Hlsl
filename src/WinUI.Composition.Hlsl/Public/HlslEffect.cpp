@@ -3,6 +3,7 @@
 #include "HlslShaderLibrary.h"
 #include "HlslProperty.h"
 import WinUI.Composition.Hlsl.CustomEffectRuntime;
+import WinUI.Composition.Hlsl.TypedPropertyAbi;
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	namespace
@@ -41,7 +42,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 
 		void ApplySources(hlsl::engine::EffectDefinition& definition,
-						  Windows::Foundation::Collections::IVectorView<hstring> const& sources)
+			Windows::Foundation::Collections::IVectorView<hstring> const& sources)
 		{
 			if (!sources || !sources.Size()) throw hresult_invalid_argument(L"At least one source name is required.");
 			definition.sourceNames.reserve(sources.Size());
@@ -54,7 +55,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 
 		void AppendAdvancedProperties(hlsl::engine::EffectDefinition& definition,
-									  Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
 		{
 			if (!properties) return;
 			for (auto const& projected : properties)
@@ -65,6 +66,17 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 					std::wstring(property->Name()),
 					static_cast<hlsl::engine::PropertyType>(property->Type()),
 					property->Values());
+			}
+		}
+
+		void ApplyProfile(hlsl::engine::EffectDefinition& definition, Hlsl::HlslShaderProfile profile)
+		{
+			switch (profile)
+			{
+				case Hlsl::HlslShaderProfile::Level91: definition.shaderProfile = CustomEffectRuntime::kShaderProfileLevel91; break;
+				case Hlsl::HlslShaderProfile::Level93: definition.shaderProfile = CustomEffectRuntime::kShaderProfileLevel93; break;
+				case Hlsl::HlslShaderProfile::Pixel40: definition.shaderProfile = CustomEffectRuntime::kShaderProfilePs40; break;
+				default: throw hresult_invalid_argument(L"Unknown shader profile.");
 			}
 		}
 
@@ -97,20 +109,11 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			ApplyKind(*definition, kind);
 			definition->sourceName = sourceName;
 			definition->shaderBytecode = library->BytecodeBytes();
-			switch (library->Profile())
-			{
-				case Hlsl::HlslShaderProfile::Level91: definition->shaderProfile = CustomEffectRuntime::kShaderProfileLevel91; break;
-				case Hlsl::HlslShaderProfile::Level93: definition->shaderProfile = CustomEffectRuntime::kShaderProfileLevel93; break;
-				case Hlsl::HlslShaderProfile::Pixel40: definition->shaderProfile = CustomEffectRuntime::kShaderProfilePs40; break;
-				default: throw hresult_invalid_argument(L"Unknown shader profile.");
-			}
+			ApplyProfile(*definition, library->Profile());
 			AppendProperties(*definition, properties);
 			std::vector<std::wstring> propertyNames;
 			propertyNames.reserve(definition->properties.size());
-			for (auto const& property : definition->properties)
-			{
-				propertyNames.push_back(property.name);
-			}
+			for (auto const& property : definition->properties) propertyNames.push_back(property.name);
 			library->ValidateForEffect(kind, 1, propertyNames);
 			hlsl::engine::Validate(*definition);
 			definition->id = id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
@@ -220,12 +223,15 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		ApplySources(*definition, sourceNames);
 		AppendAdvancedProperties(*definition, properties);
 		definition->shaderBytecode = library->BytecodeBytes();
-		definition->shaderProfile = static_cast<uint8_t>(library->Profile());
+		ApplyProfile(*definition, library->Profile());
 		library->ValidateForEffect(
 			kind,
 			static_cast<std::uint32_t>(definition->sourceNames.size()),
-			{}
-		);
+			{});
+		// The old compiled-advanced path passed an empty property list to the
+		// library validator. Validate the actual typed UserConstants schema here so
+		// name/type/offset/size mismatches cannot reach the private updater ABI.
+		hlsl::propertyabi::ValidateLibrary(library->BytecodeBytes(), definition->properties);
 		hlsl::engine::Validate(*definition);
 		definition->id = id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
 		return make<HlslEffect>(definition);
@@ -233,22 +239,16 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	Windows::Foundation::Collections::IVectorView<hstring> HlslEffect::PropertyNames() const
 	{
 		auto names = single_threaded_vector<hstring>();
-		for (auto const& property : m_definition->properties)
-		{
-			names.Append(hstring{ property.name });
-		}
+		for (auto const& property : m_definition->properties) names.Append(hstring{ property.name });
 		return names.GetView();
 	}
 	hstring HlslEffect::GetPropertyPath(hstring const& name) const
 	{
 		for (auto const& property : m_definition->properties)
 		{
-			if (name == property.name)
-			{
-				return hstring{ m_definition->effectName + L"." + property.name };
-			}
+			if (name == property.name) return hstring{ m_definition->effectName + L"." + property.name };
 		}
-		throw hresult_invalid_argument(L"The float property is not declared by this effect.");
+		throw hresult_invalid_argument(L"The property is not declared by this effect.");
 	}
 	Windows::Foundation::Collections::IVectorView<hstring> HlslEffect::SourceNames() const
 	{
@@ -261,9 +261,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	{
 		auto paths = single_threaded_vector<hstring>();
 		for (auto const& property : m_definition->properties)
-		{
 			paths.Append(hstring{ m_definition->effectName + L"." + property.name });
-		}
 		return paths.GetView();
 	}
 	Windows::Graphics::Effects::IGraphicsEffect HlslEffect::CreateGraphicsEffect() const

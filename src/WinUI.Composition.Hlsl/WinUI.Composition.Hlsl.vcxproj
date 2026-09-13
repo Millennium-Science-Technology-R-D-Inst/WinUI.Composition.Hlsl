@@ -125,6 +125,7 @@
     <ClCompile Include="Public\HlslComposition.cpp" />
     <ClInclude Include="Public\HlslComposition.h" />
     <ClCompile Include="Public\HlslCompiler.cpp" />
+    <ClCompile Include="Public\HlslCompiler.Typed.cpp" />
     <ClInclude Include="Public\HlslCompiler.h" />
     <ClCompile Include="Public\HlslEffect.cpp" />
     <ClInclude Include="Public\HlslEffect.h" />
@@ -145,6 +146,7 @@
     <ClCompile Include="Runtime\CustomEffectRuntime.ixx" />
     <ClInclude Include="Runtime\NativeArchitecture.h" />
     <ClCompile Include="Internal/Validation.ixx" />
+    <ClCompile Include="Internal/TypedPropertyAbi.ixx" />
     <Midl Include="Public/Api.idl" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
     <ClCompile Include="Effects\EffectDefinition.ixx">

@@ -20,6 +20,88 @@ export namespace hlsl::engine
 		Matrix4x4,
 	};
 
+	struct PropertyAbiSpec
+	{
+		char const* hlslType;
+		std::uint32_t expressionType;
+		std::uint32_t valueCount;
+		std::uint32_t propertyAlignment;
+		std::uint32_t rows;
+		std::uint32_t columns;
+		bool matrix;
+	};
+
+	inline PropertyAbiSpec GetPropertyAbiSpec(PropertyType type)
+	{
+		switch (type)
+		{
+			case PropertyType::Scalar: return { "float", 18, 1, 4, 1, 1, false };
+			case PropertyType::Vector2: return { "float2", 35, 2, 8, 1, 2, false };
+			case PropertyType::Vector3: return { "float3", 52, 3, 16, 1, 3, false };
+			case PropertyType::Vector4: return { "float4", 69, 4, 16, 1, 4, false };
+			case PropertyType::Matrix3x2: return { "float3x2", 104, 6, 16, 3, 2, true };
+			case PropertyType::Matrix4x4: return { "float4x4", 265, 16, 16, 4, 4, true };
+		}
+		throw winrt::hresult_invalid_argument(L"Unknown HLSL property type.");
+	}
+
+	inline constexpr std::uint32_t AbiAlignUp(std::uint32_t value, std::uint32_t alignment) noexcept
+	{
+		return (value + alignment - 1u) & ~(alignment - 1u);
+	}
+
+	struct PropertyLayoutCursor
+	{
+		std::uint32_t propertySize{};
+		std::uint32_t constantBufferSize{};
+	};
+
+	struct PropertyLayoutEntry
+	{
+		std::uint32_t propertyOffset{};
+		std::uint32_t propertySize{};
+		std::uint32_t constantBufferOffset{};
+		std::uint32_t constantBufferStorageSize{};
+	};
+
+	inline PropertyLayoutEntry AppendPropertyLayout(PropertyLayoutCursor& cursor, PropertyType type)
+	{
+		auto const spec = GetPropertyAbiSpec(type);
+		PropertyLayoutEntry result{};
+		result.propertyOffset = AbiAlignUp(cursor.propertySize, spec.propertyAlignment);
+		result.propertySize = spec.valueCount * sizeof(float);
+		cursor.propertySize = result.propertyOffset + result.propertySize;
+
+		// DirectPropertyUpdater copies valueCount*sizeof(float) bytes verbatim from
+		// the native property blob to the mapped constant-buffer offset. Therefore
+		// the shader-facing representation must also be contiguous. Matrices are
+		// emitted by TypedPropertyAbi as packed float vectors plus a macro that
+		// reconstructs the logical HLSL matrix, avoiding HLSL's implicit 16-byte
+		// matrix row/column stride.
+		result.constantBufferOffset = AbiAlignUp(cursor.constantBufferSize, spec.propertyAlignment);
+		result.constantBufferStorageSize = result.propertySize;
+		if ((result.constantBufferOffset & 15u) + result.constantBufferStorageSize > 16u && !spec.matrix)
+		{
+			result.constantBufferOffset = AbiAlignUp(result.constantBufferOffset, 16);
+		}
+		if (spec.matrix)
+		{
+			result.constantBufferOffset = AbiAlignUp(result.constantBufferOffset, 16);
+		}
+		cursor.constantBufferSize = result.constantBufferOffset + result.constantBufferStorageSize;
+		return result;
+	}
+
+	inline constexpr std::uint32_t FinalPropertyStructSize(PropertyLayoutCursor const& cursor) noexcept
+	{
+		return AbiAlignUp(cursor.propertySize, 16);
+	}
+
+	inline constexpr std::uint32_t FinalConstantBufferSize(PropertyLayoutCursor const& cursor) noexcept
+	{
+		return AbiAlignUp(cursor.constantBufferSize, 16);
+	}
+
 	struct Property
 	{
 		std::wstring name;
@@ -52,7 +134,6 @@ export namespace hlsl::engine
 		std::vector<std::wstring> sourceNames;
 		std::wstring effectName{ L"HlslEffect" };
 		std::vector<Property> properties;
-		// Built-ins provide the same native definition format, never special brush behavior.
 		CustomEffectRuntime::CustomEffectDefinition const* nativeTemplate{};
 	};
 
