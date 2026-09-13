@@ -14,6 +14,8 @@ public static HlslShaderLibrary Create(IBuffer bytecode, HlslShaderProfile profi
 
 The input is deep-copied. It must be a reflectable HLSL DXBC library no larger than 16 MiB. Construction rejects malformed/non-library payloads before they can reach the private Composition linker.
 
+For normal native C++ production shaders, prefer the build-time `<HlslCompositionShader>` path and include its generated `.g.h` byte-array header. `HlslShaderLibrary.Create` remains the low-level bridge when application code already owns compiled bytes as an `IBuffer`, for example a cache, generated shader, plugin payload, or deliberately loose asset.
+
 ## LoadFromFileAsync
 
 ```csharp
@@ -22,7 +24,7 @@ public static IAsyncOperation<HlslShaderLibrary> LoadFromFileAsync(
     HlslShaderProfile profile);
 ```
 
-Reads a DXBC library from a `StorageFile` and applies the same immutable-copy/container/reflection checks as `Create`. This avoids duplicating `IBuffer` file-reading plumbing in each C++/WinRT or C# application.
+Reads a DXBC library from a `StorageFile` and applies the same immutable-copy/container/reflection checks as `Create`. This avoids duplicating `IBuffer` file-reading plumbing in applications that intentionally use file-backed shaders.
 
 ## LoadFromApplicationUriAsync
 
@@ -40,9 +42,15 @@ var library = await HlslShaderLibrary.LoadFromApplicationUriAsync(
     HlslShaderProfile.Pixel40);
 ```
 
-The NuGet build targets publish `<HlslCompositionShader>` outputs under the `Hlsl\...` application-content path by default. Managed projects register those files before target-path assignment; native projects mark them as deployment content as well. This keeps build output, publish/MSIX content, and the `ms-appx:///Hlsl/...` URI contract aligned.
+Managed `<HlslCompositionShader>` consumers publish generated shader libraries under the `Hlsl\...` application-content path by default, so `ms-appx:///Hlsl/...` is the normal managed packaged-resource contract.
 
-Native consumers that use only generated embedded `.g.h` byte arrays can opt out of loose DXBC deployment through the package build property documented by the native target.
+Native C++ consumers instead generate self-contained `.g.h` byte arrays by default and do **not** duplicate the same bytecode as loose application content. A native project can opt into packaged/loose DXBC by setting:
+
+```xml
+<HlslCompositionPublishAsContent>true</HlslCompositionPublishAsContent>
+```
+
+The intermediate DXBC is still produced during a native build because it is the canonical FXC compilation result from which the generated header is emitted; it simply stays under the intermediate output tree unless publishing is requested.
 
 ## Profile
 
