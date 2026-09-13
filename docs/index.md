@@ -20,10 +20,13 @@ Declare known shaders at build time:
 <HlslCompositionShader Include="Effects\Glass.hlsl">
   <Kind>MaterializedSampler</Kind>
   <Profile>Pixel40</Profile>
+  <Defines>QUALITY=2;ENABLE_DISPERSION</Defines>
 </HlslCompositionShader>
 ```
 
-FXC then validates source and entry-point contracts during MSBuild and emits Composition-compatible DXBC. Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchronously and persist [HlslShaderLibrary.Bytecode](api/hlsl-shader-library.md) for later runs.
+FXC validates source and entry-point contracts during MSBuild and emits Composition-compatible DXBC. Shared `.hlsli` files can be listed as `HlslCompositionInclude` so changes invalidate the incremental build. Generated DXBC is published/deployed under the `Hlsl\...` application-content path by default.
+
+Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchronously, including bounded macro variants, and persist [HlslShaderLibrary.Bytecode](api/hlsl-shader-library.md) for later runs. Packaged build outputs can be loaded directly with `HlslShaderLibrary.LoadFromApplicationUriAsync`.
 
 ## Effect contracts
 
@@ -65,9 +68,12 @@ For simple backdrop effects, `HlslComposition.CreateBackdropBrush` remains the c
 
 - [Materialized graph compilation](design/materialized-graph-runtime.md)
 - [Precompiled and asynchronous shader libraries](design/precompiled-shaders.md)
+- [Runtime safety and lifetime contract](design/runtime-safety.md)
 
 ## Support boundary
 
 Windows App SDK 2.4 x64 is the validated private-ABI baseline. x86 and ARM64 adapters are experimental. Query `HlslComposition.GetRuntimeCapabilities()` before enabling optional materialized effects on architectures/builds where your application requires a fallback.
+
+Capability reporting is deliberately side-effect free. Private ABI resolution/patching remains lazy and must fail closed if the loaded native runtime cannot be resolved safely.
 
 The current backend intentionally supports one named public source and at most one custom HLSL node in a lowered graph. Multi-texture custom inputs, arbitrary custom-node chains, and unverified private vector/matrix property metadata remain unsupported rather than guessed.
