@@ -41,7 +41,14 @@ auto effect = HlslEffect::CreateCompiledFromGeneratedByteArray(
     g_Effects_Glass_Shader);
 ```
 
-Managed consumers do not generate C++ headers; their compiled shader libraries are published/deployed under the `Hlsl\...` application-content path by default and can be loaded through `ms-appx:///Hlsl/...`.
+Managed consumers do not generate C++ headers; their compiled shader libraries are published/deployed under the `Hlsl\...` application-content path by default. Generated assets are self-describing there as well:
+
+```csharp
+var library = await HlslShaderLibrary.LoadGeneratedFromApplicationUriAsync(
+    new Uri("ms-appx:///Hlsl/Effects/Glass.dxbc"));
+
+var effect = HlslEffect.CreateCompiled(Guid.Empty, library);
+```
 
 Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchronously, including bounded macro variants, and persist [HlslShaderLibrary.Bytecode](api/hlsl-shader-library.md) for later runs. Bytecode emitted by the package compiler is self-describing; external/legacy DXBC can continue to use the explicit-profile loading APIs.
 
