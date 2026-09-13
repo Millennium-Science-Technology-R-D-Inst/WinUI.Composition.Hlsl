@@ -30,6 +30,9 @@
       <WarningLevel>Level4</WarningLevel>
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -87,5 +90,9 @@
            Text="ConsumerMultiSourceColor.dxbc was unexpectedly published as native application content." />
     <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerMultiSourceSampler.dxbc')"
            Text="ConsumerMultiSourceSampler.dxbc was unexpectedly published as native application content." />
+    <!-- Execute the tiny validator after linking. It reflects the embedded DXBC
+         libraries and verifies the generated Kind/Profile/SourceCount exports,
+         without activating the private Composition runtime. -->
+    <Exec Command="&quot;$(TargetPath)&quot;" />
   </Target>
 </Project>
