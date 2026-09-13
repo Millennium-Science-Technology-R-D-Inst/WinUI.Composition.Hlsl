@@ -222,28 +222,35 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				throw hresult_invalid_argument(L"Shader bytecode is not a valid reflectable HLSL DXBC library.");
 			}
 		}
+
+		Hlsl::HlslShaderLibrary CreateValidatedLibraryFromBuffer(
+			Windows::Storage::Streams::IBuffer const& bytecode,
+			std::optional<Hlsl::HlslShaderProfile> requestedProfile)
+		{
+			if (!bytecode)
+			{
+				throw hresult_invalid_argument(L"The shader bytecode buffer is null.");
+			}
+
+			auto access = bytecode.as<::Windows::Storage::Streams::IBufferByteAccess>();
+			byte* data{};
+			check_hresult(access->Buffer(&data));
+			if (!data && bytecode.Length() != 0)
+			{
+				throw hresult_invalid_argument(L"The shader bytecode buffer is not readable.");
+			}
+
+			return CreateValidatedLibrary(
+				std::span<std::uint8_t const>{ reinterpret_cast<std::uint8_t const*>(data), bytecode.Length() },
+				requestedProfile);
+		}
 	}
 
 	Hlsl::HlslShaderLibrary HlslShaderLibrary::Create(
 		Windows::Storage::Streams::IBuffer const& bytecode,
 		Hlsl::HlslShaderProfile profile)
 	{
-		if (!bytecode)
-		{
-			throw hresult_invalid_argument(L"The shader bytecode buffer is null.");
-		}
-
-		auto access = bytecode.as<::Windows::Storage::Streams::IBufferByteAccess>();
-		byte* data{};
-		check_hresult(access->Buffer(&data));
-		if (!data && bytecode.Length() != 0)
-		{
-			throw hresult_invalid_argument(L"The shader bytecode buffer is not readable.");
-		}
-
-		return CreateValidatedLibrary(
-			std::span<std::uint8_t const>{ reinterpret_cast<std::uint8_t const*>(data), bytecode.Length() },
-			profile);
+		return CreateValidatedLibraryFromBuffer(bytecode, profile);
 	}
 
 	Hlsl::HlslShaderLibrary HlslShaderLibrary::CreateFromByteArray(
@@ -272,7 +279,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			throw hresult_invalid_argument(L"The shader file is null.");
 		}
 		auto buffer = co_await Windows::Storage::FileIO::ReadBufferAsync(file);
-		co_return Create(buffer, profile);
+		co_return CreateValidatedLibraryFromBuffer(buffer, profile);
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadFromApplicationUriAsync(
@@ -285,6 +292,28 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 		auto file = co_await Windows::Storage::StorageFile::GetFileFromApplicationUriAsync(uri);
 		co_return co_await LoadFromFileAsync(file, profile);
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadGeneratedFromFileAsync(
+		Windows::Storage::StorageFile const& file)
+	{
+		if (!file)
+		{
+			throw hresult_invalid_argument(L"The shader file is null.");
+		}
+		auto buffer = co_await Windows::Storage::FileIO::ReadBufferAsync(file);
+		co_return CreateValidatedLibraryFromBuffer(buffer, std::nullopt);
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadGeneratedFromApplicationUriAsync(
+		Windows::Foundation::Uri const& uri)
+	{
+		if (!uri)
+		{
+			throw hresult_invalid_argument(L"The shader URI is null.");
+		}
+		auto file = co_await Windows::Storage::StorageFile::GetFileFromApplicationUriAsync(uri);
+		co_return co_await LoadGeneratedFromFileAsync(file);
 	}
 
 	Windows::Storage::Streams::IBuffer HlslShaderLibrary::Bytecode() const
