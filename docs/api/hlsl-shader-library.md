@@ -78,31 +78,42 @@ Returns the Composition effect contract reflected from the compiled library: `Co
 
 The value is not trusted from metadata alone. `HlslShaderLibrary` derives the kind from the actual `PSBody`/edge-mode exports and rejects generated metadata that disagrees with that ABI.
 
-## LoadFromFileAsync
+## Explicit-profile file loading
 
 ```csharp
 public static IAsyncOperation<HlslShaderLibrary> LoadFromFileAsync(
     StorageFile file,
     HlslShaderProfile profile);
-```
 
-Reads a DXBC library from a `StorageFile` and applies the same immutable-copy/container/reflection checks as `Create`. This avoids duplicating `IBuffer` file-reading plumbing in applications that intentionally use file-backed shaders.
-
-## LoadFromApplicationUriAsync
-
-```csharp
 public static IAsyncOperation<HlslShaderLibrary> LoadFromApplicationUriAsync(
     Uri uri,
     HlslShaderProfile profile);
 ```
 
-Loads a packaged application resource, for example:
+These are the compatibility path for external or legacy DXBC where the package did not embed its own build metadata.
+
+## Generated file loading
+
+Generated shader assets do not need the profile supplied again:
 
 ```csharp
-var library = await HlslShaderLibrary.LoadFromApplicationUriAsync(
-    new Uri("ms-appx:///Hlsl/Effects/MyGlass.dxbc"),
-    HlslShaderProfile.Pixel40);
+public static IAsyncOperation<HlslShaderLibrary> LoadGeneratedFromFileAsync(
+    StorageFile file);
+
+public static IAsyncOperation<HlslShaderLibrary> LoadGeneratedFromApplicationUriAsync(
+    Uri uri);
 ```
+
+A managed package consumer can therefore use the output of `<HlslCompositionShader>` as:
+
+```csharp
+var library = await HlslShaderLibrary.LoadGeneratedFromApplicationUriAsync(
+    new Uri("ms-appx:///Hlsl/Effects/Glass.dxbc"));
+
+var effect = HlslEffect.CreateCompiled(Guid.Empty, library);
+```
+
+`Kind` and `Profile` come from the generated library and are validated against its reflected ABI. The older explicit-profile loaders remain available for assets produced elsewhere.
 
 Managed `<HlslCompositionShader>` consumers publish generated shader libraries under the `Hlsl\...` application-content path by default, so `ms-appx:///Hlsl/...` is the normal managed packaged-resource contract.
 
@@ -130,7 +141,8 @@ Returns a copy of the immutable DXBC payload. This is intended for application-m
 
 ```text
 first run: HLSL -> HlslCompiler.CompileAsync -> Bytecode -> disk/cache
-later:     generated cache -> CreateFromGeneratedByteArray -> HlslEffect.CreateCompiled
+later:     generated cache -> LoadGeneratedFromFileAsync/CreateFromGeneratedByteArray
+                         -> HlslEffect.CreateCompiled
 ```
 
 Because `HlslCompiler` emits the same embedded metadata marker as the MSBuild compiler, persisted bytecode produced by this library remains self-describing. External/legacy caches can continue to use the explicit-profile APIs.
