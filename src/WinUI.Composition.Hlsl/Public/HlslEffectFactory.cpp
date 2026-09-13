@@ -6,7 +6,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	Hlsl::HlslEffectBrush HlslEffectFactory::CreateBrush()
 	{
 		auto brush=make<implementation::HlslEffectBrush>(m_factory.CreateBrush(), m_definition);
-		for (auto const& property : m_definition->properties) brush.SetFloat(property.name, property.initial);
+		for (auto const& property : m_definition->properties) brush.SetFloat(hstring{ property.name }, property.initial);
 		return brush;
 	}
 }
