@@ -32,8 +32,8 @@ function Resolve-Fxc {
         Sort-Object { [version]$_.Name } -Descending
 
     foreach ($version in $versions) {
-        foreach ($host in @('x64', 'x86', 'arm64')) {
-            $candidate = Join-Path $version.FullName "$host\fxc.exe"
+        foreach ($hostArch in @('x64', 'x86', 'arm64')) {
+            $candidate = Join-Path $version.FullName "$hostArch\fxc.exe"
             if (Test-Path $candidate) {
                 return $candidate
             }
