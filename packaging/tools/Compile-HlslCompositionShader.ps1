@@ -2,6 +2,7 @@ param(
     [Parameter(Mandatory = $true)][string]$InputPath,
     [Parameter(Mandatory = $true)][string]$OutputPath,
     [Parameter(Mandatory = $true)][ValidateSet('Auto', 'Color', 'Sampler', 'MaterializedSampler')][string]$Kind,
+    [ValidateRange(1, 16)][int]$SourceCount = 1,
     [ValidateSet('Level91', 'Level93', 'Pixel40')][string]$Profile = 'Pixel40',
     [string]$IncludeDirectories = '',
     [string]$Defines = '',
@@ -101,10 +102,17 @@ function Write-PreparedShader(
     [string]$PreparedPath,
     [string]$DisplayPath,
     [string]$UserSource,
-    [string]$ShaderProfile) {
+    [string]$ShaderProfile,
+    [int]$ResolvedSourceCount) {
+    if ($ResolvedKind -eq 'MaterializedSampler' -and $ResolvedSourceCount -ne 1) {
+        throw 'MaterializedSampler currently supports exactly one source.'
+    }
+
     $builder = [Text.StringBuilder]::new()
     if ($ResolvedKind -ne 'Color') {
-        [void]$builder.AppendLine('Texture2D texture0; SamplerState sampler0;')
+        for ($inputIndex = 0; $inputIndex -lt $ResolvedSourceCount; ++$inputIndex) {
+            [void]$builder.AppendLine("Texture2D texture$inputIndex; SamplerState sampler$inputIndex;")
+        }
     }
     [void]$builder.AppendLine("#line 1 `"$DisplayPath`"")
     [void]$builder.Append($UserSource)
@@ -112,25 +120,49 @@ function Write-PreparedShader(
         [void]$builder.AppendLine()
     }
 
-    if ($ResolvedKind -eq 'MaterializedSampler') {
-        [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
-        [void]$builder.AppendLine('export float4 MaterializeColor(float4 color){return color;}')
+    if ($ResolvedKind -eq 'MaterializedSampler' -or $ResolvedKind -eq 'Sampler') {
+        $includeContentRect = $ResolvedKind -eq 'MaterializedSampler'
+        $parameters = @()
+        $arguments = @()
+        for ($inputIndex = 0; $inputIndex -lt $ResolvedSourceCount; ++$inputIndex) {
+            $suffix = if ($ResolvedSourceCount -eq 1) { '' } else { [string]$inputIndex }
+            $parameters += "float2 uv$suffix"
+            $parameters += "float4 samplerDataExt$suffix"
+            $arguments += "uv$suffix"
+            $arguments += "samplerDataExt$suffix"
+            if ($includeContentRect) {
+                $parameters += "float4 samplerData$suffix"
+                $arguments += "samplerData$suffix"
+            }
+        }
+        $parameterList = $parameters -join ','
+        $argumentList = $arguments -join ','
+
+        if ($includeContentRect) {
+            [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+            [void]$builder.AppendLine('export float4 MaterializeColor(float4 color){return color;}')
+        }
         $suffixes = @('', 'CC', 'CW', 'CM', 'WC', 'WW', 'WM', 'MC', 'MW', 'MM', 'C', 'W', 'M')
         foreach ($suffix in $suffixes) {
             [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
-            [void]$builder.AppendLine("export float4 PSBody$suffix(float2 uv,float4 samplerDataExt,float4 samplerData){return Shade(uv,samplerDataExt,samplerData);}")
+            [void]$builder.AppendLine("export float4 PSBody$suffix($parameterList){return Shade($argumentList);}")
         }
     }
-    elseif ($ResolvedKind -eq 'Sampler') {
-        $suffixes = @('', 'CC', 'CW', 'CM', 'WC', 'WW', 'WM', 'MC', 'MW', 'MM', 'C', 'W', 'M')
-        foreach ($suffix in $suffixes) {
-            [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
-            [void]$builder.AppendLine("export float4 PSBody$suffix(float2 uv,float4 samplerDataExt){return Shade(uv,samplerDataExt);}")
+    elseif ($ResolvedSourceCount -gt 1) {
+        $parameters = @()
+        $arguments = @()
+        for ($inputIndex = 0; $inputIndex -lt $ResolvedSourceCount; ++$inputIndex) {
+            $parameters += "float4 color$inputIndex"
+            $arguments += "color$inputIndex"
         }
+        $parameterList = $parameters -join ','
+        $argumentList = $arguments -join ','
+        [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
+        [void]$builder.AppendLine("export float4 PSBody($parameterList){return Shade($argumentList);}")
     }
     else {
-        # Validate the Color contract during compilation instead of waiting for the
-        # generated library to reach HlslShaderLibrary reflection at runtime.
+        # Preserve the original single-source Color contract: callers implement
+        # PSBody(float4 color) directly. This wrapper only makes FXC validate it.
         [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
         [void]$builder.AppendLine('export float4 __WinUICompositionHlslValidateColor(float4 color){return PSBody(color);}')
     }
@@ -138,9 +170,13 @@ function Write-PreparedShader(
     $kindValue = Get-KindValue $ResolvedKind
     $profileValue = Get-ProfileValue $ShaderProfile
     [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Metadata.hlsl"')
-    [void]$builder.AppendLine("export float4 __WinUICompositionHlsl_Metadata_K${kindValue}_P${profileValue}(float4 value){return value;}")
+    [void]$builder.AppendLine("export float4 __WinUICompositionHlsl_Metadata_K${kindValue}_P${profileValue}_S${ResolvedSourceCount}(float4 value){return value;}")
 
     [IO.File]::WriteAllText($PreparedPath, $builder.ToString(), [Text.UTF8Encoding]::new($false))
+}
+
+if ($Kind -eq 'MaterializedSampler' -and $SourceCount -ne 1) {
+    throw 'MaterializedSampler currently supports exactly one source.'
 }
 
 $inputFull = [IO.Path]::GetFullPath($InputPath)
@@ -203,11 +239,17 @@ if ($Defines) {
 $resolvedKind = $Kind
 if ($Kind -eq 'Auto') {
     $matches = @()
-    foreach ($candidate in @('Color', 'Sampler', 'MaterializedSampler')) {
+    $candidates = if ($SourceCount -eq 1) {
+        @('Color', 'Sampler', 'MaterializedSampler')
+    }
+    else {
+        @('Color', 'Sampler')
+    }
+    foreach ($candidate in $candidates) {
         $probePrepared = [IO.Path]::Combine($outputDirectory, "$outputBaseName.probe.$candidate.hlsl")
         $probeOutput = [IO.Path]::Combine($outputDirectory, "$outputBaseName.probe.$candidate.dxbc")
         try {
-            Write-PreparedShader $candidate $probePrepared $displayPath $source $Profile
+            Write-PreparedShader $candidate $probePrepared $displayPath $source $Profile $SourceCount
             $probeArguments = $commonArguments + @('/Fo', $probeOutput, $probePrepared)
 
             # A failed probe means only that this public contract does not match the
@@ -238,16 +280,16 @@ if ($Kind -eq 'Auto') {
     }
 
     if ($matches.Count -eq 0) {
-        throw "Could not infer the Composition HLSL kind for '$inputFull'. The shader must match exactly one Color, Sampler, or MaterializedSampler contract, or set <Kind> explicitly."
+        throw "Could not infer the Composition HLSL kind for '$inputFull' with SourceCount=$SourceCount. The shader must match exactly one supported Color or Sampler contract (plus MaterializedSampler for one source), or set <Kind> explicitly."
     }
     if ($matches.Count -ne 1) {
         throw "The Composition HLSL kind for '$inputFull' is ambiguous ($($matches -join ', ')). Set <Kind> explicitly."
     }
     $resolvedKind = $matches[0]
-    Write-Host "Inferred Composition HLSL kind: $resolvedKind"
+    Write-Host "Inferred Composition HLSL kind: $resolvedKind (SourceCount=$SourceCount)"
 }
 
-Write-PreparedShader $resolvedKind $prepared $displayPath $source $Profile
+Write-PreparedShader $resolvedKind $prepared $displayPath $source $Profile $SourceCount
 $arguments = $commonArguments + @('/Fo', $outputFull)
 
 $headerFull = ''
@@ -270,4 +312,4 @@ if ($headerFull) {
     Make-GeneratedHeaderSelfContained $headerFull
 }
 
-Write-Host "Compiled Composition HLSL: $inputFull -> $outputFull ($resolvedKind/$Profile)"
+Write-Host "Compiled Composition HLSL: $inputFull -> $outputFull ($resolvedKind/$Profile, SourceCount=$SourceCount)"
