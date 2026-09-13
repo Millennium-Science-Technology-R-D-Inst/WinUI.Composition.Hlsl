@@ -22,16 +22,54 @@ namespace hlsl::engine
 			for (auto c : name)if (c > 127 || !(iswalnum(c) || c == L'_'))return false;
 			return true;
 		}
+
+		std::array<unsigned char, 32> Sha256(std::span<std::uint8_t const> bytes)
+		{
+			if (bytes.size() > std::numeric_limits<ULONG>::max())
+				winrt::throw_hresult(E_INVALIDARG);
+			std::array<unsigned char, 32> digest{};
+			auto status = BCryptHash(
+				BCRYPT_SHA256_ALG_HANDLE,
+				nullptr,
+				0,
+				const_cast<PUCHAR>(reinterpret_cast<PUCHAR const>(bytes.data())),
+				static_cast<ULONG>(bytes.size()),
+				digest.data(),
+				static_cast<ULONG>(digest.size()));
+			if (status < 0) winrt::throw_hresult(E_FAIL);
+			return digest;
+		}
+
+		std::string Hex(std::span<unsigned char const> bytes)
+		{
+			static constexpr char digits[] = "0123456789abcdef";
+			std::string result(bytes.size() * 2, '\0');
+			for (size_t index = 0; index < bytes.size(); ++index)
+			{
+				result[index * 2] = digits[bytes[index] >> 4];
+				result[index * 2 + 1] = digits[bytes[index] & 0x0f];
+			}
+			return result;
+		}
+
+		std::string PayloadFingerprint(EffectDefinition const& definition)
+		{
+			if (!definition.shaderBytecode.empty())
+			{
+				return "dxbc:" + Hex(Sha256(definition.shaderBytecode));
+			}
+			auto const* begin = reinterpret_cast<std::uint8_t const*>(definition.shader.data());
+			return "source:" + Hex(Sha256({ begin,definition.shader.size() }));
+		}
+
 		std::string Key(EffectDefinition const& definition)
 		{
-			std::string result = definition.materializedSampler ? "materialized-sampler-v1:" : (definition.sampler ? "sampler-v2:" : "color-v2:");
+			std::string result = definition.materializedSampler ? "materialized-sampler-v2:" : (definition.sampler ? "sampler-v3:" : "color-v3:");
 			auto append = [&](std::string const& value)
 				{
 					result += std::to_string(value.size()) + ":" + value;
 				};
-			append(definition.shader);
-			append(definition.shaderBytecode.empty() ? std::string{} :
-				std::string(reinterpret_cast<char const*>(definition.shaderBytecode.data()), definition.shaderBytecode.size()));
+			append(PayloadFingerprint(definition));
 			result += ":" + std::to_string(definition.shaderProfile);
 			append(winrt::to_string(definition.sourceName)); append(winrt::to_string(definition.effectName));
 			for (auto const& p : definition.properties)
@@ -163,10 +201,9 @@ namespace hlsl::engine
 	}
 	winrt::guid DeriveId(EffectDefinition const& definition)
 	{
-		auto key = Key(definition); std::array<unsigned char, 32> digest{};
-		auto status = BCryptHash(BCRYPT_SHA256_ALG_HANDLE, nullptr, 0, reinterpret_cast<PUCHAR>(key.data()), static_cast<ULONG>(key.size()), digest.data(), 32);
-		if (status < 0)
-			winrt::throw_hresult(E_FAIL);
+		auto key = Key(definition);
+		auto const* begin = reinterpret_cast<std::uint8_t const*>(key.data());
+		auto digest = Sha256({ begin,key.size() });
 		winrt::guid id{}; memcpy(&id, digest.data(), sizeof(id)); return id;
 	}
 	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(std::shared_ptr<EffectDefinition const> const& definition)
