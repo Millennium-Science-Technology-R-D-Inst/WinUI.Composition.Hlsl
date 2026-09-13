@@ -242,7 +242,7 @@ namespace hlsl::engine
 			++it;
 		}
 		auto paths = winrt::single_threaded_vector<winrt::hstring>();
-		for (auto const& p : definition->properties)paths.Append(definition->effectName + L"." + p.name);
+		for (auto const& p : definition->properties) paths.Append(winrt::hstring{ definition->effectName + L"." + p.name });
 		auto factory = compositor.CreateEffectFactory(effect, paths);
 		if (compositor.try_as<::IWeakReferenceSource>() && factory.try_as<::IWeakReferenceSource>())
 			factories.push_back({ winrt::make_weak(compositor),winrt::make_weak(factory),definition->id });
