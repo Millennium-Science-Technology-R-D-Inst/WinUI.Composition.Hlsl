@@ -24,6 +24,8 @@
       <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).g.h</TrackedHeader>
       <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).dxbc</TrackedHeader>
       <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).dxbc</TrackedHeader>
+      <AssetRelativePath Condition="'%(OutputName)'==''">%(RelativeDir)%(Filename).dxbc</AssetRelativePath>
+      <AssetRelativePath Condition="'%(OutputName)'!=''">%(OutputName).dxbc</AssetRelativePath>
     </_HlslCompositionTracked>
   </ItemGroup>
 
@@ -54,8 +56,6 @@
         <PreparedPath Condition="'%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).prepared.hlsl</PreparedPath>
         <PublishedPath Condition="'%(OutputName)'==''">$(HlslCompositionOutputRoot)%(RelativeDir)%(Filename).dxbc</PublishedPath>
         <PublishedPath Condition="'%(OutputName)'!=''">$(HlslCompositionOutputRoot)%(OutputName).dxbc</PublishedPath>
-        <AssetRelativePath Condition="'%(OutputName)'==''">%(RelativeDir)%(Filename).dxbc</AssetRelativePath>
-        <AssetRelativePath Condition="'%(OutputName)'!=''">%(OutputName).dxbc</AssetRelativePath>
         <VariableName Condition="'%(HeaderVariableName)'==''">g_%(RelativeDir)%(Filename)_Shader</VariableName>
         <VariableName Condition="'%(HeaderVariableName)'!=''">%(HeaderVariableName)</VariableName>
       </_HlslCompositionCompile>
@@ -74,12 +74,6 @@
 
     <ItemGroup>
       <HlslCompositionShaderOutput Include="@(_HlslCompositionCompile->'%(PublishedPath)')" />
-      <ContentWithTargetPath Condition="'$(HlslCompositionPublishAsContent)'=='true'"
-                             Include="%(_HlslCompositionCompile.DxbcPath)">
-        <TargetPath>Hlsl\%(_HlslCompositionCompile.AssetRelativePath)</TargetPath>
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </ContentWithTargetPath>
       <FileWrites Include="@(_HlslCompositionCompile->'%(DxbcPath)')" />
       <FileWrites Include="@(_HlslCompositionCompile->'%(PreparedPath)')" />
       <FileWrites Include="@(_HlslCompositionCompile->'%(PublishedPath)')" />
