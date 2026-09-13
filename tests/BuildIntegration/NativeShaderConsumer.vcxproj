@@ -46,4 +46,26 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(MSBuildThisFileDirectory)..\..\packaging\WinUI.Composition.Hlsl.Native.targets" />
+
+  <!-- Lock the native package default to embedded generated headers. The compiled
+       DXBC remains an intermediate artifact, but it must not be duplicated under
+       the application output directory unless the consumer explicitly opts in. -->
+  <Target Name="ValidateNativeEmbeddedShaderDefaults" AfterTargets="Build">
+    <Error Condition="'$(HlslCompositionGenerateHeaders)'!='true'"
+           Text="Native HLSL integration must generate embedded headers by default." />
+    <Error Condition="'$(HlslCompositionPublishAsContent)'!='false'"
+           Text="Native HLSL integration must not publish loose DXBC by default." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerSampler.g.h')"
+           Text="ConsumerSampler.g.h was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMaterializedSampler.g.h')"
+           Text="ConsumerMaterializedSampler.g.h was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerSampler.dxbc')"
+           Text="ConsumerSampler intermediate DXBC was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMaterializedSampler.dxbc')"
+           Text="ConsumerMaterializedSampler intermediate DXBC was not generated." />
+    <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerSampler.dxbc')"
+           Text="ConsumerSampler.dxbc was unexpectedly published as native application content." />
+    <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerMaterializedSampler.dxbc')"
+           Text="ConsumerMaterializedSampler.dxbc was unexpectedly published as native application content." />
+  </Target>
 </Project>
