@@ -28,9 +28,22 @@ FXC validates source and entry-point contracts during MSBuild and emits a Compos
 
 Native C++ consumers generate a self-contained `.g.h` byte-array header by default and keep the corresponding DXBC only as an intermediate build artifact. The generated HLSL intermediate directory is added to the native compiler include path, so application source can directly `#include` the generated header. Set `HlslCompositionPublishAsContent=true` only when a native application intentionally wants the same compiled shader as a loose `Hlsl\...` asset.
 
+Generated libraries carry the selected effect kind/profile inside the DXBC as reserved metadata, so normal native code does not repeat the MSBuild configuration:
+
+```cpp
+#include "Glass.g.h"
+import winrt.WinUI.Composition.Hlsl;
+
+using namespace winrt::WinUI::Composition::Hlsl;
+
+auto effect = HlslEffect::CreateCompiledFromGeneratedByteArray(
+    {},
+    g_Effects_Glass_Shader);
+```
+
 Managed consumers do not generate C++ headers; their compiled shader libraries are published/deployed under the `Hlsl\...` application-content path by default and can be loaded through `ms-appx:///Hlsl/...`.
 
-Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchronously, including bounded macro variants, and persist [HlslShaderLibrary.Bytecode](api/hlsl-shader-library.md) for later runs. Packaged managed build outputs or explicitly published native outputs can be loaded directly with `HlslShaderLibrary.LoadFromApplicationUriAsync`.
+Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchronously, including bounded macro variants, and persist [HlslShaderLibrary.Bytecode](api/hlsl-shader-library.md) for later runs. Bytecode emitted by the package compiler is self-describing; external/legacy DXBC can continue to use the explicit-profile loading APIs.
 
 ## Effect contracts
 
