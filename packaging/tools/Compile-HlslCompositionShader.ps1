@@ -52,6 +52,24 @@ function Get-Target([string]$ShaderProfile) {
     }
 }
 
+function Get-KindValue([string]$EffectKind) {
+    switch ($EffectKind) {
+        'Color' { return 0 }
+        'Sampler' { return 1 }
+        'MaterializedSampler' { return 2 }
+        default { throw "Unsupported effect kind '$EffectKind'." }
+    }
+}
+
+function Get-ProfileValue([string]$ShaderProfile) {
+    switch ($ShaderProfile) {
+        'Level91' { return 0 }
+        'Level93' { return 1 }
+        'Pixel40' { return 2 }
+        default { throw "Unsupported shader profile '$ShaderProfile'." }
+    }
+}
+
 function Get-SafeIdentifier([string]$Name) {
     if (!$Name) { return '' }
     $safe = [Text.RegularExpressions.Regex]::Replace($Name, '[^A-Za-z0-9_]', '_')
@@ -138,6 +156,14 @@ else {
     [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
     [void]$builder.AppendLine('export float4 __WinUICompositionHlslValidateColor(float4 color){return PSBody(color);}')
 }
+
+# Embed the build contract in the compiled library itself. Native .g.h consumers can
+# then reconstruct both Kind and Profile from the bytecode without repeating the
+# project metadata in C++ source. The runtime compiler emits the same marker.
+$kindValue = Get-KindValue $Kind
+$profileValue = Get-ProfileValue $Profile
+[void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Metadata.hlsl"')
+[void]$builder.AppendLine("export float4 __WinUICompositionHlsl_Metadata_K${kindValue}_P${profileValue}(float4 value){return value;}")
 
 [IO.File]::WriteAllText($prepared, $builder.ToString(), [Text.UTF8Encoding]::new($false))
 
