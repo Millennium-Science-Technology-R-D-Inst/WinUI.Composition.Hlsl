@@ -40,7 +40,15 @@ internal static class ApiSurfaceCompile
             new Uri("ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"),
             HlslShaderProfile.Pixel40);
 
+        // Compile-only checks for the generated-bytecode convenience surface. The
+        // placeholder bytes are never evaluated because this method is never called.
+        byte[] generatedBytes = [0x44, 0x58, 0x42, 0x43];
+        _ = HlslShaderLibrary.CreateFromGeneratedByteArray(generatedBytes);
+        _ = library.EffectKind;
+
         var effect = HlslEffect.CreateCustomMaterializedSampler(MaterializedShader);
+        _ = HlslEffect.CreateCompiled(Guid.Empty, library);
+        _ = HlslEffect.CreateCompiledFromGeneratedByteArray(Guid.Empty, generatedBytes);
         _ = HlslEffect.CreateCompiledMaterializedSampler(Guid.Empty, library);
         var graph = effect.CreateGraphicsEffect();
         var paths = effect.GetAnimatablePropertyPaths();
