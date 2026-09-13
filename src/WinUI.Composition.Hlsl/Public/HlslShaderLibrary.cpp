@@ -70,56 +70,84 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			}
 			return !materialized || IsFloatVector(function->GetFunctionParameter(2), 4);
 		}
+
+		Hlsl::HlslShaderLibrary CreateValidatedLibrary(
+			std::span<std::uint8_t const> bytecode,
+			Hlsl::HlslShaderProfile profile)
+		{
+			if (bytecode.size() < 4 || bytecode.size() > 16 * 1024 * 1024)
+			{
+				throw hresult_invalid_argument(L"Shader bytecode must contain a DXBC library no larger than 16 MiB.");
+			}
+
+			switch (profile)
+			{
+				case Hlsl::HlslShaderProfile::Level91:
+				case Hlsl::HlslShaderProfile::Level93:
+				case Hlsl::HlslShaderProfile::Pixel40:
+					break;
+				default:
+					throw hresult_invalid_argument(L"Unknown HLSL shader profile.");
+			}
+
+			if (memcmp(bytecode.data(), "DXBC", 4) != 0)
+			{
+				throw hresult_invalid_argument(L"Shader bytecode is not a DXBC container.");
+			}
+
+			std::vector<std::uint8_t> owned(bytecode.begin(), bytecode.end());
+			try
+			{
+				auto reflection = ReflectLibrary(owned);
+				D3D11_LIBRARY_DESC desc{};
+				check_hresult(reflection->GetDesc(&desc));
+				if (desc.FunctionCount == 0)
+				{
+					throw hresult_invalid_argument(L"DXBC library does not contain any exported HLSL functions.");
+				}
+			}
+			catch (hresult_invalid_argument const&)
+			{
+				throw;
+			}
+			catch (...)
+			{
+				throw hresult_invalid_argument(L"Shader bytecode is not a valid reflectable HLSL DXBC library.");
+			}
+
+			return make<HlslShaderLibrary>(std::move(owned), profile);
+		}
 	}
 
 	Hlsl::HlslShaderLibrary HlslShaderLibrary::Create(
 		Windows::Storage::Streams::IBuffer const& bytecode,
 		Hlsl::HlslShaderProfile profile)
 	{
-		if (!bytecode || bytecode.Length() < 4 || bytecode.Length() > 16 * 1024 * 1024)
+		if (!bytecode)
 		{
-			throw hresult_invalid_argument(L"Shader bytecode must contain a DXBC library no larger than 16 MiB.");
-		}
-
-		switch (profile)
-		{
-			case Hlsl::HlslShaderProfile::Level91:
-			case Hlsl::HlslShaderProfile::Level93:
-			case Hlsl::HlslShaderProfile::Pixel40:
-				break;
-			default:
-				throw hresult_invalid_argument(L"Unknown HLSL shader profile.");
+			throw hresult_invalid_argument(L"The shader bytecode buffer is null.");
 		}
 
 		auto access = bytecode.as<::Windows::Storage::Streams::IBufferByteAccess>();
 		byte* data{};
 		check_hresult(access->Buffer(&data));
-		if (!data || memcmp(data, "DXBC", 4) != 0)
+		if (!data && bytecode.Length() != 0)
 		{
-			throw hresult_invalid_argument(L"Shader bytecode is not a DXBC container.");
+			throw hresult_invalid_argument(L"The shader bytecode buffer is not readable.");
 		}
 
-		std::vector<std::uint8_t> owned(data, data + bytecode.Length());
-		try
-		{
-			auto reflection = ReflectLibrary(owned);
-			D3D11_LIBRARY_DESC desc{};
-			check_hresult(reflection->GetDesc(&desc));
-			if (desc.FunctionCount == 0)
-			{
-				throw hresult_invalid_argument(L"DXBC library does not contain any exported HLSL functions.");
-			}
-		}
-		catch (hresult_invalid_argument const&)
-		{
-			throw;
-		}
-		catch (...)
-		{
-			throw hresult_invalid_argument(L"Shader bytecode is not a valid reflectable HLSL DXBC library.");
-		}
+		return CreateValidatedLibrary(
+			std::span<std::uint8_t const>{ reinterpret_cast<std::uint8_t const*>(data), bytecode.Length() },
+			profile);
+	}
 
-		return make<HlslShaderLibrary>(std::move(owned), profile);
+	Hlsl::HlslShaderLibrary HlslShaderLibrary::CreateFromByteArray(
+		winrt::array_view<std::uint8_t const> bytecode,
+		Hlsl::HlslShaderProfile profile)
+	{
+		return CreateValidatedLibrary(
+			std::span<std::uint8_t const>{ bytecode.data(), bytecode.size() },
+			profile);
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadFromFileAsync(
