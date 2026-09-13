@@ -34,9 +34,9 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <HlslCompositionInclude Include="Common.hlsli" />
+    <!-- Deliberately omit Kind/Profile: native package defaults should infer
+         Sampler and compile Pixel40 without repeating boilerplate metadata. -->
     <HlslCompositionShader Include="ConsumerSampler.hlsl">
-      <Kind>Sampler</Kind>
-      <Profile>Pixel40</Profile>
       <Defines>WINUI_COMPOSITION_HLSL_TEST=1</Defines>
     </HlslCompositionShader>
     <HlslCompositionShader Include="ConsumerMaterializedSampler.hlsl">
