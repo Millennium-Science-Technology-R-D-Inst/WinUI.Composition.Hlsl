@@ -48,7 +48,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 		hstring SourceName() const
 		{
-			return m_definition->sourceName;
+			return hstring{ m_definition->sourceName };
 		}
 		bool IsPrecompiled() const
 		{
