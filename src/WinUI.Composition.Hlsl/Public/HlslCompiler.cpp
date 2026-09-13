@@ -119,7 +119,6 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				macros.empty() ? nullptr : macros.data(),
 				nullptr,
 				nullptr,
-				nullptr,
 				ShaderTarget(profile),
 				flags,
 				0,
