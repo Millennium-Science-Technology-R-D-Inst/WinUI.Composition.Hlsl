@@ -16,9 +16,9 @@
 		<PackageReference Include="WinUI.Composition.Hlsl"/>
 	</ItemGroup>
 	<ItemGroup>
+		<!-- Kind=Auto and Profile=Pixel40 are the package defaults. This consumer
+		     intentionally omits both so CI exercises automatic contract inference. -->
 		<HlslCompositionShader Include="ConsumerColor.hlsl">
-			<Kind>Color</Kind>
-			<Profile>Pixel40</Profile>
 			<Defines>WINUI_COMPOSITION_MANAGED_TEST=1</Defines>
 		</HlslCompositionShader>
 		<HlslCompositionShader Include="ConsumerMaterializedSampler.hlsl">
