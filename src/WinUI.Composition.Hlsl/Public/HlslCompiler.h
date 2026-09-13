@@ -4,6 +4,7 @@
 #endif
 #include "HlslCompiler.g.h"
 
+import std;
 import winrt.Windows.Foundation;
 import winrt.Windows.Foundation.Collections;
 
