@@ -1,12 +1,18 @@
-name: CI
+﻿name: CI
 
 on:
   push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+    branches-ignore:
+      - release
+      - dependabot/**
+    paths-ignore:
+      - '.gitattributes'
+      - '.github/**'
+      - '.gitignore'
+      - '.gitmodules'
+      - '**.md'
+      - 'LICENSE'
+      - '**.yml'
   workflow_dispatch:
 
 permissions:

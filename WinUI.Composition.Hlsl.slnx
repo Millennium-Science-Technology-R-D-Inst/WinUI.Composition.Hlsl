@@ -7,7 +7,7 @@
   </Configurations>
   <Folder Name="/.github/" />
   <Folder Name="/.github/workflows/">
-    <File Path=".github/workflows/validate-liquid-glass-branch.yml" />
+    <File Path=".github/workflows/ci.yml" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Cpp/WUILiquidGlassDemo.Hlsl.vcxproj" Id="8bf9eaa4-ea72-409e-a9a9-f140f7540c9a" />
