@@ -19,9 +19,11 @@
     {
         static HlslShaderLibrary Create(Windows.Storage.Streams.IBuffer bytecode, HlslShaderProfile profile);
         static HlslShaderLibrary CreateFromByteArray(UInt8[] bytecode, HlslShaderProfile profile);
+        static HlslShaderLibrary CreateFromGeneratedByteArray(UInt8[] bytecode);
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadFromFileAsync(Windows.Storage.StorageFile file, HlslShaderProfile profile);
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadFromApplicationUriAsync(Windows.Foundation.Uri uri, HlslShaderProfile profile);
         HlslShaderProfile Profile{ get; };
+        HlslEffectKind EffectKind{ get; };
         Windows.Storage.Streams.IBuffer Bytecode{ get; };
     }
     [default_interface] runtimeclass HlslFloatProperty
@@ -57,6 +59,8 @@
         static HlslEffect CreateColorTransform(String shader);
         static HlslEffect CreateCustomSampler(String shader);
         static HlslEffect CreateCustomMaterializedSampler(String shader);
+        static HlslEffect CreateCompiled(Guid id, HlslShaderLibrary shader);
+        static HlslEffect CreateCompiledFromGeneratedByteArray(Guid id, UInt8[] bytecode);
         static HlslEffect CreateCompiledColor(Guid id, HlslShaderLibrary shader);
         static HlslEffect CreateCompiledSampler(Guid id, HlslShaderLibrary shader);
         static HlslEffect CreateCompiledMaterializedSampler(Guid id, HlslShaderLibrary shader);
