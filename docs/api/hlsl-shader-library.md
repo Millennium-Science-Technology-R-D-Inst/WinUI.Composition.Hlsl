@@ -14,7 +14,44 @@ public static HlslShaderLibrary Create(IBuffer bytecode, HlslShaderProfile profi
 
 The input is deep-copied. It must be a reflectable HLSL DXBC library no larger than 16 MiB. Construction rejects malformed/non-library payloads before they can reach the private Composition linker.
 
-For normal native C++ production shaders, prefer the build-time `<HlslCompositionShader>` path and include its generated `.g.h` byte-array header. `HlslShaderLibrary.Create` remains the low-level bridge when application code already owns compiled bytes as an `IBuffer`, for example a cache, generated shader, plugin payload, or deliberately loose asset.
+Use `Create` when the application already owns a WinRT `IBuffer`, for example a cache or another Windows API result.
+
+## CreateFromByteArray
+
+```csharp
+public static HlslShaderLibrary CreateFromByteArray(
+    byte[] bytecode,
+    HlslShaderProfile profile);
+```
+
+`CreateFromByteArray` performs the same deep-copy and DXBC-library validation as `Create`, but accepts a normal byte array. This is the preferred bridge for native C++ build-generated headers because a MIDL `UInt8[]` input projects to `winrt::array_view<uint8_t const>`.
+
+For a native project:
+
+```xml
+<HlslCompositionShader Include="Effects\Glass.hlsl">
+  <Kind>MaterializedSampler</Kind>
+  <Profile>Pixel40</Profile>
+</HlslCompositionShader>
+```
+
+FXC generates `Glass.g.h` containing an `unsigned char` byte array. C++ can pass that array directly without constructing an `IBuffer`:
+
+```cpp
+#include "Glass.g.h"
+
+import winrt.WinUI.Composition.Hlsl;
+
+using namespace winrt::WinUI::Composition::Hlsl;
+
+auto library = HlslShaderLibrary::CreateFromByteArray(
+    g_Effects_Glass_Shader,
+    HlslShaderProfile::Pixel40);
+
+auto effect = HlslEffect::CreateCompiledMaterializedSampler({}, library);
+```
+
+The exact generated variable name follows the shader relative path unless `HeaderVariableName` is supplied in MSBuild metadata.
 
 ## LoadFromFileAsync
 
