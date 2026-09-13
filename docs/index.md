@@ -24,9 +24,13 @@ Declare known shaders at build time:
 </HlslCompositionShader>
 ```
 
-FXC validates source and entry-point contracts during MSBuild and emits Composition-compatible DXBC. Shared `.hlsli` files can be listed as `HlslCompositionInclude` so changes invalidate the incremental build. Generated DXBC is published/deployed under the `Hlsl\...` application-content path by default.
+FXC validates source and entry-point contracts during MSBuild and emits a Composition-compatible SM4 shader-linking library. Shared `.hlsli` files can be listed as `HlslCompositionInclude` so changes invalidate the incremental build.
 
-Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchronously, including bounded macro variants, and persist [HlslShaderLibrary.Bytecode](api/hlsl-shader-library.md) for later runs. Packaged build outputs can be loaded directly with `HlslShaderLibrary.LoadFromApplicationUriAsync`.
+Native C++ consumers generate a self-contained `.g.h` byte-array header by default and keep the corresponding DXBC only as an intermediate build artifact. The generated HLSL intermediate directory is added to the native compiler include path, so application source can directly `#include` the generated header. Set `HlslCompositionPublishAsContent=true` only when a native application intentionally wants the same compiled shader as a loose `Hlsl\...` asset.
+
+Managed consumers do not generate C++ headers; their compiled shader libraries are published/deployed under the `Hlsl\...` application-content path by default and can be loaded through `ms-appx:///Hlsl/...`.
+
+Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchronously, including bounded macro variants, and persist [HlslShaderLibrary.Bytecode](api/hlsl-shader-library.md) for later runs. Packaged managed build outputs or explicitly published native outputs can be loaded directly with `HlslShaderLibrary.LoadFromApplicationUriAsync`.
 
 ## Effect contracts
 
