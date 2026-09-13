@@ -194,8 +194,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			co_await resume_background();
 			auto source = hlsl::compiler::BuildPublicShaderSource(input.declarations, input.shader, input.sampler, input.materialized);
+			hlsl::compiler::AppendCompiledShaderMetadata(
+				source,
+				static_cast<std::uint32_t>(input.kind),
+				static_cast<std::uint32_t>(input.profile));
 			auto bytes = CompileLibrary(source, input.profile, input.definitions);
-			auto projected = make<HlslShaderLibrary>(std::move(bytes), input.profile);
+			auto projected = make<HlslShaderLibrary>(std::move(bytes), input.profile, input.kind);
 			get_self<HlslShaderLibrary>(projected)->ValidateForEffect(input.kind, input.propertyNames);
 			co_return projected;
 		}
