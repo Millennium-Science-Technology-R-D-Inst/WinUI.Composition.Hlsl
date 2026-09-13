@@ -26,6 +26,7 @@
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadGeneratedFromApplicationUriAsync(Windows.Foundation.Uri uri);
         HlslShaderProfile Profile{ get; };
         HlslEffectKind EffectKind{ get; };
+        UInt32 SourceCount{ get; };
         Windows.Storage.Streams.IBuffer Bytecode{ get; };
     }
     [default_interface] runtimeclass HlslFloatProperty
@@ -49,6 +50,10 @@
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileWithDefinesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, Windows.Foundation.Collections.IVectorView<String> defines);
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileWithPropertiesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileWithPropertiesAndDefinesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties, Windows.Foundation.Collections.IVectorView<String> defines);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileAdvancedAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, UInt32 sourceCount);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileAdvancedWithDefinesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, UInt32 sourceCount, Windows.Foundation.Collections.IVectorView<String> defines);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileAdvancedWithPropertiesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, UInt32 sourceCount, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> CompileAdvancedWithPropertiesAndDefinesAsync(String shader, HlslEffectKind kind, HlslShaderProfile profile, UInt32 sourceCount, Windows.Foundation.Collections.IVectorView<HlslFloatProperty> properties, Windows.Foundation.Collections.IVectorView<String> defines);
     }
     runtimeclass HlslEffect;
     runtimeclass HlslEffectFactory;
