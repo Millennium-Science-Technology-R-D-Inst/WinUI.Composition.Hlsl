@@ -68,17 +68,31 @@
     <Exec Condition="'$(HlslCompositionGenerateHeaders)'!='true'"
           Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(HlslCompositionCompilerScript)&quot; -InputPath &quot;%(_HlslCompositionCompile.FullPath)&quot; -OutputPath &quot;%(_HlslCompositionCompile.DxbcPath)&quot; -Kind &quot;%(_HlslCompositionCompile.Kind)&quot; -Profile &quot;%(_HlslCompositionCompile.Profile)&quot; -IncludeDirectories &quot;%(_HlslCompositionCompile.IncludeDirectories)&quot; -Defines &quot;%(_HlslCompositionCompile.Defines)&quot;" />
 
-    <MakeDir Directories="@(_HlslCompositionCompile->'$(HlslCompositionOutputRoot)%(RelativeDir)')" />
-    <MakeDir Condition="'%(_HlslCompositionCompile.OutputName)'!=''" Directories="$(HlslCompositionOutputRoot)" />
-    <Copy SourceFiles="%(_HlslCompositionCompile.DxbcPath)"
+    <!-- The compiled DXBC is always kept as an intermediate artifact because the
+         generated native header is produced from the same FXC invocation and the
+         bytecode remains useful for validation/debugging. Publishing it as loose
+         application content is a separate policy controlled by the consumer. -->
+    <MakeDir Condition="'$(HlslCompositionPublishAsContent)'=='true'"
+             Directories="@(_HlslCompositionCompile->'$(HlslCompositionOutputRoot)%(RelativeDir)')" />
+    <MakeDir Condition="'$(HlslCompositionPublishAsContent)'=='true' and '%(_HlslCompositionCompile.OutputName)'!=''"
+             Directories="$(HlslCompositionOutputRoot)" />
+    <Copy Condition="'$(HlslCompositionPublishAsContent)'=='true'"
+          SourceFiles="%(_HlslCompositionCompile.DxbcPath)"
           DestinationFiles="%(_HlslCompositionCompile.PublishedPath)"
           SkipUnchangedFiles="true" />
 
     <ItemGroup>
-      <HlslCompositionShaderOutput Include="@(_HlslCompositionCompile->'%(PublishedPath)')" />
+      <!-- Intermediate outputs are exposed independently from published assets so
+           native consumers can embed .g.h while managed consumers deploy DXBC. -->
+      <HlslCompositionShaderBytecodeOutput Include="@(_HlslCompositionCompile->'%(DxbcPath)')" />
+      <HlslCompositionShaderHeaderOutput Condition="'$(HlslCompositionGenerateHeaders)'=='true'"
+                                         Include="@(_HlslCompositionCompile->'%(HeaderPath)')" />
+      <HlslCompositionShaderOutput Condition="'$(HlslCompositionPublishAsContent)'=='true'"
+                                   Include="@(_HlslCompositionCompile->'%(PublishedPath)')" />
       <FileWrites Include="@(_HlslCompositionCompile->'%(DxbcPath)')" />
       <FileWrites Include="@(_HlslCompositionCompile->'%(PreparedPath)')" />
-      <FileWrites Include="@(_HlslCompositionCompile->'%(PublishedPath)')" />
+      <FileWrites Condition="'$(HlslCompositionPublishAsContent)'=='true'"
+                  Include="@(_HlslCompositionCompile->'%(PublishedPath)')" />
       <FileWrites Condition="'$(HlslCompositionGenerateHeaders)'=='true'" Include="@(_HlslCompositionCompile->'%(HeaderPath)')" />
     </ItemGroup>
   </Target>
