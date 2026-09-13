@@ -43,6 +43,14 @@
       <Kind>MaterializedSampler</Kind>
       <Profile>Pixel40</Profile>
     </HlslCompositionShader>
+    <!-- Multi-source fixtures deliberately omit Kind so Auto must distinguish
+         the linked Color and Sampler contracts at SourceCount=2. -->
+    <HlslCompositionShader Include="ConsumerMultiSourceColor.hlsl">
+      <SourceCount>2</SourceCount>
+    </HlslCompositionShader>
+    <HlslCompositionShader Include="ConsumerMultiSourceSampler.hlsl">
+      <SourceCount>2</SourceCount>
+    </HlslCompositionShader>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(MSBuildThisFileDirectory)..\..\packaging\WinUI.Composition.Hlsl.Native.targets" />
@@ -59,13 +67,25 @@
            Text="ConsumerSampler.g.h was not generated." />
     <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMaterializedSampler.g.h')"
            Text="ConsumerMaterializedSampler.g.h was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMultiSourceColor.g.h')"
+           Text="ConsumerMultiSourceColor.g.h was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMultiSourceSampler.g.h')"
+           Text="ConsumerMultiSourceSampler.g.h was not generated." />
     <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerSampler.dxbc')"
            Text="ConsumerSampler intermediate DXBC was not generated." />
     <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMaterializedSampler.dxbc')"
            Text="ConsumerMaterializedSampler intermediate DXBC was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMultiSourceColor.dxbc')"
+           Text="ConsumerMultiSourceColor intermediate DXBC was not generated." />
+    <Error Condition="!Exists('$(HlslCompositionIntermediateRoot)ConsumerMultiSourceSampler.dxbc')"
+           Text="ConsumerMultiSourceSampler intermediate DXBC was not generated." />
     <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerSampler.dxbc')"
            Text="ConsumerSampler.dxbc was unexpectedly published as native application content." />
     <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerMaterializedSampler.dxbc')"
            Text="ConsumerMaterializedSampler.dxbc was unexpectedly published as native application content." />
+    <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerMultiSourceColor.dxbc')"
+           Text="ConsumerMultiSourceColor.dxbc was unexpectedly published as native application content." />
+    <Error Condition="Exists('$(HlslCompositionOutputRoot)ConsumerMultiSourceSampler.dxbc')"
+           Text="ConsumerMultiSourceSampler.dxbc was unexpectedly published as native application content." />
   </Target>
 </Project>
