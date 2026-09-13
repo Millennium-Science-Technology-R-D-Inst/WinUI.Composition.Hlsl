@@ -45,6 +45,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Windows::Foundation::Uri const& uri,
 			Hlsl::HlslShaderProfile profile);
 
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> LoadGeneratedFromFileAsync(
+			Windows::Storage::StorageFile const& file);
+
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> LoadGeneratedFromApplicationUriAsync(
+			Windows::Foundation::Uri const& uri);
+
 		Hlsl::HlslShaderProfile Profile() const noexcept { return m_profile; }
 		Hlsl::HlslEffectKind EffectKind() const noexcept { return m_effectKind; }
 		Windows::Storage::Streams::IBuffer Bytecode() const;
