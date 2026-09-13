@@ -33,6 +33,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <HlslCompositionInclude Include="Common.hlsli" />
     <HlslCompositionShader Include="ConsumerSampler.hlsl">
       <Kind>Sampler</Kind>
       <Profile>Pixel40</Profile>

@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory = $true)][string]$OutputPath,
     [Parameter(Mandatory = $true)][ValidateSet('Color', 'Sampler', 'MaterializedSampler')][string]$Kind,
     [ValidateSet('Level91', 'Level93', 'Pixel40')][string]$Profile = 'Pixel40',
+    [string]$IncludeDirectories = '',
     [string]$HeaderPath = '',
     [string]$VariableName = ''
 )
@@ -127,8 +128,21 @@ $arguments = @(
     '/O3',
     '/WX',
     '/T', (Get-Target $Profile),
-    '/Fo', $outputFull
+    '/Fo', $outputFull,
+    '/I', [IO.Path]::GetDirectoryName($inputFull)
 )
+
+if ($IncludeDirectories) {
+    foreach ($directory in $IncludeDirectories.Split(';', [StringSplitOptions]::RemoveEmptyEntries)) {
+        $trimmed = $directory.Trim()
+        if (!$trimmed) { continue }
+        $resolvedDirectory = [IO.Path]::GetFullPath($trimmed)
+        if (!(Test-Path $resolvedDirectory -PathType Container)) {
+            throw "HLSL include directory does not exist: '$resolvedDirectory'."
+        }
+        $arguments += @('/I', $resolvedDirectory)
+    }
+}
 
 if ($HeaderPath) {
     $headerFull = [IO.Path]::GetFullPath($HeaderPath)
