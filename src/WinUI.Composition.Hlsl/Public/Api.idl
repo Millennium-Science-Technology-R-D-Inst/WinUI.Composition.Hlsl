@@ -22,6 +22,8 @@
         static HlslShaderLibrary CreateFromGeneratedByteArray(UInt8[] bytecode);
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadFromFileAsync(Windows.Storage.StorageFile file, HlslShaderProfile profile);
         static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadFromApplicationUriAsync(Windows.Foundation.Uri uri, HlslShaderProfile profile);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadGeneratedFromFileAsync(Windows.Storage.StorageFile file);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadGeneratedFromApplicationUriAsync(Windows.Foundation.Uri uri);
         HlslShaderProfile Profile{ get; };
         HlslEffectKind EffectKind{ get; };
         Windows.Storage.Streams.IBuffer Bytecode{ get; };
