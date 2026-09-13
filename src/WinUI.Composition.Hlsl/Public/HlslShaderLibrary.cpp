@@ -146,7 +146,17 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				{
 					auto name = std::string("__WinUICompositionHlsl_Metadata_K") +
 						std::to_string(kind) + "_P" + std::to_string(profile);
-					if (!FindFunction(reflection, name.c_str())) continue;
+					auto* marker = FindFunction(reflection, name.c_str());
+					if (!marker) continue;
+
+					// The reserved name alone is not trusted as package metadata. Require the
+					// exact generated marker ABI as well so arbitrary/legacy DXBC cannot become
+					// "generated" merely by exporting a colliding function name.
+					if (!HasColorAbi(marker))
+					{
+						throw hresult_invalid_argument(
+							L"The DXBC library contains a malformed WinUI.Composition.Hlsl metadata marker.");
+					}
 					if (result)
 					{
 						throw hresult_invalid_argument(L"The DXBC library contains conflicting WinUI.Composition.Hlsl metadata markers.");
