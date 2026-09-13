@@ -11,7 +11,7 @@
     <dependencies>
       <group targetFramework="native">
         <dependency id="Microsoft.WindowsAppSDK" version="2.4.0"/>
-        <dependency id="Microsoft.Windows.CppWinRT" version="2.0.230706.1"/>
+        <dependency id="Microsoft.Windows.CppWinRT" version="3.0.260818.1"/>
       </group>
       <group targetFramework="net8.0-windows10.0.26100.0">
         <dependency id="Microsoft.WindowsAppSDK" version="2.4.0"/>
