@@ -9,7 +9,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			if (name == property.name)
 			{
-				return m_definition->effectName + L"." + property.name;
+				return hstring{ m_definition->effectName + L"." + property.name };
 			}
 		}
 		throw hresult_invalid_argument(L"The float property is not declared by this effect.");
@@ -29,7 +29,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			{
 				if (!std::isfinite(value) || value < property.minimum || value > property.maximum)
 					throw hresult_invalid_argument(L"The value is outside the declared property range.");
-				m_brush.Properties().InsertScalar(m_definition->effectName + L"." + property.name, value);
+				m_brush.Properties().InsertScalar(hstring{ m_definition->effectName + L"." + property.name }, value);
 				return;
 			}
 		}
