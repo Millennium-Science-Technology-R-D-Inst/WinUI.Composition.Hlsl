@@ -8,6 +8,8 @@
       <Profile>Pixel40</Profile>
       <Defines></Defines>
       <IncludeDirectories></IncludeDirectories>
+      <OutputName></OutputName>
+      <HeaderVariableName></HeaderVariableName>
     </HlslCompositionShader>
   </ItemDefinitionGroup>
 
@@ -18,14 +20,14 @@
        changes also invalidate the incremental build. -->
   <ItemGroup>
     <_HlslCompositionTracked Include="@(HlslCompositionShader)">
-      <TrackedDxbc Condition="'%(HlslCompositionShader.OutputName)'==''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.RelativeDir)%(HlslCompositionShader.Filename).dxbc</TrackedDxbc>
-      <TrackedDxbc Condition="'%(HlslCompositionShader.OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.OutputName).dxbc</TrackedDxbc>
-      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(HlslCompositionShader.OutputName)'==''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.RelativeDir)%(HlslCompositionShader.Filename).g.h</TrackedHeader>
-      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(HlslCompositionShader.OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.OutputName).g.h</TrackedHeader>
-      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(HlslCompositionShader.OutputName)'==''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.RelativeDir)%(HlslCompositionShader.Filename).dxbc</TrackedHeader>
-      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(HlslCompositionShader.OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(HlslCompositionShader.OutputName).dxbc</TrackedHeader>
-      <AssetRelativePath Condition="'%(HlslCompositionShader.OutputName)'==''">%(HlslCompositionShader.RelativeDir)%(HlslCompositionShader.Filename).dxbc</AssetRelativePath>
-      <AssetRelativePath Condition="'%(HlslCompositionShader.OutputName)'!=''">%(HlslCompositionShader.OutputName).dxbc</AssetRelativePath>
+      <TrackedDxbc Condition="'%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).dxbc</TrackedDxbc>
+      <TrackedDxbc Condition="'%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).dxbc</TrackedDxbc>
+      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).g.h</TrackedHeader>
+      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'=='true' and '%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).g.h</TrackedHeader>
+      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(OutputName)'==''">$(HlslCompositionIntermediateRoot)%(RelativeDir)%(Filename).dxbc</TrackedHeader>
+      <TrackedHeader Condition="'$(HlslCompositionGenerateHeaders)'!='true' and '%(OutputName)'!=''">$(HlslCompositionIntermediateRoot)%(OutputName).dxbc</TrackedHeader>
+      <AssetRelativePath Condition="'%(OutputName)'==''">%(RelativeDir)%(Filename).dxbc</AssetRelativePath>
+      <AssetRelativePath Condition="'%(OutputName)'!=''">%(OutputName).dxbc</AssetRelativePath>
     </_HlslCompositionTracked>
   </ItemGroup>
 
