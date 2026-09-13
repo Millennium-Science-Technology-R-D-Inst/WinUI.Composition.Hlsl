@@ -96,11 +96,9 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslShaderProfile profile,
 			std::span<MacroDefinition const> definitions)
 		{
-			// d3dcompiler.h is consumed together with C++/WinRT's minimized Windows
-			// projection in this component. Qualify the SDK descriptor explicitly so
-			// x86/x64/ARM64 perform the same lookup instead of relying on enclosing-
-			// namespace lookup for D3D_SHADER_MACRO.
-			std::vector<winrt::D3D_SHADER_MACRO> macros;
+			// D3D_SHADER_MACRO is declared by the Windows SDK in the global namespace.
+			// Qualify it explicitly because this implementation itself lives under winrt::.
+			std::vector<::D3D_SHADER_MACRO> macros;
 			if (!definitions.empty())
 			{
 				macros.reserve(definitions.size() + 1);
