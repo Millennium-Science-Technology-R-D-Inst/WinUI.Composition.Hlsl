@@ -34,7 +34,9 @@ This explicit-profile overload is primarily for external/legacy bytecode. Build-
 public static HlslShaderLibrary CreateFromGeneratedByteArray(byte[] bytecode);
 ```
 
-`<HlslCompositionShader>` and `HlslCompiler` add one reserved metadata export to their compiled library. It records the build-time `HlslEffectKind` and `HlslShaderProfile`. `CreateFromGeneratedByteArray` reflects that marker and also verifies that the recorded effect kind agrees with the actual `PSBody` ABI.
+`<HlslCompositionShader>` and `HlslCompiler` add one reserved metadata export to their compiled library. New generated libraries record `HlslEffectKind`, `HlslShaderProfile`, and `SourceCount`. `CreateFromGeneratedByteArray` reflects that marker and independently derives the effect kind/source count from the actual `PSBody` ABI before accepting the bytes.
+
+The loader remains compatible with the earlier generated `Kind/Profile` marker. Old generated libraries were single-source; when such a marker is encountered the loader derives the source count from `PSBody` rather than inventing a value from metadata.
 
 For a native project:
 
@@ -45,7 +47,7 @@ For a native project:
 </HlslCompositionShader>
 ```
 
-FXC generates `Glass.g.h` containing the compiled library as an `unsigned char` array. Normal C++ code no longer repeats `MaterializedSampler` or `Pixel40`:
+FXC generates `Glass.g.h` containing the compiled library as an `unsigned char` array. Normal C++ code no longer repeats the kind or profile:
 
 ```cpp
 #include "Glass.g.h"
@@ -59,15 +61,25 @@ auto effect = HlslEffect::CreateCompiledFromGeneratedByteArray(
     g_Effects_Glass_Shader);
 ```
 
-The direct `HlslEffect` helper internally creates a self-describing `HlslShaderLibrary`. If the application needs to keep or inspect the library separately:
+For multi-source generated libraries, inspect `SourceCount` and create the effect with matching source names through `CreateCompiledAdvanced`:
 
 ```cpp
 auto library = HlslShaderLibrary::CreateFromGeneratedByteArray(
-    g_Effects_Glass_Shader);
+    g_Effects_Blend_Shader);
 
-auto kind = library.EffectKind();
-auto profile = library.Profile();
-auto effect = HlslEffect::CreateCompiled({}, library);
+assert(library.SourceCount() == 2);
+
+auto sourceNames = winrt::single_threaded_vector<winrt::hstring>();
+sourceNames.Append(L"First");
+sourceNames.Append(L"Second");
+
+auto properties = winrt::single_threaded_vector<HlslProperty>();
+auto effect = HlslEffect::CreateCompiledAdvanced(
+    {},
+    library,
+    library.EffectKind(),
+    sourceNames.GetView(),
+    properties.GetView());
 ```
 
 The exact generated variable name follows the shader relative path unless `HeaderVariableName` is supplied in MSBuild metadata.
@@ -77,6 +89,18 @@ The exact generated variable name follows the shader relative path unless `Heade
 Returns the Composition effect contract reflected from the compiled library: `Color`, `Sampler`, or `MaterializedSampler`.
 
 The value is not trusted from metadata alone. `HlslShaderLibrary` derives the kind from the actual `PSBody`/edge-mode exports and rejects generated metadata that disagrees with that ABI.
+
+## SourceCount
+
+```csharp
+public uint SourceCount { get; }
+```
+
+Returns the number of logical Composition inputs encoded by the exported shader ABI. Valid libraries contain 1-16 sources.
+
+For `Color`, the loader accepts `PSBody` with one `float4` parameter per source. For `Sampler`, it requires one `(float2 uvN, float4 samplerDataExtN)` parameter group per source across every `PSBody*` edge-mode export. The source count stored in new generated metadata must agree with this reflected ABI.
+
+`MaterializedSampler` is currently restricted to one source. Multi-source materialization is rejected even if a hand-authored DXBC library has a syntactically reflectable function signature, because the private graph-lowering runtime has only been implemented and validated for one materialized surface.
 
 ## Explicit-profile file loading
 
@@ -90,7 +114,7 @@ public static IAsyncOperation<HlslShaderLibrary> LoadFromApplicationUriAsync(
     HlslShaderProfile profile);
 ```
 
-These are the compatibility path for external or legacy DXBC where the package did not embed its own build metadata.
+These are the compatibility path for external or legacy DXBC where the package did not embed its own build metadata. Effect kind and source count are still derived from reflection; only the profile is supplied explicitly.
 
 ## Generated file loading
 
@@ -109,11 +133,9 @@ A managed package consumer can therefore use the output of `<HlslCompositionShad
 ```csharp
 var library = await HlslShaderLibrary.LoadGeneratedFromApplicationUriAsync(
     new Uri("ms-appx:///Hlsl/Effects/Glass.dxbc"));
-
-var effect = HlslEffect.CreateCompiled(Guid.Empty, library);
 ```
 
-`Kind` and `Profile` come from the generated library and are validated against its reflected ABI. The older explicit-profile loaders remain available for assets produced elsewhere.
+`EffectKind`, `Profile`, and `SourceCount` are validated before the library is returned. Single-source code can pass the result to `HlslEffect.CreateCompiled`; multi-source code uses `CreateCompiledAdvanced` with the same number of source names as `library.SourceCount`.
 
 Managed `<HlslCompositionShader>` consumers publish generated shader libraries under the `Hlsl\...` application-content path by default, so `ms-appx:///Hlsl/...` is the normal managed packaged-resource contract.
 
@@ -140,23 +162,23 @@ public IBuffer Bytecode { get; }
 Returns a copy of the immutable DXBC payload. This is intended for application-managed persistent shader caches:
 
 ```text
-first run: HLSL -> HlslCompiler.CompileAsync -> Bytecode -> disk/cache
+first run: HLSL -> HlslCompiler.Compile* -> Bytecode -> disk/cache
 later:     generated cache -> LoadGeneratedFromFileAsync/CreateFromGeneratedByteArray
-                         -> HlslEffect.CreateCompiled
+                         -> HlslEffect.CreateCompiled / CreateCompiledAdvanced
 ```
 
 Because `HlslCompiler` emits the same embedded metadata marker as the MSBuild compiler, persisted bytecode produced by this library remains self-describing. External/legacy caches can continue to use the explicit-profile APIs.
 
-No private Composition object is required to compile, load, or serialize this bytecode.
+No private Composition object is required to compile, load, reflect, or serialize this bytecode.
 
 ## Defensive validation
 
 When bytecode is accepted, one-time reflection checks its public ABI:
 
-- `Color`: `float4 PSBody(float4 color)`.
-- `Sampler`: every `PSBody*` edge-mode export uses `float4(float2 uv, float4 samplerDataExt)`.
-- `MaterializedSampler`: every `PSBody*` export uses `float4(float2 uv, float4 samplerDataExt, float4 samplerData)` and the library exports `float4 MaterializeColor(float4 color)`.
-- generated metadata, when present, must agree with the reflected effect kind and any explicitly supplied profile.
+- `Color`: `PSBody` returns `float4` and has 1-16 `float4` source parameters.
+- `Sampler`: every `PSBody*` edge-mode export uses the same 1-16 `(float2 uvN, float4 samplerDataExtN)` source groups.
+- `MaterializedSampler`: every `PSBody*` export uses `float4(float2 uv, float4 samplerDataExt, float4 samplerData)` and the library exports `float4 MaterializeColor(float4 color)`; only one source is currently accepted.
+- generated metadata, when present, must agree with the reflected effect kind, reflected source count, and any explicitly supplied profile.
 - Declared scalar properties must match `cbuffer UserConstants : register(b0)` in order, offset, and padded size.
 
 These checks happen when accepting external/cached bytecode; they are not part of the per-frame rendering or animation path. For package-owned production shaders, prefer `<HlslCompositionShader>` so FXC catches source and entry-point failures during the build.
