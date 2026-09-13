@@ -64,6 +64,25 @@ function Get-SafeIdentifier([string]$Name) {
     return $safe
 }
 
+function Make-GeneratedHeaderSelfContained([string]$Path) {
+    # FXC /Fh emits `const BYTE name[] = ...`, which requires callers to include
+    # Windows.h (or another header that defines BYTE) before the generated file.
+    # Generated package headers should not impose that textual Windows-header
+    # dependency, especially for C++ module consumers. Preserve FXC's byte array
+    # representation while spelling the element type in standard C++.
+    $text = [IO.File]::ReadAllText($Path)
+    $normalized = [Text.RegularExpressions.Regex]::Replace(
+        $text,
+        '(?m)^(\s*)const\s+BYTE\s+([A-Za-z_][A-Za-z0-9_]*)\s*\[\]\s*=',
+        '$1const unsigned char $2[] =')
+
+    if ($normalized -eq $text) {
+        throw "FXC generated header '$Path' did not contain the expected const BYTE shader array declaration."
+    }
+
+    [IO.File]::WriteAllText($Path, $normalized, [Text.UTF8Encoding]::new($false))
+}
+
 $inputFull = [IO.Path]::GetFullPath($InputPath)
 $outputFull = [IO.Path]::GetFullPath($OutputPath)
 if (!(Test-Path $inputFull)) {
@@ -158,6 +177,7 @@ if ($Defines) {
     }
 }
 
+$headerFull = ''
 if ($HeaderPath) {
     $headerFull = [IO.Path]::GetFullPath($HeaderPath)
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($headerFull)) | Out-Null
@@ -171,6 +191,10 @@ $arguments += $prepared
 & $fxc @arguments
 if ($LASTEXITCODE -ne 0) {
     throw "FXC failed for '$inputFull' with exit code $LASTEXITCODE."
+}
+
+if ($headerFull) {
+    Make-GeneratedHeaderSelfContained $headerFull
 }
 
 Write-Host "Compiled Composition HLSL: $inputFull -> $outputFull ($Kind/$Profile)"
