@@ -48,6 +48,9 @@ float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
 		(void)HlslShaderLibrary::LoadFromApplicationUriAsync(
 			Windows::Foundation::Uri(L"ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"),
 			HlslShaderProfile::Pixel40);
+		(void)HlslShaderLibrary::LoadGeneratedFromFileAsync(file);
+		(void)HlslShaderLibrary::LoadGeneratedFromApplicationUriAsync(
+			Windows::Foundation::Uri(L"ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"));
 
 		// A build-generated .g.h exposes the same shape: const unsigned char[].
 		// The explicit-profile overload remains available for external/legacy DXBC,
