@@ -39,6 +39,9 @@ internal static class ApiSurfaceCompile
         _ = HlslShaderLibrary.LoadFromApplicationUriAsync(
             new Uri("ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"),
             HlslShaderProfile.Pixel40);
+        _ = HlslShaderLibrary.LoadGeneratedFromFileAsync(file);
+        _ = HlslShaderLibrary.LoadGeneratedFromApplicationUriAsync(
+            new Uri("ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"));
 
         // Compile-only checks for the generated-bytecode convenience surface. The
         // placeholder bytes are never evaluated because this method is never called.
