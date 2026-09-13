@@ -121,7 +121,7 @@ namespace hlsl::engine
 		};
 		struct CachedFactory
 		{
-			winrt::Microsoft::UI::Composition::Compositor compositor{ nullptr };
+			winrt::weak_ref<winrt::Microsoft::UI::Composition::Compositor> compositor;
 			winrt::weak_ref<winrt::Microsoft::UI::Composition::CompositionEffectFactory> factory;
 			winrt::guid id;
 		};
@@ -193,7 +193,7 @@ namespace hlsl::engine
 		auto effect = Compile(definition);
 		for (auto it = factories.begin(); it != factories.end();)
 		{
-			auto owner = it->compositor; auto factory = it->factory.get();
+			auto owner = it->compositor.get(); auto factory = it->factory.get();
 			if (!owner || !factory)
 			{
 				it = factories.erase(it); continue;
@@ -204,8 +204,8 @@ namespace hlsl::engine
 		auto paths = winrt::single_threaded_vector<winrt::hstring>();
 		for (auto const& p : definition->properties)paths.Append(definition->effectName + L"." + p.name);
 		auto factory = compositor.CreateEffectFactory(effect, paths);
-		if (factory.try_as<::IWeakReferenceSource>())
-			factories.push_back({ compositor,winrt::make_weak(factory),definition->id });
+		if (compositor.try_as<::IWeakReferenceSource>() && factory.try_as<::IWeakReferenceSource>())
+			factories.push_back({ winrt::make_weak(compositor),winrt::make_weak(factory),definition->id });
 		return factory;
 	}
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateColorEffect(winrt::guid const& id, std::string_view shader)
