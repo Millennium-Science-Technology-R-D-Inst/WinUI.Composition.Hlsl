@@ -84,6 +84,17 @@ internal static class ApiSurfaceCompile
             Array.Empty<HlslProperty>());
         _ = multiSourceEffect.SourceNames;
         _ = HlslComposition.CreateBackdropBrush(compositor, multiSourceEffect);
+
+        CompositionBrush[] compositionSources =
+        [
+            compositor.CreateBackdropBrush(),
+            compositor.CreateBackdropBrush(),
+        ];
+        _ = HlslComposition.CreateBrushWithSources(
+            compositor,
+            multiSourceEffect,
+            compositionSources);
+
         _ = HlslEffect.CreateCompiledAdvanced(
             Guid.Empty,
             library,

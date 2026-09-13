@@ -112,6 +112,15 @@ float4 Shade(float2 uv0, float4 samplerDataExt0, float2 uv1, float4 samplerDataE
 			advancedProperties.GetView());
 		(void)advancedEffect.SourceNames();
 		(void)HlslComposition::CreateBackdropBrush(compositor, advancedEffect);
+
+		auto compositionSources = single_threaded_vector<Microsoft::UI::Composition::CompositionBrush>();
+		compositionSources.Append(compositor.CreateBackdropBrush());
+		compositionSources.Append(compositor.CreateBackdropBrush());
+		(void)HlslComposition::CreateBrushWithSources(
+			compositor,
+			advancedEffect,
+			compositionSources.GetView());
+
 		(void)HlslEffect::CreateCompiledAdvanced(
 			winrt::guid{},
 			library,

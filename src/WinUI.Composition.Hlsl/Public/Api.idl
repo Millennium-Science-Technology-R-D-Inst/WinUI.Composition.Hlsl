@@ -115,6 +115,7 @@
         static HlslRuntimeCapabilities GetRuntimeCapabilities();
         static HlslEffectFactory CreateEffectFactory(Microsoft.UI.Composition.Compositor compositor, HlslEffect effect);
         static HlslEffectBrush CreateBackdropBrush(Microsoft.UI.Composition.Compositor compositor, HlslEffect effect);
+        static HlslEffectBrush CreateBrushWithSources(Microsoft.UI.Composition.Compositor compositor, HlslEffect effect, Windows.Foundation.Collections.IVectorView<Microsoft.UI.Composition.CompositionBrush> sources);
         static Microsoft.UI.Xaml.Media.Brush CreateXamlBrush(HlslEffectBrush brush);
         static Microsoft.UI.Xaml.Media.Brush CreateXamlBrushFromCompositionBrush(Microsoft.UI.Composition.CompositionBrush brush);
     }

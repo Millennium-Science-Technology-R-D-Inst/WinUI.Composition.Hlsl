@@ -25,6 +25,14 @@
 			<Kind>MaterializedSampler</Kind>
 			<Profile>Pixel40</Profile>
 		</HlslCompositionShader>
+		<!-- Multi-source managed fixtures exercise the packaged SourceCount metadata
+		     and Auto kind inference without project-specific build integration. -->
+		<HlslCompositionShader Include="ConsumerMultiSourceColor.hlsl">
+			<SourceCount>2</SourceCount>
+		</HlslCompositionShader>
+		<HlslCompositionShader Include="ConsumerMultiSourceSampler.hlsl">
+			<SourceCount>2</SourceCount>
+		</HlslCompositionShader>
 	</ItemGroup>
 	<ItemGroup>
 		<Manifest Include="app.manifest" />

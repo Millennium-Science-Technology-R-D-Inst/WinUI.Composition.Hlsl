@@ -21,7 +21,7 @@ namespace
         auto const result = D3DReflectLibrary(
             bytecode,
             Size,
-            IID_ID3D11LibraryReflection,
+            __uuidof(ID3D11LibraryReflection),
             reinterpret_cast<void**>(&reflection));
         if (FAILED(result) || !reflection)
         {

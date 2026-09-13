@@ -2,9 +2,19 @@
 
 on:
   push:
-    branches-ignore:
-      - release
-      - dependabot/**
+    branches:
+      - master
+    paths-ignore:
+      - '.gitattributes'
+      - '.github/**'
+      - '.gitignore'
+      - '.gitmodules'
+      - '**.md'
+      - 'LICENSE'
+      - '**.yml'
+  pull_request:
+    branches:
+      - master
     paths-ignore:
       - '.gitattributes'
       - '.github/**'
@@ -368,7 +378,11 @@ jobs:
       - name: Verify managed HLSL build outputs
         shell: pwsh
         run: |
-          foreach ($name in @('ConsumerColor.dxbc', 'ConsumerMaterializedSampler.dxbc')) {
+          foreach ($name in @(
+            'ConsumerColor.dxbc',
+            'ConsumerMaterializedSampler.dxbc',
+            'ConsumerMultiSourceColor.dxbc',
+            'ConsumerMultiSourceSampler.dxbc')) {
             $fixture = Get-ChildItem 'tests\CSharp' -Recurse -Filter $name -File -ErrorAction SilentlyContinue |
               Where-Object { $_.FullName -match '[\\/]Hlsl[\\/]' } |
               Select-Object -First 1

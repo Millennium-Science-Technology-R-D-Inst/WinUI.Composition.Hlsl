@@ -5,6 +5,7 @@
 #include "HlslComposition.g.h"
 import winrt.Microsoft.UI.Composition;
 import winrt.Microsoft.UI.Xaml.Media;
+import winrt.Windows.Foundation.Collections;
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslComposition
@@ -12,6 +13,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		static Hlsl::HlslRuntimeCapabilities GetRuntimeCapabilities();
 		static Hlsl::HlslEffectFactory CreateEffectFactory(Microsoft::UI::Composition::Compositor const& compositor, Hlsl::HlslEffect const& effect);
 		static Hlsl::HlslEffectBrush CreateBackdropBrush(Microsoft::UI::Composition::Compositor const& compositor, Hlsl::HlslEffect const& effect);
+		static Hlsl::HlslEffectBrush CreateBrushWithSources(
+			Microsoft::UI::Composition::Compositor const& compositor,
+			Hlsl::HlslEffect const& effect,
+			Windows::Foundation::Collections::IVectorView<Microsoft::UI::Composition::CompositionBrush> const& sources);
 		static Microsoft::UI::Xaml::Media::Brush CreateXamlBrush(Hlsl::HlslEffectBrush const& brush);
 		static Microsoft::UI::Xaml::Media::Brush CreateXamlBrushFromCompositionBrush(Microsoft::UI::Composition::CompositionBrush const& brush);
 	};

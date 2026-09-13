@@ -63,6 +63,38 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 		return brush;
 	}
+	Hlsl::HlslEffectBrush HlslComposition::CreateBrushWithSources(
+		Microsoft::UI::Composition::Compositor const& compositor,
+		Hlsl::HlslEffect const& effect,
+		Windows::Foundation::Collections::IVectorView<Microsoft::UI::Composition::CompositionBrush> const& sources)
+	{
+		if (!compositor || !effect || !sources)
+		{
+			throw hresult_invalid_argument(L"Compositor, effect, and source collection are required.");
+		}
+
+		auto const definition = get_self<implementation::HlslEffect>(effect)->Definition();
+		auto const expectedCount = definition->sourceNames.empty()
+			? 1u
+			: static_cast<uint32_t>(definition->sourceNames.size());
+		if (sources.Size() != expectedCount)
+		{
+			throw hresult_invalid_argument(L"The number of Composition brushes must match the effect source count.");
+		}
+
+		auto brush = CreateEffectFactory(compositor, effect).CreateBrush();
+		if (definition->sourceNames.empty())
+		{
+			brush.SetSource(definition->sourceName, sources.GetAt(0));
+			return brush;
+		}
+
+		for (uint32_t index = 0; index < sources.Size(); ++index)
+		{
+			brush.SetSource(hstring{ definition->sourceNames[index] }, sources.GetAt(index));
+		}
+		return brush;
+	}
 	Microsoft::UI::Xaml::Media::Brush HlslComposition::CreateXamlBrush(Hlsl::HlslEffectBrush const& brush)
 	{
 		if (!brush) throw hresult_invalid_argument();
