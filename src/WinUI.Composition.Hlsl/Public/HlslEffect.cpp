@@ -41,16 +41,20 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 
 		void ApplySources(hlsl::engine::EffectDefinition& definition,
-						  Windows::Foundation::Collections::IVectorView<hstring> const& sources)
+			Windows::Foundation::Collections::IVectorView<hstring> const& sources)
 		{
 			if (!sources || !sources.Size()) throw hresult_invalid_argument(L"At least one source name is required.");
 			definition.sourceNames.reserve(sources.Size());
 			for (auto const& source : sources) definition.sourceNames.emplace_back(source);
 			definition.sourceName = definition.sourceNames.front();
+			if (definition.materializedSampler && definition.sourceNames.size() != 1)
+			{
+				throw hresult_invalid_argument(L"MaterializedSampler currently supports exactly one source.");
+			}
 		}
 
 		void AppendAdvancedProperties(hlsl::engine::EffectDefinition& definition,
-									  Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
 		{
 			if (!properties) return;
 			for (auto const& projected : properties)
@@ -107,12 +111,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			{
 				propertyNames.push_back(property.name);
 			}
-			library->ValidateForEffect(kind, propertyNames);
+			library->ValidateForEffect(kind, 1, propertyNames);
 			hlsl::engine::Validate(*definition);
 			definition->id = id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
 			return make<HlslEffect>(definition);
 		}
 	}
+
 	Hlsl::HlslEffect HlslEffect::CreateColor(winrt::guid const& id, hstring const& shader)
 	{
 		return Describe(shader, Hlsl::HlslEffectKind::Color, id, L"Backdrop");
@@ -186,9 +191,11 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	{
 		return DescribeCompiled(shader, Hlsl::HlslEffectKind::MaterializedSampler, id, sourceName, properties);
 	}
-	Hlsl::HlslEffect HlslEffect::CreateAdvanced(hstring const& shader, Hlsl::HlslEffectKind kind,
-												Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
-												Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
+	Hlsl::HlslEffect HlslEffect::CreateAdvanced(
+		hstring const& shader,
+		Hlsl::HlslEffectKind kind,
+		Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
+		Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
 	{
 		auto definition = std::make_shared<hlsl::engine::EffectDefinition>();
 		definition->shader = to_string(shader);
@@ -199,9 +206,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		definition->id = hlsl::engine::DeriveId(*definition);
 		return make<HlslEffect>(definition);
 	}
-	Hlsl::HlslEffect HlslEffect::CreateCompiledAdvanced(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, Hlsl::HlslEffectKind kind,
-														Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
-														Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
+	Hlsl::HlslEffect HlslEffect::CreateCompiledAdvanced(
+		winrt::guid const& id,
+		Hlsl::HlslShaderLibrary const& shader,
+		Hlsl::HlslEffectKind kind,
+		Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
+		Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
 	{
 		if (!shader) throw hresult_invalid_argument(L"The shader library is null.");
 		auto library = get_self<HlslShaderLibrary>(shader);
@@ -213,7 +223,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		definition->shaderProfile = static_cast<uint8_t>(library->Profile());
 		std::vector<std::wstring> names;
 		for (auto const& property : definition->properties) names.push_back(property.name);
-		library->ValidateForEffect(kind, names);
+		library->ValidateForEffect(
+			kind,
+			static_cast<std::uint32_t>(definition->sourceNames.size()),
+			names);
 		hlsl::engine::Validate(*definition);
 		definition->id = id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
 		return make<HlslEffect>(definition);
