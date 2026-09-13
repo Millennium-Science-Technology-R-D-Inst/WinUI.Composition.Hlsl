@@ -17,6 +17,8 @@ namespace WinUI.Composition.Hlsl
     [default_interface] runtimeclass HlslShaderLibrary
     {
         static HlslShaderLibrary Create(Windows.Storage.Streams.IBuffer bytecode, HlslShaderProfile profile);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadFromFileAsync(Windows.Storage.StorageFile file, HlslShaderProfile profile);
+        static Windows.Foundation.IAsyncOperation<HlslShaderLibrary> LoadFromApplicationUriAsync(Windows.Foundation.Uri uri, HlslShaderProfile profile);
         HlslShaderProfile Profile{ get; };
         Windows.Storage.Streams.IBuffer Bytecode{ get; };
     }

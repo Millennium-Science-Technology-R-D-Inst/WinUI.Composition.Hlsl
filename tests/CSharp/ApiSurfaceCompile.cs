@@ -1,5 +1,6 @@
 using System;
 using Microsoft.UI.Composition;
+using Windows.Storage;
 using WinUI.Composition.Hlsl;
 
 namespace HlslCSharpConsumer;
@@ -16,12 +17,16 @@ internal static class ApiSurfaceCompile
     // Intentionally never called. This keeps the managed projection/API surface in
     // the normal compiler graph so CI catches IDL/projection drift without touching
     // the private Composition runtime during the build.
-    private static void Validate(HlslShaderLibrary library, Compositor compositor)
+    private static void Validate(HlslShaderLibrary library, Compositor compositor, StorageFile file)
     {
         _ = HlslComposition.GetRuntimeCapabilities();
         _ = HlslCompiler.CompileAsync(
             MaterializedShader,
             HlslEffectKind.MaterializedSampler,
+            HlslShaderProfile.Pixel40);
+        _ = HlslShaderLibrary.LoadFromFileAsync(file, HlslShaderProfile.Pixel40);
+        _ = HlslShaderLibrary.LoadFromApplicationUriAsync(
+            new Uri("ms-appx:///Hlsl/ConsumerMaterializedSampler.dxbc"),
             HlslShaderProfile.Pixel40);
 
         var effect = HlslEffect.CreateCustomMaterializedSampler(MaterializedShader);

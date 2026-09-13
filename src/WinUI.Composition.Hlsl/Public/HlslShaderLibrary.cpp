@@ -122,6 +122,30 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		return make<HlslShaderLibrary>(std::move(owned), profile);
 	}
 
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadFromFileAsync(
+		Windows::Storage::StorageFile const& file,
+		Hlsl::HlslShaderProfile profile)
+	{
+		if (!file)
+		{
+			throw hresult_invalid_argument(L"The shader file is null.");
+		}
+		auto buffer = co_await Windows::Storage::FileIO::ReadBufferAsync(file);
+		co_return Create(buffer, profile);
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadFromApplicationUriAsync(
+		Windows::Foundation::Uri const& uri,
+		Hlsl::HlslShaderProfile profile)
+	{
+		if (!uri)
+		{
+			throw hresult_invalid_argument(L"The shader URI is null.");
+		}
+		auto file = co_await Windows::Storage::StorageFile::GetFileFromApplicationUriAsync(uri);
+		co_return co_await LoadFromFileAsync(file, profile);
+	}
+
 	Windows::Storage::Streams::IBuffer HlslShaderLibrary::Bytecode() const
 	{
 		auto buffer = Windows::Storage::Streams::Buffer(static_cast<uint32_t>(m_bytecode.size()));
