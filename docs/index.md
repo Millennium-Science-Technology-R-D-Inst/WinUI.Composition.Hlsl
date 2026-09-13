@@ -52,9 +52,9 @@ Runtime-generated shaders can use [HlslCompiler](api/hlsl-compiler.md) asynchron
 
 ## Effect contracts
 
-- `Color`: `float4 PSBody(float4 color)`.
-- `Sampler`: `float4 Shade(float2 uv, float4 samplerDataExt)`.
-- `MaterializedSampler`: `float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)` for one materialized upstream native graph.
+- `Color`: `float4 PSBody(float4 color)` for one source, or `float4 Shade(float4 color0, ... colorN)` for linked multi-source input.
+- `Sampler`: `float4 Shade(float2 uv, float4 samplerDataExt)` for one source, or one `(uvN, samplerDataExtN)` pair per linked source.
+- `MaterializedSampler`: `float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)` for exactly one materialized upstream native graph.
 
 The build/runtime front end generates private sampler edge-mode wrappers. Do not hand-code them in application shaders.
 
@@ -69,7 +69,7 @@ IGraphicsEffectSource / native Composition effects
     -> XAML Brush property
 ```
 
-For simple backdrop effects, `HlslComposition.CreateBackdropBrush` remains the convenience API.
+For simple backdrop effects, `HlslComposition.CreateBackdropBrush` remains the convenience API. For linked multi-source effects with different Composition brushes, use `HlslComposition.CreateBrushWithSources` or bind sources individually through `HlslEffectBrush.SetSource`.
 
 ## API reference
 
@@ -95,8 +95,8 @@ For simple backdrop effects, `HlslComposition.CreateBackdropBrush` remains the c
 
 ## Support boundary
 
-Windows App SDK 2.4 x64 is the validated private-ABI baseline. x86 and ARM64 adapters are experimental. Query `HlslComposition.GetRuntimeCapabilities()` before enabling optional materialized effects on architectures/builds where your application requires a fallback.
+Released Windows App SDK **1.6 through 2.4** has been runtime-validated on both **x86 and x64**, including ordinary Composition graph nodes and the single-source materialized graph path. The ARM64 adapter remains experimental and currently does not claim materialized-graph support. Query `HlslComposition.GetRuntimeCapabilities()` when an application needs an architecture-level feature gate or fallback.
 
-Capability reporting is deliberately side-effect free. Private ABI resolution/patching remains lazy and must fail closed if the loaded native runtime cannot be resolved safely.
+Capability reporting is deliberately side-effect free. Private ABI resolution/patching remains lazy and must fail closed if the loaded native runtime cannot be resolved safely. The 1.6-2.4 range is an empirical validation statement for the tested release builds, not a guarantee that future Windows App SDK revisions will preserve the private ABI.
 
-The current backend intentionally supports one named public source and at most one custom HLSL node in a lowered graph. Multi-texture custom inputs, arbitrary custom-node chains, and unverified private vector/matrix property metadata remain unsupported rather than guessed. `HlslProperty` therefore currently rejects non-scalar values instead of exposing an unverified private updater path.
+The current backend supports 1-16 ordered linked sources for `Color`/`Sampler`, exactly one materialized public source for `MaterializedSampler`, and at most one custom HLSL node in a lowered graph. Multi-source materialized inputs, arbitrary custom-node chains, and unverified private vector/matrix property metadata remain unsupported rather than guessed. `HlslProperty` therefore currently rejects non-scalar values instead of exposing an unverified private updater path.

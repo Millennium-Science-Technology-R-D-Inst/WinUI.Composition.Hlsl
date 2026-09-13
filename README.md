@@ -34,7 +34,7 @@ There is no `SwapChainPanel`, custom presentation loop, app-owned swap chain, se
 The WinRT API is consumable from C++/WinRT and C#. The implementation is C++23/C++/WinRT and the package includes a .NET 8 CsWinRT projection.
 
 > [!WARNING]
-> Executing private custom shader nodes requires a **private, undocumented Windows Composition / Windows App SDK ABI**. Windows App SDK **2.4 + x64** is the primary validated baseline. x86 and ARM64 adapters are present but experimental. Unknown/incompatible layouts are intended to fail closed rather than emit guessed DWM data.
+> Executing private custom shader nodes requires a **private, undocumented Windows Composition / Windows App SDK ABI**. Released Windows App SDK **1.6 through 2.4** has been runtime-validated on both **x86 and x64**, including the current materialized-graph path. ARM64 has a private adapter but remains experimental. Unknown/incompatible layouts are intended to fail closed rather than emit guessed DWM data.
 
 ## Main capabilities
 
@@ -196,7 +196,7 @@ auto factory = compositor.CreateEffectFactory(graphNode);
 auto brush = factory.CreateBrush();
 ```
 
-For linked multi-source effects, `CreateAdvanced` declares the ordered public inputs and `CreateGraphicsEffectWithSources` supplies them in that order. At the brush level, `HlslEffectBrush.SetSource(name, brush)` binds each named Composition source independently.
+For linked multi-source effects, `CreateAdvanced` declares the ordered public inputs and `CreateGraphicsEffectWithSources` supplies them in that order. At the brush level, `HlslEffectBrush.SetSource(name, brush)` binds each named Composition source independently; `HlslComposition.CreateBrushWithSources` is the ordered convenience helper when the source brushes are already available as a collection.
 
 For an upstream native effect graph:
 
@@ -257,7 +257,7 @@ auto brush = WinUI::Composition::Hlsl::HlslComposition::CreateBackdropBrush(comp
 MyBorder().Background(WinUI::Composition::Hlsl::HlslComposition::CreateXamlBrush(brush));
 ```
 
-For linked multi-source effects, `CreateBackdropBrush` binds the same compositor backdrop brush to **every declared source name**. If inputs should be different brushes, create the factory/brush explicitly and call `SetSource` per name.
+For linked multi-source effects, `CreateBackdropBrush` binds the same compositor backdrop brush to **every declared source name**. If inputs should be different brushes, use `CreateBrushWithSources` or bind them individually with `SetSource`.
 
 Graphs assembled directly through standard Composition can use:
 
@@ -290,13 +290,13 @@ var caps = HlslComposition.GetRuntimeCapabilities();
 
 The query is side-effect free; it does not patch or scan the private runtime merely to report the package support claim.
 
-| Architecture | Support | Graph nodes | Materialized graphs |
-| --- | --- | --- | --- |
-| x64 | Validated baseline | Yes | Yes |
-| x86 | Experimental | Yes | Not claimed yet |
-| ARM64 | Experimental | Yes | Not claimed yet |
+| Architecture | Support | Validated WASDK range | Graph nodes | Materialized graphs |
+| --- | --- | --- | --- | --- |
+| x64 | Validated | 1.6-2.4 | Yes | Yes |
+| x86 | Validated | 1.6-2.4 | Yes | Yes |
+| ARM64 | Experimental | Not yet validated as a release range | Yes | Not claimed yet |
 
-Actual private ABI resolution remains lazy and can still fail closed if the loaded Windows/App SDK build does not match the supported shape.
+Actual private ABI resolution remains lazy and can still fail closed if the loaded Windows/App SDK build does not match the supported shape. The 1.6-2.4 range records tested release builds; it is not a forward-compatibility guarantee for future revisions.
 
 ## NuGet
 
@@ -321,9 +321,9 @@ GitHub Actions uses unique `1.0.0-preview.<run-id>.<attempt>` versions and then 
 | Area | Current status |
 | --- | --- |
 | UI framework | WinUI 3 / Windows App SDK |
-| Main private-ABI baseline | Windows App SDK 2.4 + x64 |
-| x64 adapter | Validated baseline |
-| x86 adapter | Experimental |
+| Validated private-ABI range | Windows App SDK 1.6-2.4 on x86 and x64 |
+| x64 adapter | Validated on WASDK 1.6-2.4 |
+| x86 adapter | Validated on WASDK 1.6-2.4 |
 | ARM64 adapter | Experimental |
 | Shader payload | FXC SM4 shader-linking DXBC (`lib_4_0` family) |
 | Managed projection | .NET 8 / CsWinRT |
@@ -333,7 +333,7 @@ GitHub Actions uses unique `1.0.0-preview.<run-id>.<attempt>` versions and then 
 | Public properties | Scalar float |
 | Custom nodes per lowered graph | One |
 
-Preview/experimental Windows App SDK builds may change private resolver fingerprints, object layouts, subgraph rules, or property-updater behavior. Compatibility must be revalidated rather than inferred from version numbers alone.
+The private ABI remains undocumented. Windows App SDK versions outside the validated 1.6-2.4 release range—including future preview/experimental builds—must be revalidated rather than inferred compatible from version numbers alone.
 
 ## Build
 

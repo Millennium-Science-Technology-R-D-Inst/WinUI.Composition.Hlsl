@@ -21,12 +21,14 @@ Retrieve it with `HlslComposition.GetRuntimeCapabilities()`.
 
 ## Current baseline
 
+Released Windows App SDK **1.6 through 2.4** has been runtime-validated on both x86 and x64. That validation includes ordinary linked custom graph nodes and the current single-source `MaterializedSampler` lowering path.
+
 | Architecture | Support | Graph nodes | Materialized graphs |
 | --- | --- | --- | --- |
-| x64 | Validated baseline | Yes | Yes |
-| x86 | Experimental | Yes | No capability claim yet |
+| x64 | Validated (WASDK 1.6-2.4) | Yes | Yes |
+| x86 | Validated (WASDK 1.6-2.4) | Yes | Yes |
 | ARM64 | Experimental | Yes | No capability claim yet |
 
 Capability retrieval is intentionally side-effect free: it does not scan `wuceffectsi.dll`, patch code/import tables, or create an effect factory. Actual private-ABI resolution remains lazy and fail-closed when an effect is materialized.
 
-Treat `SupportLevel` as the library's tested support claim, not as proof that every future Windows App SDK build is binary-compatible with the private ABI.
+Treat `SupportLevel` as the library's tested support claim, not as proof that every future Windows App SDK build is binary-compatible with the private ABI. Versions outside the validated 1.6-2.4 release range, including future preview/experimental builds, must be revalidated rather than inferred from version numbers alone.

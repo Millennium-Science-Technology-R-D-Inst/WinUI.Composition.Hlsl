@@ -42,16 +42,18 @@ The returned synthetic compiled result retains the native compiled result as bac
 The runtime does **not** claim support for:
 
 - multiple custom HLSL nodes in one flattened graph;
-- multiple public texture sources to one custom shader;
+- multiple independently materialized public texture sources to one `MaterializedSampler`;
 - arbitrary native effects after the custom sampler;
 - guessed private linker argument encodings;
 - arbitrary private Composition ABI revisions.
 
-Those cases remain fail-closed. The internal graph/source vectors are structurally capable of representing more than one source, but the private linker argument mapping for multi-texture custom shaders has not been verified. Merely removing a source-count check would create an unsafe ABI rather than real support.
+Those cases remain fail-closed. Ordinary linked `Color`/`Sampler` effects are a different path and do support 1-16 ordered linked sources; that support must not be confused with multi-source materialization.
 
 ## Architecture capability
 
-The x64 Windows App SDK 2.4 baseline is the currently validated materialized path. x86 and ARM64 have private runtime adapters but `GetRuntimeCapabilities()` does not yet claim `SupportsMaterializedGraphs` for those architectures.
+Released Windows App SDK **1.6 through 2.4** has been runtime-validated for this materialized path on both **x86 and x64**. `GetRuntimeCapabilities()` therefore reports `Validated` and `SupportsMaterializedGraphs=true` on both architectures. ARM64 still has a private runtime adapter, but remains experimental and does not currently claim materialized-graph support.
+
+The validated version range is empirical: it records the release builds that have been exercised successfully, not a promise that future Windows App SDK revisions will retain the same private ABI.
 
 ## Regression validation
 

@@ -34,7 +34,7 @@ HLSL / 编译后的 shader library
 公共 API 同时面向 C++/WinRT 与 C#；原生实现使用 C++23/C++/WinRT，NuGet 同时提供 .NET 8 CsWinRT projection。
 
 > [!WARNING]
-> 真正执行 private custom shader node 依赖 **Windows Composition / Windows App SDK 未公开私有 ABI**。目前主要验证基线为 **Windows App SDK 2.4 + x64**。x86 与 ARM64 已有适配器，但仍属于实验性支持。未知或不兼容布局应 fail closed，不能靠猜测继续向 DWM 传递数据。
+> 真正执行 private custom shader node 依赖 **Windows Composition / Windows App SDK 未公开私有 ABI**。目前已经实际验证 **Windows App SDK 1.6 到 2.4** 的正式版本在 **x86 与 x64** 上都可以正确运行，包括当前 materialized graph 路径。ARM64 已有 private adapter，但仍属于实验性支持。未知或不兼容布局应 fail closed，不能靠猜测继续向 DWM 传递数据。
 
 ## 主要能力
 
@@ -196,7 +196,7 @@ auto factory = compositor.CreateEffectFactory(graphNode);
 auto brush = factory.CreateBrush();
 ```
 
-对于 linked multi-source effect，`CreateAdvanced` 声明有序 public inputs，`CreateGraphicsEffectWithSources` 按同一顺序传入 source。在 brush 层则通过 `HlslEffectBrush.SetSource(name, brush)` 分别绑定每个 named Composition source。
+对于 linked multi-source effect，`CreateAdvanced` 声明有序 public inputs，`CreateGraphicsEffectWithSources` 按同一顺序传入 source。在 brush 层可以通过 `HlslEffectBrush.SetSource(name, brush)` 分别绑定每个 named Composition source；如果已经有按顺序排列好的 brush 集合，也可以直接使用 `HlslComposition.CreateBrushWithSources`。
 
 如果前面已经有原生 Composition effect graph：
 
@@ -257,7 +257,7 @@ auto brush = WinUI::Composition::Hlsl::HlslComposition::CreateBackdropBrush(comp
 MyBorder().Background(WinUI::Composition::Hlsl::HlslComposition::CreateXamlBrush(brush));
 ```
 
-对于 linked multi-source effect，`CreateBackdropBrush` 会把同一个 compositor backdrop brush 绑定到**所有声明的 source name**。如果各输入需要不同的 brush，应显式创建 factory/brush，再逐个调用 `SetSource`。
+对于 linked multi-source effect，`CreateBackdropBrush` 会把同一个 compositor backdrop brush 绑定到**所有声明的 source name**。如果各输入需要不同的 brush，可直接使用 `CreateBrushWithSources`，或者逐个调用 `SetSource`。
 
 如果 graph 是直接通过标准 Composition API 创建：
 
@@ -290,13 +290,13 @@ var caps = HlslComposition.GetRuntimeCapabilities();
 
 这个查询没有副作用，不会为了“问一下支不支持”就扫描或 patch private runtime。
 
-| 架构 | 支持级别 | Graph node | Materialized graph |
-| --- | --- | --- | --- |
-| x64 | Validated baseline | 是 | 是 |
-| x86 | Experimental | 是 | 暂不声明 |
-| ARM64 | Experimental | 是 | 暂不声明 |
+| 架构 | 支持级别 | 已验证 WASDK 范围 | Graph node | Materialized graph |
+| --- | --- | --- | --- | --- |
+| x64 | Validated | 1.6-2.4 | 是 | 是 |
+| x86 | Validated | 1.6-2.4 | 是 | 是 |
+| ARM64 | Experimental | 尚未形成正式版本验证范围 | 是 | 暂不声明 |
 
-真正 private ABI 初始化仍然是 lazy 的；即使 capability 声明某个架构有 adapter，遇到不兼容的 Windows/App SDK build 仍可能 fail closed。
+真正 private ABI 初始化仍然是 lazy 的；即使 capability 声明某个架构受支持，遇到不兼容的 Windows/App SDK build 仍可能 fail closed。这里的 1.6-2.4 表示已经实际测试通过的正式版本范围，并不代表未来版本自动兼容。
 
 ## NuGet
 
@@ -319,9 +319,9 @@ var caps = HlslComposition.GetRuntimeCapabilities();
 | 项目 | 当前状态 |
 | --- | --- |
 | UI 框架 | WinUI 3 / Windows App SDK |
-| 私有 ABI 主要基线 | Windows App SDK 2.4 + x64 |
-| x64 adapter | 主要验证基线 |
-| x86 adapter | Experimental |
+| 已验证 private ABI 范围 | Windows App SDK 1.6-2.4，x86 / x64 |
+| x64 adapter | WASDK 1.6-2.4 已验证 |
+| x86 adapter | WASDK 1.6-2.4 已验证 |
 | ARM64 adapter | Experimental |
 | Shader payload | FXC SM4 shader-linking DXBC（`lib_4_0` 系列） |
 | Managed projection | .NET 8 / CsWinRT |
@@ -331,7 +331,7 @@ var caps = HlslComposition.GetRuntimeCapabilities();
 | 公开 shader 属性 | scalar float |
 | 每个 lowered graph 的 custom node | 一个 |
 
-Windows App SDK Preview / Experimental 版本可能改变 resolver fingerprint、object layout、subgraph 规则或 property updater ABI，因此必须重新验证，不能只根据版本号推断二进制兼容。
+private ABI 仍然是未公开实现细节。Windows App SDK 超出已验证的 1.6-2.4 正式版本范围后，包括未来 Preview / Experimental 版本，都必须重新验证，不能仅凭版本号推断兼容。
 
 ## 构建
 

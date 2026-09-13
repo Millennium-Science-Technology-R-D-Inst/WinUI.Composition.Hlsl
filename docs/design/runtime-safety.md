@@ -51,15 +51,17 @@ This distinction is intentional: range checking belongs at API/control boundarie
 
 ## Private ABI support levels
 
-The current support contract is:
+The current support contract is based on runtime validation of released Windows App SDK builds:
 
-| Architecture | Support level | Composition graph nodes | Materialized graphs |
-| --- | --- | --- | --- |
-| x64 | Validated baseline | Yes | Yes |
-| x86 | Experimental | Yes | Not claimed |
-| ARM64 | Experimental | Yes | Not claimed |
+| Architecture | Support level | Validated WASDK range | Composition graph nodes | Materialized graphs |
+| --- | --- | --- | --- | --- |
+| x64 | Validated | 1.6-2.4 | Yes | Yes |
+| x86 | Validated | 1.6-2.4 | Yes | Yes |
+| ARM64 | Experimental | Not yet validated as a release range | Yes | Not claimed |
 
-`Validated` means the repository's documented private layout and smoke path have been exercised on the stated baseline. It does not turn the private ABI into a Microsoft-supported public contract. `Experimental` means an adapter exists and builds, but the project does not make the same runtime compatibility claim.
+`Validated` means the repository's documented private layout and smoke/runtime paths have been exercised successfully on the stated release range. It does not turn the private ABI into a Microsoft-supported public contract. `Experimental` means an adapter exists and builds, but the project does not make the same runtime compatibility claim.
+
+The 1.6-2.4 range is deliberately explicit. A future Windows App SDK version, preview build, or materially different OS/runtime combination must be revalidated rather than assumed compatible because earlier releases passed.
 
 Unknown or structurally incompatible native layouts must fail closed. The runtime must not guess RVAs, object layouts, shader-linking arguments, vector/matrix metadata, or unsupported graph shapes merely to continue rendering.
 
@@ -77,4 +79,4 @@ The fallback is not an app-owned swap chain, overlay HWND, or second visual tree
 
 ## Current fail-closed boundaries
 
-The runtime currently does not claim general support for multiple custom HLSL nodes in one lowered graph, multiple public texture sources, arbitrary native nodes after a terminal materialized custom sampler, or unverified vector/matrix public-property metadata. Those capabilities require additional private ABI evidence before they can become public contracts.
+The runtime currently does not claim general support for multiple custom HLSL nodes in one lowered graph, multiple independently materialized public texture sources, arbitrary native nodes after a terminal materialized custom sampler, or unverified vector/matrix public-property metadata. Ordinary linked `Color`/`Sampler` inputs are a separate validated path and support 1-16 ordered sources.
