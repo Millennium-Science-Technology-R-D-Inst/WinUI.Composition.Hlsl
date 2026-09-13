@@ -157,7 +157,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		auto names = single_threaded_vector<hstring>();
 		for (auto const& property : m_definition->properties)
 		{
-			names.Append(property.name);
+			names.Append(hstring{ property.name });
 		}
 		return names.GetView();
 	}
@@ -167,7 +167,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			if (name == property.name)
 			{
-				return m_definition->effectName + L"." + property.name;
+				return hstring{ m_definition->effectName + L"." + property.name };
 			}
 		}
 		throw hresult_invalid_argument(L"The float property is not declared by this effect.");
@@ -177,7 +177,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		auto paths = single_threaded_vector<hstring>();
 		for (auto const& property : m_definition->properties)
 		{
-			paths.Append(m_definition->effectName + L"." + property.name);
+			paths.Append(hstring{ m_definition->effectName + L"." + property.name });
 		}
 		return paths.GetView();
 	}
