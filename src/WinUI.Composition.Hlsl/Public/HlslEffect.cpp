@@ -137,6 +137,19 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	{
 		return Describe(shader, Hlsl::HlslEffectKind::MaterializedSampler, {}, L"Backdrop");
 	}
+	Hlsl::HlslEffect HlslEffect::CreateCompiled(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader)
+	{
+		if (!shader) throw hresult_invalid_argument(L"The shader library is null.");
+		auto library = get_self<HlslShaderLibrary>(shader);
+		return DescribeCompiled(shader, library->EffectKind(), id);
+	}
+	Hlsl::HlslEffect HlslEffect::CreateCompiledFromGeneratedByteArray(
+		winrt::guid const& id,
+		winrt::array_view<std::uint8_t const> bytecode)
+	{
+		auto library = HlslShaderLibrary::CreateFromGeneratedByteArray(bytecode);
+		return CreateCompiled(id, library);
+	}
 	Hlsl::HlslEffect HlslEffect::CreateCompiledColor(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader)
 	{
 		return DescribeCompiled(shader, Hlsl::HlslEffectKind::Color, id);
