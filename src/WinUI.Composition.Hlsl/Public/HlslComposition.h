@@ -9,9 +9,11 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslComposition
 	{
+		static Hlsl::HlslRuntimeCapabilities GetRuntimeCapabilities();
 		static Hlsl::HlslEffectFactory CreateEffectFactory(Microsoft::UI::Composition::Compositor const& compositor, Hlsl::HlslEffect const& effect);
 		static Hlsl::HlslEffectBrush CreateBackdropBrush(Microsoft::UI::Composition::Compositor const& compositor, Hlsl::HlslEffect const& effect);
 		static Microsoft::UI::Xaml::Media::Brush CreateXamlBrush(Hlsl::HlslEffectBrush const& brush);
+		static Microsoft::UI::Xaml::Media::Brush CreateXamlBrushFromCompositionBrush(Microsoft::UI::Composition::CompositionBrush const& brush);
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation
@@ -20,4 +22,3 @@ namespace winrt::WinUI::Composition::Hlsl::factory_implementation
 	{
 	};
 }
-

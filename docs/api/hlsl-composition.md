@@ -1,47 +1,63 @@
 # HlslComposition class
 
-Provides static entry points for creating Composition and XAML objects.
+Provides Composition/XAML bridge helpers and side-effect-free runtime capability reporting.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
+**Package:** `WinUI.Composition.Hlsl` v1.0.0  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
+## GetRuntimeCapabilities
 
-## Methods
+```csharp
+public static HlslRuntimeCapabilities GetRuntimeCapabilities();
+```
 
-### CreateEffectFactory
+Returns the packaged native-adapter capability level without installing private hooks or probing the Composition process image. Use it to gate optional materialized effects or fallback UI. See [HlslRuntimeCapabilities](hlsl-runtime-capabilities.md).
+
+## CreateEffectFactory
 
 ```csharp
 public static HlslEffectFactory CreateEffectFactory(Compositor compositor, HlslEffect effect);
 ```
 
-Compiles and registers the effect for the supplied compositor, then returns a reusable factory.
+Creates/caches the Composition factory for the effect's normal one-source description.
 
-### CreateBackdropBrush
+When a custom shader must consume an already-built **native `IGraphicsEffect` graph**, use `HlslEffectKind.MaterializedSampler`, call `CreateGraphicsEffectWithSource(upstream)`, obtain `GetAnimatablePropertyPaths()`, and then call the standard `Compositor.CreateEffectFactory(graph, paths)`. Ordinary `Color/Sampler` mixed-native upstream graphs are intentionally rejected until their private linked-subgraph ABI is verified.
+
+## CreateBackdropBrush
 
 ```csharp
 public static HlslEffectBrush CreateBackdropBrush(Compositor compositor, HlslEffect effect);
 ```
 
-Creates a factory and brush, then assigns `compositor.CreateBackdropBrush()` to the description's source name.
+Convenience path for one-source effects whose source should be `compositor.CreateBackdropBrush()`.
 
-### CreateXamlBrush
+## CreateXamlBrush
 
 ```csharp
 public static Brush CreateXamlBrush(HlslEffectBrush brush);
 ```
 
-Wraps the brush in a `XamlCompositionBrushBase` so it can be assigned to `Border.Background`, `Panel.Background`, and other XAML brush properties.
+Wraps an HLSL effect brush in `XamlCompositionBrushBase` for XAML brush properties.
 
-## Example
+## CreateXamlBrushFromCompositionBrush
 
-```cpp
-auto compositor = Microsoft::UI::Xaml::Media::CompositionTarget::GetCompositorForCurrentThread();
-auto effect = WinUI::Composition::Hlsl::HlslEffect::CreateColorTransform(LR"(
-export float4 PSBody(float4 color) { return float4(color.a - color.rgb, color.a); }
-)");
-auto brush = WinUI::Composition::Hlsl::HlslComposition::CreateBackdropBrush(compositor, effect);
-MyBorder().Background(WinUI::Composition::Hlsl::HlslComposition::CreateXamlBrush(brush));
+```csharp
+public static Brush CreateXamlBrushFromCompositionBrush(CompositionBrush brush);
 ```
 
+Bridges any compatible `CompositionBrush` to XAML. This is useful when the graph was assembled through standard Windows Graphics Effects/Composition APIs rather than the HLSL convenience factory.
 
+The bridge stays in the XAML/Composition visual system. It does not create a `SwapChainPanel`, app-owned swap chain, independent HWND overlay, or another rendering tree.
+
+## Validated mixed-graph shape
+
+```text
+XAML/Backdrop source
+    -> native Windows Graphics Effects nodes
+    -> MaterializedSampler HLSL node
+    -> CompositionEffectFactory
+    -> CompositionEffectBrush
+    -> CreateXamlBrushFromCompositionBrush
+    -> XAML Brush property
+```

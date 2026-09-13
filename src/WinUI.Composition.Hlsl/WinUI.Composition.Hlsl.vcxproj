@@ -115,6 +115,7 @@
   <ItemGroup>
     <ClCompile Include="Effects\EffectEngine.cpp" />
     <ClInclude Include="Effects\EffectEngine.h" />
+    <ClCompile Include="Effects\ShaderSource.ixx" />
     <ClCompile Include="Materials\CustomLiquidGlassEffect.cpp" />
     <ClInclude Include="Materials\CustomLiquidGlassEffect.h" />
     <ClCompile Include="Materials\GaussianBlurEffect.cpp" />
@@ -122,6 +123,8 @@
     <ClCompile Include="Shaders\LiquidGlassShader.ixx" />
     <ClCompile Include="Public\HlslComposition.cpp" />
     <ClInclude Include="Public\HlslComposition.h" />
+    <ClCompile Include="Public\HlslCompiler.cpp" />
+    <ClInclude Include="Public\HlslCompiler.h" />
     <ClCompile Include="Public\HlslEffect.cpp" />
     <ClInclude Include="Public\HlslEffect.h" />
     <ClCompile Include="Public\HlslShaderLibrary.cpp" />
@@ -130,6 +133,7 @@
     <ClInclude Include="Public\HlslEffectBrush.h" />
     <ClCompile Include="Public\HlslEffectFactory.cpp" />
     <ClInclude Include="Public\HlslEffectFactory.h" />
+    <ClInclude Include="Public\HlslRuntimeCapabilities.h" />
     <ClCompile Include="Public\LiquidGlassBrush.cpp" />
     <ClInclude Include="Public\LiquidGlassBrush.h" />
     <ClCompile Include="Public\LiquidGlassMaterial.cpp" />

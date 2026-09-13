@@ -4,14 +4,9 @@
 
 <h1 align="center">WinUI.Composition.Hlsl</h1>
 
-<p align="center">
-  Native HLSL composition effects and Fluent-style XAML materials for WinUI 3.
-</p>
+<p align="center">Native HLSL nodes for WinUI 3 Composition, plus XAML material brushes.</p>
 
-<p align="center">
-  <a href="README.md">English</a> ·
-  <a href="README_zh_cn.md">简体中文</a>
-</p>
+<p align="center"><a href="README.md">English</a> · <a href="README_zh_cn.md">简体中文</a></p>
 
 <p align="center">
   <a href="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml/badge.svg?branch=master"></a>
@@ -21,62 +16,178 @@
   <img alt="WinUI 3" src="https://img.shields.io/badge/WinUI-3-0078D4">
 </p>
 
-## Overview
+## What this library is
 
-WinUI.Composition.Hlsl is a native Windows Runtime component for using custom HLSL effects in WinUI 3 Composition, together with ready-to-use XAML materials such as `LiquidGlassBrush`.
-
-The public API is consumable from both C++/WinRT and C#. The native implementation is C++23 + C++/WinRT 3.0 and the package also ships a .NET 8 CsWinRT projection. The library supports dynamic HLSL, validated precompiled DXBC shader libraries, reusable Composition factories and brushes, animatable scalar parameters, XAML integration, and the built-in Liquid Glass material pipeline.
-
-> [!WARNING]
-> The custom-HLSL backend integrates with a **private, undocumented Windows Composition / Windows App Runtime ABI**. Windows App SDK **2.4.0 on x64** remains the most thoroughly validated baseline. x86 and ARM64 now have **phase-1 native ABI adapters** and are built by CI, but those paths are still experimental and have not yet reached the same validation confidence as x64. Preview or experimental Windows App SDK versions must be revalidated instead of being assumed binary-compatible.
-
-## Features
-
-- Native WinRT API for C++/WinRT and C#.
-- Dynamic HLSL color transforms and custom samplers.
-- Precompiled FXC SM4 DXBC shader-library support through `HlslShaderLibrary`.
-- Scalar shader properties exposed as animatable Composition properties.
-- `HlslEffectFactory` / `HlslEffectBrush` wrappers for reusable effect instances.
-- `HlslComposition.CreateXamlBrush` for using Composition effects in XAML brush properties.
-- Built-in `LiquidGlassMaterial` and `LiquidGlassBrush` with blur, refraction, dispersion, rounded corners, borders, highlights, and fallback rendering.
-- Materialized graph lowering for the built-in `Backdrop -> GaussianBlur -> custom sampler` pipeline.
-- Native NuGet build integration for compiling consumer HLSL into SM4 shader-linking DXBC libraries.
-- Runtime validation for effect schemas, DXBC exports, constant-buffer layout, and private ABI revisions.
-- Native package assets for x64, x86, and ARM64.
-
-## NuGet
-
-The package is **not public on nuget.org yet**. The repository's stable package metadata is currently `WinUI.Composition.Hlsl` **1.0.0**.
-
-[![NuGet package placeholder](https://img.shields.io/badge/WinUI.Composition.Hlsl-1.0.0%20%7C%20publishing%20soon-004880?logo=nuget&logoColor=white)](https://www.nuget.org/packages/WinUI.Composition.Hlsl)
-
-The intended stable reference is:
-
-```xml
-<PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.0" />
-```
-
-For local development, build and pack the repository:
-
-```powershell
-.\pack.ps1
-```
-
-Packages are written to `artifacts/packages`.
-
-### CI preview packages
-
-Every GitHub Actions run creates a unique prerelease package using this form:
+`WinUI.Composition.Hlsl` makes custom HLSL participate in the **existing Windows Graphics Effects / Microsoft.UI.Composition / XAML pipeline**. It is not an application-owned D3D renderer placed on top of XAML.
 
 ```text
-1.0.0-preview.<github-run-id>.<run-attempt>
+HLSL / DXBC
+    -> IGraphicsEffect
+    -> CompositionEffectFactory
+    -> CompositionEffectBrush
+    -> XamlCompositionBrushBase
+    -> XAML
 ```
 
-The package is uploaded as an Actions artifact and the C++ / C# consumer jobs download and build against that exact `.nupkg`. This keeps CI preview versions collision-free, including workflow reruns, without changing the repository's stable `1.0.0` metadata.
+There is no `SwapChainPanel`, custom presentation loop, app-owned swap chain, separate HWND overlay, or second visual tree in this path. That distinction is the main goal of the project: custom shader work should keep normal Composition/XAML clipping, transforms, scaling, lifetime, brush composition, and animation behavior instead of bypassing them with an overlay surface.
 
-## Quick start
+The WinRT API is consumable from C++/WinRT and C#. The implementation is C++23/C++/WinRT and the package includes a .NET 8 CsWinRT projection.
 
-### Liquid Glass in XAML
+> [!WARNING]
+> Executing private custom shader nodes requires a **private, undocumented Windows Composition / Windows App SDK ABI**. Windows App SDK **2.4 + x64** is the primary validated baseline. x86 and ARM64 adapters are present but experimental. Unknown/incompatible layouts are intended to fail closed rather than emit guessed DWM data.
+
+## Main capabilities
+
+- Standard `IGraphicsEffect` graph nodes through `HlslEffect.CreateGraphicsEffect*`.
+- `Color`, `Sampler`, and public `MaterializedSampler` shader contracts.
+- Native Composition factories/brushes, with direct access to their property sets for Composition-thread animations.
+- Composition-to-XAML bridging through `XamlCompositionBrushBase`.
+- Build-time FXC compilation for both C++ and C# consumers through `<HlslCompositionShader>`.
+- Background `HlslCompiler.CompileAsync` for generated/development shaders.
+- Immutable `HlslShaderLibrary` DXBC objects with `Bytecode` export for persistent application caches.
+- Scalar shader properties mapped to native Composition constant-buffer updaters.
+- Built-in `LiquidGlassMaterial` / `LiquidGlassBrush`.
+- Side-effect-free runtime capability reporting.
+- Native package assets for x64, x86, and ARM64.
+
+## Production shader workflow
+
+For shader source known when the application is built, use the package MSBuild item:
+
+```xml
+<ItemGroup>
+  <HlslCompositionShader Include="Effects\MyGlass.hlsl">
+    <Kind>MaterializedSampler</Kind>
+    <Profile>Pixel40</Profile>
+  </HlslCompositionShader>
+</ItemGroup>
+```
+
+The package invokes Windows SDK FXC with strictness, optimization, and warnings-as-errors. Shader syntax and public entry-point errors fail the **build**, not first render.
+
+Application shader contracts are intentionally small:
+
+```hlsl
+// Color
+export float4 PSBody(float4 color);
+
+// Sampler
+float4 Shade(float2 uv, float4 samplerDataExt);
+
+// MaterializedSampler
+float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData);
+```
+
+For samplers, the build front end generates the private clamp/wrap/mirror `PSBody*` exports. For `MaterializedSampler` it also generates the identity materialization helper. Applications should not duplicate those private wrapper names themselves.
+
+The same build target works in native C++ and SDK-style C# consumers. DXBC is emitted into the project HLSL output directory; native projects can additionally receive generated byte-array headers.
+
+## Runtime compilation and caching
+
+Runtime-generated shaders can be compiled without blocking the UI thread:
+
+```csharp
+var library = await HlslCompiler.CompileAsync(
+    shader,
+    HlslEffectKind.MaterializedSampler,
+    HlslShaderProfile.Pixel40);
+```
+
+The compiler moves FXC work to a background thread and does not create a `Compositor`, XAML object, effect brush/factory, or install the private Composition adapter there.
+
+`library.Bytecode` lets an application persist the result:
+
+```text
+first run: HLSL -> CompileAsync -> DXBC -> application cache
+later:     cache -> HlslShaderLibrary.Create -> CreateCompiled* -> Composition
+```
+
+Runtime DXBC reflection is retained as one-time defensive validation for arbitrary external/cached bytecode. It is not a per-frame check and is not the recommended way to discover ordinary shader authoring errors.
+
+## Standard Composition graph nodes
+
+A custom HLSL node can be materialized as a standard graphics effect:
+
+```cpp
+auto effect = WinUI::Composition::Hlsl::HlslEffect::CreateColorTransform(LR"(
+export float4 PSBody(float4 color)
+{
+    return float4(color.a - color.rgb, color.a);
+}
+)");
+
+auto graphNode = effect.CreateGraphicsEffect();
+auto factory = compositor.CreateEffectFactory(graphNode);
+auto brush = factory.CreateBrush();
+```
+
+For an upstream native effect graph:
+
+```text
+CompositionEffectSourceParameter
+    -> GaussianBlur / transform / other native nodes
+    -> HlslEffect.CreateGraphicsEffectWithSource(upstream)
+    -> Compositor.CreateEffectFactory(...)
+```
+
+This is the route used to compose HLSL with normal Composition effects instead of creating a parallel rendering surface.
+
+## MaterializedSampler
+
+`Sampler` is the lightweight linked sampler contract. `MaterializedSampler` is specifically for a custom shader that needs a **real texture representation of one upstream native effect graph**, so it can perform arbitrary `Texture2D.Sample` operations and use native sampler metadata.
+
+```hlsl
+float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)
+{
+    float2 texel = samplerDataExt.zw;
+    return texture0.Sample(sampler0, uv + texel * 2.0f);
+}
+```
+
+The current validated lowering shape is:
+
+```text
+one native upstream graph
+    -> materialized intermediate texture
+    -> one isolated terminal MaterializedSampler
+    -> output wrapper
+    -> Composition/XAML
+```
+
+This public feature is built from the same private lowering already exercised by Liquid Glass; it is not a new guessed ABI.
+
+It **does not** currently claim support for multiple custom HLSL nodes, multiple public texture sources, arbitrary native downstream nodes after the custom sampler, or unverified linker argument encodings.
+
+## Composition-native animation
+
+`HlslEffectBrush` exposes its underlying `CompositionEffectBrush` and `CompositionPropertySet`:
+
+```cpp
+auto path = brush.GetPropertyPath(L"Strength");
+auto animation = compositor.CreateScalarKeyFrameAnimation();
+animation.InsertKeyFrame(1.0f, 24.0f);
+brush.EffectBrush().StartAnimation(path, animation);
+```
+
+Use `SetFloat` for occasional application updates. For frame-rate animation, use Composition animations so application code does not cross the wrapper/API boundary each frame.
+
+## XAML bridge
+
+Simple backdrop usage:
+
+```cpp
+auto brush = WinUI::Composition::Hlsl::HlslComposition::CreateBackdropBrush(compositor, effect);
+MyBorder().Background(WinUI::Composition::Hlsl::HlslComposition::CreateXamlBrush(brush));
+```
+
+Graphs assembled directly through standard Composition can use:
+
+```cpp
+MyBorder().Background(
+    WinUI::Composition::Hlsl::HlslComposition::CreateXamlBrushFromCompositionBrush(compositionBrush));
+```
+
+### Built-in Liquid Glass
 
 ```xml
 <hlsl:LiquidGlassBrush
@@ -90,85 +201,63 @@ The package is uploaded as an Actions artifact and the C++ / C# consumer jobs do
     FallbackColor="#CC202020" />
 ```
 
-`LiquidGlassBrush` derives from `XamlCompositionBrushBase`. Numeric dependency properties use `Double` for normal WinUI XAML conversion and are validated before being converted to GPU `float` values. When advanced effects are unavailable, initialization fails, or `IsEnabled` is false, the brush falls back to `FallbackColor`.
+`LiquidGlassBrush` derives from `XamlCompositionBrushBase` and can fall back to `FallbackColor` if the advanced material is disabled or unavailable.
 
-See [LiquidGlassBrush](docs/api/liquid-glass-brush.md) for a complete example.
+## Runtime capability reporting
 
-### Custom HLSL effect
-
-```cpp
-auto compositor = Microsoft::UI::Xaml::Media::CompositionTarget::GetCompositorForCurrentThread();
-
-auto effect = WinUI::Composition::Hlsl::HlslEffect::CreateColorTransform(LR"(
-export float4 PSBody(float4 color)
-{
-    return float4(color.a - color.rgb, color.a);
-}
-)");
-
-auto brush = WinUI::Composition::Hlsl::HlslComposition::CreateBackdropBrush(compositor, effect);
-MyBorder().Background(
-    WinUI::Composition::Hlsl::HlslComposition::CreateXamlBrush(brush));
+```csharp
+var caps = HlslComposition.GetRuntimeCapabilities();
 ```
 
-Dynamic color shaders export `float4 PSBody(float4 color)`. Dynamic custom samplers define `float4 Shade(float2 uv, float4 samplerDataExt)`.
+The query is side-effect free; it does not patch or scan the private runtime merely to report the package support claim.
 
-### Precompiled shaders
+| Architecture | Support | Graph nodes | Materialized graphs |
+| --- | --- | --- | --- |
+| x64 | Validated baseline | Yes | Yes |
+| x86 | Experimental | Yes | Not claimed yet |
+| ARM64 | Experimental | Yes | Not claimed yet |
 
-Production effects can avoid runtime `D3DCompile` by using an FXC SM4 shader-linking DXBC library and `HlslShaderLibrary`.
+Actual private ABI resolution remains lazy and can still fail closed if the loaded Windows/App SDK build does not match the supported shape.
 
-A native consumer can also ask the NuGet build target to compile HLSL:
+## NuGet
+
+The package metadata is currently `WinUI.Composition.Hlsl` **1.0.0**; public nuget.org publication is still pending.
 
 ```xml
-<ItemGroup>
-  <HlslCompositionShader Include="Effects\MyGlass.hlsl">
-    <Kind>Sampler</Kind>
-    <ShaderModel>4.0</ShaderModel>
-  </HlslCompositionShader>
-</ItemGroup>
+<PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.0" />
 ```
 
-The target emits generated headers and `.dxbc` payloads and copies the DXBC output into the application output directory.
+Local packages:
+
+```powershell
+.\pack.ps1
+```
+
+are written to `artifacts/packages`.
+
+GitHub Actions uses unique `1.0.0-preview.<run-id>.<attempt>` versions and then builds both C++ and C# consumers against the exact package produced by that run.
 
 ## Compatibility
 
 | Area | Current status |
 | --- | --- |
-| UI framework | WinUI 3 / Windows App SDK only |
-| UWP / WinUI 2 | Not supported |
-| Main validated Windows App SDK baseline | 2.4.0 |
-| x64 private custom-HLSL runtime | Implemented; current primary validation baseline |
-| x86 private custom-HLSL runtime | Phase-1 implementation present; experimental / validation in progress |
-| ARM64 private custom-HLSL runtime | Phase-1 implementation present; experimental / validation in progress |
-| NuGet native assets | x64, x86, ARM64 |
-| XAML fallback | `LiquidGlassBrush` can fall back to `FallbackColor` |
+| UI framework | WinUI 3 / Windows App SDK |
+| Main private-ABI baseline | Windows App SDK 2.4 + x64 |
+| x64 adapter | Validated baseline |
+| x86 adapter | Experimental |
+| ARM64 adapter | Experimental |
+| Shader payload | FXC SM4 shader-linking DXBC (`lib_4_0` family) |
 | Managed projection | .NET 8 / CsWinRT |
-| Native language level | C++23, C++/WinRT 3.0 |
-| Shader format | FXC SM4 shader-linking DXBC (`lib_4_0` family) |
+| Native language | C++23 / C++/WinRT |
+| Public custom sources | One named source |
+| Public properties | Scalar float |
+| Custom nodes per lowered graph | One |
 
-### Architecture support
-
-The runtime now contains architecture-specific private-ABI handling for AMD64, x86, and ARM64, including platform machine validation, architecture-specific patch encoding, x86 calling-convention/thunk handling, and ARM64 instruction decoding. This is a significant step beyond merely packaging three DLLs.
-
-However, **implemented** and **equally validated** are not the same claim. x86/ARM64 support is currently treated as experimental phase-1 support until resolver fingerprints, private object layouts, call signatures, graph lowering, and runtime behavior have been exercised to the same degree as x64 on the target Windows App SDK builds.
-
-### Windows App SDK preview / experimental versions
-
-Private ABI compatibility is validated explicitly. Newer Windows App SDK, preview, or experimental builds may change resolver fingerprints, object layouts, subgraph assumptions, or property updater behavior. Unsupported layouts should fail closed rather than emit malformed Composition/DWM data.
-
-The current materialized-graph path is focused on the Liquid Glass topology: a native upstream graph materialized into an intermediate texture and consumed by an isolated terminal custom sampler.
+Preview/experimental Windows App SDK builds may change private resolver fingerprints, object layouts, subgraph rules, or property-updater behavior. Compatibility must be revalidated rather than inferred from version numbers alone.
 
 ## Build
 
-### Requirements
-
-- Visual Studio **2026** with **Desktop development with C++** and **WinUI application development** workloads.
-- MSVC `v145` with C++23 support.
-- Windows SDK `10.0.26100.0` or a compatible installed SDK.
-- .NET 8 SDK for the managed projection and C# consumer.
-- NuGet access, or a populated local package cache when using offline build scripts.
-
-Open `WinUI.Composition.Hlsl.slnx`, or use PowerShell:
+Requirements include Visual Studio 2026 with Desktop C++ and WinUI workloads, MSVC v145, a compatible Windows 10/11 SDK, .NET 8 for managed projection/tests, and restored NuGet dependencies.
 
 ```powershell
 .\build.ps1 -Configuration Debug
@@ -180,48 +269,29 @@ Open `WinUI.Composition.Hlsl.slnx`, or use PowerShell:
 .\tests\build.ps1 -Language CSharp
 ```
 
-CI builds the native Release package assets for **x64, Win32/x86, and ARM64**, builds the managed projection, creates one unique preview `.nupkg`, then restores the C++ and C# demos from that exact package artifact.
-
-## Samples and validation
-
-- `tests/Cpp` covers WinUI XAML, named C++/WinRT modules, Liquid Glass, effect switching, and native consumer behavior.
-- `tests/CSharp` validates the CsWinRT projection and managed package-consumer path.
-- `tests/BuildIntegration` validates the native `<HlslCompositionShader>` MSBuild integration and verifies that the emitted payload is a DXBC container.
-- `.github/workflows/ci.yml` is the canonical CI build path for `master` and pull requests targeting `master`.
-
 ## Documentation
 
-Start with the [documentation index](docs/index.md).
+Start at [docs/index.md](docs/index.md).
 
-### API reference
+Key references:
 
-- [WinUI.Composition.Hlsl namespace](docs/api/winui-composition-hlsl.md)
-- [HlslComposition](docs/api/hlsl-composition.md)
 - [HlslEffect](docs/api/hlsl-effect.md)
 - [HlslEffectKind](docs/api/hlsl-effect-kind.md)
-- [HlslFloatProperty](docs/api/hlsl-float-property.md)
-- [HlslEffectFactory](docs/api/hlsl-effect-factory.md)
-- [HlslEffectBrush](docs/api/hlsl-effect-brush.md)
+- [HlslCompiler](docs/api/hlsl-compiler.md)
 - [HlslShaderLibrary](docs/api/hlsl-shader-library.md)
-- [LiquidGlassMaterial](docs/api/liquid-glass-material.md)
-- [LiquidGlassBrush](docs/api/liquid-glass-brush.md)
-
-### Design notes
-
+- [HlslComposition](docs/api/hlsl-composition.md)
+- [HlslEffectBrush](docs/api/hlsl-effect-brush.md)
+- [HlslRuntimeCapabilities](docs/api/hlsl-runtime-capabilities.md)
 - [Materialized graph compilation](docs/design/materialized-graph-runtime.md)
-- [Precompiled shader libraries](docs/design/precompiled-shaders.md)
+- [Precompiled and asynchronous shaders](docs/design/precompiled-shaders.md)
 
 ## Current limitations
 
-The public `HlslEffect` model currently exposes one named source and fixed public shader entry-point contracts. Multiple public custom sources, arbitrary entry-point names, and fully general mixed graphs containing multiple custom shader nodes are not yet supported. x86 and ARM64 private-runtime support is present as phase-1 experimental work and still requires broader runtime validation.
-
-## Contributing
-
-Issues and pull requests are welcome. Changes touching the private Composition runtime should include evidence for the Windows App SDK build and architecture being targeted, and should preserve fail-closed behavior for unknown ABI revisions.
+The public model intentionally does not expose capabilities for which the private Composition ABI has not been established. In particular: multi-texture custom inputs, multiple custom shader nodes in one lowered graph, arbitrary native effects after a materialized custom sampler, arbitrary entry-point/linker contracts, and vector/matrix public property metadata are not yet supported.
 
 ## License
 
-WinUI.Composition.Hlsl is licensed under the [MIT License](LICENSE.txt).
+[MIT License](LICENSE.txt).
 
 ## Thanks
 

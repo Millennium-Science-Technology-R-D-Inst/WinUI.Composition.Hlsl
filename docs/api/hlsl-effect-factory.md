@@ -1,24 +1,25 @@
 # HlslEffectFactory class
 
-Represents a compiled HLSL effect factory associated with a `Compositor`.
+Represents a compiled HLSL effect factory associated with one `Compositor`.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
+**Package:** `WinUI.Composition.Hlsl` v1.0.0  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
+## Factory
 
-## Methods
+```csharp
+public CompositionEffectFactory Factory { get; }
+```
 
-### CreateBrush
+Exposes the underlying standard Composition factory for advanced Composition scenarios.
+
+## CreateBrush
 
 ```csharp
 public HlslEffectBrush CreateBrush();
 ```
 
-Creates a new brush and initializes every declared scalar property to its default value. Create the factory with [HlslComposition.CreateEffectFactory](hlsl-composition.md#createeffectfactory).
+Creates an independent brush and initializes declared scalar properties to their defaults.
 
-## Remarks
-
-Factories are cached per compositor and effect description when the underlying Composition object supports weak references. Brushes are independent instances.
-
-
+Factories are cached per compositor/effect description when the underlying Composition object supports weak references. The wrapper does not introduce a separate rendering surface or swap chain.

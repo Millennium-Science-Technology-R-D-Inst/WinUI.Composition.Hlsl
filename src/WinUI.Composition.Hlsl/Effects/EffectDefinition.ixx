@@ -22,6 +22,7 @@ export namespace hlsl::engine
 	{
 		winrt::guid id{};
 		bool sampler{};
+		bool materializedSampler{};
 		std::string shader;
 		std::vector<std::uint8_t> shaderBytecode;
 		std::uint8_t shaderProfile{ CustomEffectRuntime::kShaderProfileLevel93 };
@@ -37,5 +38,8 @@ export namespace hlsl::engine
 	winrt::guid DeriveId(EffectDefinition const& definition);
 	void Validate(EffectDefinition const& definition);
 	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(Definition const& definition);
+	winrt::Windows::Graphics::Effects::IGraphicsEffect Compile(
+		Definition const& definition,
+		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source);
 	winrt::Microsoft::UI::Composition::CompositionEffectFactory GetFactory(winrt::Microsoft::UI::Composition::Compositor const& compositor, Definition const& definition);
 }

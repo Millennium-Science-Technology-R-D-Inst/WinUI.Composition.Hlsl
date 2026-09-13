@@ -1,27 +1,38 @@
 ﻿# WinUI.Composition.Hlsl namespace
 
-Provides HLSL effect descriptions, Composition factories and brushes, and a ready-to-use Liquid Glass material for WinUI 3.
+Provides HLSL-backed Windows Graphics Effects/Composition nodes, async/build-time shader compilation, XAML brush bridging, and the built-in Liquid Glass material for WinUI 3.
 
 ## Classes
 
 | Class | Description |
 | --- | --- |
-| [HlslComposition](hlsl-composition.md) | Provides static methods that create Composition and XAML objects from an HLSL description. |
-| [HlslEffect](hlsl-effect.md) | Describes an immutable color-transform or custom-sampler shader. |
-| [HlslEffectBrush](hlsl-effect-brush.md) | Wraps a `CompositionEffectBrush` and applies declared sources and scalar properties. |
-| [HlslEffectFactory](hlsl-effect-factory.md) | Creates brush instances from a compiled effect description. |
-| [HlslFloatProperty](hlsl-float-property.md) | Declares a named scalar shader property and its accepted range. |
-| [HlslShaderLibrary](hlsl-shader-library.md) | Owns validated, precompiled DXBC shader-library bytecode. |
-| [LiquidGlassBrush](liquid-glass-brush.md) | XAML brush that renders the built-in Liquid Glass material. |
+| [HlslComposition](hlsl-composition.md) | Composition/XAML bridge and capability entry points. |
+| [HlslCompiler](hlsl-compiler.md) | Background FXC compiler for runtime-generated/cached shaders. |
+| [HlslEffect](hlsl-effect.md) | Immutable color, sampler, or materialized-sampler description. |
+| [HlslEffectBrush](hlsl-effect-brush.md) | Wraps `CompositionEffectBrush` and exposes its native animation property set. |
+| [HlslEffectFactory](hlsl-effect-factory.md) | Wraps the standard `CompositionEffectFactory`. |
+| [HlslFloatProperty](hlsl-float-property.md) | Declares a named scalar shader property and range. |
+| [HlslRuntimeCapabilities](hlsl-runtime-capabilities.md) | Side-effect-free packaged runtime support information. |
+| [HlslShaderLibrary](hlsl-shader-library.md) | Owns precompiled/cached FXC SM4 DXBC. |
+| [LiquidGlassBrush](liquid-glass-brush.md) | XAML Liquid Glass brush with fallback. |
 | [LiquidGlassMaterial](liquid-glass-material.md) | Composition-level Liquid Glass material. |
 
 ## Enums
 
 | Enum | Description |
 | --- | --- |
-| [HlslEffectKind](hlsl-effect-kind.md) | Identifies a `Color` or `Sampler` effect. |
-| `HlslShaderProfile` | Identifies the SM4 library profile used by precompiled bytecode. |
+| [HlslEffectKind](hlsl-effect-kind.md) | `Color`, `Sampler`, or `MaterializedSampler` shader/graph contract. |
+| `HlslShaderProfile` | SM4 shader-linking profile (`Level91`, `Level93`, `Pixel40`). |
+| `HlslNativeArchitecture` | Packaged native adapter architecture. |
+| `HlslRuntimeSupportLevel` | Validated/experimental/unsupported support claim. |
 
-## Remarks
+## Rendering model
 
-The public API is a Windows Runtime API shared by C++/WinRT and C# consumers. Shader compilation and native runtime initialization occur when an effect factory is created. Creating an `HlslEffect` only creates an immutable description.
+The library does not expose an application-owned swap-chain renderer. Public effects become `IGraphicsEffect` nodes, are consumed by normal Composition factories/brushes, and can be bridged back to XAML through `XamlCompositionBrushBase`.
+
+```text
+HLSL/DXBC -> IGraphicsEffect -> CompositionEffectFactory
+          -> CompositionEffectBrush -> XamlCompositionBrushBase -> XAML
+```
+
+Dynamic source compilation and private adapter initialization are separate concerns. Creating an immutable effect description does not itself start rendering.

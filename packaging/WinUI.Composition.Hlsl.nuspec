@@ -11,14 +11,14 @@
     <dependencies>
       <group targetFramework="native">
         <dependency id="Microsoft.WindowsAppSDK" version="2.4.0"/>
-        <dependency id="Microsoft.Windows.CppWinRT" version="2.0.230706.1"/>
+        <dependency id="Microsoft.Windows.CppWinRT" version="3.0.260818.1"/>
       </group>
       <group targetFramework="net8.0-windows10.0.26100.0">
         <dependency id="Microsoft.WindowsAppSDK" version="2.4.0"/>
       </group>
     </dependencies>
     <projectUrl>https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl</projectUrl>
-    <tags>hlsl c++ cpp winui3 winui cpp23 liquid</tags>
+    <tags>hlsl c++ cpp winui3 winui cpp23 liquid composition shader</tags>
     <repository type="git" url="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl"/>
   </metadata>
   <files>
@@ -34,6 +34,11 @@
     <file src="projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll" target="lib\net8.0-windows10.0.26100.0"/>
 
     <file src="packaging\WinUI.Composition.Hlsl.Native.targets" target="buildTransitive\native\WinUI.Composition.Hlsl.targets"/>
+    <file src="packaging\WinUI.Composition.Hlsl.Build.targets" target="buildTransitive\native\WinUI.Composition.Hlsl.Build.targets"/>
+    <file src="packaging\tools\Compile-HlslCompositionShader.ps1" target="buildTransitive\native\tools\Compile-HlslCompositionShader.ps1"/>
+
     <file src="packaging\WinUI.Composition.Hlsl.Managed.targets" target="buildTransitive\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.targets"/>
+    <file src="packaging\WinUI.Composition.Hlsl.Build.targets" target="buildTransitive\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Build.targets"/>
+    <file src="packaging\tools\Compile-HlslCompositionShader.ps1" target="buildTransitive\net8.0-windows10.0.26100.0\tools\Compile-HlslCompositionShader.ps1"/>
   </files>
 </package>

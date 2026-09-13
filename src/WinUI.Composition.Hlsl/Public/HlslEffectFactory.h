@@ -15,6 +15,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		HlslEffectFactory(Microsoft::UI::Composition::CompositionEffectFactory const& factory, hlsl::engine::Definition definition) :m_factory(factory), m_definition(std::move(definition))
 		{
 		}
+		Microsoft::UI::Composition::CompositionEffectFactory Factory() const
+		{
+			return m_factory;
+		}
 		Hlsl::HlslEffectBrush CreateBrush();
 	private:
 		Microsoft::UI::Composition::CompositionEffectFactory m_factory{ nullptr };

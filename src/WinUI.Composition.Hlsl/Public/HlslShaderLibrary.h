@@ -5,6 +5,9 @@
 #include "HlslShaderLibrary.g.h"
 
 import std;
+import winrt.Windows.Foundation;
+import winrt.Windows.Storage;
+import winrt.Windows.Storage.Streams;
 
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
@@ -19,9 +22,18 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Windows::Storage::Streams::IBuffer const& bytecode,
 			Hlsl::HlslShaderProfile profile);
 
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> LoadFromFileAsync(
+			Windows::Storage::StorageFile const& file,
+			Hlsl::HlslShaderProfile profile);
+
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> LoadFromApplicationUriAsync(
+			Windows::Foundation::Uri const& uri,
+			Hlsl::HlslShaderProfile profile);
+
 		Hlsl::HlslShaderProfile Profile() const noexcept { return m_profile; }
-		std::vector<std::uint8_t> const& Bytecode() const noexcept { return m_bytecode; }
-		void ValidateForEffect(bool sampler, std::span<std::wstring const> propertyNames) const;
+		Windows::Storage::Streams::IBuffer Bytecode() const;
+		std::vector<std::uint8_t> const& BytecodeBytes() const noexcept { return m_bytecode; }
+		void ValidateForEffect(Hlsl::HlslEffectKind kind, std::span<std::wstring const> propertyNames) const;
 
 	private:
 		std::vector<std::uint8_t> m_bytecode;

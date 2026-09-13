@@ -4,6 +4,10 @@
 		<HlslNativeArchitecture Condition="'$(HlslNativeArchitecture)'==''">$(Platform)</HlslNativeArchitecture>
 		<HlslWinmd Condition="'$(HlslWinmd)'==''">$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.Composition.Hlsl.winmd</HlslWinmd>
 		<HlslNativeDll Condition="'$(HlslNativeDll)'==''">$(MSBuildThisFileDirectory)..\..\runtimes\win-$(HlslNativeArchitecture)\native\WinUI.Composition.Hlsl.dll</HlslNativeDll>
+		<HlslCompositionIntermediateRoot Condition="'$(HlslCompositionIntermediateRoot)'==''">$(IntDir)Hlsl\</HlslCompositionIntermediateRoot>
+		<HlslCompositionOutputRoot Condition="'$(HlslCompositionOutputRoot)'==''">$(OutDir)Hlsl\</HlslCompositionOutputRoot>
+		<HlslCompositionGenerateHeaders Condition="'$(HlslCompositionGenerateHeaders)'==''">true</HlslCompositionGenerateHeaders>
+		<HlslCompositionPublishAsContent Condition="'$(HlslCompositionPublishAsContent)'==''">true</HlslCompositionPublishAsContent>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="$(HlslWinmd)">
@@ -11,31 +15,27 @@
 		</Reference>
 		<ReferenceCopyLocalPaths Include="$(HlslNativeDll)"/>
 	</ItemGroup>
-	<ItemGroup Condition="'@(HlslCompositionShader)'!=''">
-		<FxCompile Include="@(HlslCompositionShader)">
-			<EntryPointName />
-			<ShaderType>Library</ShaderType>
-			<ShaderModel Condition="'%(HlslCompositionShader.ShaderModel)'==''">4.0</ShaderModel>
-			<HeaderFileOutput>$(IntDir)Hlsl\%(Filename).g.h</HeaderFileOutput>
-			<ObjectFileOutput>$(IntDir)Hlsl\%(Filename).dxbc</ObjectFileOutput>
-			<VariableName>g_%(Filename)_Shader</VariableName>
-			<TreatWarningAsError>true</TreatWarningAsError>
-			<SuppressStartupBanner>true</SuppressStartupBanner>
-			<AdditionalOptions>/Ges /O3 %(AdditionalOptions)</AdditionalOptions>
-		</FxCompile>
-	</ItemGroup>
-	<Target Name="HlslValidateCompositionShaderMetadata" BeforeTargets="PrepareForBuild" Condition="'@(HlslCompositionShader)'!=''">
-		<Error Condition="'%(HlslCompositionShader.Kind)'!='Color' and '%(HlslCompositionShader.Kind)'!='Sampler'"
-			Text="HlslCompositionShader %(Identity) must set Kind to Color or Sampler."/>
-	</Target>
-	<Target Name="HlslCopyCompositionShaderOutputs" AfterTargets="FxCompile" Condition="'@(HlslCompositionShader)'!=''">
+	<Target Name="HlslConfigureGeneratedShaderIncludes" BeforeTargets="ClCompile" Condition="'@(HlslCompositionShader)'!='' and '$(HlslCompositionGenerateHeaders)'=='true'">
 		<ItemGroup>
-			<_HlslCompositionShaderOutput Include="@(HlslCompositionShader->'$(IntDir)Hlsl\%(Filename).dxbc')"/>
+			<ClCompile Update="@(ClCompile)">
+				<AdditionalIncludeDirectories>$(HlslCompositionIntermediateRoot);%(ClCompile.AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			</ClCompile>
 		</ItemGroup>
-		<MakeDir Directories="$(OutDir)Hlsl"/>
-		<Copy SourceFiles="@(_HlslCompositionShaderOutput)" DestinationFolder="$(OutDir)Hlsl" SkipUnchangedFiles="true"/>
+	</Target>
+	<Target Name="HlslRegisterNativeShaderContent"
+			BeforeTargets="PrepareForBuild"
+			Condition="'$(HlslCompositionPublishAsContent)'=='true' and '@(HlslCompositionShader)'!=''">
+		<ItemGroup>
+			<Content Include="%(_HlslCompositionTracked.TrackedDxbc)">
+				<Link>Hlsl\%(_HlslCompositionTracked.AssetRelativePath)</Link>
+				<TargetPath>Hlsl\%(_HlslCompositionTracked.AssetRelativePath)</TargetPath>
+				<DeploymentContent>true</DeploymentContent>
+				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			</Content>
+		</ItemGroup>
 	</Target>
 	<Target Name="HlslCheckNativeAsset" BeforeTargets="PrepareForBuild" Condition="!Exists('$(HlslNativeDll)')">
 		<Error Text="This WinUI.Composition.Hlsl package does not contain a native binary for $(HlslNativeArchitecture)."/>
 	</Target>
+	<Import Project="$(MSBuildThisFileDirectory)WinUI.Composition.Hlsl.Build.targets" />
 </Project>

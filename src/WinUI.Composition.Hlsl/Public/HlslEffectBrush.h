@@ -17,6 +17,15 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		{
 			return m_brush;
 		}
+		Microsoft::UI::Composition::CompositionEffectBrush EffectBrush() const
+		{
+			return m_brush;
+		}
+		Microsoft::UI::Composition::CompositionPropertySet Properties() const
+		{
+			return m_brush.Properties();
+		}
+		hstring GetPropertyPath(hstring const& name) const;
 		void SetSource(hstring const& name, Microsoft::UI::Composition::CompositionBrush const& source);
 		void SetFloat(hstring const& name, float value);
 	private:
