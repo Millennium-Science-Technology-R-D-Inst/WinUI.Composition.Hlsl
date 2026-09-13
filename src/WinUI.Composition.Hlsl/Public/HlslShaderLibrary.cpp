@@ -8,6 +8,30 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	namespace
 	{
+		constexpr std::array<char const*, 13> RequiredSamplerExports{
+			"PSBody", "PSBodyCC", "PSBodyCW", "PSBodyCM", "PSBodyWC", "PSBodyWW", "PSBodyWM",
+			"PSBodyMC", "PSBodyMW", "PSBodyMM", "PSBodyC", "PSBodyW", "PSBodyM"
+		};
+
+		struct EmbeddedMetadata
+		{
+			Hlsl::HlslEffectKind kind{};
+			Hlsl::HlslShaderProfile profile{};
+		};
+
+		void ValidateProfile(Hlsl::HlslShaderProfile profile)
+		{
+			switch (profile)
+			{
+				case Hlsl::HlslShaderProfile::Level91:
+				case Hlsl::HlslShaderProfile::Level93:
+				case Hlsl::HlslShaderProfile::Pixel40:
+					return;
+				default:
+					throw hresult_invalid_argument(L"Unknown HLSL shader profile.");
+			}
+		}
+
 		com_ptr<ID3D11LibraryReflection> ReflectLibrary(std::span<std::uint8_t const> bytecode)
 		{
 			com_ptr<ID3D11LibraryReflection> reflection;
@@ -71,29 +95,84 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			return !materialized || IsFloatVector(function->GetFunctionParameter(2), 4);
 		}
 
+		Hlsl::HlslEffectKind InferEffectKind(ID3D11LibraryReflection* reflection)
+		{
+			auto* body = FindFunction(reflection, "PSBody");
+			if (!body)
+			{
+				throw hresult_invalid_argument(L"The DXBC library does not expose the required PSBody function.");
+			}
+
+			if (HasColorAbi(body))
+			{
+				return Hlsl::HlslEffectKind::Color;
+			}
+
+			bool const materialized = HasSamplerAbi(body, true);
+			bool const sampler = materialized || HasSamplerAbi(body, false);
+			if (!sampler)
+			{
+				throw hresult_invalid_argument(L"The DXBC library does not match a supported Composition HLSL ABI.");
+			}
+
+			for (auto const* exportName : RequiredSamplerExports)
+			{
+				if (!HasSamplerAbi(FindFunction(reflection, exportName), materialized))
+				{
+					throw hresult_invalid_argument(materialized
+						? L"Compiled materialized sampler libraries must export all PSBody edge-mode variants with ABI float4(float2 uv, float4 samplerDataExt, float4 samplerData)."
+						: L"Compiled sampler libraries must export all PSBody edge-mode variants with ABI float4(float2 uv, float4 samplerDataExt).");
+				}
+			}
+
+			if (materialized)
+			{
+				if (!HasColorAbi(FindFunction(reflection, "MaterializeColor")))
+				{
+					throw hresult_invalid_argument(L"Compiled materialized sampler libraries must export float4 MaterializeColor(float4 color).");
+				}
+				return Hlsl::HlslEffectKind::MaterializedSampler;
+			}
+
+			return Hlsl::HlslEffectKind::Sampler;
+		}
+
+		std::optional<EmbeddedMetadata> FindEmbeddedMetadata(ID3D11LibraryReflection* reflection)
+		{
+			std::optional<EmbeddedMetadata> result;
+			for (std::uint32_t kind = 0; kind <= 2; ++kind)
+			{
+				for (std::uint32_t profile = 0; profile <= 2; ++profile)
+				{
+					auto name = std::string("__WinUICompositionHlsl_Metadata_K") +
+						std::to_string(kind) + "_P" + std::to_string(profile);
+					if (!FindFunction(reflection, name.c_str())) continue;
+					if (result)
+					{
+						throw hresult_invalid_argument(L"The DXBC library contains conflicting WinUI.Composition.Hlsl metadata markers.");
+					}
+					result = EmbeddedMetadata{
+						static_cast<Hlsl::HlslEffectKind>(kind),
+						static_cast<Hlsl::HlslShaderProfile>(profile)
+					};
+				}
+			}
+			return result;
+		}
+
 		Hlsl::HlslShaderLibrary CreateValidatedLibrary(
 			std::span<std::uint8_t const> bytecode,
-			Hlsl::HlslShaderProfile profile)
+			std::optional<Hlsl::HlslShaderProfile> requestedProfile)
 		{
 			if (bytecode.size() < 4 || bytecode.size() > 16 * 1024 * 1024)
 			{
 				throw hresult_invalid_argument(L"Shader bytecode must contain a DXBC library no larger than 16 MiB.");
 			}
-
-			switch (profile)
-			{
-				case Hlsl::HlslShaderProfile::Level91:
-				case Hlsl::HlslShaderProfile::Level93:
-				case Hlsl::HlslShaderProfile::Pixel40:
-					break;
-				default:
-					throw hresult_invalid_argument(L"Unknown HLSL shader profile.");
-			}
-
 			if (memcmp(bytecode.data(), "DXBC", 4) != 0)
 			{
 				throw hresult_invalid_argument(L"Shader bytecode is not a DXBC container.");
 			}
+			if (requestedProfile) ValidateProfile(*requestedProfile);
 
 			std::vector<std::uint8_t> owned(bytecode.begin(), bytecode.end());
 			try
@@ -103,8 +182,36 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				check_hresult(reflection->GetDesc(&desc));
 				if (desc.FunctionCount == 0)
 				{
-					throw hresult_invalid_argument(L"DXBC library does not contain any exported HLSL functions.");
+					throw hresult_invalid_argument(L"DXBC library does not contain any reflected HLSL functions.");
 				}
+
+				auto const effectKind = InferEffectKind(reflection.get());
+				auto const metadata = FindEmbeddedMetadata(reflection.get());
+				if (metadata && metadata->kind != effectKind)
+				{
+					throw hresult_invalid_argument(L"Embedded shader metadata does not match the reflected Composition HLSL ABI.");
+				}
+
+				Hlsl::HlslShaderProfile profile{};
+				if (requestedProfile)
+				{
+					profile = *requestedProfile;
+					if (metadata && metadata->profile != profile)
+					{
+						throw hresult_invalid_argument(L"The explicit HLSL shader profile does not match the embedded build metadata.");
+					}
+				}
+				else
+				{
+					if (!metadata)
+					{
+						throw hresult_invalid_argument(
+							L"The DXBC library does not contain WinUI.Composition.Hlsl build metadata. Use the overload that supplies an explicit shader profile for external or legacy bytecode.");
+					}
+					profile = metadata->profile;
+				}
+
+				return make<HlslShaderLibrary>(std::move(owned), profile, effectKind);
 			}
 			catch (hresult_invalid_argument const&)
 			{
@@ -114,8 +221,6 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			{
 				throw hresult_invalid_argument(L"Shader bytecode is not a valid reflectable HLSL DXBC library.");
 			}
-
-			return make<HlslShaderLibrary>(std::move(owned), profile);
 		}
 	}
 
@@ -148,6 +253,14 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		return CreateValidatedLibrary(
 			std::span<std::uint8_t const>{ bytecode.data(), bytecode.size() },
 			profile);
+	}
+
+	Hlsl::HlslShaderLibrary HlslShaderLibrary::CreateFromGeneratedByteArray(
+		winrt::array_view<std::uint8_t const> bytecode)
+	{
+		return CreateValidatedLibrary(
+			std::span<std::uint8_t const>{ bytecode.data(), bytecode.size() },
+			std::nullopt);
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadFromFileAsync(
@@ -190,46 +303,11 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 
 	void HlslShaderLibrary::ValidateForEffect(Hlsl::HlslEffectKind kind, std::span<std::wstring const> propertyNames) const
 	{
-		bool sampler{};
-		bool materialized{};
-		switch (kind)
-		{
-			case Hlsl::HlslEffectKind::Color: break;
-			case Hlsl::HlslEffectKind::Sampler: sampler = true; break;
-			case Hlsl::HlslEffectKind::MaterializedSampler: sampler = true; materialized = true; break;
-			default: throw hresult_invalid_argument(L"Unknown HLSL effect kind.");
-		}
-
 		auto reflection = ReflectLibrary(m_bytecode);
-		auto* function = FindFunction(reflection.get(), "PSBody");
-		if (!function)
+		auto const reflectedKind = InferEffectKind(reflection.get());
+		if (reflectedKind != kind || reflectedKind != m_effectKind)
 		{
-			throw hresult_invalid_argument(L"The DXBC library does not export the required PSBody function.");
-		}
-
-		if (sampler)
-		{
-			static constexpr char const* requiredSamplerExports[] = {
-				"PSBody", "PSBodyCC", "PSBodyCW", "PSBodyCM", "PSBodyWC", "PSBodyWW", "PSBodyWM",
-				"PSBodyMC", "PSBodyMW", "PSBodyMM", "PSBodyC", "PSBodyW", "PSBodyM"
-			};
-			for (auto const* exportName : requiredSamplerExports)
-			{
-				if (!HasSamplerAbi(FindFunction(reflection.get(), exportName), materialized))
-				{
-					throw hresult_invalid_argument(materialized
-						? L"Compiled materialized sampler libraries must export all PSBody edge-mode variants with ABI float4(float2 uv, float4 samplerDataExt, float4 samplerData)."
-						: L"Compiled sampler libraries must export all PSBody edge-mode variants with ABI float4(float2 uv, float4 samplerDataExt).");
-				}
-			}
-			if (materialized && !HasColorAbi(FindFunction(reflection.get(), "MaterializeColor")))
-			{
-				throw hresult_invalid_argument(L"Compiled materialized sampler libraries must export float4 MaterializeColor(float4 color).");
-			}
-		}
-		else if (!HasColorAbi(function))
-		{
-			throw hresult_invalid_argument(L"Compiled color PSBody must have ABI float4 PSBody(float4 color).");
+			throw hresult_invalid_argument(L"The requested effect kind does not match the compiled Composition HLSL ABI.");
 		}
 
 		if (propertyNames.empty())
@@ -237,7 +315,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			return;
 		}
 
-		auto* constants = function->GetConstantBufferByName("UserConstants");
+		auto* function = FindFunction(reflection.get(), "PSBody");
+		auto* constants = function ? function->GetConstantBufferByName("UserConstants") : nullptr;
 		if (!constants)
 		{
 			throw hresult_invalid_argument(L"Compiled shader properties require cbuffer UserConstants : register(b0).");
