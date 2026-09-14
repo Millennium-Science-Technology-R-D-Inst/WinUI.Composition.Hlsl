@@ -1,6 +1,7 @@
 import "Windows.Foundation.idl";
 import "Microsoft.UI.Xaml.idl";
 import "Microsoft.UI.Xaml.Controls.idl";
+import "Microsoft.UI.Xaml.Controls.Primitives.idl";
 import "Api.idl";
 
 namespace WinUI.LiquidGlass
@@ -17,7 +18,7 @@ namespace WinUI.LiquidGlass
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
     }
 
-    [default_interface] runtimeclass LiquidGlassToggleButton : Microsoft.UI.Xaml.Controls.ToggleButton
+    [default_interface] runtimeclass LiquidGlassToggleButton : Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
     {
         LiquidGlassToggleButton();
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
