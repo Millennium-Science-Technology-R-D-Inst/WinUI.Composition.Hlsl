@@ -1,6 +1,7 @@
 #pragma once
 import WinUI.Composition.Hlsl.EffectDef;
 import winrt.Windows.Graphics.Effects;
+import std;
 
 namespace CustomLiquidGlassEffect
 {
@@ -11,7 +12,7 @@ namespace CustomLiquidGlassEffect
 	inline constexpr wchar_t HighlightStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.HighlightStrength";
 	inline constexpr wchar_t DispersionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.DispersionStrength";
 
-	hlsl::engine::Definition Description();
+	std::shared_ptr<hlsl::engine::EffectDefinition const> Description();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
 		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source);

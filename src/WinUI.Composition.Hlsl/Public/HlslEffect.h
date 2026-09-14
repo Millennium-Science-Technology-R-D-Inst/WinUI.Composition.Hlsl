@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef WINRT_IMPORT_MODULE
 #define WINRT_IMPORT_MODULE
 #endif
@@ -13,7 +13,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslEffect : HlslEffectT<HlslEffect>
 	{
-		explicit HlslEffect(hlsl::engine::Definition definition) :m_definition(std::move(definition))
+		explicit HlslEffect(std::shared_ptr<hlsl::engine::EffectDefinition const> definition) :m_definition(std::move(definition))
 		{
 		}
 		static Hlsl::HlslEffect CreateColor(winrt::guid const& id, hstring const& shader);
@@ -30,23 +30,23 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		static Hlsl::HlslEffect CreateCompiledSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateCompiledMaterializedSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateColorWithProperties(hstring const& shader, hstring const& sourceName,
-														  Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateSamplerWithProperties(hstring const& shader, hstring const& sourceName,
-															Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateMaterializedSamplerWithProperties(hstring const& shader, hstring const& sourceName,
-																		Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateCompiledColorWithProperties(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, hstring const& sourceName,
-																  Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateCompiledSamplerWithProperties(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, hstring const& sourceName,
-																	Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateCompiledMaterializedSamplerWithProperties(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, hstring const& sourceName,
-																				Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties);
 		static Hlsl::HlslEffect CreateAdvanced(hstring const& shader, Hlsl::HlslEffectKind kind,
-											   Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
-											   Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties);
 		static Hlsl::HlslEffect CreateCompiledAdvanced(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader, Hlsl::HlslEffectKind kind,
-													   Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
-													   Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties);
+			Windows::Foundation::Collections::IVectorView<hstring> const& sourceNames,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties);
 		winrt::guid Id() const
 		{
 			return m_definition->id;
@@ -71,12 +71,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffect() const;
 		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffectWithSource(Windows::Graphics::Effects::IGraphicsEffectSource const& source) const;
 		Windows::Graphics::Effects::IGraphicsEffect CreateGraphicsEffectWithSources(Windows::Foundation::Collections::IVectorView<Windows::Graphics::Effects::IGraphicsEffectSource> const& sources) const;
-		hlsl::engine::Definition const& Definition() const
+		std::shared_ptr<hlsl::engine::EffectDefinition const> const& Definition() const
 		{
 			return m_definition;
 		}
 	private:
-		hlsl::engine::Definition m_definition;
+		std::shared_ptr<hlsl::engine::EffectDefinition const> m_definition;
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation

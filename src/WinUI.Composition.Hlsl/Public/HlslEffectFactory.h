@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef WINRT_IMPORT_MODULE
 #define WINRT_IMPORT_MODULE
 #endif
@@ -12,7 +12,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	struct HlslEffectFactory : HlslEffectFactoryT<HlslEffectFactory>
 	{
-		HlslEffectFactory(Microsoft::UI::Composition::CompositionEffectFactory const& factory, hlsl::engine::Definition definition) :m_factory(factory), m_definition(std::move(definition))
+		HlslEffectFactory(Microsoft::UI::Composition::CompositionEffectFactory const& factory, std::shared_ptr<hlsl::engine::EffectDefinition const> definition) :m_factory(factory), m_definition(std::move(definition))
 		{
 		}
 		Microsoft::UI::Composition::CompositionEffectFactory Factory() const
@@ -22,6 +22,6 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Hlsl::HlslEffectBrush CreateBrush();
 	private:
 		Microsoft::UI::Composition::CompositionEffectFactory m_factory{ nullptr };
-		hlsl::engine::Definition m_definition;
+		std::shared_ptr<hlsl::engine::EffectDefinition const> m_definition;
 	};
 }

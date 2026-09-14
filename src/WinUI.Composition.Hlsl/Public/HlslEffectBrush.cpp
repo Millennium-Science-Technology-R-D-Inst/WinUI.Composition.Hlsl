@@ -42,7 +42,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	namespace
 	{
 		hlsl::engine::Property const& RequireProperty(
-			hlsl::engine::Definition const& definition,
+			std::shared_ptr<hlsl::engine::EffectDefinition const> const& definition,
 			hstring const& name,
 			hlsl::engine::PropertyType type)
 		{

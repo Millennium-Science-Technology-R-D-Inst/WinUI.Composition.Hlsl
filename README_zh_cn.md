@@ -22,11 +22,11 @@ HLSL / FXC linkable library
 
 它不是应用自管的 D3D renderer，不需要 `SwapChainPanel`、自己的 present loop、额外 HWND overlay 或第二套 visual tree。公共 API 是 WinRT，可同时供 C++/WinRT 和 C# 使用。
 
-## 版本与架构支持
+## 版本与兼容性
 
-NuGet 包最低依赖 **Windows App SDK 1.6**，不要求 2.4。包内提供 **x86、x64、ARM64** 三种 native runtime asset，三者均作为正式支持架构。
+NuGet 包最低依赖 **Windows App SDK 1.6**，并提供 **x86、x64、ARM64** 三种 native runtime asset。
 
-Custom shader backend 使用 Composition 私有实现 ABI。x86/x64 当前 resolver 是按结构/代码关系定位，而不是按 Windows App SDK 版本号查硬编码表，因此包不会人为设置 2.4 上限。若未来 Windows 把底层私有机制整体删除或根本重构，adapter 会 fail closed，而不是继续对未知布局做猜测写入。
+Custom shader backend 依赖未公开的 Composition 私有实现 ABI。遇到无法安全识别的布局时会 fail closed，而不是继续向未知私有结构写入猜测数据。实现细节、支持边界和运行时安全约束见 [整体架构](docs/architecture.md) 与 [Runtime safety](docs/design/runtime-safety.md)。
 
 ## 当前主要能力
 
@@ -157,3 +157,11 @@ README 只负责项目入口，完整文档从这里开始：
 ```
 
 CI 会构建 x64/Win32/ARM64 native asset、CsWinRT projection、generated shader fixture、preview NuGet，并使用生成的 NuGet 再构建下游 C++/C# consumer。
+
+## License
+
+[MIT License](LICENSE.txt)。
+
+## Thanks
+
+项目受到 @apkipa 的 WUILiquidGlassDemo 工作启发。

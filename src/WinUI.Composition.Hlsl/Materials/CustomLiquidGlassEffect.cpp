@@ -171,7 +171,7 @@ namespace
 
 namespace CustomLiquidGlassEffect
 {
-	hlsl::engine::Definition Description()
+	std::shared_ptr<hlsl::engine::EffectDefinition const> Description()
 	{
 		static auto value=[]
 			{

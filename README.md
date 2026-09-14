@@ -29,11 +29,11 @@ HLSL / FXC linkable library
 
 It is not an app-owned D3D renderer: no `SwapChainPanel`, custom presentation loop, overlay HWND, or second visual tree is required. The public API is WinRT and is consumable from C++/WinRT and C#.
 
-## Requirements and architecture support
+## Requirements and compatibility
 
-The NuGet package requires **Windows App SDK 1.6 or later**. Native runtime assets are shipped for **x86, x64, and ARM64**, and all three are public supported architectures.
+The NuGet package requires **Windows App SDK 1.6 or later** and ships native runtime assets for **x86, x64, and ARM64**.
 
-The custom backend uses a private Composition implementation ABI. x86/x64 resolution is version-independent rather than selected from a hard-coded Windows App SDK version table, so the package is not capped at Windows App SDK 2.4. If Windows ever removes or fundamentally redesigns the required private mechanism, the adapter is designed to fail closed rather than write guessed layouts.
+Custom shader execution relies on a private, undocumented Composition implementation ABI. Unsupported layouts fail closed instead of writing guessed private data. See [Architecture](docs/architecture.md) and [Runtime safety](docs/design/runtime-safety.md) for implementation details and support boundaries.
 
 ## Main capabilities
 
@@ -164,3 +164,11 @@ Useful references:
 ```
 
 CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, a preview NuGet package, and downstream C++/C# package consumers.
+
+## License
+
+[MIT License](LICENSE.txt).
+
+## Thanks
+
+Inspired by @apkipa's WUILiquidGlassDemo work.
