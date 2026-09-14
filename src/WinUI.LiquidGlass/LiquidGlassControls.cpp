@@ -68,12 +68,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
             brush.InnerShadowStrength(0.06);
             brush.FallbackColor(winrt::Windows::UI::Color{ 0x30, 0xff, 0xff, 0xff });
         }
-
-        template <typename TControl>
-        void ApplyGlassBackground(TControl const& control, WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
-        {
-            control.Background(brush.as<Microsoft::UI::Xaml::Media::Brush>());
-        }
     }
 
 #define WINUI_LIQUID_GLASS_NATIVE_CONTROL(Type) \
@@ -81,7 +75,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
     { \
         m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{}; \
         ConfigureNativeBrush(m_glassBrush); \
-        ApplyGlassBackground(*this, m_glassBrush); \
+        Background(m_glassBrush.as<Microsoft::UI::Xaml::Media::Brush>()); \
     } \
     WinUI::Composition::Hlsl::LiquidGlassBrush Type::GlassBrush() const { return m_glassBrush; }
 
@@ -92,7 +86,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         DefaultStyleResourceUri(Windows::Foundation::Uri{ kThemeUri }); \
         m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{}; \
         ConfigureButtonBrush(m_glassBrush); \
-        ApplyGlassBackground(*this, m_glassBrush); \
+        Background(m_glassBrush.as<Microsoft::UI::Xaml::Media::Brush>()); \
     } \
     WinUI::Composition::Hlsl::LiquidGlassBrush Type::GlassBrush() const { return m_glassBrush; }
 
@@ -102,7 +96,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         DefaultStyleResourceUri(Windows::Foundation::Uri{ kThemeUri });
         m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{};
         ConfigureCardBrush(m_glassBrush);
-        ApplyGlassBackground(*this, m_glassBrush);
+        Background(m_glassBrush.as<Microsoft::UI::Xaml::Media::Brush>());
     }
 
     WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassCard::GlassBrush() const
