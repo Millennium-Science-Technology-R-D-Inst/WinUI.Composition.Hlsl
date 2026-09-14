@@ -36,6 +36,19 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties,
 			Windows::Foundation::Collections::IVectorView<hstring> const& defines);
 
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompileWithTypedPropertiesAsync(
+			hstring const& shader,
+			Hlsl::HlslEffectKind kind,
+			Hlsl::HlslShaderProfile profile,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties);
+
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompileWithTypedPropertiesAndDefinesAsync(
+			hstring const& shader,
+			Hlsl::HlslEffectKind kind,
+			Hlsl::HlslShaderProfile profile,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties,
+			Windows::Foundation::Collections::IVectorView<hstring> const& defines);
+
 		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompileAdvancedAsync(
 			hstring const& shader,
 			Hlsl::HlslEffectKind kind,
@@ -62,6 +75,21 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslShaderProfile profile,
 			std::uint32_t sourceCount,
 			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties,
+			Windows::Foundation::Collections::IVectorView<hstring> const& defines);
+
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompileAdvancedWithTypedPropertiesAsync(
+			hstring const& shader,
+			Hlsl::HlslEffectKind kind,
+			Hlsl::HlslShaderProfile profile,
+			std::uint32_t sourceCount,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties);
+
+		static Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompileAdvancedWithTypedPropertiesAndDefinesAsync(
+			hstring const& shader,
+			Hlsl::HlslEffectKind kind,
+			Hlsl::HlslShaderProfile profile,
+			std::uint32_t sourceCount,
+			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties,
 			Windows::Foundation::Collections::IVectorView<hstring> const& defines);
 	};
 }

@@ -14,22 +14,17 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	}
 
 	HlslProperty::HlslProperty(hstring const& name, Hlsl::HlslPropertyType type,
-							   Windows::Foundation::Collections::IVectorView<float> const& defaultValue) :
+		Windows::Foundation::Collections::IVectorView<float> const& defaultValue) :
 		m_name(name), m_type(type)
 	{
-		// The private direct-property updater metadata has only been verified for
-		// scalar values. Vector/matrix enum values and brush setter projections are
-		// retained for ABI evolution, but accepting them here would make an
-		// unverified private Composition path appear supported. Fail closed until
-		// their native metadata/property-value contracts are validated end to end.
-		if (type != Hlsl::HlslPropertyType::Scalar)
-		{
-			throw hresult_not_implemented(
-				L"Vector and matrix HLSL properties are not yet validated by the private Composition property-updater ABI. Only Scalar is currently supported.");
-		}
 		if (!defaultValue) throw hresult_invalid_argument(L"A property default value is required.");
 		m_values.reserve(defaultValue.Size());
 		for (auto value : defaultValue) m_values.push_back(value);
+
+		// Route public construction through the same definition validator used by
+		// runtime effects. This checks identifier syntax, exact component counts for
+		// scalar/vector/matrix types, and finite initial values before the descriptor
+		// can reach private Composition metadata.
 		hlsl::engine::EffectDefinition definition;
 		definition.shader = "validation";
 		definition.properties.emplace_back(std::wstring(name), ToNative(type), m_values);
