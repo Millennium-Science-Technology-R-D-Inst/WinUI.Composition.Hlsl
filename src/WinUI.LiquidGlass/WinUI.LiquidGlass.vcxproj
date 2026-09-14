@@ -51,6 +51,9 @@
       <PreprocessorDefinitions>_WINRT_DLL;WINRT_ENABLE_LEGACY_COM;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(IntDir);$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\WinUI.Composition.Hlsl\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </Midl>
     <Link>
       <ModuleDefinitionFile>WinUI.LiquidGlass.def</ModuleDefinitionFile>
       <GenerateWindowsMetadata>true</GenerateWindowsMetadata>
