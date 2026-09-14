@@ -139,6 +139,12 @@ namespace WinUI.Composition.Hlsl
         Single CornerRadius;
         Single BorderThickness;
         Single HighlightStrength;
+        Single BezelWidth;
+        Single GlassThickness;
+        Single RefractiveIndex;
+        Single TintOpacity;
+        Single Saturation;
+        Single LightAngle;
     }
     [default_interface] runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
     {
@@ -157,5 +163,17 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty BorderThicknessProperty{ get; };
         Double HighlightStrength;
         static Microsoft.UI.Xaml.DependencyProperty HighlightStrengthProperty{ get; };
+        Double BezelWidth;
+        static Microsoft.UI.Xaml.DependencyProperty BezelWidthProperty{ get; };
+        Double GlassThickness;
+        static Microsoft.UI.Xaml.DependencyProperty GlassThicknessProperty{ get; };
+        Double RefractiveIndex;
+        static Microsoft.UI.Xaml.DependencyProperty RefractiveIndexProperty{ get; };
+        Double TintOpacity;
+        static Microsoft.UI.Xaml.DependencyProperty TintOpacityProperty{ get; };
+        Double Saturation;
+        static Microsoft.UI.Xaml.DependencyProperty SaturationProperty{ get; };
+        Double LightAngle;
+        static Microsoft.UI.Xaml.DependencyProperty LightAngleProperty{ get; };
     }
 }
