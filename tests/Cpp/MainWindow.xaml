@@ -4,6 +4,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:hlsl="using:WinUI.Composition.Hlsl"
+    xmlns:liquid="using:WinUI.LiquidGlass"
     xmlns:local="using:WUILiquidGlassDemo_Hlsl"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     Title="HLSL Composition API · Liquid Glass Playground"
@@ -101,24 +103,106 @@
                 PointerWheelChanged="OnBackdropFramePointerWheelChanged" />
         </Canvas>
 
-        <ContentControl
+        <liquid:LiquidGlassCard
             Grid.Column="1"
-            Width="430"
+            Width="500"
+            MaxHeight="650"
             Margin="0,0,28,28"
             HorizontalAlignment="Right"
             VerticalAlignment="Bottom"
-            Style="{StaticResource LiquidGlassCardStyle}">
-            <StackPanel Spacing="10">
-                <TextBlock FontSize="16" FontWeight="SemiBold" Text="Liquid glass control gallery" />
-                <TextBlock Opacity="0.72" Text="Hover, press, keyboard-focus and checked states use explicit motion." TextWrapping="Wrap" />
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Content="Action" Style="{StaticResource LiquidGlassButtonStyle}" />
-                    <ToggleButton Content="Toggle" Style="{StaticResource LiquidGlassToggleButtonStyle}" />
-                    <Button Content="Disabled" IsEnabled="False" Style="{StaticResource LiquidGlassButtonStyle}" />
+            CornerRadius="20">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="10">
+                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="WinUI.LiquidGlass control gallery" />
+                    <TextBlock Opacity="0.72" Text="These are real component runtime classes. Button and ToggleButton preserve explicit hover/press motion; the input controls keep native WinUI keyboard, gamepad and UIA behavior." TextWrapping="Wrap" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <liquid:LiquidGlassButton Content="Action" />
+                        <liquid:LiquidGlassToggleButton Content="Toggle" />
+                        <liquid:LiquidGlassButton Content="Disabled" IsEnabled="False" />
+                        <liquid:LiquidGlassHyperlinkButton Content="Link" NavigateUri="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl" />
+                    </StackPanel>
+
+                    <liquid:LiquidGlassSlider Maximum="100" Minimum="0" Value="64" />
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <liquid:LiquidGlassCheckBox Content="Check" IsChecked="True" />
+                        <liquid:LiquidGlassRadioButton Grid.Column="1" Content="Radio" GroupName="GalleryRadio" IsChecked="True" />
+                        <liquid:LiquidGlassToggleSwitch Grid.Column="2" Header="Switch" IsOn="True" />
+                    </Grid>
+
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <liquid:LiquidGlassTextBox PlaceholderText="Text box" Text="Glass input" />
+                        <liquid:LiquidGlassPasswordBox Grid.Column="1" PlaceholderText="Password" Password="Glass" />
+                    </Grid>
+
+                    <liquid:LiquidGlassComboBox HorizontalAlignment="Stretch" SelectedIndex="0">
+                        <ComboBoxItem Content="Convex squircle" />
+                        <ComboBoxItem Content="Convex circle" />
+                        <ComboBoxItem Content="Concave" />
+                        <ComboBoxItem Content="Lip" />
+                    </liquid:LiquidGlassComboBox>
+
+                    <TextBlock Margin="0,8,0,0" FontWeight="SemiBold" Text="Advanced material surface" />
+                    <Border Height="82" CornerRadius="18" BorderBrush="#66FFFFFF" BorderThickness="1">
+                        <Border.Background>
+                            <hlsl:LiquidGlassBrush
+                                BlurRadius="10"
+                                BorderThickness="1"
+                                CornerRadius="18"
+                                DispersionStrength="1.1"
+                                GlassThickness="42"
+                                HighlightStrength="0.9"
+                                HighlightSharpness="{Binding ElementName=GallerySharpnessSlider, Path=Value, Mode=OneWay}"
+                                InnerShadowStrength="{Binding ElementName=GalleryShadowSlider, Path=Value, Mode=OneWay}"
+                                MagnificationStrength="{Binding ElementName=GalleryMagnificationSlider, Path=Value, Mode=OneWay}"
+                                RefractiveIndex="1.52"
+                                RefractionStrength="22"
+                                Saturation="1.2"
+                                SurfaceProfile="Lip"
+                                TintBlue="1.0"
+                                TintGreen="0.92"
+                                TintOpacity="{Binding ElementName=GalleryTintSlider, Path=Value, Mode=OneWay}"
+                                TintRed="0.78" />
+                        </Border.Background>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock HorizontalAlignment="Center" FontWeight="SemiBold" Text="Lip profile · RGB tint · magnification" />
+                            <TextBlock HorizontalAlignment="Center" Opacity="0.68" Text="Live DependencyProperty bindings; no effect graph rebuild" />
+                        </StackPanel>
+                    </Border>
+
+                    <Grid ColumnSpacing="10" RowSpacing="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Magnification" />
+                        <TextBlock Grid.Column="1" Text="Highlight sharpness" />
+                        <Slider x:Name="GalleryMagnificationSlider" Grid.Row="1" Maximum="40" Minimum="0" Value="12" />
+                        <Slider x:Name="GallerySharpnessSlider" Grid.Row="1" Grid.Column="1" Maximum="8" Minimum="0.25" Value="2.2" />
+                        <TextBlock Grid.Row="2" Text="Tint opacity" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="Inner shadow" />
+                        <Slider x:Name="GalleryTintSlider" Grid.Row="3" Maximum="0.45" Minimum="0" StepFrequency="0.01" Value="0.11" />
+                        <Slider x:Name="GalleryShadowSlider" Grid.Row="3" Grid.Column="1" Maximum="0.35" Minimum="0" StepFrequency="0.01" Value="0.10" />
+                    </Grid>
                 </StackPanel>
-                <Slider Maximum="100" Minimum="0" Value="64" Style="{StaticResource LiquidGlassSliderStyle}" />
-            </StackPanel>
-        </ContentControl>
+            </ScrollViewer>
+        </liquid:LiquidGlassCard>
 
         <Border Grid.Column="0" Margin="12" Background="#C812151B" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="16">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
