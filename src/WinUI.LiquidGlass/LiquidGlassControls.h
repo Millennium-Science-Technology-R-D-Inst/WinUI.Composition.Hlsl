@@ -3,6 +3,8 @@
 #include "winrt_module_imports.h"
 #include "include/EnsureDependencyProperty.hpp"
 #include "include/TemplateControlHelper.hpp"
+#include "include/PointerLightHelper.hpp"
+#include "include/PressOpticsHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -40,7 +42,20 @@ namespace winrt::WinUI::LiquidGlass::implementation
 #define WINUI_LIQUID_GLASS_STYLED_DECLARATION(Type) \
     struct Type : Type##T<Type>, \
         detail::EnsureDependencyProperty<Type>, \
-        detail::TemplateControlHelper<Type> \
+        detail::TemplateControlHelper<Type>, \
+        detail::PointerLightHelper<Type> \
+    { \
+        constexpr static auto ResourceUri = detail::ThemeResourceUri; \
+        Type(); \
+        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+    };
+
+#define WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION(Type) \
+    struct Type : Type##T<Type>, \
+        detail::EnsureDependencyProperty<Type>, \
+        detail::TemplateControlHelper<Type>, \
+        detail::PointerLightHelper<Type>, \
+        detail::PressOpticsHelper<Type> \
     { \
         constexpr static auto ResourceUri = detail::ThemeResourceUri; \
         Type(); \
@@ -48,21 +63,34 @@ namespace winrt::WinUI::LiquidGlass::implementation
     };
 
 #define WINUI_LIQUID_GLASS_PLAIN_DECLARATION(Type) \
-    struct Type : Type##T<Type>, detail::EnsureDependencyProperty<Type> \
+    struct Type : Type##T<Type>, \
+        detail::EnsureDependencyProperty<Type>, \
+        detail::PointerLightHelper<Type> \
+    { \
+        Type(); \
+        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+    };
+
+#define WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION(Type) \
+    struct Type : Type##T<Type>, \
+        detail::EnsureDependencyProperty<Type>, \
+        detail::PointerLightHelper<Type>, \
+        detail::PressOpticsHelper<Type> \
     { \
         Type(); \
         WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
     };
 
     WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassCard)
-    WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassButton)
-    WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassToggleButton)
-    WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassHyperlinkButton)
+    WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION(LiquidGlassButton)
+    WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION(LiquidGlassToggleButton)
+    WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION(LiquidGlassHyperlinkButton)
 
     struct LiquidGlassMagnifier :
         LiquidGlassMagnifierT<LiquidGlassMagnifier>,
         detail::EnsureDependencyProperty<LiquidGlassMagnifier>,
-        detail::TemplateControlHelper<LiquidGlassMagnifier>
+        detail::TemplateControlHelper<LiquidGlassMagnifier>,
+        detail::PointerLightHelper<LiquidGlassMagnifier>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassMagnifier();
@@ -85,12 +113,13 @@ namespace winrt::WinUI::LiquidGlass::implementation
         bool m_dragging{};
     };
 
-    WINUI_LIQUID_GLASS_PLAIN_DECLARATION(LiquidGlassCheckBox)
-    WINUI_LIQUID_GLASS_PLAIN_DECLARATION(LiquidGlassRadioButton)
+    WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION(LiquidGlassCheckBox)
+    WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION(LiquidGlassRadioButton)
 
     struct LiquidGlassSlider :
         LiquidGlassSliderT<LiquidGlassSlider>,
-        detail::EnsureDependencyProperty<LiquidGlassSlider>
+        detail::EnsureDependencyProperty<LiquidGlassSlider>,
+        detail::PointerLightHelper<LiquidGlassSlider>
     {
         LiquidGlassSlider();
 
@@ -113,7 +142,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
     struct LiquidGlassPasswordBox :
         LiquidGlassPasswordBoxT<LiquidGlassPasswordBox>,
-        detail::EnsureDependencyProperty<LiquidGlassPasswordBox>
+        detail::EnsureDependencyProperty<LiquidGlassPasswordBox>,
+        detail::PointerLightHelper<LiquidGlassPasswordBox>
     {
         LiquidGlassPasswordBox();
 
@@ -142,7 +172,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
     struct LiquidGlassToggleSwitch :
         LiquidGlassToggleSwitchT<LiquidGlassToggleSwitch>,
         detail::EnsureDependencyProperty<LiquidGlassToggleSwitch>,
-        detail::TemplateControlHelper<LiquidGlassToggleSwitch>
+        detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
+        detail::PointerLightHelper<LiquidGlassToggleSwitch>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassToggleSwitch();
@@ -168,7 +199,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
         bool m_interactionsWired{};
     };
 
+#undef WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION
 #undef WINUI_LIQUID_GLASS_PLAIN_DECLARATION
+#undef WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION
 #undef WINUI_LIQUID_GLASS_STYLED_DECLARATION
 #undef WINUI_LIQUID_GLASS_COMMON_MEMBERS
 }
