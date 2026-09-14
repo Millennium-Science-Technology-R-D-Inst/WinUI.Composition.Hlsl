@@ -30,6 +30,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		void OnEffectSelectionChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
 		void OnBorderWidthChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs const& args);
 		void OnLiquidGlassParameterChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs const& args);
+		void OnPointerLightingToggled(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
 
 	private:
 		winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer m_smokeTimer{ nullptr };
@@ -76,6 +77,9 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		void ClearBackgroundImage();
 		void ApplyLiquidGlassProperties();
 		void UpdateLiquidGlassControlsState();
+		void UpdateLiquidGlassPointerLighting(winrt::Windows::Foundation::Point const& position);
+		void AnimateBackdropScale(float targetScale, int durationMilliseconds);
+		void UpdateBackdropVisualCenterPoint();
 		void ClampBackdropFrameRect();
 		bool HitTestBackdropFrame(winrt::Windows::Foundation::Point const& position);
 		bool HitTestResizeGrip(winrt::Windows::Foundation::Point const& position);
@@ -94,5 +98,3 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::factory_implementation
 	{
 	};
 }
-
-
