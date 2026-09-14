@@ -67,6 +67,9 @@ float SurfaceHeight(float t, float profile)
         return ConcaveCircle(t);
     }
 
+    // Keep x * 2 unsaturated here. kube's Lip deliberately lets the squircle arc
+    // travel through the second half of its domain before smootherstep blends it
+    // into the concave surface.
     float convex = ConvexSquircleRaw(t * 2.0f);
     float concave = ConcaveCircle(t) + 0.1f;
     return lerp(convex, concave, SmootherStep01(t));
@@ -87,6 +90,8 @@ float CalculateReferenceRefractionDistance(
     float glassThickness,
     float refractiveIndex)
 {
+    // kube's reduced 2-D Snell model: incoming ray is [0, 1], ambient IOR is 1,
+    // and the ray refracts once through the curved top surface.
     const float inverseLength = rsqrt(max(derivative * derivative + 1.0f, 1e-6f));
     const float2 surfaceNormal = float2(-derivative * inverseLength, -inverseLength);
     const float eta = 1.0f / max(refractiveIndex, 1.0001f);
@@ -201,6 +206,8 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, halfRect, radius);
 
+    // Coverage is evaluated after the materialized Gaussian blur. Blur therefore affects
+    // transmitted content without changing the rounded-rectangle silhouette.
     const float feather = max(edgeSoftness, 0.25f);
     const float coverage = saturate(0.5f - sdf / feather);
     const float alpha = coverage * saturate(materialOpacity);
@@ -210,7 +217,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     {
         const float distanceFromEdge = max(-sdf, 0.0f);
         // Border radius only changes the SDF geometry. The optical bezel is an independent
-        // physical width exactly like kube.io's distanceFromSide / bezelWidth model.
+        // physical width exactly like kube's distanceFromSide / bezelWidth model.
         const float maximumBezel = max(halfMinSize - 0.5f, 1.0f);
         const float bezel = clamp(bezelWidth, 1.0f, maximumBezel);
         const float bezelT = saturate(distanceFromEdge / bezel);
@@ -226,10 +233,18 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float displacementPixels = referenceDisplacement * artisticScale;
 
         const float2 normal = RoundedRectNormal(local, halfRect, radius, sdf);
+        const float2 refractionPixelOffset = -normal * displacementPixels;
+        const float2 refractedUv = uv + refractionPixelOffset * texelSize;
+
+        // kube's magnifier is a first displacement pass whose output is then sampled by the
+        // refraction pass. Because its field is linear/radial, evaluating the magnification
+        // at the already-refracted coordinate reproduces that two-stage composition exactly:
+        // Source(x + R(x) + M(x + R(x))).
         const float maximumHalfExtent = max(max(halfRect.x, halfRect.y), 1.0f);
-        const float2 normalizedMagnification = local / maximumHalfExtent;
+        const float2 refractedLocal = local + refractionPixelOffset;
+        const float2 normalizedMagnification = refractedLocal / maximumHalfExtent;
         const float2 magnificationOffset = -normalizedMagnification * texelSize * magnificationStrength;
-        const float2 refractUv = uv + magnificationOffset - normal * texelSize * displacementPixels;
+        const float2 sampleUv = refractedUv + magnificationOffset;
 
         const float bezelWeight = 1.0f - smoothstep(0.18f, 1.0f, bezelT);
         const float dispersionPixels = dispersionStrength * bezelWeight *
@@ -237,9 +252,9 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
         float3 color = float3(
-            SampleTransmission(refractUv - dispersionOffset, contentMin, contentMax, texelSize, hasContentRect).r,
-            SampleTransmission(refractUv, contentMin, contentMax, texelSize, hasContentRect).g,
-            SampleTransmission(refractUv + dispersionOffset, contentMin, contentMax, texelSize, hasContentRect).b);
+            SampleTransmission(sampleUv - dispersionOffset, contentMin, contentMax, texelSize, hasContentRect).r,
+            SampleTransmission(sampleUv, contentMin, contentMax, texelSize, hasContentRect).g,
+            SampleTransmission(sampleUv + dispersionOffset, contentMin, contentMax, texelSize, hasContentRect).b);
         color = ApplySaturation(color, saturation);
         color = lerp(color, tintColor, tintOpacity);
 
@@ -260,6 +275,10 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             normal,
             lightDirection,
             highlightSharpness);
+
+        // kube first saturates the refracted image only inside the specular image alpha,
+        // then blends a faded grayscale specular image over it. The generated specular map's
+        // alpha is coefficient^2, while its RGB is coefficient, hence the two terms below.
         const float specularMask = specularCoefficient * specularCoefficient;
         const float3 saturatedSpecularColor = ApplySaturation(color, specularSaturation);
         color = lerp(color, saturatedSpecularColor, specularMask);

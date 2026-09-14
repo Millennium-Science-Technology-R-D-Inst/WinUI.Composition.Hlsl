@@ -6,6 +6,14 @@ namespace WinUI.LiquidGlass
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
     }
 
+    // Kube's draggable MagnifyingGlass expressed as a native ContentControl. The control
+    // owns the lens preset and drag/squash interaction while exposing the underlying brush.
+    [webhosthidden] runtimeclass LiquidGlassMagnifier : Microsoft.UI.Xaml.Controls.ContentControl
+    {
+        LiquidGlassMagnifier();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
     [webhosthidden] runtimeclass LiquidGlassButton : Microsoft.UI.Xaml.Controls.Button
     {
         LiquidGlassButton();

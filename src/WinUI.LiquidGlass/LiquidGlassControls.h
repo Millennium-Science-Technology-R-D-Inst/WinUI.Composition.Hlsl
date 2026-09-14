@@ -1,9 +1,11 @@
 #pragma once
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/WinUI.Composition.Hlsl.h>
+#include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.UI.h>
 
 #include "LiquidGlassCard.g.h"
+#include "LiquidGlassMagnifier.g.h"
 #include "LiquidGlassButton.g.h"
 #include "LiquidGlassToggleButton.g.h"
 #include "LiquidGlassHyperlinkButton.g.h"
@@ -40,6 +42,19 @@ namespace winrt::WinUI::LiquidGlass::implementation
     WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassToggleSwitch)
 
 #undef WINUI_LIQUID_GLASS_CONTROL_DECLARATION
+
+    struct LiquidGlassMagnifier : LiquidGlassMagnifierT<LiquidGlassMagnifier>
+    {
+        LiquidGlassMagnifier();
+        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+
+    private:
+        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
+        Microsoft::UI::Xaml::Media::CompositeTransform m_dragTransform{ nullptr };
+        Windows::Foundation::Point m_lastPointer{};
+        uint32_t m_activePointerId{};
+        bool m_dragging{};
+    };
 }
 
 namespace winrt::WinUI::LiquidGlass::factory_implementation
@@ -48,6 +63,7 @@ namespace winrt::WinUI::LiquidGlass::factory_implementation
     struct Type : Type##T<Type, implementation::Type> {};
 
     WINUI_LIQUID_GLASS_FACTORY(LiquidGlassCard)
+    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassMagnifier)
     WINUI_LIQUID_GLASS_FACTORY(LiquidGlassButton)
     WINUI_LIQUID_GLASS_FACTORY(LiquidGlassToggleButton)
     WINUI_LIQUID_GLASS_FACTORY(LiquidGlassHyperlinkButton)

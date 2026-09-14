@@ -31,6 +31,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		void OnBorderWidthChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs const& args);
 		void OnLiquidGlassParameterChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::Controls::Primitives::RangeBaseValueChangedEventArgs const& args);
 		void OnPointerLightingToggled(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
+		void OnAdvancedLiquidGlassLoaded(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
 
 	private:
 		winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer m_smokeTimer{ nullptr };
@@ -67,6 +68,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		float m_startOffsetY{};
 		float m_startWidth{};
 		float m_startHeight{};
+		bool m_advancedLiquidGlassWired{};
 
 		void StartDynamicScene();
 		void InitializeBackdropBrush();
@@ -76,6 +78,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		winrt::Windows::Foundation::IAsyncAction SetBackgroundImageAsync(winrt::Windows::Storage::StorageFile file);
 		void ClearBackgroundImage();
 		void ApplyLiquidGlassProperties();
+		void ApplyAdvancedLiquidGlassProperties();
 		void UpdateLiquidGlassControlsState();
 		void UpdateLiquidGlassPointerLighting(winrt::Windows::Foundation::Point const& position);
 		void AnimateBackdropScale(float targetScale, int durationMilliseconds);
