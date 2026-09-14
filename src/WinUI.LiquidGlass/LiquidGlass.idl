@@ -1,0 +1,73 @@
+import "Windows.Foundation.idl";
+import "Microsoft.UI.Xaml.idl";
+import "Microsoft.UI.Xaml.Controls.idl";
+import "Api.idl";
+
+namespace WinUI.LiquidGlass
+{
+    [default_interface] runtimeclass LiquidGlassCard : Microsoft.UI.Xaml.Controls.ContentControl
+    {
+        LiquidGlassCard();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassButton : Microsoft.UI.Xaml.Controls.Button
+    {
+        LiquidGlassButton();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassToggleButton : Microsoft.UI.Xaml.Controls.ToggleButton
+    {
+        LiquidGlassToggleButton();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassHyperlinkButton : Microsoft.UI.Xaml.Controls.HyperlinkButton
+    {
+        LiquidGlassHyperlinkButton();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassCheckBox : Microsoft.UI.Xaml.Controls.CheckBox
+    {
+        LiquidGlassCheckBox();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassRadioButton : Microsoft.UI.Xaml.Controls.RadioButton
+    {
+        LiquidGlassRadioButton();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassSlider : Microsoft.UI.Xaml.Controls.Slider
+    {
+        LiquidGlassSlider();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassTextBox : Microsoft.UI.Xaml.Controls.TextBox
+    {
+        LiquidGlassTextBox();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassPasswordBox : Microsoft.UI.Xaml.Controls.PasswordBox
+    {
+        LiquidGlassPasswordBox();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassComboBox : Microsoft.UI.Xaml.Controls.ComboBox
+    {
+        LiquidGlassComboBox();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+
+    [default_interface] runtimeclass LiquidGlassToggleSwitch : Microsoft.UI.Xaml.Controls.ToggleSwitch
+    {
+        LiquidGlassToggleSwitch();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+    }
+}
