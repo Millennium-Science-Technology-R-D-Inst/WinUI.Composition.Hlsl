@@ -52,7 +52,9 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		animatableProperties.Append(CustomLiquidGlassEffect::CornerRadiusPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::BorderThicknessPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::HighlightStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::EdgeSoftnessPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::DispersionStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::MaterialOpacityPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::BezelWidthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::GlassThicknessPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::RefractiveIndexPropertyPath);
@@ -80,6 +82,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"CornerRadius", m_CornerRadius);
 		m_effect.SetFloat(L"BorderThickness", m_BorderThickness);
 		m_effect.SetFloat(L"HighlightStrength", m_HighlightStrength);
+		m_effect.SetFloat(L"EdgeSoftness", m_EdgeSoftness);
+		m_effect.SetFloat(L"MaterialOpacity", m_MaterialOpacity);
 		m_effect.SetFloat(L"BezelWidth", m_BezelWidth);
 		m_effect.SetFloat(L"GlassThickness", m_GlassThickness);
 		m_effect.SetFloat(L"RefractiveIndex", m_RefractiveIndex);
@@ -117,6 +121,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	LIQUID_GLASS_FLOAT_PROPERTY(CornerRadius, L"CornerRadius", 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs.")
 	LIQUID_GLASS_FLOAT_PROPERTY(BorderThickness, L"BorderThickness", 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs.")
 	LIQUID_GLASS_FLOAT_PROPERTY(HighlightStrength, L"HighlightStrength", 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4.")
+	LIQUID_GLASS_FLOAT_PROPERTY(EdgeSoftness, L"EdgeSoftness", 0.25f, 16.0f, L"EdgeSoftness must be between 0.25 and 16 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(MaterialOpacity, L"MaterialOpacity", 0.0f, 1.0f, L"MaterialOpacity must be between 0 and 1.")
 	LIQUID_GLASS_FLOAT_PROPERTY(BezelWidth, L"BezelWidth", 1.0f, 256.0f, L"BezelWidth must be between 1 and 256 DIPs.")
 	LIQUID_GLASS_FLOAT_PROPERTY(GlassThickness, L"GlassThickness", 0.0f, 256.0f, L"GlassThickness must be between 0 and 256 DIPs.")
 	LIQUID_GLASS_FLOAT_PROPERTY(RefractiveIndex, L"RefractiveIndex", 1.0f, 3.5f, L"RefractiveIndex must be between 1 and 3.5.")

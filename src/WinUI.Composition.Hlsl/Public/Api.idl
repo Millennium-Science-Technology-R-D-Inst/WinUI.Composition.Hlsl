@@ -140,6 +140,8 @@ namespace WinUI.Composition.Hlsl
         Single CornerRadius;
         Single BorderThickness;
         Single HighlightStrength;
+        Single EdgeSoftness;
+        Single MaterialOpacity;
         Single BezelWidth;
         Single GlassThickness;
         Single RefractiveIndex;
@@ -173,6 +175,10 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty BorderThicknessProperty{ get; };
         Double HighlightStrength;
         static Microsoft.UI.Xaml.DependencyProperty HighlightStrengthProperty{ get; };
+        Double EdgeSoftness;
+        static Microsoft.UI.Xaml.DependencyProperty EdgeSoftnessProperty{ get; };
+        Double MaterialOpacity;
+        static Microsoft.UI.Xaml.DependencyProperty MaterialOpacityProperty{ get; };
         Double BezelWidth;
         static Microsoft.UI.Xaml.DependencyProperty BezelWidthProperty{ get; };
         Double GlassThickness;

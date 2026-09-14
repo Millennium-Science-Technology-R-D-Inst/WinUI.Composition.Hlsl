@@ -25,8 +25,6 @@ float RoundedRectSdf(float2 p, float2 halfSize, float radius)
 
 float ConvexSquircleRaw(float t)
 {
-    // The reference Lip profile deliberately evaluates the squircle with x * 2,
-    // so t must be allowed to travel through [0, 2] instead of being saturated first.
     float s = 1.0f - clamp(t, 0.0f, 2.0f);
     return pow(saturate(1.0f - s * s * s * s), 0.25f);
 }
@@ -69,8 +67,6 @@ float SurfaceHeight(float t, float profile)
         return ConcaveCircle(t);
     }
 
-    // Exact kube.io reference shape: the raised outer lip is the full x*2
-    // squircle arc, blended into the concave surface with smootherstep.
     float convex = ConvexSquircleRaw(t * 2.0f);
     float concave = ConcaveCircle(t) + 0.1f;
     return lerp(convex, concave, SmootherStep01(t));
@@ -78,7 +74,6 @@ float SurfaceHeight(float t, float profile)
 
 float SurfaceDerivative(float t, float profile)
 {
-    // Match the reference's one-sided finite difference at the end of the bezel.
     const float delta = 0.0005f;
     const float step = t < 1.0f - delta ? delta : -delta;
     const float y = SurfaceHeight(t, profile);
@@ -92,9 +87,6 @@ float CalculateReferenceRefractionDistance(
     float glassThickness,
     float refractiveIndex)
 {
-    // Port of kube.io's calculateDisplacementMap(): the incident ray is vertical,
-    // the surface normal comes from the height derivative, and Snell's law is
-    // evaluated in vector form. This preserves the sign of concave/Lip profiles.
     const float inverseLength = rsqrt(max(derivative * derivative + 1.0f, 1e-6f));
     const float2 surfaceNormal = float2(-derivative * inverseLength, -inverseLength);
     const float eta = 1.0f / max(refractiveIndex, 1.0001f);
@@ -115,7 +107,6 @@ float CalculateReferenceRefractionDistance(
         return 0.0f;
     }
 
-    // kube.io models the curved bezel itself as additional optical height.
     const float remainingHeight = height * bezelWidth + max(glassThickness, 0.0f);
     return refracted.x * (remainingHeight / refracted.y);
 }
@@ -162,8 +153,6 @@ float ReferenceSpecularCoefficient(
     float2 lightDirection,
     float highlightSharpness)
 {
-    // kube.io's specular map is a narrow outer-edge arc. The source map stores
-    // coefficient as RGB and coefficient^2 as alpha; reproduce that analytically.
     const float width = max(specularWidth, 0.25f);
     const float edgeT = saturate(distanceFromEdge / width);
     const float arc = sqrt(saturate(1.0f - (1.0f - edgeT) * (1.0f - edgeT)));
@@ -212,9 +201,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, halfRect, radius);
 
-    // Coverage is evaluated at destination resolution, after the materialized blur input.
-    // Blur therefore changes transmitted content, never the rounded-rect silhouette.
-    const float feather = max(edgeSoftness, 0.5f);
+    const float feather = max(edgeSoftness, 0.25f);
     const float coverage = saturate(0.5f - sdf / feather);
     const float alpha = coverage * saturate(materialOpacity);
 
@@ -222,7 +209,9 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     if (alpha > 0.0f)
     {
         const float distanceFromEdge = max(-sdf, 0.0f);
-        const float maximumBezel = max(min(radius > 0.0f ? radius : halfMinSize, halfMinSize) - 0.5f, 1.0f);
+        // Border radius only changes the SDF geometry. The optical bezel is an independent
+        // physical width exactly like kube.io's distanceFromSide / bezelWidth model.
+        const float maximumBezel = max(halfMinSize - 0.5f, 1.0f);
         const float bezel = clamp(bezelWidth, 1.0f, maximumBezel);
         const float bezelT = saturate(distanceFromEdge / bezel);
         const float height = SurfaceHeight(bezelT, surfaceProfile);
@@ -237,15 +226,11 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float displacementPixels = referenceDisplacement * artisticScale;
 
         const float2 normal = RoundedRectNormal(local, halfRect, radius, sdf);
-
-        // The reference magnification map normalizes both axes by the largest half extent.
-        // This avoids over-magnifying the short axis of wide/tall controls.
         const float maximumHalfExtent = max(max(halfRect.x, halfRect.y), 1.0f);
         const float2 normalizedMagnification = local / maximumHalfExtent;
         const float2 magnificationOffset = -normalizedMagnification * texelSize * magnificationStrength;
         const float2 refractUv = uv + magnificationOffset - normal * texelSize * displacementPixels;
 
-        // Keep dispersion concentrated near the optical bezel, where the reference field bends.
         const float bezelWeight = 1.0f - smoothstep(0.18f, 1.0f, bezelT);
         const float dispersionPixels = dispersionStrength * bezelWeight *
             (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f));
@@ -258,8 +243,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         color = ApplySaturation(color, saturation);
         color = lerp(color, tintColor, tintOpacity);
 
-        // Interior shading is applied before the final edge specular, like a glass body under
-        // a reflected highlight layer.
         const float innerShadow = 1.0f - smoothstep(0.0f, max(bezel * 0.65f, 1.0f), distanceFromEdge);
         color *= 1.0f - innerShadow * innerShadowStrength;
 
@@ -269,9 +252,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             distanceFromEdge);
         color = lerp(color, tintColor, borderMask * 0.20f * highlightStrength);
 
-        // kube.io final filter: saturated displaced content clipped by the specular mask,
-        // then the faded grayscale/white specular map on top. The analytical form avoids
-        // a second texture while preserving the same two-layer visual response.
         const float2 lightDirection = normalize(float2(cos(lightAngle), sin(lightAngle)));
         const float specularCoefficient = ReferenceSpecularCoefficient(
             distanceFromEdge,
@@ -285,8 +265,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         color = lerp(color, saturatedSpecularColor, specularMask);
         color += (specularCoefficient * specularMask * highlightStrength).xxx;
 
-        // A secondary inner rim prevents the one-pixel reference highlight from disappearing
-        // on low-DPI or heavily blurred content while staying subordinate to the real specular.
         const float innerRim = smoothstep(specularWidth, specularWidth + 1.0f, distanceFromEdge) *
             (1.0f - smoothstep(specularWidth + 1.0f, specularWidth + 3.0f + feather, distanceFromEdge));
         color += (innerRim * 0.10f * highlightStrength).xxx;

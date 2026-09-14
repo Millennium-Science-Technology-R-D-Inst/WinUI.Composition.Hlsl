@@ -21,6 +21,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void BorderThickness(float value);
 		float HighlightStrength() const { return m_HighlightStrength; }
 		void HighlightStrength(float value);
+		float EdgeSoftness() const { return m_EdgeSoftness; }
+		void EdgeSoftness(float value);
+		float MaterialOpacity() const { return m_MaterialOpacity; }
+		void MaterialOpacity(float value);
 		float BezelWidth() const { return m_BezelWidth; }
 		void BezelWidth(float value);
 		float GlassThickness() const { return m_GlassThickness; }
@@ -61,6 +65,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		float m_CornerRadius{ 36.0f };
 		float m_BorderThickness{ 1.5f };
 		float m_HighlightStrength{ 0.85f };
+		float m_EdgeSoftness{ 1.0f };
+		float m_MaterialOpacity{ 1.0f };
 		float m_BezelWidth{ 32.0f };
 		float m_GlassThickness{ 50.0f };
 		float m_RefractiveIndex{ 1.5f };

@@ -33,6 +33,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		double HighlightStrength() const;
 		void HighlightStrength(double value);
 		static Microsoft::UI::Xaml::DependencyProperty HighlightStrengthProperty();
+		double EdgeSoftness() const;
+		void EdgeSoftness(double value);
+		static Microsoft::UI::Xaml::DependencyProperty EdgeSoftnessProperty();
+		double MaterialOpacity() const;
+		void MaterialOpacity(double value);
+		static Microsoft::UI::Xaml::DependencyProperty MaterialOpacityProperty();
 		double BezelWidth() const;
 		void BezelWidth(double value);
 		static Microsoft::UI::Xaml::DependencyProperty BezelWidthProperty();

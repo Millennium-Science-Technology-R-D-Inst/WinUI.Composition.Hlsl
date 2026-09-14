@@ -10,7 +10,9 @@ namespace CustomLiquidGlassEffect
 	inline constexpr wchar_t CornerRadiusPropertyPath[] = L"BackdropLiquidGlassEffect.CornerRadius";
 	inline constexpr wchar_t BorderThicknessPropertyPath[] = L"BackdropLiquidGlassEffect.BorderThickness";
 	inline constexpr wchar_t HighlightStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.HighlightStrength";
+	inline constexpr wchar_t EdgeSoftnessPropertyPath[] = L"BackdropLiquidGlassEffect.EdgeSoftness";
 	inline constexpr wchar_t DispersionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.DispersionStrength";
+	inline constexpr wchar_t MaterialOpacityPropertyPath[] = L"BackdropLiquidGlassEffect.MaterialOpacity";
 	inline constexpr wchar_t BezelWidthPropertyPath[] = L"BackdropLiquidGlassEffect.BezelWidth";
 	inline constexpr wchar_t GlassThicknessPropertyPath[] = L"BackdropLiquidGlassEffect.GlassThickness";
 	inline constexpr wchar_t RefractiveIndexPropertyPath[] = L"BackdropLiquidGlassEffect.RefractiveIndex";

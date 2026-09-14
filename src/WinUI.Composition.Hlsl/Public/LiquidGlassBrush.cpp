@@ -58,6 +58,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	LIQUID_GLASS_DOUBLE_DP(CornerRadius, 36.0, 0.0, 512.0, L"CornerRadius must be between 0 and 512 DIPs.")
 	LIQUID_GLASS_DOUBLE_DP(BorderThickness, 1.5, 0.0, 32.0, L"BorderThickness must be between 0 and 32 DIPs.")
 	LIQUID_GLASS_DOUBLE_DP(HighlightStrength, 0.85, 0.0, 4.0, L"HighlightStrength must be between 0 and 4.")
+	LIQUID_GLASS_DOUBLE_DP(EdgeSoftness, 1.0, 0.25, 16.0, L"EdgeSoftness must be between 0.25 and 16 DIPs.")
+	LIQUID_GLASS_DOUBLE_DP(MaterialOpacity, 1.0, 0.0, 1.0, L"MaterialOpacity must be between 0 and 1.")
 	LIQUID_GLASS_DOUBLE_DP(BezelWidth, 32.0, 1.0, 256.0, L"BezelWidth must be between 1 and 256 DIPs.")
 	LIQUID_GLASS_DOUBLE_DP(GlassThickness, 50.0, 0.0, 256.0, L"GlassThickness must be between 0 and 256 DIPs.")
 	LIQUID_GLASS_DOUBLE_DP(RefractiveIndex, 1.5, 1.0, 3.5, L"RefractiveIndex must be between 1 and 3.5.")
@@ -107,6 +109,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_material.CornerRadius(static_cast<float>(CornerRadius()));
 		m_material.BorderThickness(static_cast<float>(BorderThickness()));
 		m_material.HighlightStrength(static_cast<float>(HighlightStrength()));
+		m_material.EdgeSoftness(static_cast<float>(EdgeSoftness()));
+		m_material.MaterialOpacity(static_cast<float>(MaterialOpacity()));
 		m_material.BezelWidth(static_cast<float>(BezelWidth()));
 		m_material.GlassThickness(static_cast<float>(GlassThickness()));
 		m_material.RefractiveIndex(static_cast<float>(RefractiveIndex()));
