@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef WINRT_IMPORT_MODULE
 #define WINRT_IMPORT_MODULE
 #endif
@@ -72,6 +72,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		double InnerShadowStrength() const;
 		void InnerShadowStrength(double value);
 		static Microsoft::UI::Xaml::DependencyProperty InnerShadowStrengthProperty();
+		double SpecularSaturation() const;
+		void SpecularSaturation(double value);
+		static Microsoft::UI::Xaml::DependencyProperty SpecularSaturationProperty();
+		double SpecularWidth() const;
+		void SpecularWidth(double value);
+		static Microsoft::UI::Xaml::DependencyProperty SpecularWidthProperty();
 
 	private:
 		void Update();

@@ -24,6 +24,8 @@ namespace CustomLiquidGlassEffect
 	inline constexpr wchar_t TintGreenPropertyPath[] = L"BackdropLiquidGlassEffect.TintGreen";
 	inline constexpr wchar_t TintBluePropertyPath[] = L"BackdropLiquidGlassEffect.TintBlue";
 	inline constexpr wchar_t InnerShadowStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.InnerShadowStrength";
+	inline constexpr wchar_t SpecularSaturationPropertyPath[] = L"BackdropLiquidGlassEffect.SpecularSaturation";
+	inline constexpr wchar_t SpecularWidthPropertyPath[] = L"BackdropLiquidGlassEffect.SpecularWidth";
 
 	std::shared_ptr<hlsl::engine::EffectDefinition const> Description();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect();

@@ -47,6 +47,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void TintBlue(float value);
 		float InnerShadowStrength() const { return m_InnerShadowStrength; }
 		void InnerShadowStrength(float value);
+		float SpecularSaturation() const { return m_SpecularSaturation; }
+		void SpecularSaturation(float value);
+		float SpecularWidth() const { return m_SpecularWidth; }
+		void SpecularWidth(float value);
 
 	private:
 		Hlsl::HlslEffectBrush m_effect{ nullptr };
@@ -70,6 +74,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		float m_TintGreen{ 1.0f };
 		float m_TintBlue{ 1.0f };
 		float m_InnerShadowStrength{ 0.09f };
+		float m_SpecularSaturation{ 4.0f };
+		float m_SpecularWidth{ 1.0f };
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation

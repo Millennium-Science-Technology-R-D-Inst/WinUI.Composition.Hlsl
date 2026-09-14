@@ -21,23 +21,26 @@ namespace
 		float materialParams2[4];
 		float materialParams3[4];
 		float materialParams4[4];
+		float materialParams5[4];
 	};
 
 	// Keep this layout byte-for-byte synchronized with LiquidGlass.hlsl.
 	// P0: border, corner radius, artistic refraction multiplier, optical bezel width.
 	// P1: highlight strength, edge softness, dispersion, opacity.
-	// P2: physical thickness, IOR, tint opacity, saturation.
+	// P2: physical thickness, IOR, tint opacity, base saturation.
 	// P3: light angle, surface profile, magnification, highlight sharpness.
 	// P4: tint RGB, inner shadow strength.
+	// P5: specular-only saturation, specular width, reserved, reserved.
 	constexpr LiquidGlassConstants kInitialConstants{
 		{ 1.5f, 36.0f, 24.0f, 32.0f },
 		{ 0.85f, 1.0f, 1.2f, 1.0f },
 		{ 50.0f, 1.5f, 0.08f, 1.25f },
 		{ -0.95f, 0.0f, 0.0f, 1.5f },
 		{ 1.0f, 1.0f, 1.0f, 0.09f },
+		{ 4.0f, 1.0f, 0.0f, 0.0f },
 	};
 
-	static_assert(sizeof(LiquidGlassConstants) == 80);
+	static_assert(sizeof(LiquidGlassConstants) == 96);
 
 	enum LiquidGlassPropertyIndex : std::uint32_t
 	{
@@ -59,6 +62,8 @@ namespace
 		TintGreenProperty,
 		TintBlueProperty,
 		InnerShadowStrengthProperty,
+		SpecularSaturationProperty,
+		SpecularWidthProperty,
 	};
 
 	constexpr std::uint32_t kDCompositionExpressionTypeScalar = 18;
@@ -81,6 +86,8 @@ namespace
 	constexpr std::uint32_t kTintGreenOffset = 68;
 	constexpr std::uint32_t kTintBlueOffset = 72;
 	constexpr std::uint32_t kInnerShadowStrengthOffset = 76;
+	constexpr std::uint32_t kSpecularSaturationOffset = 80;
+	constexpr std::uint32_t kSpecularWidthOffset = 84;
 
 	HRESULT CreateScalarProperty(float scalar, ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
@@ -127,6 +134,8 @@ namespace
 	LIQUID_GLASS_DEFAULT_GETTER(TintGreen, materialParams4, 1)
 	LIQUID_GLASS_DEFAULT_GETTER(TintBlue, materialParams4, 2)
 	LIQUID_GLASS_DEFAULT_GETTER(InnerShadowStrength, materialParams4, 3)
+	LIQUID_GLASS_DEFAULT_GETTER(SpecularSaturation, materialParams5, 0)
+	LIQUID_GLASS_DEFAULT_GETTER(SpecularWidth, materialParams5, 1)
 
 #undef LIQUID_GLASS_DEFAULT_GETTER
 
@@ -149,6 +158,8 @@ namespace
 		{ L"TintGreen", TintGreenProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetTintGreenDefault },
 		{ L"TintBlue", TintBlueProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetTintBlueDefault },
 		{ L"InnerShadowStrength", InnerShadowStrengthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetInnerShadowStrengthDefault },
+		{ L"SpecularSaturation", SpecularSaturationProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetSpecularSaturationDefault },
+		{ L"SpecularWidth", SpecularWidthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetSpecularWidthDefault },
 	};
 
 #define LIQUID_GLASS_NATIVE_PROPERTY(Name, Offset) \
@@ -173,6 +184,8 @@ namespace
 		LIQUID_GLASS_NATIVE_PROPERTY(TintGreen, kTintGreenOffset),
 		LIQUID_GLASS_NATIVE_PROPERTY(TintBlue, kTintBlueOffset),
 		LIQUID_GLASS_NATIVE_PROPERTY(InnerShadowStrength, kInnerShadowStrengthOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(SpecularSaturation, kSpecularSaturationOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(SpecularWidth, kSpecularWidthOffset),
 	};
 
 #undef LIQUID_GLASS_NATIVE_PROPERTY
@@ -196,6 +209,8 @@ namespace
 		{ TintGreenProperty, kTintGreenOffset },
 		{ TintBlueProperty, kTintBlueOffset },
 		{ InnerShadowStrengthProperty, kInnerShadowStrengthOffset },
+		{ SpecularSaturationProperty, kSpecularSaturationOffset },
+		{ SpecularWidthProperty, kSpecularWidthOffset },
 	};
 
 	constexpr uint16_t kBackdropUvArgument = 0x0100;
@@ -275,6 +290,8 @@ namespace CustomLiquidGlassEffect
 					{ L"TintGreen", 1.0f, 0.0f, 1.0f },
 					{ L"TintBlue", 1.0f, 0.0f, 1.0f },
 					{ L"InnerShadowStrength", 0.09f, 0.0f, 1.0f },
+					{ L"SpecularSaturation", 4.0f, 0.0f, 50.0f },
+					{ L"SpecularWidth", 1.0f, 0.25f, 32.0f },
 				};
 				return definition;
 			}();

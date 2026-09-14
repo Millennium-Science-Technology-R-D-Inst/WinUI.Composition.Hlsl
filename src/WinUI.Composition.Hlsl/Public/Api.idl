@@ -153,6 +153,8 @@ namespace WinUI.Composition.Hlsl
         Single TintGreen;
         Single TintBlue;
         Single InnerShadowStrength;
+        Single SpecularSaturation;
+        Single SpecularWidth;
     }
     [default_interface] runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
     {
@@ -197,5 +199,9 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty TintBlueProperty{ get; };
         Double InnerShadowStrength;
         static Microsoft.UI.Xaml.DependencyProperty InnerShadowStrengthProperty{ get; };
+        Double SpecularSaturation;
+        static Microsoft.UI.Xaml.DependencyProperty SpecularSaturationProperty{ get; };
+        Double SpecularWidth;
+        static Microsoft.UI.Xaml.DependencyProperty SpecularWidthProperty{ get; };
     }
 }
