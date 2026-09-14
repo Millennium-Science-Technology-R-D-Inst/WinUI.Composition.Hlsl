@@ -157,6 +157,8 @@ namespace WinUI.Composition.Hlsl
         Single InnerShadowStrength;
         Single SpecularSaturation;
         Single SpecularWidth;
+        Single Contrast;
+        Single Exposure;
     }
     [default_interface] runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
     {
@@ -209,5 +211,9 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty SpecularSaturationProperty{ get; };
         Double SpecularWidth;
         static Microsoft.UI.Xaml.DependencyProperty SpecularWidthProperty{ get; };
+        Double Contrast;
+        static Microsoft.UI.Xaml.DependencyProperty ContrastProperty{ get; };
+        Double Exposure;
+        static Microsoft.UI.Xaml.DependencyProperty ExposureProperty{ get; };
     }
 }

@@ -84,6 +84,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		double SpecularWidth() const;
 		void SpecularWidth(double value);
 		static Microsoft::UI::Xaml::DependencyProperty SpecularWidthProperty();
+		double Contrast() const;
+		void Contrast(double value);
+		static Microsoft::UI::Xaml::DependencyProperty ContrastProperty();
+		double Exposure() const;
+		void Exposure(double value);
+		static Microsoft::UI::Xaml::DependencyProperty ExposureProperty();
 
 	private:
 		void Update();

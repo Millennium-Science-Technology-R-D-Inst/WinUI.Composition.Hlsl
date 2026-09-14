@@ -13,7 +13,7 @@ cbuffer LiquidGlassConstants : register(b0)
     float4 MaterialParams3;
     // xyz = tint color, w = inner shadow strength
     float4 MaterialParams4;
-    // x = specular-only saturation, y = specular width in DIPs, zw = reserved
+    // x = specular-only saturation, y = specular width in DIPs, z = contrast, w = exposure in stops
     float4 MaterialParams5;
 };
 
@@ -132,6 +132,14 @@ float3 ApplySaturation(float3 color, float saturation)
     return lerp(luminance.xxx, color, max(saturation, 0.0f));
 }
 
+float3 ApplyExposureContrast(float3 color, float exposure, float contrast)
+{
+    // Exposure is expressed in photographic stops. Contrast is centered around
+    // middle gray so 1.0 is neutral and 0.0 collapses to 50% gray.
+    color *= exp2(exposure);
+    return (color - 0.5f.xxx) * max(contrast, 0.0f) + 0.5f.xxx;
+}
+
 float2 ClampSampleUv(float2 uv, float2 contentMin, float2 contentMax, float2 texelSize, bool hasContentRect)
 {
     if (!hasContentRect)
@@ -188,6 +196,8 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float innerShadowStrength = saturate(MaterialParams4.w);
     const float specularSaturation = max(MaterialParams5.x, 0.0f);
     const float specularWidth = max(MaterialParams5.y, 0.25f);
+    const float contrast = max(MaterialParams5.z, 0.0f);
+    const float exposure = clamp(MaterialParams5.w, -4.0f, 4.0f);
 
     const float2 contentMin = min(samplerData.xy, samplerData.zw);
     const float2 contentMax = max(samplerData.xy, samplerData.zw);
@@ -256,6 +266,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             SampleTransmission(sampleUv, contentMin, contentMax, texelSize, hasContentRect).g,
             SampleTransmission(sampleUv + dispersionOffset, contentMin, contentMax, texelSize, hasContentRect).b);
         color = ApplySaturation(color, saturation);
+        color = ApplyExposureContrast(color, exposure, contrast);
         color = lerp(color, tintColor, tintOpacity);
 
         const float innerShadow = 1.0f - smoothstep(0.0f, max(bezel * 0.65f, 1.0f), distanceFromEdge);

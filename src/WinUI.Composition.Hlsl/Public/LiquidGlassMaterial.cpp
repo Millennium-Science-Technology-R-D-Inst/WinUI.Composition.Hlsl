@@ -70,6 +70,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		animatableProperties.Append(CustomLiquidGlassEffect::InnerShadowStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::SpecularSaturationPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::SpecularWidthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::ContrastPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::ExposurePropertyPath);
 
 		auto definition = CustomLiquidGlassEffect::Description();
 		auto compositionFactory = compositor.CreateEffectFactory(graph, animatableProperties);
@@ -99,6 +101,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"InnerShadowStrength", m_InnerShadowStrength);
 		m_effect.SetFloat(L"SpecularSaturation", m_SpecularSaturation);
 		m_effect.SetFloat(L"SpecularWidth", m_SpecularWidth);
+		m_effect.SetFloat(L"Contrast", m_Contrast);
+		m_effect.SetFloat(L"Exposure", m_Exposure);
 	}
 
 	void LiquidGlassMaterial::BlurRadius(float value)
@@ -137,6 +141,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	LIQUID_GLASS_FLOAT_PROPERTY(InnerShadowStrength, L"InnerShadowStrength", 0.0f, 1.0f, L"InnerShadowStrength must be between 0 and 1.")
 	LIQUID_GLASS_FLOAT_PROPERTY(SpecularSaturation, L"SpecularSaturation", 0.0f, 50.0f, L"SpecularSaturation must be between 0 and 50.")
 	LIQUID_GLASS_FLOAT_PROPERTY(SpecularWidth, L"SpecularWidth", 0.25f, 32.0f, L"SpecularWidth must be between 0.25 and 32 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(Contrast, L"Contrast", 0.0f, 4.0f, L"Contrast must be between 0 and 4.")
+	LIQUID_GLASS_FLOAT_PROPERTY(Exposure, L"Exposure", -4.0f, 4.0f, L"Exposure must be between -4 and 4 stops.")
 
 #undef LIQUID_GLASS_FLOAT_PROPERTY
 

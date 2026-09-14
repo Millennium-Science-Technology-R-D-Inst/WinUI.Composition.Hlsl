@@ -30,14 +30,14 @@ namespace
 	// P2: physical thickness, IOR, tint opacity, base saturation.
 	// P3: light angle, surface profile, magnification, highlight sharpness.
 	// P4: tint RGB, inner shadow strength.
-	// P5: specular-only saturation, specular width, reserved, reserved.
+	// P5: specular-only saturation, specular width, contrast, exposure.
 	constexpr LiquidGlassConstants kInitialConstants{
 		{ 1.5f, 36.0f, 24.0f, 32.0f },
 		{ 0.85f, 1.0f, 1.2f, 1.0f },
 		{ 50.0f, 1.5f, 0.08f, 1.25f },
 		{ -0.95f, 0.0f, 0.0f, 1.5f },
 		{ 1.0f, 1.0f, 1.0f, 0.09f },
-		{ 4.0f, 1.0f, 0.0f, 0.0f },
+		{ 4.0f, 1.0f, 1.0f, 0.0f },
 	};
 
 	static_assert(sizeof(LiquidGlassConstants) == 96);
@@ -66,6 +66,8 @@ namespace
 		SpecularWidthProperty,
 		EdgeSoftnessProperty,
 		MaterialOpacityProperty,
+		ContrastProperty,
+		ExposureProperty,
 	};
 
 	constexpr std::uint32_t kDCompositionExpressionTypeScalar = 18;
@@ -92,6 +94,8 @@ namespace
 	constexpr std::uint32_t kInnerShadowStrengthOffset = 76;
 	constexpr std::uint32_t kSpecularSaturationOffset = 80;
 	constexpr std::uint32_t kSpecularWidthOffset = 84;
+	constexpr std::uint32_t kContrastOffset = 88;
+	constexpr std::uint32_t kExposureOffset = 92;
 
 	HRESULT CreateScalarProperty(float scalar, ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
@@ -142,6 +146,8 @@ namespace
 	LIQUID_GLASS_DEFAULT_GETTER(InnerShadowStrength, materialParams4, 3)
 	LIQUID_GLASS_DEFAULT_GETTER(SpecularSaturation, materialParams5, 0)
 	LIQUID_GLASS_DEFAULT_GETTER(SpecularWidth, materialParams5, 1)
+	LIQUID_GLASS_DEFAULT_GETTER(Contrast, materialParams5, 2)
+	LIQUID_GLASS_DEFAULT_GETTER(Exposure, materialParams5, 3)
 
 #undef LIQUID_GLASS_DEFAULT_GETTER
 
@@ -168,6 +174,8 @@ namespace
 		{ L"SpecularWidth", SpecularWidthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetSpecularWidthDefault },
 		{ L"EdgeSoftness", EdgeSoftnessProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetEdgeSoftnessDefault },
 		{ L"MaterialOpacity", MaterialOpacityProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetMaterialOpacityDefault },
+		{ L"Contrast", ContrastProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetContrastDefault },
+		{ L"Exposure", ExposureProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetExposureDefault },
 	};
 
 #define LIQUID_GLASS_NATIVE_PROPERTY(Name, Offset) \
@@ -196,6 +204,8 @@ namespace
 		LIQUID_GLASS_NATIVE_PROPERTY(SpecularWidth, kSpecularWidthOffset),
 		LIQUID_GLASS_NATIVE_PROPERTY(EdgeSoftness, kEdgeSoftnessOffset),
 		LIQUID_GLASS_NATIVE_PROPERTY(MaterialOpacity, kMaterialOpacityOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(Contrast, kContrastOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(Exposure, kExposureOffset),
 	};
 
 #undef LIQUID_GLASS_NATIVE_PROPERTY
@@ -223,6 +233,8 @@ namespace
 		{ SpecularWidthProperty, kSpecularWidthOffset },
 		{ EdgeSoftnessProperty, kEdgeSoftnessOffset },
 		{ MaterialOpacityProperty, kMaterialOpacityOffset },
+		{ ContrastProperty, kContrastOffset },
+		{ ExposureProperty, kExposureOffset },
 	};
 
 	constexpr uint16_t kBackdropUvArgument = 0x0100;
@@ -306,6 +318,8 @@ namespace CustomLiquidGlassEffect
 					{ L"SpecularWidth", 1.0f, 0.25f, 32.0f },
 					{ L"EdgeSoftness", 1.0f, 0.25f, 16.0f },
 					{ L"MaterialOpacity", 1.0f, 0.0f, 1.0f },
+					{ L"Contrast", 1.0f, 0.0f, 4.0f },
+					{ L"Exposure", 0.0f, -4.0f, 4.0f },
 				};
 				return definition;
 			}();

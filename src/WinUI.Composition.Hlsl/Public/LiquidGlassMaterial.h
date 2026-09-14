@@ -55,6 +55,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void SpecularSaturation(float value);
 		float SpecularWidth() const { return m_SpecularWidth; }
 		void SpecularWidth(float value);
+		float Contrast() const { return m_Contrast; }
+		void Contrast(float value);
+		float Exposure() const { return m_Exposure; }
+		void Exposure(float value);
 
 	private:
 		Hlsl::HlslEffectBrush m_effect{ nullptr };
@@ -82,6 +86,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		float m_InnerShadowStrength{ 0.09f };
 		float m_SpecularSaturation{ 4.0f };
 		float m_SpecularWidth{ 1.0f };
+		float m_Contrast{ 1.0f };
+		float m_Exposure{ 0.0f };
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation

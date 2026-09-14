@@ -74,6 +74,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	LIQUID_GLASS_DOUBLE_DP(InnerShadowStrength, 0.09, 0.0, 1.0, L"InnerShadowStrength must be between 0 and 1.")
 	LIQUID_GLASS_DOUBLE_DP(SpecularSaturation, 4.0, 0.0, 50.0, L"SpecularSaturation must be between 0 and 50.")
 	LIQUID_GLASS_DOUBLE_DP(SpecularWidth, 1.0, 0.25, 32.0, L"SpecularWidth must be between 0.25 and 32 DIPs.")
+	LIQUID_GLASS_DOUBLE_DP(Contrast, 1.0, 0.0, 4.0, L"Contrast must be between 0 and 4.")
+	LIQUID_GLASS_DOUBLE_DP(Exposure, 0.0, -4.0, 4.0, L"Exposure must be between -4 and 4 stops.")
 
 #undef LIQUID_GLASS_DOUBLE_DP
 #undef LIQUID_GLASS_WIDEN
@@ -126,6 +128,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_material.InnerShadowStrength(static_cast<float>(InnerShadowStrength()));
 		m_material.SpecularSaturation(static_cast<float>(SpecularSaturation()));
 		m_material.SpecularWidth(static_cast<float>(SpecularWidth()));
+		m_material.Contrast(static_cast<float>(Contrast()));
+		m_material.Exposure(static_cast<float>(Exposure()));
 		return m_material.EffectBrush().Brush();
 	}
 }
