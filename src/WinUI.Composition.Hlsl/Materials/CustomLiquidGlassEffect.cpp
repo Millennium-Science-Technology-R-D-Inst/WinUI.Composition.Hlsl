@@ -20,21 +20,24 @@ namespace
 		float materialParams1[4];
 		float materialParams2[4];
 		float materialParams3[4];
+		float materialParams4[4];
 	};
 
 	// Keep this layout byte-for-byte synchronized with LiquidGlass.hlsl.
 	// P0: border, corner radius, artistic refraction multiplier, optical bezel width.
-	// P1: highlight, edge softness, dispersion, opacity.
-	// P2: physical thickness, IOR, tint, saturation.
-	// P3: light angle, reserved.
+	// P1: highlight strength, edge softness, dispersion, opacity.
+	// P2: physical thickness, IOR, tint opacity, saturation.
+	// P3: light angle, surface profile, magnification, highlight sharpness.
+	// P4: tint RGB, inner shadow strength.
 	constexpr LiquidGlassConstants kInitialConstants{
 		{ 1.5f, 36.0f, 24.0f, 32.0f },
 		{ 0.85f, 1.0f, 1.2f, 1.0f },
 		{ 50.0f, 1.5f, 0.08f, 1.25f },
-		{ -0.95f, 0.0f, 0.0f, 0.0f },
+		{ -0.95f, 0.0f, 0.0f, 1.5f },
+		{ 1.0f, 1.0f, 1.0f, 0.09f },
 	};
 
-	static_assert(sizeof(LiquidGlassConstants) == 64);
+	static_assert(sizeof(LiquidGlassConstants) == 80);
 
 	enum LiquidGlassPropertyIndex : std::uint32_t
 	{
@@ -49,6 +52,13 @@ namespace
 		TintOpacityProperty,
 		SaturationProperty,
 		LightAngleProperty,
+		SurfaceProfileProperty,
+		MagnificationStrengthProperty,
+		HighlightSharpnessProperty,
+		TintRedProperty,
+		TintGreenProperty,
+		TintBlueProperty,
+		InnerShadowStrengthProperty,
 	};
 
 	constexpr std::uint32_t kDCompositionExpressionTypeScalar = 18;
@@ -64,6 +74,13 @@ namespace
 	constexpr std::uint32_t kTintOpacityOffset = 40;
 	constexpr std::uint32_t kSaturationOffset = 44;
 	constexpr std::uint32_t kLightAngleOffset = 48;
+	constexpr std::uint32_t kSurfaceProfileOffset = 52;
+	constexpr std::uint32_t kMagnificationStrengthOffset = 56;
+	constexpr std::uint32_t kHighlightSharpnessOffset = 60;
+	constexpr std::uint32_t kTintRedOffset = 64;
+	constexpr std::uint32_t kTintGreenOffset = 68;
+	constexpr std::uint32_t kTintBlueOffset = 72;
+	constexpr std::uint32_t kInnerShadowStrengthOffset = 76;
 
 	HRESULT CreateScalarProperty(float scalar, ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
@@ -86,60 +103,32 @@ namespace
 		}
 	}
 
-	HRESULT GetRefractionStrengthDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams0[2], value);
+#define LIQUID_GLASS_DEFAULT_GETTER(Name, Group, Index) \
+	HRESULT Get##Name##Default(ABI::Windows::Foundation::IPropertyValue** value) noexcept \
+	{ \
+		return CreateScalarProperty(kInitialConstants.Group[Index], value); \
 	}
 
-	HRESULT GetCornerRadiusDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams0[1], value);
-	}
+	LIQUID_GLASS_DEFAULT_GETTER(RefractionStrength, materialParams0, 2)
+	LIQUID_GLASS_DEFAULT_GETTER(CornerRadius, materialParams0, 1)
+	LIQUID_GLASS_DEFAULT_GETTER(BorderThickness, materialParams0, 0)
+	LIQUID_GLASS_DEFAULT_GETTER(HighlightStrength, materialParams1, 0)
+	LIQUID_GLASS_DEFAULT_GETTER(DispersionStrength, materialParams1, 2)
+	LIQUID_GLASS_DEFAULT_GETTER(BezelWidth, materialParams0, 3)
+	LIQUID_GLASS_DEFAULT_GETTER(GlassThickness, materialParams2, 0)
+	LIQUID_GLASS_DEFAULT_GETTER(RefractiveIndex, materialParams2, 1)
+	LIQUID_GLASS_DEFAULT_GETTER(TintOpacity, materialParams2, 2)
+	LIQUID_GLASS_DEFAULT_GETTER(Saturation, materialParams2, 3)
+	LIQUID_GLASS_DEFAULT_GETTER(LightAngle, materialParams3, 0)
+	LIQUID_GLASS_DEFAULT_GETTER(SurfaceProfile, materialParams3, 1)
+	LIQUID_GLASS_DEFAULT_GETTER(MagnificationStrength, materialParams3, 2)
+	LIQUID_GLASS_DEFAULT_GETTER(HighlightSharpness, materialParams3, 3)
+	LIQUID_GLASS_DEFAULT_GETTER(TintRed, materialParams4, 0)
+	LIQUID_GLASS_DEFAULT_GETTER(TintGreen, materialParams4, 1)
+	LIQUID_GLASS_DEFAULT_GETTER(TintBlue, materialParams4, 2)
+	LIQUID_GLASS_DEFAULT_GETTER(InnerShadowStrength, materialParams4, 3)
 
-	HRESULT GetBorderThicknessDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams0[0], value);
-	}
-
-	HRESULT GetHighlightStrengthDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams1[0], value);
-	}
-
-	HRESULT GetDispersionStrengthDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams1[2], value);
-	}
-
-	HRESULT GetBezelWidthDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams0[3], value);
-	}
-
-	HRESULT GetGlassThicknessDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams2[0], value);
-	}
-
-	HRESULT GetRefractiveIndexDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams2[1], value);
-	}
-
-	HRESULT GetTintOpacityDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams2[2], value);
-	}
-
-	HRESULT GetSaturationDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams2[3], value);
-	}
-
-	HRESULT GetLightAngleDefault(ABI::Windows::Foundation::IPropertyValue** value) noexcept
-	{
-		return CreateScalarProperty(kInitialConstants.materialParams3[0], value);
-	}
+#undef LIQUID_GLASS_DEFAULT_GETTER
 
 	CustomEffectRuntime::PropertyDescriptor const kProperties[] = {
 		{ L"RefractionStrength", RefractionStrengthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetRefractionStrengthDefault },
@@ -153,21 +142,40 @@ namespace
 		{ L"TintOpacity", TintOpacityProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetTintOpacityDefault },
 		{ L"Saturation", SaturationProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetSaturationDefault },
 		{ L"LightAngle", LightAngleProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetLightAngleDefault },
+		{ L"SurfaceProfile", SurfaceProfileProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetSurfaceProfileDefault },
+		{ L"MagnificationStrength", MagnificationStrengthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetMagnificationStrengthDefault },
+		{ L"HighlightSharpness", HighlightSharpnessProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetHighlightSharpnessDefault },
+		{ L"TintRed", TintRedProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetTintRedDefault },
+		{ L"TintGreen", TintGreenProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetTintGreenDefault },
+		{ L"TintBlue", TintBlueProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetTintBlueDefault },
+		{ L"InnerShadowStrength", InnerShadowStrengthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetInnerShadowStrengthDefault },
 	};
 
+#define LIQUID_GLASS_NATIVE_PROPERTY(Name, Offset) \
+	{ #Name, Offset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr }
+
 	CustomEffectRuntime::NativePropertyMetadata const kNativePropertyMetadata[] = {
-		{ "RefractionStrength", kRefractionStrengthOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "CornerRadius", kCornerRadiusOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "BorderThickness", kBorderThicknessOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "HighlightStrength", kHighlightStrengthOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "DispersionStrength", kDispersionStrengthOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "BezelWidth", kBezelWidthOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "GlassThickness", kGlassThicknessOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "RefractiveIndex", kRefractiveIndexOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "TintOpacity", kTintOpacityOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "Saturation", kSaturationOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
-		{ "LightAngle", kLightAngleOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		LIQUID_GLASS_NATIVE_PROPERTY(RefractionStrength, kRefractionStrengthOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(CornerRadius, kCornerRadiusOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(BorderThickness, kBorderThicknessOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(HighlightStrength, kHighlightStrengthOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(DispersionStrength, kDispersionStrengthOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(BezelWidth, kBezelWidthOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(GlassThickness, kGlassThicknessOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(RefractiveIndex, kRefractiveIndexOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(TintOpacity, kTintOpacityOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(Saturation, kSaturationOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(LightAngle, kLightAngleOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(SurfaceProfile, kSurfaceProfileOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(MagnificationStrength, kMagnificationStrengthOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(HighlightSharpness, kHighlightSharpnessOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(TintRed, kTintRedOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(TintGreen, kTintGreenOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(TintBlue, kTintBlueOffset),
+		LIQUID_GLASS_NATIVE_PROPERTY(InnerShadowStrength, kInnerShadowStrengthOffset),
 	};
+
+#undef LIQUID_GLASS_NATIVE_PROPERTY
 
 	CustomEffectRuntime::ConstantBufferPropertyMapping const kConstantBufferProperties[] = {
 		{ RefractionStrengthProperty, kRefractionStrengthOffset },
@@ -181,6 +189,13 @@ namespace
 		{ TintOpacityProperty, kTintOpacityOffset },
 		{ SaturationProperty, kSaturationOffset },
 		{ LightAngleProperty, kLightAngleOffset },
+		{ SurfaceProfileProperty, kSurfaceProfileOffset },
+		{ MagnificationStrengthProperty, kMagnificationStrengthOffset },
+		{ HighlightSharpnessProperty, kHighlightSharpnessOffset },
+		{ TintRedProperty, kTintRedOffset },
+		{ TintGreenProperty, kTintGreenOffset },
+		{ TintBlueProperty, kTintBlueOffset },
+		{ InnerShadowStrengthProperty, kInnerShadowStrengthOffset },
 	};
 
 	constexpr uint16_t kBackdropUvArgument = 0x0100;
@@ -221,14 +236,9 @@ namespace
 		kShaderArguments,
 		ARRAYSIZE(kShaderArguments),
 		kBackdropCustomSamplerResult,
-		// DWM's private linker uses the SM4 library/profile family. This byte must
-		// match the build-time FXC target lib_4_0 generated for LiquidGlass.hlsl.
 		CustomEffectRuntime::kShaderProfilePs40,
 		sizeof(kInitialConstants),
 		&kInitialConstants,
-		// A custom sampler needs arbitrary UV access to the blurred input. Ask the
-		// runtime to materialize the upstream native graph into a real texture,
-		// rather than treating its output as a linked color dependency.
 		CustomEffectRuntime::CustomEffectInputMode::MaterializedTexture,
 		CustomEffectRuntime::GraphLoweringPolicy::MaterializedInput,
 		"MaterializeColor",
@@ -258,6 +268,13 @@ namespace CustomLiquidGlassEffect
 					{ L"TintOpacity", 0.08f, 0.0f, 1.0f },
 					{ L"Saturation", 1.25f, 0.0f, 4.0f },
 					{ L"LightAngle", -0.95f, -6.2831855f, 6.2831855f },
+					{ L"SurfaceProfile", 0.0f, 0.0f, 3.0f },
+					{ L"MagnificationStrength", 0.0f, 0.0f, 128.0f },
+					{ L"HighlightSharpness", 1.5f, 0.25f, 64.0f },
+					{ L"TintRed", 1.0f, 0.0f, 1.0f },
+					{ L"TintGreen", 1.0f, 0.0f, 1.0f },
+					{ L"TintBlue", 1.0f, 0.0f, 1.0f },
+					{ L"InnerShadowStrength", 0.09f, 0.0f, 1.0f },
 				};
 				return definition;
 			}();
