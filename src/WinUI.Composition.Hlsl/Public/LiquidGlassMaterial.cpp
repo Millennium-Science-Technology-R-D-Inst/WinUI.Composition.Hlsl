@@ -36,13 +36,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	LiquidGlassMaterial::LiquidGlassMaterial(Microsoft::UI::Composition::Compositor const& compositor)
 	{
 		if (!compositor)
+		{
 			throw hresult_invalid_argument();
+		}
 
-		// Keep GaussianBlur and the custom sampler in one effect description. A
-		// CompositionEffectBrush is not a supported SetSourceParameter input for
-		// another CompositionEffectBrush; the MaterializedTexture lowering path is
-		// responsible for turning this native upstream graph into the Texture2D that
-		// the custom sampler needs.
 		auto blurEffect = GaussianBlurEffect::CreateEffect(
 			GaussianBlurEffect::LiquidGlassBlurEffectName,
 			Microsoft::UI::Composition::CompositionEffectSourceParameter(L"Backdrop"),
@@ -62,6 +59,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		animatableProperties.Append(CustomLiquidGlassEffect::TintOpacityPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::SaturationPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::LightAnglePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::SurfaceProfilePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::MagnificationStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::HighlightSharpnessPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::TintRedPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::TintGreenPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::TintBluePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::InnerShadowStrengthPropertyPath);
 
 		auto definition = CustomLiquidGlassEffect::Description();
 		auto compositionFactory = compositor.CreateEffectFactory(graph, animatableProperties);
@@ -80,91 +84,59 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"TintOpacity", m_TintOpacity);
 		m_effect.SetFloat(L"Saturation", m_Saturation);
 		m_effect.SetFloat(L"LightAngle", m_LightAngle);
+		m_effect.SetFloat(L"SurfaceProfile", static_cast<float>(m_SurfaceProfile));
+		m_effect.SetFloat(L"MagnificationStrength", m_MagnificationStrength);
+		m_effect.SetFloat(L"HighlightSharpness", m_HighlightSharpness);
+		m_effect.SetFloat(L"TintRed", m_TintRed);
+		m_effect.SetFloat(L"TintGreen", m_TintGreen);
+		m_effect.SetFloat(L"TintBlue", m_TintBlue);
+		m_effect.SetFloat(L"InnerShadowStrength", m_InnerShadowStrength);
 	}
 
 	void LiquidGlassMaterial::BlurRadius(float value)
 	{
 		ValidateBlurRadius(value);
-		m_compositionEffect.Properties().InsertScalar(
-			GaussianBlurEffect::LiquidGlassBlurAmountPropertyPath,
-			RadiusToStandardDeviation(value));
+		m_compositionEffect.Properties().InsertScalar(GaussianBlurEffect::LiquidGlassBlurAmountPropertyPath, RadiusToStandardDeviation(value));
 		m_BlurRadius = value;
 	}
 
-	void LiquidGlassMaterial::RefractionStrength(float value)
-	{
-		ValidateRange(value, 0.0f, 128.0f, L"RefractionStrength must be between 0 and 128.");
-		m_effect.SetFloat(L"RefractionStrength", value);
-		m_RefractionStrength = value;
+#define LIQUID_GLASS_FLOAT_PROPERTY(Name, Minimum, Maximum, Message) \
+	void LiquidGlassMaterial::Name(float value) \
+	{ \
+		ValidateRange(value, Minimum, Maximum, Message); \
+		m_effect.SetFloat(L#Name, value); \
+		m_##Name = value; \
 	}
 
-	void LiquidGlassMaterial::DispersionStrength(float value)
-	{
-		ValidateRange(value, 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16.");
-		m_effect.SetFloat(L"DispersionStrength", value);
-		m_DispersionStrength = value;
-	}
+	LIQUID_GLASS_FLOAT_PROPERTY(RefractionStrength, 0.0f, 128.0f, L"RefractionStrength must be between 0 and 128.")
+	LIQUID_GLASS_FLOAT_PROPERTY(DispersionStrength, 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16.")
+	LIQUID_GLASS_FLOAT_PROPERTY(CornerRadius, 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(BorderThickness, 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(HighlightStrength, 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4.")
+	LIQUID_GLASS_FLOAT_PROPERTY(BezelWidth, 1.0f, 256.0f, L"BezelWidth must be between 1 and 256 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(GlassThickness, 0.0f, 256.0f, L"GlassThickness must be between 0 and 256 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(RefractiveIndex, 1.0f, 3.5f, L"RefractiveIndex must be between 1 and 3.5.")
+	LIQUID_GLASS_FLOAT_PROPERTY(TintOpacity, 0.0f, 1.0f, L"TintOpacity must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(Saturation, 0.0f, 4.0f, L"Saturation must be between 0 and 4.")
+	LIQUID_GLASS_FLOAT_PROPERTY(LightAngle, -6.2831855f, 6.2831855f, L"LightAngle must be between -2pi and 2pi radians.")
+	LIQUID_GLASS_FLOAT_PROPERTY(MagnificationStrength, 0.0f, 128.0f, L"MagnificationStrength must be between 0 and 128 pixels.")
+	LIQUID_GLASS_FLOAT_PROPERTY(HighlightSharpness, 0.25f, 64.0f, L"HighlightSharpness must be between 0.25 and 64.")
+	LIQUID_GLASS_FLOAT_PROPERTY(TintRed, 0.0f, 1.0f, L"TintRed must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(TintGreen, 0.0f, 1.0f, L"TintGreen must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(TintBlue, 0.0f, 1.0f, L"TintBlue must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(InnerShadowStrength, 0.0f, 1.0f, L"InnerShadowStrength must be between 0 and 1.")
 
-	void LiquidGlassMaterial::CornerRadius(float value)
-	{
-		ValidateRange(value, 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs.");
-		m_effect.SetFloat(L"CornerRadius", value);
-		m_CornerRadius = value;
-	}
+#undef LIQUID_GLASS_FLOAT_PROPERTY
 
-	void LiquidGlassMaterial::BorderThickness(float value)
+	void LiquidGlassMaterial::SurfaceProfile(Hlsl::LiquidGlassSurfaceProfile value)
 	{
-		ValidateRange(value, 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs.");
-		m_effect.SetFloat(L"BorderThickness", value);
-		m_BorderThickness = value;
-	}
-
-	void LiquidGlassMaterial::HighlightStrength(float value)
-	{
-		ValidateRange(value, 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4.");
-		m_effect.SetFloat(L"HighlightStrength", value);
-		m_HighlightStrength = value;
-	}
-
-	void LiquidGlassMaterial::BezelWidth(float value)
-	{
-		ValidateRange(value, 1.0f, 256.0f, L"BezelWidth must be between 1 and 256 DIPs.");
-		m_effect.SetFloat(L"BezelWidth", value);
-		m_BezelWidth = value;
-	}
-
-	void LiquidGlassMaterial::GlassThickness(float value)
-	{
-		ValidateRange(value, 0.0f, 256.0f, L"GlassThickness must be between 0 and 256 DIPs.");
-		m_effect.SetFloat(L"GlassThickness", value);
-		m_GlassThickness = value;
-	}
-
-	void LiquidGlassMaterial::RefractiveIndex(float value)
-	{
-		ValidateRange(value, 1.0f, 3.5f, L"RefractiveIndex must be between 1 and 3.5.");
-		m_effect.SetFloat(L"RefractiveIndex", value);
-		m_RefractiveIndex = value;
-	}
-
-	void LiquidGlassMaterial::TintOpacity(float value)
-	{
-		ValidateRange(value, 0.0f, 1.0f, L"TintOpacity must be between 0 and 1.");
-		m_effect.SetFloat(L"TintOpacity", value);
-		m_TintOpacity = value;
-	}
-
-	void LiquidGlassMaterial::Saturation(float value)
-	{
-		ValidateRange(value, 0.0f, 4.0f, L"Saturation must be between 0 and 4.");
-		m_effect.SetFloat(L"Saturation", value);
-		m_Saturation = value;
-	}
-
-	void LiquidGlassMaterial::LightAngle(float value)
-	{
-		ValidateRange(value, -6.2831855f, 6.2831855f, L"LightAngle must be between -2pi and 2pi radians.");
-		m_effect.SetFloat(L"LightAngle", value);
-		m_LightAngle = value;
+		auto const raw = static_cast<int32_t>(value);
+		if (raw < static_cast<int32_t>(Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle) ||
+			raw > static_cast<int32_t>(Hlsl::LiquidGlassSurfaceProfile::Lip))
+		{
+			throw hresult_invalid_argument(L"SurfaceProfile is not a supported LiquidGlassSurfaceProfile value.");
+		}
+		m_effect.SetFloat(L"SurfaceProfile", static_cast<float>(raw));
+		m_SurfaceProfile = value;
 	}
 }
