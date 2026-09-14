@@ -322,14 +322,20 @@ namespace HlslComposition
 			void** updater{};
 			for (auto const& s : m_sections)
 			{
-				if (!(s.flags & IMAGE_SCN_MEM_READ) || (s.flags & (IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_WRITE))) continue;
+				// x86 wuceffectsi merges RTTI/vtables into its read-only .text section.
+				// Executability is therefore not a reason to skip a data candidate;
+				// writable sections remain excluded.
+				if (!(s.flags & IMAGE_SCN_MEM_READ) || (s.flags & IMAGE_SCN_MEM_WRITE)) continue;
 				for (size_t i = 0; i + 4 * sizeof(void*) <= s.size; i += sizeof(void*))
 				{
 					auto candidate = reinterpret_cast<void**>(s.begin + i);
 					if (candidate[2] != copy || candidate[0] != candidate[1] ||
 						!Contains(candidate[0], 1, code) || !Contains(candidate[3], 1, code)) continue;
-					if (updater) Fail();
-					updater = candidate;
+					// MSVC may emit more than one identical std::function vtable for the
+					// same inline updater. They share the same _Do_call ABI; retain the
+					// first complete table instead of treating COMDAT duplication as an
+					// incompatible runtime.
+					if (!updater) updater = candidate;
 				}
 			}
 			if (!updater) Fail();

@@ -41,7 +41,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 
 		void ApplySources(hlsl::engine::EffectDefinition& definition,
-			Windows::Foundation::Collections::IVectorView<hstring> const& sources)
+						  Windows::Foundation::Collections::IVectorView<hstring> const& sources)
 		{
 			if (!sources || !sources.Size()) throw hresult_invalid_argument(L"At least one source name is required.");
 			definition.sourceNames.reserve(sources.Size());
@@ -54,7 +54,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 
 		void AppendAdvancedProperties(hlsl::engine::EffectDefinition& definition,
-			Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
+									  Windows::Foundation::Collections::IVectorView<Hlsl::HlslProperty> const& properties)
 		{
 			if (!properties) return;
 			for (auto const& projected : properties)
@@ -221,12 +221,11 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		AppendAdvancedProperties(*definition, properties);
 		definition->shaderBytecode = library->BytecodeBytes();
 		definition->shaderProfile = static_cast<uint8_t>(library->Profile());
-		std::vector<std::wstring> names;
-		for (auto const& property : definition->properties) names.push_back(property.name);
 		library->ValidateForEffect(
 			kind,
 			static_cast<std::uint32_t>(definition->sourceNames.size()),
-			names);
+			{}
+		);
 		hlsl::engine::Validate(*definition);
 		definition->id = id == winrt::guid{} ? hlsl::engine::DeriveId(*definition) : id;
 		return make<HlslEffect>(definition);
