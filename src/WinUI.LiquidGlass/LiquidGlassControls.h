@@ -24,6 +24,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const; \
     private: \
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr }; \
+        bool m_interactionsWired{}; \
     };
 
     WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassCard)
