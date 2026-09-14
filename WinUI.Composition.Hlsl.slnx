@@ -22,4 +22,5 @@
     <Platform Solution="*|x86" Project="x86" />
   </Project>
   <Project Path="src/WinUI.Composition.Hlsl/WinUI.Composition.Hlsl.vcxproj" Id="52a0f546-89a6-4fd2-ba87-f8f06b5542a8" />
+  <Project Path="src/WinUI.Composition.Hlsl.Controls/WinUI.Composition.Hlsl.Controls.vcxproj" Id="b3e53b4f-4751-4d13-8d10-4d77f6b8e3c9" />
 </Solution>

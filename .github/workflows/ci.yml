@@ -78,11 +78,11 @@ jobs:
           Write-Host "Windows SDK: $($sdk.Name)"
           Write-Host "MSBuild: $msbuild"
 
-      - name: Build native package assets
+      - name: Build native core and controls
         shell: pwsh
         run: |
           foreach ($platform in @('x64', 'Win32', 'ARM64')) {
-            Write-Host "Building native Release/$platform"
+            Write-Host "Building core Release/$platform"
             & $env:MSBUILD `
               'src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj' `
               /restore `
@@ -93,6 +93,19 @@ jobs:
               "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
               /m /v:minimal /nologo `
               /fl "/flp:logfile=native-$platform.log;verbosity=minimal"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+            Write-Host "Building controls Release/$platform"
+            & $env:MSBUILD `
+              'src\WinUI.Composition.Hlsl.Controls\WinUI.Composition.Hlsl.Controls.vcxproj' `
+              /restore `
+              /t:Build `
+              /p:Configuration=Release `
+              "/p:Platform=$platform" `
+              /p:NuGetAudit=false `
+              "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+              /m /v:minimal /nologo `
+              /fl "/flp:logfile=controls-$platform.log;verbosity=minimal"
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
 
@@ -161,7 +174,12 @@ jobs:
             'artifacts\x64\Release\WinUI.Composition.Hlsl.dll',
             'artifacts\Win32\Release\WinUI.Composition.Hlsl.dll',
             'artifacts\ARM64\Release\WinUI.Composition.Hlsl.dll',
-            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll'
+            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll',
+            'artifacts\x64\Release\WinUI.Composition.Hlsl.Controls\WinUI.Composition.Hlsl.Controls.winmd',
+            'artifacts\x64\Release\WinUI.Composition.Hlsl.Controls\WinUI.Composition.Hlsl.Controls.pri',
+            'artifacts\x64\Release\WinUI.Composition.Hlsl.Controls\WinUI.Composition.Hlsl.Controls.dll',
+            'artifacts\Win32\Release\WinUI.Composition.Hlsl.Controls\WinUI.Composition.Hlsl.Controls.dll',
+            'artifacts\ARM64\Release\WinUI.Composition.Hlsl.Controls\WinUI.Composition.Hlsl.Controls.dll'
           )
           foreach ($path in $required) {
             if (!(Test-Path $path)) { throw "Missing package input: $path" }
@@ -180,17 +198,29 @@ jobs:
             -Verbosity detailed 2>&1 | Tee-Object -FilePath nuget-pack.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-          $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
-          $package = Get-ChildItem 'artifacts\packages' -Filter $expected -File | Select-Object -First 1
-          if (!$package) { throw "NuGet pack succeeded but $expected was not produced." }
-          Write-Host "Package: $($package.FullName)"
+          & nuget pack `
+            'packaging\WinUI.Composition.Hlsl.Controls.nuspec' `
+            -BasePath . `
+            -OutputDirectory 'artifacts\packages' `
+            -Version $env:PACKAGE_VERSION `
+            -Properties "HlslVersion=$env:PACKAGE_VERSION" `
+            -NoPackageAnalysis `
+            -Verbosity detailed 2>&1 | Tee-Object -FilePath controls-nuget-pack.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-      - name: Upload NuGet package
+          foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.Composition.Hlsl.Controls')) {
+            $expected = "$id.$env:PACKAGE_VERSION.nupkg"
+            $package = Get-ChildItem 'artifacts\packages' -Filter $expected -File | Select-Object -First 1
+            if (!$package) { throw "NuGet pack succeeded but $expected was not produced." }
+            Write-Host "Package: $($package.FullName)"
+          }
+
+      - name: Upload NuGet packages
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.version.outputs.package-artifact }}
           if-no-files-found: error
-          path: artifacts/packages/WinUI.Composition.Hlsl.*.nupkg
+          path: artifacts/packages/WinUI.Composition.Hlsl*.nupkg
 
       - name: Upload pack logs
         if: always()
@@ -200,12 +230,14 @@ jobs:
           if-no-files-found: ignore
           path: |
             native-*.log
+            controls-*.log
             projection-build.log
             native-shader-consumer.log
             nuget-pack.log
+            controls-nuget-pack.log
 
   build-cpp-xaml-demo:
-    name: Build C++ XAML demo from packed NuGet
+    name: Build C++ XAML demo from packed Controls NuGet
     needs: pack-nuget
     runs-on: windows-2025-vs2026
     env:
@@ -224,26 +256,29 @@ jobs:
           name: ${{ needs.pack-nuget.outputs.package-artifact }}
           path: artifacts/packages
 
-      - name: Configure exact package consumer
+      - name: Configure exact Controls package consumer
         shell: pwsh
         run: |
-          $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
-          $package = Get-ChildItem 'artifacts\packages' -Filter $expected -File | Select-Object -First 1
-          if (!$package) { throw "Expected package $expected was not downloaded." }
-          Write-Host "Consumer package: $($package.FullName)"
+          foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.Composition.Hlsl.Controls')) {
+            $expected = "$id.$env:PACKAGE_VERSION.nupkg"
+            if (!(Test-Path "artifacts\packages\$expected")) { throw "Expected package $expected was not downloaded." }
+          }
 
           $projectPath = (Resolve-Path 'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj').Path
           [xml]$project = Get-Content $projectPath -Raw
           $ns = [System.Xml.XmlNamespaceManager]::new($project.NameTable)
           $ns.AddNamespace('msb', 'http://schemas.microsoft.com/developer/msbuild/2003')
-          $projectRef = $project.SelectSingleNode('//msb:ProjectReference[contains(@Include, "WinUI.Composition.Hlsl.vcxproj")]', $ns)
-          if (!$projectRef) { throw 'WinUI.Composition.Hlsl ProjectReference was not found in the C++ demo.' }
-          $itemGroup = $projectRef.ParentNode
-          [void]$itemGroup.RemoveChild($projectRef)
+          $projectRefs = @($project.SelectNodes('//msb:ProjectReference[contains(@Include, "WinUI.Composition.Hlsl")]', $ns))
+          if ($projectRefs.Count -lt 2) { throw 'Expected core and Controls ProjectReference entries in the C++ demo.' }
+          foreach ($projectRef in $projectRefs) {
+            [void]$projectRef.ParentNode.RemoveChild($projectRef)
+          }
+          $itemGroup = $project.CreateElement('ItemGroup', $project.DocumentElement.NamespaceURI)
           $packageRef = $project.CreateElement('PackageReference', $project.DocumentElement.NamespaceURI)
-          $packageRef.SetAttribute('Include', 'WinUI.Composition.Hlsl')
+          $packageRef.SetAttribute('Include', 'WinUI.Composition.Hlsl.Controls')
           $packageRef.SetAttribute('VersionOverride', $env:PACKAGE_VERSION)
           [void]$itemGroup.AppendChild($packageRef)
+          [void]$project.DocumentElement.AppendChild($itemGroup)
           $project.Save($projectPath)
 
           @'
@@ -274,7 +309,7 @@ jobs:
           "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build demo from packed NuGet
+      - name: Build demo from Controls NuGet
         shell: pwsh
         run: |
           & $env:MSBUILD `
@@ -420,7 +455,7 @@ jobs:
       PACKAGE_VERSION: ${{ needs.pack-nuget.outputs.package-version }}
 
     steps:
-      - name: Download validated NuGet package
+      - name: Download validated NuGet packages
         uses: actions/download-artifact@v8
         with:
           name: ${{ needs.pack-nuget.outputs.package-artifact }}
@@ -431,16 +466,19 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Verify package
+      - name: Verify packages
         shell: bash
         run: |
-          package="artifacts/packages/WinUI.Composition.Hlsl.${PACKAGE_VERSION}.nupkg"
-          if [[ ! -f "$package" ]]; then
-            echo "::error::Expected package not found: $package"
-            exit 1
-          fi
-          echo "PACKAGE_PATH=$package" >> "$GITHUB_ENV"
-          echo "Publishing $package"
+          core="artifacts/packages/WinUI.Composition.Hlsl.${PACKAGE_VERSION}.nupkg"
+          controls="artifacts/packages/WinUI.Composition.Hlsl.Controls.${PACKAGE_VERSION}.nupkg"
+          for package in "$core" "$controls"; do
+            if [[ ! -f "$package" ]]; then
+              echo "::error::Expected package not found: $package"
+              exit 1
+            fi
+          done
+          echo "CORE_PACKAGE_PATH=$core" >> "$GITHUB_ENV"
+          echo "CONTROLS_PACKAGE_PATH=$controls" >> "$GITHUB_ENV"
 
       - name: NuGet login (OIDC -> temporary API key)
         uses: NuGet/login@v1
@@ -448,10 +486,18 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
-      - name: Publish to NuGet.org
+      - name: Publish core to NuGet.org
         shell: bash
         run: |
-          dotnet nuget push "$PACKAGE_PATH" \
+          dotnet nuget push "$CORE_PACKAGE_PATH" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+            --skip-duplicate
+
+      - name: Publish controls to NuGet.org
+        shell: bash
+        run: |
+          dotnet nuget push "$CONTROLS_PACKAGE_PATH" \
             --source https://api.nuget.org/v3/index.json \
             --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --skip-duplicate
