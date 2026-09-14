@@ -1,4 +1,5 @@
 #pragma once
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/WinUI.Composition.Hlsl.h>
 #include <winrt/Windows.Foundation.h>
@@ -37,9 +38,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
     WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassRadioButton)
     WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassSlider)
     WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassTextBox)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassPasswordBox)
     WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassComboBox)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassToggleSwitch)
 
 #undef WINUI_LIQUID_GLASS_CONTROL_DECLARATION
 
@@ -47,13 +46,39 @@ namespace winrt::WinUI::LiquidGlass::implementation
     {
         LiquidGlassMagnifier();
         WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-
     private:
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Media::CompositeTransform m_dragTransform{ nullptr };
         Windows::Foundation::Point m_lastPointer{};
         uint32_t m_activePointerId{};
         bool m_dragging{};
+    };
+
+    struct LiquidGlassPasswordBox : LiquidGlassPasswordBoxT<LiquidGlassPasswordBox>
+    {
+        LiquidGlassPasswordBox();
+        hstring PlaceholderText() const;
+        void PlaceholderText(hstring const& value);
+        hstring Password() const;
+        void Password(hstring const& value);
+        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+    private:
+        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
+        Microsoft::UI::Xaml::Controls::PasswordBox m_passwordBox{ nullptr };
+    };
+
+    struct LiquidGlassToggleSwitch : LiquidGlassToggleSwitchT<LiquidGlassToggleSwitch>
+    {
+        LiquidGlassToggleSwitch();
+        Windows::Foundation::IInspectable Header() const;
+        void Header(Windows::Foundation::IInspectable const& value);
+        bool IsOn() const;
+        void IsOn(bool value);
+        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+    private:
+        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
+        Windows::Foundation::IInspectable m_header{ nullptr };
+        bool m_interactionsWired{};
     };
 }
 

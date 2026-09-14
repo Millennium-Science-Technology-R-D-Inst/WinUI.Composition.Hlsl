@@ -6,8 +6,6 @@ namespace WinUI.LiquidGlass
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
     }
 
-    // Kube's draggable MagnifyingGlass expressed as a native ContentControl. The control
-    // owns the lens preset and drag/squash interaction while exposing the underlying brush.
     [webhosthidden] runtimeclass LiquidGlassMagnifier : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassMagnifier();
@@ -56,9 +54,13 @@ namespace WinUI.LiquidGlass
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
     }
 
-    [webhosthidden] runtimeclass LiquidGlassPasswordBox : Microsoft.UI.Xaml.Controls.PasswordBox
+    // PasswordBox is sealed in WinUI. Preserve the public control surface through a
+    // composable ContentControl that hosts and forwards to the real PasswordBox.
+    [webhosthidden] runtimeclass LiquidGlassPasswordBox : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassPasswordBox();
+        String PlaceholderText;
+        String Password;
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
     }
 
@@ -68,9 +70,13 @@ namespace WinUI.LiquidGlass
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
     }
 
-    [webhosthidden] runtimeclass LiquidGlassToggleSwitch : Microsoft.UI.Xaml.Controls.ToggleSwitch
+    // ToggleSwitch is also sealed. ToggleButton supplies native toggle semantics and is
+    // composable; Header/IsOn keep the familiar switch-facing API used by the demo.
+    [webhosthidden] runtimeclass LiquidGlassToggleSwitch : Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
     {
         LiquidGlassToggleSwitch();
+        Object Header;
+        Boolean IsOn;
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
     }
 }

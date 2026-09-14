@@ -41,8 +41,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void ConfigurePanelBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
         {
-            // kube MixedUI floating-player filter: convex squircle, 29 DIP bezel,
-            // 90 DIP glass thickness, IOR 1.3, subtle specular and 1 DIP blur.
             brush.SurfaceProfile(WinUI::Composition::Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle);
             brush.CornerRadius(31.0);
             brush.BlurRadius(1.0);
@@ -85,12 +83,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void ConfigureSearchBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
         {
-            // kube Searchbox: 420x56, radius 28, bezel 27, thickness 70, IOR 1.5,
-            // refraction level .7, specular opacity .2 and saturation 4.
             brush.SurfaceProfile(WinUI::Composition::Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle);
             brush.CornerRadius(28.0);
             brush.BlurRadius(1.0);
-            brush.RefractionStrength(16.8); // 24 * .7
+            brush.RefractionStrength(16.8);
             brush.DispersionStrength(0.35);
             brush.BezelWidth(27.0);
             brush.GlassThickness(70.0);
@@ -127,12 +123,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void ConfigureSliderBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
         {
-            // kube Slider thumb: convex squircle, bezel 16, thickness 80, IOR 1.45.
-            // Effective scaleRatio is .4 at rest and .9 while dragging.
             brush.SurfaceProfile(WinUI::Composition::Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle);
             brush.CornerRadius(30.0);
             brush.BlurRadius(0.0);
-            brush.RefractionStrength(9.6); // 24 * .4
+            brush.RefractionStrength(9.6);
             brush.DispersionStrength(0.45);
             brush.BezelWidth(16.0);
             brush.GlassThickness(80.0);
@@ -149,11 +143,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void ConfigureSwitchBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
         {
-            // kube Switch thumb: Lip, 146x92/r46, bezel 19, thickness 47, IOR 1.5.
             brush.SurfaceProfile(WinUI::Composition::Hlsl::LiquidGlassSurfaceProfile::Lip);
             brush.CornerRadius(46.0);
             brush.BlurRadius(0.2);
-            brush.RefractionStrength(9.6); // 24 * .4
+            brush.RefractionStrength(9.6);
             brush.DispersionStrength(0.45);
             brush.BezelWidth(19.0);
             brush.GlassThickness(47.0);
@@ -170,12 +163,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void ConfigureMagnifierBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
         {
-            // kube MagnifyingGlass: 210x150/r75, bezel 25, thickness 110, IOR 1.5.
-            // Rest: refraction .8 and magnification 24. Drag: 1.0 and magnification 48.
             brush.SurfaceProfile(WinUI::Composition::Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle);
             brush.CornerRadius(75.0);
             brush.BlurRadius(0.0);
-            brush.RefractionStrength(19.2); // 24 * .8
+            brush.RefractionStrength(19.2);
             brush.DispersionStrength(0.55);
             brush.BezelWidth(25.0);
             brush.GlassThickness(110.0);
@@ -201,21 +192,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         DependencyObject FindNamedDescendant(DependencyObject const& root, std::wstring_view name)
         {
-            if (!root)
-            {
-                return nullptr;
-            }
-            if (auto element = root.try_as<FrameworkElement>(); element && element.Name() == name)
-            {
-                return root;
-            }
+            if (!root) return nullptr;
+            if (auto element = root.try_as<FrameworkElement>(); element && element.Name() == name) return root;
             auto const count = Media::VisualTreeHelper::GetChildrenCount(root);
             for (int32_t index = 0; index < count; ++index)
             {
-                if (auto result = FindNamedDescendant(Media::VisualTreeHelper::GetChild(root, index), name))
-                {
-                    return result;
-                }
+                if (auto result = FindNamedDescendant(Media::VisualTreeHelper::GetChild(root, index), name)) return result;
             }
             return nullptr;
         }
@@ -223,94 +205,51 @@ namespace winrt::WinUI::LiquidGlass::implementation
         template<typename T>
         T FindDescendant(DependencyObject const& root)
         {
-            if (!root)
-            {
-                return nullptr;
-            }
+            if (!root) return nullptr;
             auto const count = Media::VisualTreeHelper::GetChildrenCount(root);
             for (int32_t index = 0; index < count; ++index)
             {
                 auto child = Media::VisualTreeHelper::GetChild(root, index);
-                if (auto match = child.try_as<T>())
-                {
-                    return match;
-                }
-                if (auto nested = FindDescendant<T>(child))
-                {
-                    return nested;
-                }
+                if (auto match = child.try_as<T>()) return match;
+                if (auto nested = FindDescendant<T>(child)) return nested;
             }
             return nullptr;
         }
 
         DependencyObject FindPreferredBrushSurface(DependencyObject const& root)
         {
-            if (!root)
-            {
-                return nullptr;
-            }
+            if (!root) return nullptr;
             auto const count = Media::VisualTreeHelper::GetChildrenCount(root);
             for (int32_t index = 0; index < count; ++index)
             {
                 auto child = Media::VisualTreeHelper::GetChild(root, index);
-                if (auto nested = FindPreferredBrushSurface(child))
-                {
-                    return nested;
-                }
+                if (auto nested = FindPreferredBrushSurface(child)) return nested;
             }
-            if (root.try_as<Shapes::Shape>() || root.try_as<Controls::Border>() ||
-                root.try_as<Primitives::Thumb>() || root.try_as<Controls::Control>())
-            {
-                return root;
-            }
+            if (root.try_as<Shapes::Shape>() || root.try_as<Controls::Border>() || root.try_as<Primitives::Thumb>() || root.try_as<Controls::Control>()) return root;
             return nullptr;
         }
 
         bool SetSurfaceBrush(DependencyObject const& target, Media::Brush const& brush)
         {
-            if (auto shape = target.try_as<Shapes::Shape>())
-            {
-                shape.Fill(brush);
-                return true;
-            }
-            if (auto border = target.try_as<Controls::Border>())
-            {
-                border.Background(brush);
-                return true;
-            }
-            if (auto control = target.try_as<Controls::Control>())
-            {
-                control.Background(brush);
-                return true;
-            }
+            if (auto shape = target.try_as<Shapes::Shape>()) { shape.Fill(brush); return true; }
+            if (auto border = target.try_as<Controls::Border>()) { border.Background(brush); return true; }
+            if (auto control = target.try_as<Controls::Control>()) { control.Background(brush); return true; }
             return false;
         }
 
         void SetScale(FrameworkElement const& target, float scaleX, float scaleY)
         {
-            if (!target)
-            {
-                return;
-            }
+            if (!target) return;
             auto visual = Hosting::ElementCompositionPreview::GetElementVisual(target);
-            visual.CenterPoint({
-                static_cast<float>(target.ActualWidth() * 0.5),
-                static_cast<float>(target.ActualHeight() * 0.5),
-                0.0f });
+            visual.CenterPoint({ static_cast<float>(target.ActualWidth() * 0.5), static_cast<float>(target.ActualHeight() * 0.5), 0.0f });
             visual.Scale({ scaleX, scaleY, 1.0f });
         }
 
         void AnimateScale(FrameworkElement const& target, float scaleX, float scaleY, std::chrono::milliseconds duration)
         {
-            if (!target)
-            {
-                return;
-            }
+            if (!target) return;
             auto visual = Hosting::ElementCompositionPreview::GetElementVisual(target);
-            visual.CenterPoint({
-                static_cast<float>(target.ActualWidth() * 0.5),
-                static_cast<float>(target.ActualHeight() * 0.5),
-                0.0f });
+            visual.CenterPoint({ static_cast<float>(target.ActualWidth() * 0.5), static_cast<float>(target.ActualHeight() * 0.5), 0.0f });
             auto animation = visual.Compositor().CreateVector3KeyFrameAnimation();
             animation.InsertKeyFrame(1.0f, { scaleX, scaleY, 1.0f });
             animation.Duration(duration);
@@ -324,15 +263,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void AnimateSwitchPulse(FrameworkElement const& target)
         {
-            if (!target)
-            {
-                return;
-            }
+            if (!target) return;
             auto visual = Hosting::ElementCompositionPreview::GetElementVisual(target);
-            visual.CenterPoint({
-                static_cast<float>(target.ActualWidth() * 0.5),
-                static_cast<float>(target.ActualHeight() * 0.5),
-                0.0f });
+            visual.CenterPoint({ static_cast<float>(target.ActualWidth() * 0.5), static_cast<float>(target.ActualHeight() * 0.5), 0.0f });
             auto animation = visual.Compositor().CreateVector3KeyFrameAnimation();
             animation.InsertKeyFrame(0.0f, { 0.65f, 0.65f, 1.0f });
             animation.InsertKeyFrame(0.42f, { 0.75f, 0.75f, 1.0f });
@@ -343,8 +276,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void SetSliderOpticalState(WinUI::Composition::Hlsl::LiquidGlassBrush const& brush, bool active)
         {
-            brush.RefractionStrength(active ? 21.6 : 9.6); // .9 / .4 scale ratio
-            brush.TintOpacity(active ? 0.10 : 1.0);        // kube background opacity .1 / 1
+            brush.RefractionStrength(active ? 21.6 : 9.6);
+            brush.TintOpacity(active ? 0.10 : 1.0);
         }
 
         void SetSwitchOpticalState(WinUI::Composition::Hlsl::LiquidGlassBrush const& brush, bool active)
@@ -356,20 +289,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void WireSearchMotion(Controls::TextBox const& control, WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
         {
-            control.Loaded([](auto const& sender, auto const&)
-                {
-                    SetScale(sender.template try_as<FrameworkElement>(), 0.8f, 0.8f);
-                });
-            control.GotFocus([brush](auto const& sender, auto const&)
-                {
-                    AnimateScale(sender.template try_as<FrameworkElement>(), 1.0f, std::chrono::milliseconds{ 120 });
-                    brush.TintOpacity(0.20);
-                });
-            control.LostFocus([brush](auto const& sender, auto const&)
-                {
-                    AnimateScale(sender.template try_as<FrameworkElement>(), 0.8f, std::chrono::milliseconds{ 170 });
-                    brush.TintOpacity(0.05);
-                });
+            control.Loaded([](auto const& sender, auto const&) { SetScale(sender.template try_as<FrameworkElement>(), 0.8f, 0.8f); });
+            control.GotFocus([brush](auto const& sender, auto const&) { AnimateScale(sender.template try_as<FrameworkElement>(), 1.0f, std::chrono::milliseconds{ 120 }); brush.TintOpacity(0.20); });
+            control.LostFocus([brush](auto const& sender, auto const&) { AnimateScale(sender.template try_as<FrameworkElement>(), 0.8f, std::chrono::milliseconds{ 170 }); brush.TintOpacity(0.05); });
             control.PointerPressed([brush](auto const& sender, auto const&)
                 {
                     auto current = sender.template try_as<Controls::Control>();
@@ -388,16 +310,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void WireSubtleInputMotion(Controls::Control const& control, WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
         {
-            control.GotFocus([brush](auto const& sender, auto const&)
-                {
-                    AnimateScale(sender.template try_as<FrameworkElement>(), 1.0f, std::chrono::milliseconds{ 120 });
-                    brush.TintOpacity(0.14);
-                });
-            control.LostFocus([brush](auto const& sender, auto const&)
-                {
-                    AnimateScale(sender.template try_as<FrameworkElement>(), 0.99f, std::chrono::milliseconds{ 160 });
-                    brush.TintOpacity(0.10);
-                });
+            control.GotFocus([brush](auto const& sender, auto const&) { AnimateScale(sender.template try_as<FrameworkElement>(), 1.0f, std::chrono::milliseconds{ 120 }); brush.TintOpacity(0.14); });
+            control.LostFocus([brush](auto const& sender, auto const&) { AnimateScale(sender.template try_as<FrameworkElement>(), 0.99f, std::chrono::milliseconds{ 160 }); brush.TintOpacity(0.10); });
         }
     }
 
@@ -409,16 +323,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{}; \
         ConfigureButtonBrush(m_glassBrush); \
         Background(m_glassBrush.as<Media::Brush>()); \
-    } \
-    WinUI::Composition::Hlsl::LiquidGlassBrush Type::GlassBrush() const { return m_glassBrush; }
-
-#define WINUI_LIQUID_GLASS_INPUT_CONTROL(Type) \
-    Type::Type() \
-    { \
-        m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{}; \
-        ConfigureInputBrush(m_glassBrush); \
-        Background(m_glassBrush.as<Media::Brush>()); \
-        WireSubtleInputMotion(*this, m_glassBrush); \
     } \
     WinUI::Composition::Hlsl::LiquidGlassBrush Type::GlassBrush() const { return m_glassBrush; }
 
@@ -439,11 +343,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         ConfigurePanelBrush(m_glassBrush);
         Background(m_glassBrush.as<Media::Brush>());
     }
-
-    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassCard::GlassBrush() const
-    {
-        return m_glassBrush;
-    }
+    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassCard::GlassBrush() const { return m_glassBrush; }
 
     LiquidGlassMagnifier::LiquidGlassMagnifier()
     {
@@ -455,276 +355,124 @@ namespace winrt::WinUI::LiquidGlass::implementation
         RenderTransformOrigin({ 0.5f, 0.5f });
         m_dragTransform = Media::CompositeTransform{};
         RenderTransform(m_dragTransform);
-
-        Loaded([](auto const& sender, auto const&)
-            {
-                SetScale(sender.template try_as<FrameworkElement>(), 0.8f, 0.8f);
-            });
+        Loaded([](auto const& sender, auto const&) { SetScale(sender.template try_as<FrameworkElement>(), 0.8f, 0.8f); });
 
         auto weak = get_weak();
         PointerPressed([weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
-                auto self = weak.get();
-                if (!self)
-                {
-                    return;
-                }
-                auto point = args.GetCurrentPoint(*self);
-                self->m_activePointerId = point.PointerId();
-                self->m_lastPointer = point.Position();
-                self->m_dragging = self->CapturePointer(args.Pointer());
-                if (!self->m_dragging)
-                {
-                    return;
-                }
-                self->m_glassBrush.RefractionStrength(24.0);
-                self->m_glassBrush.MagnificationStrength(48.0);
-                self->m_glassBrush.InnerShadowStrength(0.27);
-                AnimateScale(*self, 1.0f, std::chrono::milliseconds{ 110 });
-                args.Handled(true);
+                auto self = weak.get(); if (!self) return;
+                auto element = self->as<Microsoft::UI::Xaml::UIElement>();
+                auto point = args.GetCurrentPoint(element);
+                self->m_activePointerId = point.PointerId(); self->m_lastPointer = point.Position(); self->m_dragging = self->CapturePointer(args.Pointer());
+                if (!self->m_dragging) return;
+                self->m_glassBrush.RefractionStrength(24.0); self->m_glassBrush.MagnificationStrength(48.0); self->m_glassBrush.InnerShadowStrength(0.27);
+                AnimateScale(self->as<FrameworkElement>(), 1.0f, std::chrono::milliseconds{ 110 }); args.Handled(true);
             });
-
         PointerMoved([weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
-                auto self = weak.get();
-                if (!self || !self->m_dragging)
-                {
-                    return;
-                }
-                auto point = args.GetCurrentPoint(*self);
-                if (point.PointerId() != self->m_activePointerId)
-                {
-                    return;
-                }
-                auto const position = point.Position();
-                auto const dx = position.X - self->m_lastPointer.X;
-                auto const dy = position.Y - self->m_lastPointer.Y;
-                self->m_dragTransform.TranslateX(self->m_dragTransform.TranslateX() + dx);
-                self->m_dragTransform.TranslateY(self->m_dragTransform.TranslateY() + dy);
-
-                // Same visual idea as kube: horizontal drag velocity squashes Y and stretches X.
-                auto const pseudoVelocityX = static_cast<float>(dx * 60.0);
-                auto const scaleY = std::max(0.7f, 1.0f - std::abs(pseudoVelocityX) / 5000.0f);
-                auto const scaleX = 1.0f + (1.0f - scaleY);
-                SetScale(*self, scaleX, scaleY);
-                self->m_lastPointer = position;
-                args.Handled(true);
+                auto self = weak.get(); if (!self || !self->m_dragging) return;
+                auto point = args.GetCurrentPoint(self->as<Microsoft::UI::Xaml::UIElement>()); if (point.PointerId() != self->m_activePointerId) return;
+                auto const position = point.Position(); auto const dx = position.X - self->m_lastPointer.X; auto const dy = position.Y - self->m_lastPointer.Y;
+                self->m_dragTransform.TranslateX(self->m_dragTransform.TranslateX() + dx); self->m_dragTransform.TranslateY(self->m_dragTransform.TranslateY() + dy);
+                auto const pseudoVelocityX = static_cast<float>(dx * 60.0); auto const scaleY = std::max(0.7f, 1.0f - std::abs(pseudoVelocityX) / 5000.0f);
+                SetScale(self->as<FrameworkElement>(), 1.0f + (1.0f - scaleY), scaleY); self->m_lastPointer = position; args.Handled(true);
             });
-
         PointerReleased([weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
-                auto self = weak.get();
-                if (!self || !self->m_dragging)
-                {
-                    return;
-                }
-                self->ReleasePointerCapture(args.Pointer());
-                self->m_dragging = false;
-                self->m_activePointerId = 0;
-                self->m_glassBrush.RefractionStrength(19.2);
-                self->m_glassBrush.MagnificationStrength(24.0);
-                self->m_glassBrush.InnerShadowStrength(0.20);
-                AnimateScale(*self, 0.8f, std::chrono::milliseconds{ 180 });
-                args.Handled(true);
+                auto self = weak.get(); if (!self || !self->m_dragging) return;
+                self->ReleasePointerCapture(args.Pointer()); self->m_dragging = false; self->m_activePointerId = 0;
+                self->m_glassBrush.RefractionStrength(19.2); self->m_glassBrush.MagnificationStrength(24.0); self->m_glassBrush.InnerShadowStrength(0.20);
+                AnimateScale(self->as<FrameworkElement>(), 0.8f, std::chrono::milliseconds{ 180 }); args.Handled(true);
             });
-
-        PointerCanceled([weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
-            {
-                auto self = weak.get();
-                if (!self)
-                {
-                    return;
-                }
-                if (self->m_dragging)
-                {
-                    self->ReleasePointerCapture(args.Pointer());
-                }
-                self->m_dragging = false;
-                self->m_activePointerId = 0;
-                self->m_glassBrush.RefractionStrength(19.2);
-                self->m_glassBrush.MagnificationStrength(24.0);
-                self->m_glassBrush.InnerShadowStrength(0.20);
-                AnimateScale(*self, 0.8f, std::chrono::milliseconds{ 180 });
-            });
-
         PointerCaptureLost([weak](auto const&, auto const&)
             {
-                auto self = weak.get();
-                if (!self)
-                {
-                    return;
-                }
-                self->m_dragging = false;
-                self->m_activePointerId = 0;
-                self->m_glassBrush.RefractionStrength(19.2);
-                self->m_glassBrush.MagnificationStrength(24.0);
-                self->m_glassBrush.InnerShadowStrength(0.20);
-                AnimateScale(*self, 0.8f, std::chrono::milliseconds{ 180 });
+                auto self = weak.get(); if (!self) return;
+                self->m_dragging = false; self->m_activePointerId = 0;
+                self->m_glassBrush.RefractionStrength(19.2); self->m_glassBrush.MagnificationStrength(24.0); self->m_glassBrush.InnerShadowStrength(0.20);
+                AnimateScale(self->as<FrameworkElement>(), 0.8f, std::chrono::milliseconds{ 180 });
             });
     }
-
-    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassMagnifier::GlassBrush() const
-    {
-        return m_glassBrush;
-    }
+    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassMagnifier::GlassBrush() const { return m_glassBrush; }
 
     WINUI_LIQUID_GLASS_STYLED_BUTTON(LiquidGlassButton)
     WINUI_LIQUID_GLASS_STYLED_BUTTON(LiquidGlassToggleButton)
     WINUI_LIQUID_GLASS_STYLED_BUTTON(LiquidGlassHyperlinkButton)
     WINUI_LIQUID_GLASS_CHOICE_CONTROL(LiquidGlassCheckBox)
     WINUI_LIQUID_GLASS_CHOICE_CONTROL(LiquidGlassRadioButton)
-    WINUI_LIQUID_GLASS_INPUT_CONTROL(LiquidGlassPasswordBox)
-    WINUI_LIQUID_GLASS_INPUT_CONTROL(LiquidGlassComboBox)
+    WINUI_LIQUID_GLASS_CHOICE_CONTROL(LiquidGlassComboBox)
 
     LiquidGlassTextBox::LiquidGlassTextBox()
     {
         m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{};
         ConfigureSearchBrush(m_glassBrush);
         Background(m_glassBrush.as<Media::Brush>());
-        WireSearchMotion(*this, m_glassBrush);
+        WireSearchMotion(this->as<Controls::TextBox>(), m_glassBrush);
     }
+    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassTextBox::GlassBrush() const { return m_glassBrush; }
 
-    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassTextBox::GlassBrush() const
+    LiquidGlassPasswordBox::LiquidGlassPasswordBox()
     {
-        return m_glassBrush;
+        m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{};
+        ConfigureInputBrush(m_glassBrush);
+        m_passwordBox = Controls::PasswordBox{};
+        m_passwordBox.Background(m_glassBrush.as<Media::Brush>());
+        m_passwordBox.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Stretch);
+        HorizontalContentAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Stretch);
+        Content(m_passwordBox);
+        WireSubtleInputMotion(m_passwordBox.as<Controls::Control>(), m_glassBrush);
     }
+    hstring LiquidGlassPasswordBox::PlaceholderText() const { return m_passwordBox ? m_passwordBox.PlaceholderText() : hstring{}; }
+    void LiquidGlassPasswordBox::PlaceholderText(hstring const& value) { if (m_passwordBox) m_passwordBox.PlaceholderText(value); }
+    hstring LiquidGlassPasswordBox::Password() const { return m_passwordBox ? m_passwordBox.Password() : hstring{}; }
+    void LiquidGlassPasswordBox::Password(hstring const& value) { if (m_passwordBox) m_passwordBox.Password(value); }
+    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassPasswordBox::GlassBrush() const { return m_glassBrush; }
 
     LiquidGlassSlider::LiquidGlassSlider()
     {
-        m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{};
-        ConfigureSliderBrush(m_glassBrush);
+        m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{}; ConfigureSliderBrush(m_glassBrush);
         auto weak = get_weak();
         Loaded([weak](auto const& sender, auto const&)
             {
-                auto self = weak.get();
-                if (!self || self->m_interactionsWired)
-                {
-                    return;
-                }
-                auto slider = sender.template try_as<Controls::Slider>();
-                if (!slider)
-                {
-                    return;
-                }
-                auto thumbObject = FindNamedDescendant(
-                    slider,
-                    slider.Orientation() == Controls::Orientation::Horizontal ? L"HorizontalThumb" : L"VerticalThumb");
-                auto thumb = thumbObject.try_as<Primitives::Thumb>();
-                if (!thumb)
-                {
-                    thumb = FindDescendant<Primitives::Thumb>(slider);
-                }
-                if (!thumb)
-                {
-                    return;
-                }
-
-                auto const thumbRadius = std::max(1.0, std::min(thumb.ActualWidth(), thumb.ActualHeight()) * 0.5);
-                self->m_glassBrush.CornerRadius(thumbRadius);
-                self->m_glassBrush.BezelWidth(std::max(1.0, std::min(16.0, thumbRadius - 0.5)));
-                if (auto surface = FindPreferredBrushSurface(thumb))
-                {
-                    SetSurfaceBrush(surface, self->m_glassBrush.as<Media::Brush>());
-                }
+                auto self = weak.get(); if (!self || self->m_interactionsWired) return;
+                auto slider = sender.template try_as<Controls::Slider>(); if (!slider) return;
+                auto thumb = FindNamedDescendant(slider, slider.Orientation() == Controls::Orientation::Horizontal ? L"HorizontalThumb" : L"VerticalThumb").try_as<Primitives::Thumb>();
+                if (!thumb) thumb = FindDescendant<Primitives::Thumb>(slider); if (!thumb) return;
+                auto const radius = std::max(1.0, std::min(thumb.ActualWidth(), thumb.ActualHeight()) * 0.5);
+                self->m_glassBrush.CornerRadius(radius); self->m_glassBrush.BezelWidth(std::max(1.0, std::min(16.0, radius - 0.5)));
+                if (auto surface = FindPreferredBrushSurface(thumb)) SetSurfaceBrush(surface, self->m_glassBrush.as<Media::Brush>());
                 SetScale(thumb, 0.6f, 0.6f);
-
                 auto brush = self->m_glassBrush;
-                thumb.DragStarted([brush](auto const& dragSender, auto const&)
-                    {
-                        AnimateScale(dragSender.template try_as<FrameworkElement>(), 1.0f, std::chrono::milliseconds{ 90 });
-                        SetSliderOpticalState(brush, true);
-                    });
-                thumb.DragCompleted([brush](auto const& dragSender, auto const&)
-                    {
-                        AnimateScale(dragSender.template try_as<FrameworkElement>(), 0.6f, std::chrono::milliseconds{ 180 });
-                        SetSliderOpticalState(brush, false);
-                    });
+                thumb.DragStarted([brush](auto const& s, auto const&) { AnimateScale(s.template try_as<FrameworkElement>(), 1.0f, std::chrono::milliseconds{ 90 }); SetSliderOpticalState(brush, true); });
+                thumb.DragCompleted([brush](auto const& s, auto const&) { AnimateScale(s.template try_as<FrameworkElement>(), 0.6f, std::chrono::milliseconds{ 180 }); SetSliderOpticalState(brush, false); });
                 self->m_interactionsWired = true;
             });
     }
-
-    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassSlider::GlassBrush() const
-    {
-        return m_glassBrush;
-    }
+    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassSlider::GlassBrush() const { return m_glassBrush; }
 
     LiquidGlassToggleSwitch::LiquidGlassToggleSwitch()
     {
-        m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{};
-        ConfigureSwitchBrush(m_glassBrush);
+        DefaultStyleKey(box_value(xaml_typename<WinUI::LiquidGlass::LiquidGlassToggleSwitch>()));
+        DefaultStyleResourceUri(Windows::Foundation::Uri{ kThemeUri });
+        m_glassBrush = WinUI::Composition::Hlsl::LiquidGlassBrush{}; ConfigureSwitchBrush(m_glassBrush); Background(m_glassBrush.as<Media::Brush>());
         auto weak = get_weak();
         Loaded([weak](auto const& sender, auto const&)
             {
-                auto self = weak.get();
-                if (!self || self->m_interactionsWired)
-                {
-                    return;
-                }
-                auto toggle = sender.template try_as<Controls::ToggleSwitch>();
-                if (!toggle)
-                {
-                    return;
-                }
-
-                auto knob = FindNamedDescendant(toggle, L"SwitchKnob").try_as<FrameworkElement>();
-                auto switchThumb = FindNamedDescendant(toggle, L"SwitchThumb").try_as<Primitives::Thumb>();
-                if (!switchThumb)
-                {
-                    switchThumb = FindDescendant<Primitives::Thumb>(toggle);
-                }
-                if (!knob)
-                {
-                    knob = switchThumb;
-                }
-                if (knob)
-                {
-                    auto const radius = std::max(1.0, std::min(knob.ActualWidth(), knob.ActualHeight()) * 0.5);
-                    self->m_glassBrush.CornerRadius(radius);
-                    self->m_glassBrush.BezelWidth(std::max(1.0, std::min(19.0, radius - 0.5)));
-                    if (auto surface = FindPreferredBrushSurface(knob))
-                    {
-                        SetSurfaceBrush(surface, self->m_glassBrush.as<Media::Brush>());
-                    }
-                    SetScale(knob, 0.65f, 0.65f);
-                }
-
-                if (switchThumb && knob)
-                {
-                    auto brush = self->m_glassBrush;
-                    switchThumb.DragStarted([brush, knob](auto const&, auto const&)
-                        {
-                            AnimateScale(knob, 0.9f, std::chrono::milliseconds{ 90 });
-                            SetSwitchOpticalState(brush, true);
-                        });
-                    switchThumb.DragCompleted([brush, knob](auto const&, auto const&)
-                        {
-                            AnimateScale(knob, 0.65f, std::chrono::milliseconds{ 190 });
-                            SetSwitchOpticalState(brush, false);
-                        });
-                }
-
-                toggle.Toggled([weak](auto const& toggledSender, auto const&)
-                    {
-                        if (!weak.get())
-                        {
-                            return;
-                        }
-                        auto current = toggledSender.template try_as<Controls::ToggleSwitch>();
-                        if (current)
-                        {
-                            AnimateSwitchPulse(FindNamedDescendant(current, L"SwitchKnob").try_as<FrameworkElement>());
-                        }
-                    });
-                self->m_interactionsWired = true;
+                auto self = weak.get(); if (!self || self->m_interactionsWired) return;
+                auto knob = FindNamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
+                if (knob) SetScale(knob, 0.65f, 0.65f); self->m_interactionsWired = true;
             });
+        PointerPressed([weak](auto const&, auto const&) { if (auto self = weak.get()) { auto knob = FindNamedDescendant(self->as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>(); AnimateScale(knob, 0.9f, std::chrono::milliseconds{ 90 }); SetSwitchOpticalState(self->m_glassBrush, true); } });
+        PointerReleased([weak](auto const&, auto const&) { if (auto self = weak.get()) { auto knob = FindNamedDescendant(self->as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>(); AnimateScale(knob, 0.65f, std::chrono::milliseconds{ 190 }); SetSwitchOpticalState(self->m_glassBrush, false); } });
+        PointerCaptureLost([weak](auto const&, auto const&) { if (auto self = weak.get()) { auto knob = FindNamedDescendant(self->as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>(); AnimateScale(knob, 0.65f, std::chrono::milliseconds{ 190 }); SetSwitchOpticalState(self->m_glassBrush, false); } });
+        Checked([weak](auto const&, auto const&) { if (auto self = weak.get()) AnimateSwitchPulse(FindNamedDescendant(self->as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>()); });
+        Unchecked([weak](auto const&, auto const&) { if (auto self = weak.get()) AnimateSwitchPulse(FindNamedDescendant(self->as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>()); });
     }
-
-    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassToggleSwitch::GlassBrush() const
-    {
-        return m_glassBrush;
-    }
+    Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const { return m_header; }
+    void LiquidGlassToggleSwitch::Header(Windows::Foundation::IInspectable const& value) { m_header = value; Content(value); }
+    bool LiquidGlassToggleSwitch::IsOn() const { auto value = IsChecked(); return value && value.Value(); }
+    void LiquidGlassToggleSwitch::IsOn(bool value) { IsChecked(box_value(value).as<Windows::Foundation::IReference<bool>>()); }
+    WinUI::Composition::Hlsl::LiquidGlassBrush LiquidGlassToggleSwitch::GlassBrush() const { return m_glassBrush; }
 
 #undef WINUI_LIQUID_GLASS_CHOICE_CONTROL
-#undef WINUI_LIQUID_GLASS_INPUT_CONTROL
 #undef WINUI_LIQUID_GLASS_STYLED_BUTTON
 }
