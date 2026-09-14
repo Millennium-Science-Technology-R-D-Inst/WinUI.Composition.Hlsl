@@ -1,0 +1,286 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:hlsl="using:WinUI.Composition.Hlsl">
+
+    <!--
+        Prototype control-layer resources.  They deliberately live in the C++ demo first:
+        the HLSL/material package remains ABI-focused, while this dictionary can later move
+        unchanged into a dedicated WinUI.Composition.Hlsl.Controls package.
+    -->
+    <hlsl:LiquidGlassBrush
+        x:Key="LiquidGlassControlSurfaceBrush"
+        BezelWidth="18"
+        BlurRadius="10"
+        BorderThickness="1.2"
+        CornerRadius="18"
+        DispersionStrength="0.8"
+        GlassThickness="28"
+        HighlightStrength="0.7"
+        RefractiveIndex="1.45"
+        RefractionStrength="16"
+        Saturation="1.15"
+        TintOpacity="0.07" />
+
+    <hlsl:LiquidGlassBrush
+        x:Key="LiquidGlassCardSurfaceBrush"
+        BezelWidth="24"
+        BlurRadius="14"
+        BorderThickness="1.0"
+        CornerRadius="24"
+        DispersionStrength="0.65"
+        GlassThickness="36"
+        HighlightStrength="0.65"
+        RefractiveIndex="1.48"
+        RefractionStrength="18"
+        Saturation="1.12"
+        TintOpacity="0.09" />
+
+    <SolidColorBrush x:Key="LiquidGlassBorderBrush" Color="#78FFFFFF" />
+    <SolidColorBrush x:Key="LiquidGlassFocusBrush" Color="#FF60A5FA" />
+    <SolidColorBrush x:Key="LiquidGlassStateOverlayBrush" Color="#FFFFFFFF" />
+
+    <Style x:Key="LiquidGlassCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource LiquidGlassCardSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LiquidGlassBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="24" />
+        <Setter Property="Padding" Value="18" />
+    </Style>
+
+    <Style x:Key="LiquidGlassButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource LiquidGlassControlSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LiquidGlassBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="18" />
+        <Setter Property="Padding" Value="16,9" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid
+                        x:Name="RootGrid"
+                        MinWidth="72"
+                        MinHeight="38"
+                        RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <CompositeTransform ScaleX="1" ScaleY="1" />
+                        </Grid.RenderTransform>
+
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="1" Duration="0:0:0.14" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="1" Duration="0:0:0.14" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.14" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="PointerOver">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="1.035" Duration="0:0:0.12" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="1.035" Duration="0:0:0.12" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="0.10" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="0.965" Duration="0:0:0.07" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="0.965" Duration="0:0:0.07" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="0.20" Duration="0:0:0.07" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Opacity" To="0.42" Duration="0:0:0.12" />
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="1" Duration="0:0:0.12" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="1" Duration="0:0:0.12" EnableDependentAnimation="True" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="FocusStates">
+                                <VisualState x:Name="Unfocused">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.08" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Focused">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.10" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="PointerFocused">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity" To="0.75" Duration="0:0:0.10" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}" />
+                        <Border
+                            x:Name="StateOverlay"
+                            Background="{StaticResource LiquidGlassStateOverlayBrush}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                        <ContentPresenter
+                            Margin="{TemplateBinding Padding}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            ContentTransitions="{TemplateBinding ContentTransitions}" />
+                        <Border
+                            x:Name="FocusRing"
+                            Margin="-3"
+                            BorderBrush="{StaticResource LiquidGlassFocusBrush}"
+                            BorderThickness="2"
+                            CornerRadius="21"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="LiquidGlassToggleButtonStyle" TargetType="ToggleButton">
+        <Setter Property="Background" Value="{StaticResource LiquidGlassControlSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LiquidGlassBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="18" />
+        <Setter Property="Padding" Value="16,9" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid
+                        x:Name="RootGrid"
+                        MinWidth="72"
+                        MinHeight="38"
+                        RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <CompositeTransform ScaleX="1" ScaleY="1" />
+                        </Grid.RenderTransform>
+
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="1" Duration="0:0:0.14" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="1" Duration="0:0:0.14" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.14" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="PointerOver">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="1.035" Duration="0:0:0.12" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="1.035" Duration="0:0:0.12" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="0.10" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleX)" To="0.965" Duration="0:0:0.07" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="(UIElement.RenderTransform).(CompositeTransform.ScaleY)" To="0.965" Duration="0:0:0.07" EnableDependentAnimation="True" />
+                                        <DoubleAnimation Storyboard.TargetName="StateOverlay" Storyboard.TargetProperty="Opacity" To="0.20" Duration="0:0:0.07" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="RootGrid" Storyboard.TargetProperty="Opacity" To="0.42" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="CheckStates">
+                                <VisualState x:Name="Unchecked">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CheckedRing" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.14" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CheckedRing" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.14" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Indeterminate">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CheckedRing" Storyboard.TargetProperty="Opacity" To="0.55" Duration="0:0:0.14" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="FocusStates">
+                                <VisualState x:Name="Unfocused">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.08" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Focused">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.10" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="PointerFocused">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="FocusRing" Storyboard.TargetProperty="Opacity" To="0.75" Duration="0:0:0.10" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <Border
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}" />
+                        <Border
+                            x:Name="StateOverlay"
+                            Background="{StaticResource LiquidGlassStateOverlayBrush}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                        <Border
+                            x:Name="CheckedRing"
+                            Margin="2"
+                            BorderBrush="{StaticResource LiquidGlassFocusBrush}"
+                            BorderThickness="2"
+                            CornerRadius="16"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                        <ContentPresenter
+                            Margin="{TemplateBinding Padding}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            ContentTransitions="{TemplateBinding ContentTransitions}" />
+                        <Border
+                            x:Name="FocusRing"
+                            Margin="-3"
+                            BorderBrush="{StaticResource LiquidGlassFocusBrush}"
+                            BorderThickness="2"
+                            CornerRadius="21"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Keep Slider's native WinUI template and interaction semantics; the material lives on the
+         containing card. This avoids copying a version-sensitive Slider template into the library. -->
+    <Style x:Key="LiquidGlassSliderStyle" TargetType="Slider">
+        <Setter Property="MinWidth" Value="150" />
+        <Setter Property="Foreground" Value="{StaticResource LiquidGlassFocusBrush}" />
+        <Setter Property="Margin" Value="0,2,0,2" />
+    </Style>
+</ResourceDictionary>
