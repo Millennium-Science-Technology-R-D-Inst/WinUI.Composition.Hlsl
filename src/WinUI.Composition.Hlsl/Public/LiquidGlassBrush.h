@@ -51,18 +51,35 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		double LightAngle() const;
 		void LightAngle(double value);
 		static Microsoft::UI::Xaml::DependencyProperty LightAngleProperty();
+		Hlsl::LiquidGlassSurfaceProfile SurfaceProfile() const;
+		void SurfaceProfile(Hlsl::LiquidGlassSurfaceProfile value);
+		static Microsoft::UI::Xaml::DependencyProperty SurfaceProfileProperty();
+		double MagnificationStrength() const;
+		void MagnificationStrength(double value);
+		static Microsoft::UI::Xaml::DependencyProperty MagnificationStrengthProperty();
+		double HighlightSharpness() const;
+		void HighlightSharpness(double value);
+		static Microsoft::UI::Xaml::DependencyProperty HighlightSharpnessProperty();
+		double TintRed() const;
+		void TintRed(double value);
+		static Microsoft::UI::Xaml::DependencyProperty TintRedProperty();
+		double TintGreen() const;
+		void TintGreen(double value);
+		static Microsoft::UI::Xaml::DependencyProperty TintGreenProperty();
+		double TintBlue() const;
+		void TintBlue(double value);
+		static Microsoft::UI::Xaml::DependencyProperty TintBlueProperty();
+		double InnerShadowStrength() const;
+		void InnerShadowStrength(double value);
+		static Microsoft::UI::Xaml::DependencyProperty InnerShadowStrengthProperty();
 
 	private:
 		void Update();
 		friend class hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush>;
 		Microsoft::UI::Composition::CompositionBrush BuildPipeline(Microsoft::UI::Composition::Compositor const&);
-		void ReleasePipeline() noexcept
-		{
-			m_material = nullptr;
-		}
+		void ReleasePipeline() noexcept { m_material = nullptr; }
 		hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush> m_lifecycle;
 		static void Changed(Microsoft::UI::Xaml::DependencyObject const& object, Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const&);
-
 		Hlsl::LiquidGlassMaterial m_material{ nullptr };
 	};
 }
