@@ -100,31 +100,31 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_BlurRadius = value;
 	}
 
-#define LIQUID_GLASS_FLOAT_PROPERTY(Name, Minimum, Maximum, Message) \
+#define LIQUID_GLASS_FLOAT_PROPERTY(Name, PropertyName, Minimum, Maximum, Message) \
 	void LiquidGlassMaterial::Name(float value) \
 	{ \
 		ValidateRange(value, Minimum, Maximum, Message); \
-		m_effect.SetFloat(L#Name, value); \
+		m_effect.SetFloat(PropertyName, value); \
 		m_##Name = value; \
 	}
 
-	LIQUID_GLASS_FLOAT_PROPERTY(RefractionStrength, 0.0f, 128.0f, L"RefractionStrength must be between 0 and 128.")
-	LIQUID_GLASS_FLOAT_PROPERTY(DispersionStrength, 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16.")
-	LIQUID_GLASS_FLOAT_PROPERTY(CornerRadius, 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(BorderThickness, 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(HighlightStrength, 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4.")
-	LIQUID_GLASS_FLOAT_PROPERTY(BezelWidth, 1.0f, 256.0f, L"BezelWidth must be between 1 and 256 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(GlassThickness, 0.0f, 256.0f, L"GlassThickness must be between 0 and 256 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(RefractiveIndex, 1.0f, 3.5f, L"RefractiveIndex must be between 1 and 3.5.")
-	LIQUID_GLASS_FLOAT_PROPERTY(TintOpacity, 0.0f, 1.0f, L"TintOpacity must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(Saturation, 0.0f, 4.0f, L"Saturation must be between 0 and 4.")
-	LIQUID_GLASS_FLOAT_PROPERTY(LightAngle, -6.2831855f, 6.2831855f, L"LightAngle must be between -2pi and 2pi radians.")
-	LIQUID_GLASS_FLOAT_PROPERTY(MagnificationStrength, 0.0f, 128.0f, L"MagnificationStrength must be between 0 and 128 pixels.")
-	LIQUID_GLASS_FLOAT_PROPERTY(HighlightSharpness, 0.25f, 64.0f, L"HighlightSharpness must be between 0.25 and 64.")
-	LIQUID_GLASS_FLOAT_PROPERTY(TintRed, 0.0f, 1.0f, L"TintRed must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(TintGreen, 0.0f, 1.0f, L"TintGreen must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(TintBlue, 0.0f, 1.0f, L"TintBlue must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(InnerShadowStrength, 0.0f, 1.0f, L"InnerShadowStrength must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(RefractionStrength, L"RefractionStrength", 0.0f, 128.0f, L"RefractionStrength must be between 0 and 128.")
+	LIQUID_GLASS_FLOAT_PROPERTY(DispersionStrength, L"DispersionStrength", 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16.")
+	LIQUID_GLASS_FLOAT_PROPERTY(CornerRadius, L"CornerRadius", 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(BorderThickness, L"BorderThickness", 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(HighlightStrength, L"HighlightStrength", 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4.")
+	LIQUID_GLASS_FLOAT_PROPERTY(BezelWidth, L"BezelWidth", 1.0f, 256.0f, L"BezelWidth must be between 1 and 256 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(GlassThickness, L"GlassThickness", 0.0f, 256.0f, L"GlassThickness must be between 0 and 256 DIPs.")
+	LIQUID_GLASS_FLOAT_PROPERTY(RefractiveIndex, L"RefractiveIndex", 1.0f, 3.5f, L"RefractiveIndex must be between 1 and 3.5.")
+	LIQUID_GLASS_FLOAT_PROPERTY(TintOpacity, L"TintOpacity", 0.0f, 1.0f, L"TintOpacity must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(Saturation, L"Saturation", 0.0f, 4.0f, L"Saturation must be between 0 and 4.")
+	LIQUID_GLASS_FLOAT_PROPERTY(LightAngle, L"LightAngle", -6.2831855f, 6.2831855f, L"LightAngle must be between -2pi and 2pi radians.")
+	LIQUID_GLASS_FLOAT_PROPERTY(MagnificationStrength, L"MagnificationStrength", 0.0f, 128.0f, L"MagnificationStrength must be between 0 and 128 pixels.")
+	LIQUID_GLASS_FLOAT_PROPERTY(HighlightSharpness, L"HighlightSharpness", 0.25f, 64.0f, L"HighlightSharpness must be between 0.25 and 64.")
+	LIQUID_GLASS_FLOAT_PROPERTY(TintRed, L"TintRed", 0.0f, 1.0f, L"TintRed must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(TintGreen, L"TintGreen", 0.0f, 1.0f, L"TintGreen must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(TintBlue, L"TintBlue", 0.0f, 1.0f, L"TintBlue must be between 0 and 1.")
+	LIQUID_GLASS_FLOAT_PROPERTY(InnerShadowStrength, L"InnerShadowStrength", 0.0f, 1.0f, L"InnerShadowStrength must be between 0 and 1.")
 
 #undef LIQUID_GLASS_FLOAT_PROPERTY
 
