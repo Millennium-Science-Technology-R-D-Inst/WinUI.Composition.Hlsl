@@ -17,6 +17,13 @@ namespace CustomLiquidGlassEffect
 	inline constexpr wchar_t TintOpacityPropertyPath[] = L"BackdropLiquidGlassEffect.TintOpacity";
 	inline constexpr wchar_t SaturationPropertyPath[] = L"BackdropLiquidGlassEffect.Saturation";
 	inline constexpr wchar_t LightAnglePropertyPath[] = L"BackdropLiquidGlassEffect.LightAngle";
+	inline constexpr wchar_t SurfaceProfilePropertyPath[] = L"BackdropLiquidGlassEffect.SurfaceProfile";
+	inline constexpr wchar_t MagnificationStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.MagnificationStrength";
+	inline constexpr wchar_t HighlightSharpnessPropertyPath[] = L"BackdropLiquidGlassEffect.HighlightSharpness";
+	inline constexpr wchar_t TintRedPropertyPath[] = L"BackdropLiquidGlassEffect.TintRed";
+	inline constexpr wchar_t TintGreenPropertyPath[] = L"BackdropLiquidGlassEffect.TintGreen";
+	inline constexpr wchar_t TintBluePropertyPath[] = L"BackdropLiquidGlassEffect.TintBlue";
+	inline constexpr wchar_t InnerShadowStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.InnerShadowStrength";
 
 	std::shared_ptr<hlsl::engine::EffectDefinition const> Description();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect();
