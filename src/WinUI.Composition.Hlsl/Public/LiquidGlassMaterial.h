@@ -8,10 +8,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	struct LiquidGlassMaterial : LiquidGlassMaterialT<LiquidGlassMaterial>
 	{
 		LiquidGlassMaterial(Microsoft::UI::Composition::Compositor const& compositor);
-		Hlsl::HlslEffectBrush EffectBrush() const
-		{
-			return m_effect;
-		}
+		Hlsl::HlslEffectBrush EffectBrush() const { return m_effect; }
 		float BlurRadius() const { return m_BlurRadius; }
 		void BlurRadius(float value);
 		float RefractionStrength() const { return m_RefractionStrength; }
@@ -36,6 +33,20 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void Saturation(float value);
 		float LightAngle() const { return m_LightAngle; }
 		void LightAngle(float value);
+		Hlsl::LiquidGlassSurfaceProfile SurfaceProfile() const { return m_SurfaceProfile; }
+		void SurfaceProfile(Hlsl::LiquidGlassSurfaceProfile value);
+		float MagnificationStrength() const { return m_MagnificationStrength; }
+		void MagnificationStrength(float value);
+		float HighlightSharpness() const { return m_HighlightSharpness; }
+		void HighlightSharpness(float value);
+		float TintRed() const { return m_TintRed; }
+		void TintRed(float value);
+		float TintGreen() const { return m_TintGreen; }
+		void TintGreen(float value);
+		float TintBlue() const { return m_TintBlue; }
+		void TintBlue(float value);
+		float InnerShadowStrength() const { return m_InnerShadowStrength; }
+		void InnerShadowStrength(float value);
 
 	private:
 		Hlsl::HlslEffectBrush m_effect{ nullptr };
@@ -52,6 +63,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		float m_TintOpacity{ 0.08f };
 		float m_Saturation{ 1.25f };
 		float m_LightAngle{ -0.95f };
+		Hlsl::LiquidGlassSurfaceProfile m_SurfaceProfile{ Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle };
+		float m_MagnificationStrength{ 0.0f };
+		float m_HighlightSharpness{ 1.5f };
+		float m_TintRed{ 1.0f };
+		float m_TintGreen{ 1.0f };
+		float m_TintBlue{ 1.0f };
+		float m_InnerShadowStrength{ 0.09f };
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation
