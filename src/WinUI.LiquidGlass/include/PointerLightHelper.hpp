@@ -2,9 +2,6 @@
 
 namespace winrt::WinUI::LiquidGlass::detail
 {
-    // Drives LiquidGlassBrush::LightAngle from local pointer position. The angle that
-    // was active when tracking began is restored on exit, so application-provided
-    // resting lighting remains authoritative.
     template<typename Self>
     class PointerLightHelper
     {
@@ -12,17 +9,22 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerLightHelper()
         {
             auto self = static_cast<Self*>(this);
-            self->PointerEntered([this](auto const&, auto const&) { BeginTracking(); });
+            self->PointerEntered([this](auto const& sender, auto const&) { BeginTracking(sender); });
             self->PointerMoved([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
                 UpdateLight(sender, args);
             });
             self->PointerExited([this](auto const&, auto const&) { EndTracking(); });
+            self->PointerCanceled([this](auto const&, auto const&) { EndTracking(); });
         }
 
     private:
-        void BeginTracking()
+        template<typename Sender>
+        void BeginTracking(Sender const& sender)
         {
+            auto object = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!object || !implementation::LiquidGlassInteraction::GetPointerLightingEnabled(object)) return;
+
             auto self = static_cast<Self*>(this);
             if (auto brush = self->GlassBrush())
             {
@@ -34,6 +36,13 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void UpdateLight(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
+            auto object = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!object || !implementation::LiquidGlassInteraction::GetPointerLightingEnabled(object))
+            {
+                EndTracking();
+                return;
+            }
+
             auto self = static_cast<Self*>(this);
             auto brush = self->GlassBrush();
             if (!brush) return;
@@ -55,10 +64,15 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const position = args.GetCurrentPoint(relativeTo).Position();
             auto const dx = position.X - width * 0.5;
             auto const dy = position.Y - height * 0.5;
-            if (std::abs(dx) + std::abs(dy) > 1e-4)
-            {
-                brush.LightAngle(std::atan2(dy, dx));
-            }
+            if (std::abs(dx) + std::abs(dy) <= 1e-4) return;
+
+            auto const pointerAngle = std::atan2(dy, dx);
+            auto const influence = std::clamp(
+                implementation::LiquidGlassInteraction::GetPointerLightInfluence(object), 0.0, 1.0);
+
+            auto const x = std::cos(m_restingLightAngle) * (1.0 - influence) + std::cos(pointerAngle) * influence;
+            auto const y = std::sin(m_restingLightAngle) * (1.0 - influence) + std::sin(pointerAngle) * influence;
+            if (std::abs(x) + std::abs(y) > 1e-5) brush.LightAngle(std::atan2(y, x));
         }
 
         void EndTracking()

@@ -70,8 +70,14 @@
     <Midl Include="LiquidGlass.idl" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="winrt_module_imports.h" />
+    <ClInclude Include="LiquidGlassInteraction.h" />
+    <ClInclude Include="LiquidGlassPresets.h" />
     <ClInclude Include="include\EnsureDependencyProperty.hpp" />
     <ClInclude Include="include\TemplateControlHelper.hpp" />
+    <ClInclude Include="include\PointerLightHelper.hpp" />
+    <ClInclude Include="include\PointerMotionHelper.hpp" />
+    <ClInclude Include="include\PressOpticsHelper.hpp" />
+    <ClInclude Include="include\FocusOpticsHelper.hpp" />
     <ClInclude Include="LiquidGlassControls.h" />
     <ClInclude Include="LiquidGlassCard.h" />
     <ClInclude Include="LiquidGlassMagnifier.h" />
@@ -86,6 +92,8 @@
     <ClInclude Include="LiquidGlassComboBox.h" />
     <ClInclude Include="LiquidGlassToggleSwitch.h" />
 
+    <ClCompile Include="LiquidGlassInteraction.cpp" />
+    <ClCompile Include="LiquidGlassPresets.cpp" />
     <ClCompile Include="LiquidGlassControls.cpp" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>

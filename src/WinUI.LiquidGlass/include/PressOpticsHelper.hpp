@@ -2,9 +2,63 @@
 
 namespace winrt::WinUI::LiquidGlass::detail
 {
-    // Optical half of the press interaction for ButtonBase-derived LiquidGlass controls.
-    // Geometry remains in XAML VisualStates; the exact pre-press material values are
-    // restored on release so custom application brushes are not permanently modified.
+    struct OpticsSnapshot
+    {
+        WinUI::Composition::Hlsl::LiquidGlassBrush brush{ nullptr };
+        double refraction{};
+        double tintOpacity{};
+        double highlight{};
+        double innerShadow{};
+        bool active{};
+    };
+
+    inline void EnterPressedOptics(
+        Microsoft::UI::Xaml::DependencyObject const& owner,
+        WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
+        OpticsSnapshot& state)
+    {
+        if (state.active || !owner || !brush) return;
+
+        state.brush = brush;
+        state.refraction = brush.RefractionStrength();
+        state.tintOpacity = brush.TintOpacity();
+        state.highlight = brush.HighlightStrength();
+        state.innerShadow = brush.InnerShadowStrength();
+        state.active = true;
+
+        auto const refractionMultiplier = std::clamp(
+            implementation::LiquidGlassInteraction::GetPressedRefractionMultiplier(owner), 0.0, 4.0);
+        auto const refractionBoost = std::clamp(
+            implementation::LiquidGlassInteraction::GetPressedRefractionBoost(owner), -128.0, 128.0);
+        auto const tintBoost = std::clamp(
+            implementation::LiquidGlassInteraction::GetPressedTintBoost(owner), -1.0, 1.0);
+        auto const highlightMultiplier = std::clamp(
+            implementation::LiquidGlassInteraction::GetPressedHighlightMultiplier(owner), 0.0, 4.0);
+        auto const highlightBoost = std::clamp(
+            implementation::LiquidGlassInteraction::GetPressedHighlightBoost(owner), -4.0, 4.0);
+        auto const shadowBoost = std::clamp(
+            implementation::LiquidGlassInteraction::GetPressedInnerShadowBoost(owner), -1.0, 1.0);
+
+        brush.RefractionStrength(std::clamp(state.refraction * refractionMultiplier + refractionBoost, 0.0, 128.0));
+        brush.TintOpacity(std::clamp(state.tintOpacity + tintBoost, 0.0, 1.0));
+        brush.HighlightStrength(std::clamp(state.highlight * highlightMultiplier + highlightBoost, 0.0, 4.0));
+        brush.InnerShadowStrength(std::clamp(state.innerShadow + shadowBoost, 0.0, 1.0));
+    }
+
+    inline void LeavePressedOptics(OpticsSnapshot& state)
+    {
+        if (!state.active) return;
+        if (state.brush)
+        {
+            state.brush.RefractionStrength(state.refraction);
+            state.brush.TintOpacity(state.tintOpacity);
+            state.brush.HighlightStrength(state.highlight);
+            state.brush.InnerShadowStrength(state.innerShadow);
+        }
+        state.brush = nullptr;
+        state.active = false;
+    }
+
     template<typename Self>
     class PressOpticsHelper
     {
@@ -12,51 +66,19 @@ namespace winrt::WinUI::LiquidGlass::detail
         PressOpticsHelper()
         {
             auto self = static_cast<Self*>(this);
-            self->PointerPressed([this](auto const&, auto const&) { EnterPressedState(); });
-            self->PointerReleased([this](auto const&, auto const&) { LeavePressedState(); });
-            self->PointerCaptureLost([this](auto const&, auto const&) { LeavePressedState(); });
+            self->PointerPressed([this](auto const& sender, auto const&)
+            {
+                auto object = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+                if (!object) return;
+                auto owner = static_cast<Self*>(this);
+                EnterPressedOptics(object, owner->GlassBrush(), m_state);
+            });
+            self->PointerReleased([this](auto const&, auto const&) { LeavePressedOptics(m_state); });
+            self->PointerCaptureLost([this](auto const&, auto const&) { LeavePressedOptics(m_state); });
+            self->PointerCanceled([this](auto const&, auto const&) { LeavePressedOptics(m_state); });
         }
 
     private:
-        void EnterPressedState()
-        {
-            if (m_pressed) return;
-            auto self = static_cast<Self*>(this);
-            auto brush = self->GlassBrush();
-            if (!brush) return;
-
-            m_pressedBrush = brush;
-            m_refraction = brush.RefractionStrength();
-            m_tintOpacity = brush.TintOpacity();
-            m_highlight = brush.HighlightStrength();
-            m_innerShadow = brush.InnerShadowStrength();
-            m_pressed = true;
-
-            brush.RefractionStrength(std::min(128.0, m_refraction * 1.18 + 1.5));
-            brush.TintOpacity(std::min(1.0, m_tintOpacity + 0.08));
-            brush.HighlightStrength(std::min(4.0, m_highlight * 1.12 + 0.03));
-            brush.InnerShadowStrength(std::min(1.0, m_innerShadow + 0.04));
-        }
-
-        void LeavePressedState()
-        {
-            if (!m_pressed) return;
-            if (m_pressedBrush)
-            {
-                m_pressedBrush.RefractionStrength(m_refraction);
-                m_pressedBrush.TintOpacity(m_tintOpacity);
-                m_pressedBrush.HighlightStrength(m_highlight);
-                m_pressedBrush.InnerShadowStrength(m_innerShadow);
-            }
-            m_pressedBrush = nullptr;
-            m_pressed = false;
-        }
-
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_pressedBrush{ nullptr };
-        double m_refraction{};
-        double m_tintOpacity{};
-        double m_highlight{};
-        double m_innerShadow{};
-        bool m_pressed{};
+        OpticsSnapshot m_state;
     };
 }

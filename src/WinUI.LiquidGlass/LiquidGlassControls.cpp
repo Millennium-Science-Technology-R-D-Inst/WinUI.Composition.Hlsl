@@ -51,6 +51,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.SurfaceProfile(Profile::ConvexSquircle);
             b.BlurRadius(1.0);
             b.Saturation(1.0);
+            b.Contrast(1.0);
+            b.Exposure(0.0);
             b.MaterialOpacity(1.0);
             b.EdgeSoftness(1.0);
 
@@ -149,26 +151,28 @@ namespace winrt::WinUI::LiquidGlass::implementation
             else if (auto c = target.try_as<Controls::Control>()) c.Background(brush);
         }
 
-        void SetElementScale(FrameworkElement const& target, float x, float y)
+        void SetElementScale(FrameworkElement const& target, double x, double y)
         {
             if (!target) return;
             auto v = Hosting::ElementCompositionPreview::GetElementVisual(target);
             v.CenterPoint({ float(target.ActualWidth() * .5), float(target.ActualHeight() * .5), 0 });
-            v.Scale({ x, y, 1 });
+            v.Scale({ static_cast<float>(x), static_cast<float>(y), 1 });
         }
 
-        void AnimateScale(FrameworkElement const& target, float x, float y, std::chrono::milliseconds duration)
+        void AnimateScale(FrameworkElement const& target, double x, double y, double durationMs)
         {
             if (!target) return;
             auto v = Hosting::ElementCompositionPreview::GetElementVisual(target);
             v.CenterPoint({ float(target.ActualWidth() * .5), float(target.ActualHeight() * .5), 0 });
             auto a = v.Compositor().CreateVector3KeyFrameAnimation();
-            a.InsertKeyFrame(1, { x, y, 1 }); a.Duration(duration); v.StartAnimation(L"Scale", a);
+            a.InsertKeyFrame(1, { static_cast<float>(x), static_cast<float>(y), 1 });
+            a.Duration(std::chrono::milliseconds{ static_cast<int64_t>(std::lround(std::clamp(durationMs, 0.0, 2000.0))) });
+            v.StartAnimation(L"Scale", a);
         }
 
-        void AnimateScale(FrameworkElement const& target, float value, std::chrono::milliseconds duration)
+        void AnimateScale(FrameworkElement const& target, double value, double durationMs)
         {
-            AnimateScale(target, value, value, duration);
+            AnimateScale(target, value, value, durationMs);
         }
 
         Primitives::Thumb SliderThumb(Controls::Slider const& slider)
@@ -179,19 +183,20 @@ namespace winrt::WinUI::LiquidGlass::implementation
             return thumb ? thumb : Descendant<Primitives::Thumb>(slider);
         }
 
-        void SliderState(Brush const& b, bool active)
+        void CopyPressInteraction(DependencyObject const& source, DependencyObject const& target)
         {
-            if (!b) return;
-            b.RefractionStrength(active ? 21.6 : 9.6);
-            b.TintOpacity(active ? .10 : 1.0);
-        }
-
-        void SwitchState(Brush const& b, bool active)
-        {
-            if (!b) return;
-            b.RefractionStrength(active ? 21.6 : 9.6);
-            b.TintOpacity(active ? .10 : 1.0);
-            b.InnerShadowStrength(active ? .27 : .02);
+            if (!source || !target) return;
+#define COPY_INTERACTION(Name) target.SetValue(LiquidGlassInteraction::Name##Property(), source.GetValue(LiquidGlassInteraction::Name##Property()))
+            COPY_INTERACTION(RestScale);
+            COPY_INTERACTION(PressedScale);
+            COPY_INTERACTION(MotionDuration);
+            COPY_INTERACTION(PressedRefractionMultiplier);
+            COPY_INTERACTION(PressedRefractionBoost);
+            COPY_INTERACTION(PressedTintBoost);
+            COPY_INTERACTION(PressedHighlightMultiplier);
+            COPY_INTERACTION(PressedHighlightBoost);
+            COPY_INTERACTION(PressedInnerShadowBoost);
+#undef COPY_INTERACTION
         }
     }
 
@@ -209,34 +214,39 @@ namespace winrt::WinUI::LiquidGlass::implementation
 #define BACKGROUND_BRUSH(Type) \
     void Type::ApplyGlassBrush(Brush const& value) { m_glassBrush = value; Background(AsBrush(value)); }
 
+#define SIMPLE_STYLED_CONTROL(Type, PresetValue) \
+    GLASS_DP(Type) BACKGROUND_BRUSH(Type) \
+    Type::Type() { DefaultStyleKey(box_value(xaml_typename<class_type>())); GlassBrush(CreateBrush(PresetValue)); }
+
 #define SIMPLE_CONTROL(Type, PresetValue) \
     GLASS_DP(Type) BACKGROUND_BRUSH(Type) \
     Type::Type() { GlassBrush(CreateBrush(PresetValue)); }
 
-    SIMPLE_CONTROL(LiquidGlassCard, Preset::Panel)
-    SIMPLE_CONTROL(LiquidGlassButton, Preset::Button)
-    SIMPLE_CONTROL(LiquidGlassToggleButton, Preset::Button)
-    SIMPLE_CONTROL(LiquidGlassHyperlinkButton, Preset::Button)
+    SIMPLE_STYLED_CONTROL(LiquidGlassCard, Preset::Panel)
+    SIMPLE_STYLED_CONTROL(LiquidGlassButton, Preset::Button)
+    SIMPLE_STYLED_CONTROL(LiquidGlassToggleButton, Preset::Button)
+    SIMPLE_STYLED_CONTROL(LiquidGlassHyperlinkButton, Preset::Button)
     SIMPLE_CONTROL(LiquidGlassCheckBox, Preset::Choice)
     SIMPLE_CONTROL(LiquidGlassRadioButton, Preset::Choice)
-    SIMPLE_CONTROL(LiquidGlassComboBox, Preset::Choice)
+
+    GLASS_DP(LiquidGlassComboBox)
+    BACKGROUND_BRUSH(LiquidGlassComboBox)
+    LiquidGlassComboBox::LiquidGlassComboBox()
+    {
+        GlassBrush(CreateBrush(Preset::Choice));
+        SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.01));
+        SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.04));
+    }
 
     GLASS_DP(LiquidGlassTextBox)
     BACKGROUND_BRUSH(LiquidGlassTextBox)
     LiquidGlassTextBox::LiquidGlassTextBox()
     {
         GlassBrush(CreateBrush(Preset::Search));
-        Loaded([](auto const& s, auto const&) { SetElementScale(s.template try_as<FrameworkElement>(), .8f, .8f); });
-        GotFocus([](auto const& s, auto const&) {
-            AnimateScale(s.template try_as<FrameworkElement>(), 1, 120ms);
-            if (auto c = s.template try_as<WinUI::LiquidGlass::LiquidGlassTextBox>(); c && c.GlassBrush())
-                c.GlassBrush().TintOpacity(.20);
-        });
-        LostFocus([](auto const& s, auto const&) {
-            AnimateScale(s.template try_as<FrameworkElement>(), .8f, 170ms);
-            if (auto c = s.template try_as<WinUI::LiquidGlass::LiquidGlassTextBox>(); c && c.GlassBrush())
-                c.GlassBrush().TintOpacity(.05);
-        });
+        SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.98));
+        SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.0));
+        SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.15));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(140.0));
     }
 
     GLASS_DP(LiquidGlassPasswordBox)
@@ -252,16 +262,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
         HorizontalContentAlignment(Xaml::HorizontalAlignment::Stretch);
         Content(m_passwordBox);
         GlassBrush(CreateBrush(Preset::Input));
-
-        auto weak = get_weak();
-        m_passwordBox.GotFocus([weak](auto const& s, auto const&) {
-            AnimateScale(s.template try_as<FrameworkElement>(), 1, 120ms);
-            if (auto self = weak.get(); self && self->GlassBrush()) self->GlassBrush().TintOpacity(.14);
-        });
-        m_passwordBox.LostFocus([weak](auto const& s, auto const&) {
-            AnimateScale(s.template try_as<FrameworkElement>(), .99f, 160ms);
-            if (auto self = weak.get(); self && self->GlassBrush()) self->GlassBrush().TintOpacity(.10);
-        });
+        SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.99));
+        SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.0));
+        SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.04));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(140.0));
     }
     hstring LiquidGlassPasswordBox::PlaceholderText() const { return m_passwordBox ? m_passwordBox.PlaceholderText() : hstring{}; }
     void LiquidGlassPasswordBox::PlaceholderText(hstring const& value) { if (m_passwordBox) m_passwordBox.PlaceholderText(value); }
@@ -272,53 +276,102 @@ namespace winrt::WinUI::LiquidGlass::implementation
     BACKGROUND_BRUSH(LiquidGlassMagnifier)
     LiquidGlassMagnifier::LiquidGlassMagnifier()
     {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
         GlassBrush(CreateBrush(Preset::Magnifier));
+        SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.8));
+        SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(130.0));
+        SetValue(LiquidGlassInteraction::ElasticityProperty(), box_value(.85));
+        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.25));
+        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
+        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.07));
+        SetValue(LiquidGlassInteraction::ActiveMagnificationMultiplierProperty(), box_value(2.0));
+
         RenderTransformOrigin({ .5f, .5f });
         m_dragTransform = Media::CompositeTransform{};
         RenderTransform(m_dragTransform);
-        Loaded([](auto const& s, auto const&) { SetElementScale(s.template try_as<FrameworkElement>(), .8f, .8f); });
+        Loaded([](auto const& sender, auto const&) {
+            auto owner = sender.template try_as<DependencyObject>();
+            auto element = sender.template try_as<FrameworkElement>();
+            if (!owner || !element) return;
+            auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+            SetElementScale(element, scale, scale);
+        });
 
         auto weak = get_weak();
         PointerPressed([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
             auto self = weak.get();
+            auto owner = sender.template try_as<DependencyObject>();
             auto element = sender.template try_as<Xaml::UIElement>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !element || !frameworkElement) return;
+            if (!self || !owner || !element || !frameworkElement) return;
             auto p = e.GetCurrentPoint(element);
             self->m_activePointerId = p.PointerId(); self->m_lastPointer = p.Position();
             self->m_dragging = element.CapturePointer(e.Pointer());
             if (!self->m_dragging) return;
-            if (auto b = self->GlassBrush()) { b.RefractionStrength(24); b.MagnificationStrength(48); b.InnerShadowStrength(.27); }
-            AnimateScale(frameworkElement, 1, 110ms); e.Handled(true);
+            if (auto b = self->GlassBrush())
+            {
+                self->m_dragMagnification = b.MagnificationStrength();
+                detail::EnterPressedOptics(owner, b, self->m_dragOptics);
+                b.MagnificationStrength(std::clamp(
+                    self->m_dragMagnification * LiquidGlassInteraction::GetActiveMagnificationMultiplier(owner), 0.0, 128.0));
+            }
+            auto const scale = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
+            AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
+            e.Handled(true);
         });
         PointerMoved([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
             auto self = weak.get();
+            auto owner = sender.template try_as<DependencyObject>();
             auto element = sender.template try_as<Xaml::UIElement>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !self->m_dragging || !element || !frameworkElement) return;
+            if (!self || !self->m_dragging || !owner || !element || !frameworkElement) return;
             auto p = e.GetCurrentPoint(element); if (p.PointerId() != self->m_activePointerId) return;
             auto pos = p.Position(); auto dx = pos.X - self->m_lastPointer.X; auto dy = pos.Y - self->m_lastPointer.Y;
             self->m_dragTransform.TranslateX(self->m_dragTransform.TranslateX() + dx);
             self->m_dragTransform.TranslateY(self->m_dragTransform.TranslateY() + dy);
-            auto sy = std::max(.7f, 1.f - std::abs(float(dx * 60)) / 5000.f);
-            SetElementScale(frameworkElement, 2.f - sy, sy); self->m_lastPointer = pos; e.Handled(true);
+
+            auto const distance = std::sqrt(dx * dx + dy * dy);
+            auto const elasticity = std::clamp(LiquidGlassInteraction::GetElasticity(owner), 0.0, 1.0);
+            auto const amount = std::min(.32, elasticity * distance / 70.0);
+            auto const base = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
+            if (distance > 1e-4)
+            {
+                auto const nx = std::abs(dx) / distance;
+                auto const ny = std::abs(dy) / distance;
+                auto sx = base * (1.0 + amount * nx);
+                auto sy = base * (1.0 + amount * ny);
+                if (nx > ny) sy *= 1.0 - amount * .45;
+                else sx *= 1.0 - amount * .45;
+                SetElementScale(frameworkElement, sx, sy);
+            }
+            self->m_lastPointer = pos; e.Handled(true);
         });
         PointerReleased([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
             auto self = weak.get();
+            auto owner = sender.template try_as<DependencyObject>();
             auto element = sender.template try_as<Xaml::UIElement>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !self->m_dragging || !element || !frameworkElement) return;
+            if (!self || !self->m_dragging || !owner || !element || !frameworkElement) return;
             element.ReleasePointerCapture(e.Pointer()); self->m_dragging = false; self->m_activePointerId = 0;
-            if (auto b = self->GlassBrush()) { b.RefractionStrength(19.2); b.MagnificationStrength(24); b.InnerShadowStrength(.20); }
-            AnimateScale(frameworkElement, .8f, 180ms); e.Handled(true);
+            if (self->m_dragOptics.brush) self->m_dragOptics.brush.MagnificationStrength(self->m_dragMagnification);
+            detail::LeavePressedOptics(self->m_dragOptics);
+            auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+            AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner)); e.Handled(true);
         });
         PointerCaptureLost([weak](auto const& sender, auto const&) {
             auto self = weak.get();
+            auto owner = sender.template try_as<DependencyObject>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !frameworkElement) return;
+            if (!self || !owner || !frameworkElement) return;
             self->m_dragging = false; self->m_activePointerId = 0;
-            if (auto b = self->GlassBrush()) { b.RefractionStrength(19.2); b.MagnificationStrength(24); b.InnerShadowStrength(.20); }
-            AnimateScale(frameworkElement, .8f, 180ms);
+            if (self->m_dragOptics.brush) self->m_dragOptics.brush.MagnificationStrength(self->m_dragMagnification);
+            detail::LeavePressedOptics(self->m_dragOptics);
+            auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+            AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
         });
     }
 
@@ -333,26 +386,49 @@ namespace winrt::WinUI::LiquidGlass::implementation
     LiquidGlassSlider::LiquidGlassSlider()
     {
         GlassBrush(CreateBrush(Preset::Slider));
+        SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.6));
+        SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(120.0));
+        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
+        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.9));
+        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
+        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(0.0));
+
         auto weak = get_weak();
         Loaded([weak](auto const& sender, auto const&) {
             auto self = weak.get(); if (!self || self->m_interactionsWired) return;
             auto slider = sender.template try_as<Controls::Slider>(); if (!slider) return;
-            auto thumb = SliderThumb(slider); if (!thumb) return;
+            auto owner = slider.template try_as<DependencyObject>();
+            auto thumb = SliderThumb(slider); if (!owner || !thumb) return;
             self->m_thumb = thumb;
+            CopyPressInteraction(owner, thumb);
             if (auto b = self->GlassBrush())
             {
                 auto radius = std::max(1.0, std::min(thumb.ActualWidth(), thumb.ActualHeight()) * .5);
                 b.CornerRadius(radius); b.BezelWidth(std::max(1.0, std::min(16.0, radius - .5)));
                 if (auto surface = BrushSurface(thumb)) SetSurface(surface, AsBrush(b));
             }
-            SetElementScale(thumb, .6f, .6f);
+            auto const restScale = std::clamp(LiquidGlassInteraction::GetRestScale(thumb), .25, 4.0);
+            SetElementScale(thumb, restScale, restScale);
             thumb.DragStarted([weak](auto const& s, auto const&) {
-                AnimateScale(s.template try_as<FrameworkElement>(), 1, 90ms);
-                if (auto self = weak.get()) SliderState(self->GlassBrush(), true);
+                auto thumbObject = s.template try_as<DependencyObject>();
+                auto thumbElement = s.template try_as<FrameworkElement>();
+                auto self = weak.get();
+                if (!self || !thumbObject || !thumbElement) return;
+                auto const scale = std::clamp(LiquidGlassInteraction::GetPressedScale(thumbObject), .25, 4.0);
+                AnimateScale(thumbElement, scale, LiquidGlassInteraction::GetMotionDuration(thumbObject));
+                detail::EnterPressedOptics(thumbObject, self->GlassBrush(), self->m_dragOptics);
             });
             thumb.DragCompleted([weak](auto const& s, auto const&) {
-                AnimateScale(s.template try_as<FrameworkElement>(), .6f, 180ms);
-                if (auto self = weak.get()) SliderState(self->GlassBrush(), false);
+                auto thumbObject = s.template try_as<DependencyObject>();
+                auto thumbElement = s.template try_as<FrameworkElement>();
+                auto self = weak.get();
+                if (!self || !thumbObject || !thumbElement) return;
+                auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(thumbObject), .25, 4.0);
+                AnimateScale(thumbElement, scale, LiquidGlassInteraction::GetMotionDuration(thumbObject));
+                detail::LeavePressedOptics(self->m_dragOptics);
             });
             self->m_interactionsWired = true;
         });
@@ -362,31 +438,56 @@ namespace winrt::WinUI::LiquidGlass::implementation
     BACKGROUND_BRUSH(LiquidGlassToggleSwitch)
     LiquidGlassToggleSwitch::LiquidGlassToggleSwitch()
     {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
         GlassBrush(CreateBrush(Preset::Switch));
+        SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.65));
+        SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(.9));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(130.0));
+        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
+        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.9));
+        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
+        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.25));
+
         auto weak = get_weak();
         Loaded([weak](auto const& sender, auto const&) {
             auto self = weak.get(); if (!self || self->m_interactionsWired) return;
-            if (auto knob = NamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>())
-                SetElementScale(knob, .65f, .65f);
+            auto owner = sender.template try_as<DependencyObject>(); if (!owner) return;
+            if (auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>())
+            {
+                auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+                SetElementScale(knob, scale, scale);
+            }
             self->m_interactionsWired = true;
         });
         PointerPressed([weak](auto const& sender, auto const&) {
             if (auto self = weak.get()) {
-                auto knob = NamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
-                AnimateScale(knob, .9f, 90ms); SwitchState(self->GlassBrush(), true);
+                auto owner = sender.template try_as<DependencyObject>(); if (!owner) return;
+                auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>();
+                auto const scale = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
+                AnimateScale(knob, scale, LiquidGlassInteraction::GetMotionDuration(owner));
+                detail::EnterPressedOptics(owner, self->GlassBrush(), self->m_pressOptics);
             }
         });
         auto release = [weak](auto const& sender, auto const&) {
             if (auto self = weak.get()) {
-                auto knob = NamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
-                AnimateScale(knob, .65f, 190ms); SwitchState(self->GlassBrush(), false);
+                auto owner = sender.template try_as<DependencyObject>(); if (!owner) return;
+                auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>();
+                auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+                AnimateScale(knob, scale, LiquidGlassInteraction::GetMotionDuration(owner));
+                detail::LeavePressedOptics(self->m_pressOptics);
             }
         };
-        PointerReleased(release); PointerCaptureLost(release);
+        PointerReleased(release); PointerCaptureLost(release); PointerCanceled(release);
         auto pulse = [weak](auto const& sender, auto const&) {
             if (auto self = weak.get()) {
-                auto knob = NamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
-                AnimateScale(knob, .75f, 110ms);
+                auto owner = sender.template try_as<DependencyObject>(); if (!owner) return;
+                auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>();
+                auto const rest = LiquidGlassInteraction::GetRestScale(owner);
+                auto const pressed = LiquidGlassInteraction::GetPressedScale(owner);
+                AnimateScale(knob, std::clamp(rest + (pressed - rest) * .4, .25, 4.0),
+                    LiquidGlassInteraction::GetMotionDuration(owner));
             }
         };
         Checked(pulse); Unchecked(pulse);
@@ -397,6 +498,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
     void LiquidGlassToggleSwitch::IsOn(bool value) { IsChecked(box_value(value).as<Windows::Foundation::IReference<bool>>()); }
 
 #undef SIMPLE_CONTROL
+#undef SIMPLE_STYLED_CONTROL
 #undef BACKGROUND_BRUSH
 #undef GLASS_DP
 }

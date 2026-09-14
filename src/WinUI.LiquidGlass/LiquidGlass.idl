@@ -1,5 +1,91 @@
 namespace WinUI.LiquidGlass
 {
+    enum LiquidGlassPreset
+    {
+        Panel = 0,
+        Button = 1,
+        Choice = 2,
+        SearchBox = 3,
+        Input = 4,
+        SliderThumb = 5,
+        ToggleSwitchKnob = 6,
+        Magnifier = 7,
+        FloatingPanel = 8,
+        TabBar = 9
+    };
+
+    static runtimeclass LiquidGlassPresets
+    {
+        static WinUI.Composition.Hlsl.LiquidGlassBrush CreateBrush(LiquidGlassPreset preset);
+    }
+
+    static runtimeclass LiquidGlassInteraction
+    {
+        static Microsoft.UI.Xaml.DependencyProperty PointerLightingEnabledProperty{ get; };
+        static Boolean GetPointerLightingEnabled(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerLightingEnabled(Microsoft.UI.Xaml.DependencyObject element, Boolean value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerLightInfluenceProperty{ get; };
+        static Double GetPointerLightInfluence(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerLightInfluence(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty RestScaleProperty{ get; };
+        static Double GetRestScale(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetRestScale(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverScaleProperty{ get; };
+        static Double GetPointerOverScale(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverScale(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PressedScaleProperty{ get; };
+        static Double GetPressedScale(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPressedScale(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty FocusedScaleProperty{ get; };
+        static Double GetFocusedScale(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetFocusedScale(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty MotionDurationProperty{ get; };
+        static Double GetMotionDuration(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetMotionDuration(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty ElasticityProperty{ get; };
+        static Double GetElasticity(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetElasticity(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PressedRefractionMultiplierProperty{ get; };
+        static Double GetPressedRefractionMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPressedRefractionMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PressedRefractionBoostProperty{ get; };
+        static Double GetPressedRefractionBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPressedRefractionBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PressedTintBoostProperty{ get; };
+        static Double GetPressedTintBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPressedTintBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PressedHighlightMultiplierProperty{ get; };
+        static Double GetPressedHighlightMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPressedHighlightMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PressedHighlightBoostProperty{ get; };
+        static Double GetPressedHighlightBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPressedHighlightBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PressedInnerShadowBoostProperty{ get; };
+        static Double GetPressedInnerShadowBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPressedInnerShadowBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty FocusedTintBoostProperty{ get; };
+        static Double GetFocusedTintBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetFocusedTintBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty ActiveMagnificationMultiplierProperty{ get; };
+        static Double GetActiveMagnificationMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetActiveMagnificationMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+    }
+
     [webhosthidden] runtimeclass LiquidGlassCard : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassCard();
@@ -63,7 +149,6 @@ namespace WinUI.LiquidGlass
         static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
-    // PasswordBox is sealed in WinUI. This composable wrapper hosts the real PasswordBox.
     [webhosthidden] runtimeclass LiquidGlassPasswordBox : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassPasswordBox();
@@ -80,8 +165,6 @@ namespace WinUI.LiquidGlass
         static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
-    // ToggleSwitch is sealed. ToggleButton keeps native toggle semantics while exposing
-    // the familiar Header/IsOn surface.
     [webhosthidden] runtimeclass LiquidGlassToggleSwitch : Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
     {
         LiquidGlassToggleSwitch();

@@ -1,10 +1,13 @@
 #pragma once
 
 #include "winrt_module_imports.h"
+#include "LiquidGlassInteraction.h"
 #include "include/EnsureDependencyProperty.hpp"
 #include "include/TemplateControlHelper.hpp"
 #include "include/PointerLightHelper.hpp"
+#include "include/PointerMotionHelper.hpp"
 #include "include/PressOpticsHelper.hpp"
+#include "include/FocusOpticsHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -55,18 +58,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::EnsureDependencyProperty<Type>, \
         detail::TemplateControlHelper<Type>, \
         detail::PointerLightHelper<Type>, \
+        detail::PointerMotionHelper<Type>, \
         detail::PressOpticsHelper<Type> \
     { \
         constexpr static auto ResourceUri = detail::ThemeResourceUri; \
-        Type(); \
-        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
-    };
-
-#define WINUI_LIQUID_GLASS_PLAIN_DECLARATION(Type) \
-    struct Type : Type##T<Type>, \
-        detail::EnsureDependencyProperty<Type>, \
-        detail::PointerLightHelper<Type> \
-    { \
         Type(); \
         WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
     };
@@ -75,7 +70,18 @@ namespace winrt::WinUI::LiquidGlass::implementation
     struct Type : Type##T<Type>, \
         detail::EnsureDependencyProperty<Type>, \
         detail::PointerLightHelper<Type>, \
+        detail::PointerMotionHelper<Type>, \
         detail::PressOpticsHelper<Type> \
+    { \
+        Type(); \
+        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+    };
+
+#define WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION(Type) \
+    struct Type : Type##T<Type>, \
+        detail::EnsureDependencyProperty<Type>, \
+        detail::PointerLightHelper<Type>, \
+        detail::FocusOpticsHelper<Type> \
     { \
         Type(); \
         WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
@@ -109,6 +115,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Media::CompositeTransform m_dragTransform{ nullptr };
         Windows::Foundation::Point m_lastPointer{};
+        detail::OpticsSnapshot m_dragOptics;
+        double m_dragMagnification{};
         uint32_t m_activePointerId{};
         bool m_dragging{};
     };
@@ -136,15 +144,17 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
+        detail::OpticsSnapshot m_dragOptics;
         bool m_interactionsWired{};
     };
 
-    WINUI_LIQUID_GLASS_PLAIN_DECLARATION(LiquidGlassTextBox)
+    WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION(LiquidGlassTextBox)
 
     struct LiquidGlassPasswordBox :
         LiquidGlassPasswordBoxT<LiquidGlassPasswordBox>,
         detail::EnsureDependencyProperty<LiquidGlassPasswordBox>,
-        detail::PointerLightHelper<LiquidGlassPasswordBox>
+        detail::PointerLightHelper<LiquidGlassPasswordBox>,
+        detail::FocusOpticsHelper<LiquidGlassPasswordBox>
     {
         LiquidGlassPasswordBox();
 
@@ -168,7 +178,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         Microsoft::UI::Xaml::Controls::PasswordBox m_passwordBox{ nullptr };
     };
 
-    WINUI_LIQUID_GLASS_PLAIN_DECLARATION(LiquidGlassComboBox)
+    WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION(LiquidGlassComboBox)
 
     struct LiquidGlassToggleSwitch :
         LiquidGlassToggleSwitchT<LiquidGlassToggleSwitch>,
@@ -197,11 +207,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Windows::Foundation::IInspectable m_header{ nullptr };
+        detail::OpticsSnapshot m_pressOptics;
         bool m_interactionsWired{};
     };
 
+#undef WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION
 #undef WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION
-#undef WINUI_LIQUID_GLASS_PLAIN_DECLARATION
 #undef WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION
 #undef WINUI_LIQUID_GLASS_STYLED_DECLARATION
 #undef WINUI_LIQUID_GLASS_COMMON_MEMBERS

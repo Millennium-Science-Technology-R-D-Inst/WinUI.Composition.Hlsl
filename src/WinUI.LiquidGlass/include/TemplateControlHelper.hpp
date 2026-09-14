@@ -39,14 +39,12 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
     };
 
+    // DefaultStyleKey is protected on Control. A sibling CRTP base cannot legally
+    // invoke it for every WinUI inheritance shape (notably ToggleButton-derived
+    // controls), so concrete implementation constructors set the key themselves.
     template<typename Self, bool UseXamlResource = true>
     struct TemplateControlHelper : XamlResourceHelper<Self, UseXamlResource>
     {
-        TemplateControlHelper()
-        {
-            using ProjectionType = typename Self::class_type;
-            static_cast<Self*>(this)->DefaultStyleKey(
-                winrt::box_value(winrt::xaml_typename<ProjectionType>()));
-        }
+        TemplateControlHelper() = default;
     };
 }
