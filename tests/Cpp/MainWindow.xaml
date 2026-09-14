@@ -34,14 +34,8 @@
             </Storyboard>
         </Grid.Resources>
 
-        <!-- Moving scene deliberately contains hard edges, text and saturated colors so blur,
-             refraction and RGB dispersion are easy to inspect instead of hiding behind a photo. -->
         <Grid Grid.ColumnSpan="2" Background="Transparent">
-            <Image
-                x:Name="BackgroundImage"
-                IsHitTestVisible="False"
-                Stretch="UniformToFill"
-                Visibility="Collapsed" />
+            <Image x:Name="BackgroundImage" IsHitTestVisible="False" Stretch="UniformToFill" Visibility="Collapsed" />
 
             <Canvas IsHitTestVisible="False">
                 <Ellipse x:Name="RedOrb" Canvas.Left="72" Canvas.Top="54" Width="170" Height="170" Fill="#FFE94B5F" Opacity="0.95">
@@ -63,15 +57,7 @@
 
             <ProgressRing Width="72" Height="72" Margin="0,36,44,0" HorizontalAlignment="Right" VerticalAlignment="Top" IsActive="True" IsHitTestVisible="False" />
 
-            <ScrollViewer
-                x:Name="CenterContentScroller"
-                Width="440"
-                Height="220"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Background="#D8FFFFFF"
-                HorizontalScrollBarVisibility="Disabled"
-                VerticalScrollBarVisibility="Auto">
+            <ScrollViewer x:Name="CenterContentScroller" Width="440" Height="220" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#D8FFFFFF" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="24" Spacing="10">
                     <TextBlock HorizontalAlignment="Center" FontSize="28" FontWeight="SemiBold" Foreground="#FF111318" Text="WinUI 3 custom effect" />
                     <TextBlock x:Name="EffectCaption" HorizontalAlignment="Center" FontSize="16" Foreground="#FF31353D" Text="Liquid glass material" />
@@ -91,7 +77,6 @@
             </StackPanel>
         </Grid>
 
-        <!-- Transparent host receives pointer input only through the draggable glass frame. -->
         <Canvas
             x:Name="BackdropHost"
             Grid.ColumnSpan="2"
@@ -116,8 +101,7 @@
                 PointerWheelChanged="OnBackdropFramePointerWheelChanged" />
         </Canvas>
 
-        <!-- Reusable control styles are intentionally demonstrated outside the draggable frame. -->
-        <Border
+        <ContentControl
             Grid.Column="1"
             Width="430"
             Margin="0,0,28,28"
@@ -134,15 +118,9 @@
                 </StackPanel>
                 <Slider Maximum="100" Minimum="0" Value="64" Style="{StaticResource LiquidGlassSliderStyle}" />
             </StackPanel>
-        </Border>
+        </ContentControl>
 
-        <Border
-            Grid.Column="0"
-            Margin="12"
-            Background="#C812151B"
-            BorderBrush="#40FFFFFF"
-            BorderThickness="1"
-            CornerRadius="16">
+        <Border Grid.Column="0" Margin="12" Background="#C812151B" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="16">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="18" Spacing="8">
                     <TextBlock FontSize="18" FontWeight="SemiBold" Text="Liquid Glass" />
@@ -188,12 +166,7 @@
                         <Slider x:Name="TintOpacitySlider" Maximum="0.4" Minimum="0" SmallChange="0.01" StepFrequency="0.01" ValueChanged="OnLiquidGlassParameterChanged" Value="0.08" />
                         <TextBlock Text="Saturation" />
                         <Slider x:Name="SaturationSlider" Maximum="3" Minimum="0" SmallChange="0.05" StepFrequency="0.05" ValueChanged="OnLiquidGlassParameterChanged" Value="1.25" />
-                        <ToggleSwitch
-                            x:Name="PointerLightingToggle"
-                            Margin="0,4,0,0"
-                            Header="Highlight follows pointer"
-                            IsOn="True"
-                            Toggled="OnPointerLightingToggled" />
+                        <ToggleSwitch x:Name="PointerLightingToggle" Margin="0,4,0,0" Header="Highlight follows pointer" IsOn="True" Toggled="OnPointerLightingToggled" />
                         <TextBlock Text="Manual light angle (radians)" />
                         <Slider x:Name="LightAngleSlider" Maximum="3.14159" Minimum="-3.14159" SmallChange="0.05" StepFrequency="0.05" ValueChanged="OnLiquidGlassParameterChanged" Value="-0.95" />
 
