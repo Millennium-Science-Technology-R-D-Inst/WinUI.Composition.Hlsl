@@ -2,55 +2,42 @@
 
 Wraps the native `CompositionEffectBrush` created for an `HlslEffect` schema.
 
-**Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v1.0.0  
-**Assembly:** `WinUI.Composition.Hlsl.dll`
-
 ## Properties
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `Brush` | `CompositionBrush` | General brush view for Composition/XAML bridging. |
-| `EffectBrush` | `CompositionEffectBrush` | Direct access to the native effect brush. |
-| `Properties` | `CompositionPropertySet` | Native property set used by Composition animations. |
+| Property | Description |
+| --- | --- |
+| `Brush` | General `CompositionBrush` view. |
+| `EffectBrush` | Direct `CompositionEffectBrush`. |
+| `Properties` | Underlying `CompositionPropertySet`. |
 
-## GetPropertyPath
-
-```csharp
-public string GetPropertyPath(string name);
-```
-
-Returns the native animatable path for a declared scalar property, for example `HlslEffect.RefractionStrength`. It validates the property name once when requested.
-
-## SetSource
+## Sources
 
 ```csharp
-public void SetSource(string name, CompositionBrush source);
+void SetSource(string name, CompositionBrush source);
 ```
 
-Assigns the effect's declared source. The source must belong to the same compositor.
+The source name must be declared by the effect and the brush must belong to the same `Compositor`. For ordered multi-source binding, `HlslComposition.CreateBrushWithSources` binds the provided collection to `SourceNames` in order.
 
-## SetFloat
+## Property paths and setters
 
-```csharp
-public void SetFloat(string name, float value);
-```
+`GetPropertyPath(name)` returns the native animatable path for any declared property. The setter must match the schema type:
 
-Convenience setter for low-frequency application updates. The wrapper checks declaration, finiteness, and the declared range before updating the underlying property set.
+- `SetFloat`
+- `SetVector2`
+- `SetVector3`
+- `SetVector4`
+- `SetMatrix3x2`
+- `SetMatrix4x4`
 
-For frame-rate animation, do not call `SetFloat` every frame. Start a Composition animation on `EffectBrush` using `GetPropertyPath`; updates then stay on the native Composition animation/constant-buffer path without an application callback per frame.
+`SetFloat` additionally enforces the finite/min/max contract of `HlslFloatProperty`. Typed `HlslProperty` vector/matrix values are validated by name and type before insertion into the Composition property set.
 
-The declared min/max range is enforced by `SetFloat`, not re-run by this wrapper for every native Composition animation sample. Keep keyframes/expressions inside the shader's valid operating range (or clamp inside the shader) when animating directly.
-
-## Example
+For high-frequency updates, prefer Composition animations on `EffectBrush` using `GetPropertyPath` rather than calling a wrapper setter every frame.
 
 ```cpp
-auto property = brush.GetPropertyPath(L"Strength");
-auto animation = compositor.CreateScalarKeyFrameAnimation();
-animation.InsertKeyFrame(1.0f, 24.0f);
-brush.EffectBrush().StartAnimation(property, animation);
+auto path = brush.GetPropertyPath(L"Offset");
+auto animation = compositor.CreateVector2KeyFrameAnimation();
+animation.InsertKeyFrame(1.0f, { 8.0f, 4.0f });
+brush.EffectBrush().StartAnimation(path, animation);
 ```
 
-## Exceptions
-
-`ArgumentException` is thrown for undeclared source/property names, cross-compositor sources, non-finite values, and values outside the declared scalar range when using `SetFloat`.
+Invalid property/source names, type mismatches, null/cross-compositor sources, and invalid scalar values fail with `ArgumentException`/`E_INVALIDARG`.

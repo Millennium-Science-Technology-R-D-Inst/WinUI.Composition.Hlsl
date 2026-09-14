@@ -19,9 +19,7 @@ function Resolve-Fxc {
     }
 
     $command = Get-Command fxc.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($command) {
-        return $command.Source
-    }
+    if ($command) { return $command.Source }
 
     $kitsRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
     if (!(Test-Path $kitsRoot)) {
@@ -31,16 +29,12 @@ function Resolve-Fxc {
     $versions = Get-ChildItem $kitsRoot -Directory |
         Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
         Sort-Object { [version]$_.Name } -Descending
-
     foreach ($version in $versions) {
         foreach ($hostArch in @('x64', 'x86', 'arm64')) {
             $candidate = Join-Path $version.FullName "$hostArch\fxc.exe"
-            if (Test-Path $candidate) {
-                return $candidate
-            }
+            if (Test-Path $candidate) { return $candidate }
         }
     }
-
     throw 'Windows SDK FXC was not found. Install a Windows 10/11 SDK or set HLSL_FXC_PATH.'
 }
 
@@ -74,12 +68,8 @@ function Get-ProfileValue([string]$ShaderProfile) {
 function Get-SafeIdentifier([string]$Name) {
     if (!$Name) { return '' }
     $safe = [Text.RegularExpressions.Regex]::Replace($Name, '[^A-Za-z0-9_]', '_')
-    if ($safe -notmatch '^[A-Za-z_]') {
-        $safe = "_$safe"
-    }
-    if ($safe -ne $Name) {
-        Write-Host "Sanitized generated HLSL header variable '$Name' -> '$safe'."
-    }
+    if ($safe -notmatch '^[A-Za-z_]') { $safe = "_$safe" }
+    if ($safe -ne $Name) { Write-Host "Sanitized generated HLSL header variable '$Name' -> '$safe'." }
     return $safe
 }
 
@@ -89,11 +79,9 @@ function Make-GeneratedHeaderSelfContained([string]$Path) {
         $text,
         '(?m)^(\s*)const\s+BYTE\s+([A-Za-z_][A-Za-z0-9_]*)\s*\[\]\s*=',
         '$1const unsigned char $2[] =')
-
     if ($normalized -eq $text) {
         throw "FXC generated header '$Path' did not contain the expected const BYTE shader array declaration."
     }
-
     [IO.File]::WriteAllText($Path, $normalized, [Text.UTF8Encoding]::new($false))
 }
 
@@ -111,14 +99,15 @@ function Write-PreparedShader(
     $builder = [Text.StringBuilder]::new()
     if ($ResolvedKind -ne 'Color') {
         for ($inputIndex = 0; $inputIndex -lt $ResolvedSourceCount; ++$inputIndex) {
-            [void]$builder.AppendLine("Texture2D texture$inputIndex; SamplerState sampler$inputIndex;")
+            # Source i owns t[i]/s[i]. Keep this exactly aligned with the runtime
+            # ShaderSource generator so precompiled and runtime DXBC have one ABI.
+            [void]$builder.AppendLine("Texture2D texture$inputIndex : register(t$inputIndex); SamplerState sampler$inputIndex : register(s$inputIndex);")
         }
     }
+
     [void]$builder.AppendLine("#line 1 `"$DisplayPath`"")
     [void]$builder.Append($UserSource)
-    if (!$UserSource.EndsWith("`n")) {
-        [void]$builder.AppendLine()
-    }
+    if (!$UserSource.EndsWith("`n")) { [void]$builder.AppendLine() }
 
     if ($ResolvedKind -eq 'MaterializedSampler' -or $ResolvedKind -eq 'Sampler') {
         $includeContentRect = $ResolvedKind -eq 'MaterializedSampler'
@@ -161,8 +150,6 @@ function Write-PreparedShader(
         [void]$builder.AppendLine("export float4 PSBody($parameterList){return Shade($argumentList);}")
     }
     else {
-        # Preserve the original single-source Color contract: callers implement
-        # PSBody(float4 color) directly. This wrapper only makes FXC validate it.
         [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Generated.hlsl"')
         [void]$builder.AppendLine('export float4 __WinUICompositionHlslValidateColor(float4 color){return PSBody(color);}')
     }
@@ -171,7 +158,6 @@ function Write-PreparedShader(
     $profileValue = Get-ProfileValue $ShaderProfile
     [void]$builder.AppendLine('#line 1 "WinUI.Composition.Hlsl.Metadata.hlsl"')
     [void]$builder.AppendLine("export float4 __WinUICompositionHlsl_Metadata_K${kindValue}_P${profileValue}_S${ResolvedSourceCount}(float4 value){return value;}")
-
     [IO.File]::WriteAllText($PreparedPath, $builder.ToString(), [Text.UTF8Encoding]::new($false))
 }
 
@@ -181,19 +167,13 @@ if ($Kind -eq 'MaterializedSampler' -and $SourceCount -ne 1) {
 
 $inputFull = [IO.Path]::GetFullPath($InputPath)
 $outputFull = [IO.Path]::GetFullPath($OutputPath)
-if (!(Test-Path $inputFull)) {
-    throw "HLSL input '$inputFull' does not exist."
-}
-
+if (!(Test-Path $inputFull)) { throw "HLSL input '$inputFull' does not exist." }
 $bytes = [IO.File]::ReadAllBytes($inputFull)
 if ($bytes.Length -eq 0 -or $bytes.Length -gt 1MB) {
     throw "HLSL source must be non-empty and no larger than 1 MiB: '$inputFull'."
 }
-
 $source = [IO.File]::ReadAllText($inputFull)
-if ($source.IndexOf([char]0) -ge 0) {
-    throw "HLSL source contains an embedded NUL: '$inputFull'."
-}
+if ($source.IndexOf([char]0) -ge 0) { throw "HLSL source contains an embedded NUL: '$inputFull'." }
 
 $outputDirectory = [IO.Path]::GetDirectoryName($outputFull)
 [IO.Directory]::CreateDirectory($outputDirectory) | Out-Null
@@ -202,15 +182,7 @@ $prepared = [IO.Path]::Combine($outputDirectory, $outputBaseName + '.prepared.hl
 $displayPath = $inputFull.Replace('\', '/')
 $fxc = Resolve-Fxc
 
-$commonArguments = @(
-    '/nologo',
-    '/Ges',
-    '/O3',
-    '/WX',
-    '/T', (Get-Target $Profile),
-    '/I', [IO.Path]::GetDirectoryName($inputFull)
-)
-
+$commonArguments = @('/nologo', '/Ges', '/O3', '/WX', '/T', (Get-Target $Profile), '/I', [IO.Path]::GetDirectoryName($inputFull))
 if ($IncludeDirectories) {
     foreach ($directory in $IncludeDirectories.Split(';', [StringSplitOptions]::RemoveEmptyEntries)) {
         $trimmed = $directory.Trim()
@@ -222,7 +194,6 @@ if ($IncludeDirectories) {
         $commonArguments += @('/I', $resolvedDirectory)
     }
 }
-
 if ($Defines) {
     foreach ($definition in $Defines.Split(';', [StringSplitOptions]::RemoveEmptyEntries)) {
         $trimmed = $definition.Trim()
@@ -239,25 +210,13 @@ if ($Defines) {
 $resolvedKind = $Kind
 if ($Kind -eq 'Auto') {
     $matches = @()
-    $candidates = if ($SourceCount -eq 1) {
-        @('Color', 'Sampler', 'MaterializedSampler')
-    }
-    else {
-        @('Color', 'Sampler')
-    }
+    $candidates = if ($SourceCount -eq 1) { @('Color', 'Sampler', 'MaterializedSampler') } else { @('Color', 'Sampler') }
     foreach ($candidate in $candidates) {
         $probePrepared = [IO.Path]::Combine($outputDirectory, "$outputBaseName.probe.$candidate.hlsl")
         $probeOutput = [IO.Path]::Combine($outputDirectory, "$outputBaseName.probe.$candidate.dxbc")
         try {
             Write-PreparedShader $candidate $probePrepared $displayPath $source $Profile $SourceCount
             $probeArguments = $commonArguments + @('/Fo', $probeOutput, $probePrepared)
-
-            # A failed probe means only that this public contract does not match the
-            # user's source. Windows PowerShell 5.1 turns native stderr into a
-            # NativeCommandError when ErrorActionPreference=Stop, so temporarily
-            # suppress native probe diagnostics and judge the candidate solely by
-            # FXC's exit code. The final selected compile still runs under Stop and
-            # reports its diagnostics normally.
             $probeExitCode = 1
             $previousErrorActionPreference = $ErrorActionPreference
             try {
@@ -265,22 +224,16 @@ if ($Kind -eq 'Auto') {
                 & $fxc @probeArguments *> $null
                 $probeExitCode = $LASTEXITCODE
             }
-            finally {
-                $ErrorActionPreference = $previousErrorActionPreference
-            }
-
-            if ($probeExitCode -eq 0) {
-                $matches += $candidate
-            }
+            finally { $ErrorActionPreference = $previousErrorActionPreference }
+            if ($probeExitCode -eq 0) { $matches += $candidate }
         }
         finally {
             Remove-Item $probePrepared -Force -ErrorAction SilentlyContinue
             Remove-Item $probeOutput -Force -ErrorAction SilentlyContinue
         }
     }
-
     if ($matches.Count -eq 0) {
-        throw "Could not infer the Composition HLSL kind for '$inputFull' with SourceCount=$SourceCount. The shader must match exactly one supported Color or Sampler contract (plus MaterializedSampler for one source), or set <Kind> explicitly."
+        throw "Could not infer the Composition HLSL kind for '$inputFull' with SourceCount=$SourceCount. Set <Kind> explicitly if needed."
     }
     if ($matches.Count -ne 1) {
         throw "The Composition HLSL kind for '$inputFull' is ambiguous ($($matches -join ', ')). Set <Kind> explicitly."
@@ -291,25 +244,16 @@ if ($Kind -eq 'Auto') {
 
 Write-PreparedShader $resolvedKind $prepared $displayPath $source $Profile $SourceCount
 $arguments = $commonArguments + @('/Fo', $outputFull)
-
 $headerFull = ''
 if ($HeaderPath) {
     $headerFull = [IO.Path]::GetFullPath($HeaderPath)
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($headerFull)) | Out-Null
     $arguments += @('/Fh', $headerFull)
-    if ($VariableName) {
-        $arguments += @('/Vn', (Get-SafeIdentifier $VariableName))
-    }
+    if ($VariableName) { $arguments += @('/Vn', (Get-SafeIdentifier $VariableName)) }
 }
 $arguments += $prepared
 
 & $fxc @arguments
-if ($LASTEXITCODE -ne 0) {
-    throw "FXC failed for '$inputFull' with exit code $LASTEXITCODE."
-}
-
-if ($headerFull) {
-    Make-GeneratedHeaderSelfContained $headerFull
-}
-
+if ($LASTEXITCODE -ne 0) { throw "FXC failed for '$inputFull' with exit code $LASTEXITCODE." }
+if ($headerFull) { Make-GeneratedHeaderSelfContained $headerFull }
 Write-Host "Compiled Composition HLSL: $inputFull -> $outputFull ($resolvedKind/$Profile, SourceCount=$SourceCount)"

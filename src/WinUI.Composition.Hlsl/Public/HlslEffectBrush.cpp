@@ -1,4 +1,4 @@
-﻿#include "HlslEffectBrush.h"
+#include "HlslEffectBrush.h"
 #include "HlslEffectBrush.g.cpp"
 
 namespace winrt::WinUI::Composition::Hlsl::implementation
@@ -8,24 +8,20 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		for (auto const& property : m_definition->properties)
 		{
 			if (name == property.name)
-			{
 				return hstring{ m_definition->effectName + L"." + property.name };
-			}
 		}
-		throw hresult_invalid_argument(L"The float property is not declared by this effect.");
+		throw hresult_invalid_argument(L"The property is not declared by this effect.");
 	}
 
 	void HlslEffectBrush::SetSource(hstring const& name, Microsoft::UI::Composition::CompositionBrush const& source)
 	{
 		auto valid = name == m_definition->sourceName ||
-			std::ranges::any_of(m_definition->sourceNames, [&](auto const& value)
-								{
-									return name == value;
-								});
+			std::ranges::any_of(m_definition->sourceNames, [&](auto const& value) { return name == value; });
 		if (!valid || !source) throw hresult_invalid_argument(L"The source name is not declared by this effect.");
 		if (source.Compositor() != m_brush.Compositor()) throw hresult_invalid_argument(L"The source belongs to another compositor.");
 		m_brush.SetSourceParameter(name, source);
 	}
+
 	void HlslEffectBrush::SetFloat(hstring const& name, float value)
 	{
 		for (auto const& property : m_definition->properties)
@@ -40,7 +36,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				return;
 			}
 		}
-		throw hresult_invalid_argument(L"The float property is not declared by this effect.");
+		throw hresult_invalid_argument(L"The scalar property is not declared by this effect.");
 	}
 
 	namespace

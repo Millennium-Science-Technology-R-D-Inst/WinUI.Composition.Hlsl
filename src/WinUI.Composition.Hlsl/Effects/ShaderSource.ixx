@@ -1,4 +1,4 @@
-﻿module;
+module;
 
 export module WinUI.Composition.Hlsl.ShaderSource;
 
@@ -16,11 +16,6 @@ export namespace hlsl::compiler
 		std::uint32_t shaderProfile,
 		std::uint32_t sourceCount)
 	{
-		// Keep build-time and runtime-compiled libraries self-describing without
-		// introducing a second sidecar asset. The marker is an unused exported HLSL
-		// function; Composition links the PSBody* exports it needs and ignores this
-		// reserved library export. HlslShaderLibrary reflects the marker when the
-		// caller wants to reconstruct Kind/Profile/SourceCount from embedded bytecode.
 		code += "\n#line 1 \"WinUI.Composition.Hlsl.Metadata.hlsl\"\nexport float4 __WinUICompositionHlsl_Metadata_K";
 		code += std::to_string(effectKind);
 		code += "_P";
@@ -41,12 +36,20 @@ export namespace hlsl::compiler
 		code.reserve(declarations.size() + userShader.size() + (sampler ? 4096u : 512u));
 		if (sampler)
 		{
+			// Pin the logical source index to an explicit D3D resource slot. This keeps
+			// the runtime and MSBuild compilers deterministic and makes source i map to
+			// texture register t[i] and sampler register s[i].
 			for (size_t input = 0; input < sourceCount; ++input)
-				code += "Texture2D texture" + std::to_string(input) + "; SamplerState sampler" + std::to_string(input) + ";\n";
+			{
+				auto const index = std::to_string(input);
+				code += "Texture2D texture" + index + " : register(t" + index + "); ";
+				code += "SamplerState sampler" + index + " : register(s" + index + ");\n";
+			}
 		}
 		code.append(declarations);
 		code += "#line 1 \"UserShader.hlsl\"\n";
 		code.append(userShader);
+
 		auto samplerParameters = [&](bool includeContentRect)
 			{
 				std::string parameters, arguments;
@@ -54,7 +57,8 @@ export namespace hlsl::compiler
 				{
 					if (input)
 					{
-						parameters += ","; arguments += ",";
+						parameters += ",";
+						arguments += ",";
 					}
 					auto suffix = sourceCount == 1 ? std::string{} : std::to_string(input);
 					parameters += "float2 uv" + suffix + ",float4 samplerDataExt" + suffix;
@@ -67,6 +71,7 @@ export namespace hlsl::compiler
 				}
 				return std::pair{ std::move(parameters),std::move(arguments) };
 			};
+
 		if (materializedSampler)
 		{
 			auto const [parameters, arguments] = samplerParameters(true);
@@ -95,7 +100,8 @@ export namespace hlsl::compiler
 			{
 				if (input)
 				{
-					parameters += ","; arguments += ",";
+					parameters += ",";
+					arguments += ",";
 				}
 				parameters += "float4 color" + std::to_string(input);
 				arguments += "color" + std::to_string(input);

@@ -1,177 +1,69 @@
 # HlslCompiler class
 
-Compiles public HLSL contracts to Composition-compatible FXC SM4 shader-linking DXBC without creating Composition/XAML objects.
+`HlslCompiler` compiles application HLSL into an immutable `HlslShaderLibrary` on a background thread. It emits the same Composition wrappers/resource bindings/self-description metadata as the MSBuild `<HlslCompositionShader>` pipeline.
 
-**Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v1.0.0
-
-## CompileAsync
-
-```csharp
-public static IAsyncOperation<HlslShaderLibrary> CompileAsync(
-    string shader,
-    HlslEffectKind kind,
-    HlslShaderProfile profile);
-```
-
-The method copies and validates the request on entry, resumes on a background thread, generates the same ABI wrappers used by the build target, and invokes `D3DCompile`. The returned `HlslShaderLibrary` owns the resulting DXBC.
-
-`kind` may be `HlslEffectKind.Auto`. In that mode the compiler probes `Color`, `Sampler`, and `MaterializedSampler` by compiling/reflection-validating each concrete wrapper contract. Exactly one contract must match. The returned library always stores the resolved concrete `EffectKind`; `Auto` is never written into generated DXBC metadata and is never passed to the Composition runtime.
+## Basic compilation
 
 ```csharp
 var library = await HlslCompiler.CompileAsync(
     shader,
     HlslEffectKind.Auto,
     HlslShaderProfile.Pixel40);
-
-var resolvedKind = library.EffectKind;
-var sourceCount = library.SourceCount; // 1 for this overload
 ```
 
-Use an explicit kind when one source intentionally contains entry points matching more than one public contract.
+`Auto` probes the supported public contracts and requires exactly one match. For one source it can resolve `Color`, `Sampler`, or `MaterializedSampler`; for more than one source it resolves linked `Color` or `Sampler`.
 
 ## Multi-source compilation
 
-The `CompileAdvanced*` overloads compile linked-color graphs with 1-16 logical sources:
-
 ```csharp
-public static IAsyncOperation<HlslShaderLibrary> CompileAdvancedAsync(
-    string shader,
-    HlslEffectKind kind,
-    HlslShaderProfile profile,
-    uint sourceCount);
-
-public static IAsyncOperation<HlslShaderLibrary> CompileAdvancedWithDefinesAsync(
-    string shader,
-    HlslEffectKind kind,
-    HlslShaderProfile profile,
-    uint sourceCount,
-    IReadOnlyList<string> definitions);
-
-public static IAsyncOperation<HlslShaderLibrary> CompileAdvancedWithPropertiesAsync(
-    string shader,
-    HlslEffectKind kind,
-    HlslShaderProfile profile,
-    uint sourceCount,
-    IReadOnlyList<HlslFloatProperty> properties);
-
-public static IAsyncOperation<HlslShaderLibrary> CompileAdvancedWithPropertiesAndDefinesAsync(
-    string shader,
-    HlslEffectKind kind,
-    HlslShaderProfile profile,
-    uint sourceCount,
-    IReadOnlyList<HlslFloatProperty> properties,
-    IReadOnlyList<string> definitions);
-```
-
-For multi-source `Color`, the user implements `Shade` with one `float4` per source. For multi-source `Sampler`, each source contributes an `(uv, samplerDataExt)` pair and the compiler declares `texture0/sampler0`, `texture1/sampler1`, and so on.
-
-```hlsl
-float4 Shade(float4 color0, float4 color1)
-{
-    return lerp(color0, color1, 0.5f);
-}
-```
-
-```hlsl
-float4 Shade(
-    float2 uv0, float4 samplerDataExt0,
-    float2 uv1, float4 samplerDataExt1)
-{
-    float4 a = texture0.Sample(sampler0, uv0);
-    float4 b = texture1.Sample(sampler1, uv1);
-    return lerp(a, b, 0.5f);
-}
-```
-
-`MaterializedSampler` remains intentionally restricted to exactly one source. Its private materialization lowering currently models one source surface; requesting multiple materialized sources fails before DXBC is accepted or a Composition graph is created.
-
-`Auto` is supported for multi-source compilation. With `sourceCount > 1`, it probes the supported `Color` and `Sampler` contracts and does not probe `MaterializedSampler`.
-
-## CompileWithPropertiesAsync
-
-```csharp
-public static IAsyncOperation<HlslShaderLibrary> CompileWithPropertiesAsync(
-    string shader,
-    HlslEffectKind kind,
-    HlslShaderProfile profile,
-    IReadOnlyList<HlslFloatProperty> properties);
-```
-
-Adds `UserConstants` declarations matching the public scalar-property ABI before compilation. `Auto` is supported here as well; property declarations are identical for each candidate and contract selection is based on the shader entry-point shape.
-
-## Runtime macro variants
-
-Runtime-generated shaders can compile a bounded set of preprocessor definitions without turning the API into a general D3D compiler wrapper:
-
-```csharp
-public static IAsyncOperation<HlslShaderLibrary> CompileWithDefinesAsync(
-    string shader,
-    HlslEffectKind kind,
-    HlslShaderProfile profile,
-    IReadOnlyList<string> definitions);
-
-public static IAsyncOperation<HlslShaderLibrary> CompileWithPropertiesAndDefinesAsync(
-    string shader,
-    HlslEffectKind kind,
-    HlslShaderProfile profile,
-    IReadOnlyList<HlslFloatProperty> properties,
-    IReadOnlyList<string> definitions);
-```
-
-Each definition is `NAME` or `NAME=VALUE`. Names must be unique ASCII HLSL identifiers. The runtime accepts at most 64 definitions; individual values are bounded to keep generated requests predictable. A definition without `=` is passed to FXC as `NAME=1`.
-
-Example:
-
-```csharp
-var library = await HlslCompiler.CompileWithDefinesAsync(
+var library = await HlslCompiler.CompileAdvancedAsync(
     shader,
     HlslEffectKind.Auto,
     HlslShaderProfile.Pixel40,
-    new[] { "QUALITY=2", "ENABLE_DISPERSION" });
+    sourceCount: 2);
 ```
 
-The async compiler intentionally does not provide a runtime file-include resolver. Production source with `.hlsli` dependencies should use `<HlslCompositionShader>` so MSBuild can track those files and fail the build when a dependency changes or cannot be compiled.
+`sourceCount` must be 1-16. `MaterializedSampler` remains exactly one source.
 
-## Shader contracts
+For a sampler, generated resources are explicitly bound:
 
-| Kind | One source | Multiple sources |
-| --- | --- | --- |
-| `Color` | `float4 PSBody(float4 color)` | `float4 Shade(float4 color0, ..., float4 colorN)` |
-| `Sampler` | `float4 Shade(float2 uv, float4 samplerDataExt)` | `Shade(uv0, samplerDataExt0, ..., uvN, samplerDataExtN)` |
-| `MaterializedSampler` | `float4 Shade(float2 uv, float4 samplerDataExt, float4 samplerData)` | Not supported |
-| `Auto` | Exactly one supported contract | Exactly one supported `Color` or `Sampler` contract |
-
-Sampler edge-mode exports and the materialized identity helper are generated by the library. Applications should not hand-maintain those private wrapper names.
-
-## Build-time default
-
-`<HlslCompositionShader>` defaults to `Kind=Auto`, `Profile=Pixel40`, and `SourceCount=1`, so the common production declaration can be as small as:
-
-```xml
-<HlslCompositionShader Include="Effects\Glass.hlsl" />
+```text
+source 0 -> texture0 : t0, sampler0 : s0
+source 1 -> texture1 : t1, sampler1 : s1
+...
 ```
 
-For a two-source shader:
+This mapping is identical to the build-time compiler and is documented in [resource-binding-contract.md](../design/resource-binding-contract.md).
 
-```xml
-<HlslCompositionShader Include="Effects\Blend.hlsl">
-  <SourceCount>2</SourceCount>
-</HlslCompositionShader>
+## Typed properties
+
+Use the typed overloads when the shader uses `HlslProperty` descriptors:
+
+```csharp
+var library = await HlslCompiler.CompileAdvancedWithTypedPropertiesAsync(
+    shader,
+    HlslEffectKind.Sampler,
+    HlslShaderProfile.Pixel40,
+    sourceCount: 2,
+    properties);
 ```
 
-The build target uses isolated FXC probes to resolve the contract, then performs the normal final optimized compilation and embeds the resolved concrete kind, profile, and source count in the generated library. If inference is ambiguous, set `<Kind>` explicitly.
+Available property types are Scalar, Vector2/3/4, Matrix3x2, and Matrix4x4. The compiler injects the `UserConstants : register(b0)` representation using the same layout implementation used by native effect construction, then reflects the compiled library to ensure the actual constant-buffer layout matches the schema.
 
-## Compiler policy
+There are matching `...AndDefinesAsync` overloads. Defines use `NAME` or `NAME=VALUE`; the compiler accepts at most 64 definitions.
 
-The runtime compiler uses FXC strictness, optimization level 3, and warnings-as-errors. The goal is deterministic application shader libraries, not compatibility with arbitrary legacy D3D compiler command lines.
+## Profiles
 
-For source known during application build, the NuGet `<HlslCompositionShader>` target remains the preferred path. It supports tracked `.hlsli` dependencies, per-shader `Defines`, generated native headers, deployable DXBC assets, multi-source contracts, and moves shader failures into MSBuild.
+| API profile | FXC target |
+| --- | --- |
+| `Level91` | `lib_4_0_level_9_1_ps_only` |
+| `Level93` | `lib_4_0_level_9_3_ps_only` |
+| `Pixel40` | `lib_4_0` |
 
-## Threading and performance
+These are shader-linking library targets, not standalone `ps_*` stage shaders.
 
-The asynchronous compiler performs CPU/FXC work only. It does not create a `Compositor`, XAML object, brush, native effect factory, or install the private Composition adapter from the background thread.
+## Production guidance
 
-Explicit requests perform one compilation. `Auto` deliberately probes each supported contract before returning, so use a concrete kind when runtime compilation latency is critical and the application already knows the contract.
+Prefer `<HlslCompositionShader>` for source known at build time because syntax/contract failures then fail MSBuild and native C++ can embed the resulting `.g.h`. Use `HlslCompiler` for genuinely runtime-generated/development source and cache `HlslShaderLibrary.Bytecode` when appropriate.
 
-`CompileAsync` and its variants are intended for runtime-generated shaders, tooling, development, and cache warm-up. Persist the returned [HlslShaderLibrary.Bytecode](hlsl-shader-library.md) when a dynamically generated variant should be reused on later runs.
+The compiler does not create a `Compositor`, brush, or effect factory and does not install the private Composition adapter during background compilation.

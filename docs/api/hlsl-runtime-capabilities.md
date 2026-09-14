@@ -2,9 +2,6 @@
 
 Describes the packaged native Composition adapter without activating it.
 
-**Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v1.0.0
-
 Retrieve it with `HlslComposition.GetRuntimeCapabilities()`.
 
 ## Properties
@@ -12,31 +9,27 @@ Retrieve it with `HlslComposition.GetRuntimeCapabilities()`.
 | Property | Meaning |
 | --- | --- |
 | `Architecture` | `X86`, `X64`, `Arm64`, or `Unknown`. |
-| `SupportLevel` | `Validated`, `Experimental`, or `Unsupported`. This qualifies the confidence of the architecture/runtime claim. |
-| `NativeAdapterAvailable` | This package contains an architecture-specific private adapter. |
+| `SupportLevel` | `Validated`, `Experimental`, or `Unsupported`. |
+| `NativeAdapterAvailable` | An architecture-specific private adapter is present. |
 | `SupportsCompositionGraphNodes` | Custom HLSL can participate as a Windows Graphics Effects/Composition node. |
-| `SupportsMaterializedGraphs` | The currently supported single-materialized-source lowering is available on this architecture. |
-| `SupportsLinkedMultiSource` | Linked `Color`/`Sampler` effects can expose multiple independently bound public sources. |
+| `SupportsMaterializedGraphs` | The supported single-materialized-source lowering is available. |
+| `SupportsLinkedMultiSource` | Linked `Color`/`Sampler` can expose multiple independently bound sources. |
 | `SupportsMaterializedMultiSource` | Multiple independently materialized texture inputs are a supported public contract. |
-| `SupportsMultipleCustomNodes` | More than one custom HLSL node in the same effect graph is a supported public contract. |
-| `SupportsNativeNodesAfterCustom` | Native Composition effects after a custom HLSL pass are a supported public contract. |
-| `SupportsVectorProperties` | `Vector2`/`Vector3`/`Vector4` typed animated properties are implemented. |
-| `SupportsMatrixProperties` | `Matrix3x2`/`Matrix4x4` typed animated properties are implemented. |
-| `SupportsAsyncCompilation` | CPU/FXC asynchronous compilation is available. |
+| `SupportsMultipleCustomNodes` | More than one custom HLSL node in one lowered graph is a supported public contract. |
+| `SupportsNativeNodesAfterCustom` | Native effects after a custom materialized pass are a supported public contract. |
+| `SupportsVectorProperties` | `Vector2/3/4` typed properties are implemented. |
+| `SupportsMatrixProperties` | `Matrix3x2/4x4` typed properties are implemented. |
+| `SupportsAsyncCompilation` | Background CPU/FXC compilation is available. |
 | `UsesPrivateCompositionAbi` | Custom effect execution relies on private Composition internals. |
 
-Capability booleans describe the public contract currently exposed by the library. Internal prototypes do not become `true` merely because the runtime contains exploratory lowering code. `SupportLevel` still qualifies how broadly that contract has been validated on the current architecture.
+Capability retrieval is side-effect free: it does not scan `wuceffectsi.dll`, patch code/IAT entries, or create an effect factory. Actual private-ABI resolution remains lazy and fail-closed.
 
-## Current baseline
+## Current matrix
 
-| Architecture | Support | Graph nodes | Linked multi-source | Single materialized graph | Materialized multi-source | Multiple custom nodes | Native after custom | Vector / matrix properties |
+| Architecture | Support | Released WASDK runtime-tested | Linked multi-source | Single materialized | Materialized multi-source | Multiple custom | Native after custom | Vector / matrix properties |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| x64 | Validated baseline | Yes | Yes | Yes | No | No | No | Yes / Yes |
-| x86 | Experimental | Yes | Yes | No capability claim yet | No | No | No | Yes / Yes |
-| ARM64 | Experimental | Yes | Yes | No capability claim yet | No | No | No | Yes / Yes |
+| x64 | Validated | 1.6-2.4 | Yes | Yes | No | No | No | Yes / Yes |
+| x86 | Validated | 1.6-2.4 | Yes | Yes | No | No | No | Yes / Yes |
+| ARM64 | Experimental | no real-device validation claim | Yes | No public claim | No | No | No | Yes / Yes |
 
-The `SupportsMultipleCustomNodes` and `SupportsNativeNodesAfterCustom` flags intentionally remain `false` while the existing multi-pass lowering remains an internal prototype. Likewise, `SupportsMaterializedMultiSource` stays `false` until each materialized input has an independently validated materialization boundary, sampler-data mapping, edge-mode mapping, and runtime test.
-
-Capability retrieval is intentionally side-effect free: it does not scan `wuceffectsi.dll`, patch code/import tables, or create an effect factory. Actual private-ABI resolution remains lazy and fail-closed when an effect is materialized.
-
-Treat `SupportLevel` as the library's tested support claim, not as proof that every future Windows App SDK build is binary-compatible with the private ABI.
+`Validated` is an empirical tested-release claim, not a guarantee that a future Windows App SDK build preserves the private ABI. The feature-specific booleans describe the public contract; internal graph-lowering prototypes do not become public merely because code exists for them.

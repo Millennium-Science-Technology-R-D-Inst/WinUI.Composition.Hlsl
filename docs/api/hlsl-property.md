@@ -1,15 +1,6 @@
 # HlslProperty class
 
-Describes a property used by the advanced HLSL effect surface.
-
-**Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v1.0.0
-
-```csharp
-public sealed class HlslProperty
-```
-
-## Constructor
+Describes a typed property used by the advanced HLSL effect surface.
 
 ```csharp
 public HlslProperty(
@@ -18,22 +9,42 @@ public HlslProperty(
     IReadOnlyList<float> defaultValue);
 ```
 
-The current validated private Composition property-updater ABI supports **scalar properties only**. Therefore `type` must currently be `HlslPropertyType.Scalar`, with exactly one finite default value.
+## Supported types
 
-`Vector2`, `Vector3`, `Vector4`, `Matrix3x2`, and `Matrix4x4` remain reserved in the public enum for ABI evolution, but construction now fails closed for those values until their private native metadata, property-value representation, constant-buffer layout, and animation update path are validated end to end. The presence of the enum values and corresponding brush setter projections is not a support claim.
+| Type | Required default components | Native expression type |
+| --- | ---: | ---: |
+| `Scalar` | 1 | 18 |
+| `Vector2` | 2 | 35 |
+| `Vector3` | 3 | 52 |
+| `Vector4` | 4 | 69 |
+| `Matrix3x2` | 6 | 104 |
+| `Matrix4x4` | 16 | 265 |
 
-For ordinary scalar properties, prefer [HlslFloatProperty](hlsl-float-property.md) unless the advanced source/multi-source API is required.
+Names must be valid unique HLSL identifiers and every default component must be finite. `Scalar` can also be expressed through the older `HlslFloatProperty` API when min/max range metadata is useful.
 
-## Properties
+## Layout contract
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `Name` | `String` | Public Composition property name. |
-| `Type` | `HlslPropertyType` | Property type. Currently only `Scalar` can be constructed. |
-| `DefaultValue` | `IVectorView<Single>` | Immutable default-value components. |
+The private Composition property updater copies `valueCount * sizeof(float)` bytes from the native property blob to the mapped constant-buffer offset. The library therefore computes the native property layout and shader constant-buffer layout from the same schema.
 
-## Why non-scalar values fail closed
+Vectors use normal aligned float/vector storage. Matrices are intentionally represented in generated HLSL by packed float-vector backing constants and reconstructed into a logical `float3x2`/`float4x4`. This avoids relying on HLSL's implicit 16-byte matrix row/column stride while the private updater performs a contiguous byte copy.
 
-The library maps public WinRT effect properties into private `wuceffectsi`/Composition constant-buffer updater metadata. A correct HLSL cbuffer layout alone is not sufficient: the private expression/property metadata and DWM-side update callable must also agree with the projected value type. Those contracts have been verified for scalar `float` values only.
+For precompiled advanced effects, `CreateCompiledAdvanced` validates the actual reflected `UserConstants : register(b0)` layout against the complete property schema before the DXBC can enter the private Composition backend. Runtime typed compilation uses the same declaration/layout implementation.
 
-Until the remaining types are verified against the native runtime, accepting them would create an API that appears functional at compile time but can corrupt or misroute runtime property updates. The implementation therefore rejects them explicitly rather than guessing.
+## Updating properties
+
+`HlslEffectBrush` provides matching setters:
+
+```cpp
+brush.SetFloat(L"Strength", 0.8f);
+brush.SetVector2(L"Offset", { 2.0f, 4.0f });
+brush.SetVector3(L"Gain", { 1.0f, 0.9f, 0.8f });
+brush.SetVector4(L"Tint", { 1.0f, 0.9f, 0.8f, 1.0f });
+brush.SetMatrix3x2(L"Transform", transform);
+brush.SetMatrix4x4(L"Projection", projection);
+```
+
+The setter must match the declared `HlslPropertyType`. `GetPropertyPath` returns the native animatable Composition property path, so applications can attach the corresponding scalar/vector/matrix Composition animation instead of updating through application code every frame.
+
+## Validation boundary
+
+The type/layout path is implemented for C++/WinRT and C#, and generated/precompiled constant buffers are reflection-checked. Because execution still crosses a private Composition ABI, applications targeting unvalidated architecture/runtime combinations should use `HlslComposition.GetRuntimeCapabilities()` and retain a fallback.
