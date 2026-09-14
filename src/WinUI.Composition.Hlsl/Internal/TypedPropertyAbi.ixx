@@ -8,7 +8,7 @@ import std;
 import winrt_base;
 import WinUI.Composition.Hlsl.EffectDef;
 
-export namespace hlsl::propertyabi
+namespace hlsl::propertyabi
 {
 	namespace
 	{
@@ -53,7 +53,7 @@ export namespace hlsl::propertyabi
 		}
 	}
 
-	std::string BuildDeclarations(std::span<hlsl::engine::Property const> properties)
+	export std::string BuildDeclarations(std::span<hlsl::engine::Property const> properties)
 	{
 		if (properties.empty()) return {};
 
@@ -158,7 +158,7 @@ export namespace hlsl::propertyabi
 		}
 	}
 
-	void ValidateLibrary(
+	export void ValidateLibrary(
 		std::span<std::uint8_t const> bytecode,
 		std::span<hlsl::engine::Property const> properties)
 	{
