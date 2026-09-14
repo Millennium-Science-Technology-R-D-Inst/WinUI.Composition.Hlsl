@@ -5,6 +5,7 @@ namespace WinUI.Composition.Hlsl
     enum HlslShaderProfile { Level91, Level93, Pixel40 };
     enum HlslNativeArchitecture { Unknown, X86, X64, Arm64 };
     enum HlslRuntimeSupportLevel { Unsupported, Experimental, Validated };
+    enum LiquidGlassSurfaceProfile { ConvexSquircle, ConvexCircle, Concave, Lip };
     [default_interface] runtimeclass HlslRuntimeCapabilities
     {
         HlslNativeArchitecture Architecture{ get; };
@@ -145,6 +146,13 @@ namespace WinUI.Composition.Hlsl
         Single TintOpacity;
         Single Saturation;
         Single LightAngle;
+        LiquidGlassSurfaceProfile SurfaceProfile;
+        Single MagnificationStrength;
+        Single HighlightSharpness;
+        Single TintRed;
+        Single TintGreen;
+        Single TintBlue;
+        Single InnerShadowStrength;
     }
     [default_interface] runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
     {
@@ -175,5 +183,19 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty SaturationProperty{ get; };
         Double LightAngle;
         static Microsoft.UI.Xaml.DependencyProperty LightAngleProperty{ get; };
+        LiquidGlassSurfaceProfile SurfaceProfile;
+        static Microsoft.UI.Xaml.DependencyProperty SurfaceProfileProperty{ get; };
+        Double MagnificationStrength;
+        static Microsoft.UI.Xaml.DependencyProperty MagnificationStrengthProperty{ get; };
+        Double HighlightSharpness;
+        static Microsoft.UI.Xaml.DependencyProperty HighlightSharpnessProperty{ get; };
+        Double TintRed;
+        static Microsoft.UI.Xaml.DependencyProperty TintRedProperty{ get; };
+        Double TintGreen;
+        static Microsoft.UI.Xaml.DependencyProperty TintGreenProperty{ get; };
+        Double TintBlue;
+        static Microsoft.UI.Xaml.DependencyProperty TintBlueProperty{ get; };
+        Double InnerShadowStrength;
+        static Microsoft.UI.Xaml.DependencyProperty InnerShadowStrengthProperty{ get; };
     }
 }
