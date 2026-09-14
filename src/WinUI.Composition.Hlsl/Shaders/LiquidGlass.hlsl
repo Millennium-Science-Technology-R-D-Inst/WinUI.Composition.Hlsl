@@ -9,8 +9,10 @@ cbuffer LiquidGlassConstants : register(b0)
     float4 MaterialParams1;
     // x = glass thickness, y = refractive index, z = tint opacity, w = saturation
     float4 MaterialParams2;
-    // x = light angle in radians, remaining components reserved for future material parameters
+    // x = light angle, y = surface profile, z = magnification strength, w = highlight sharpness
     float4 MaterialParams3;
+    // xyz = tint color, w = inner shadow strength
+    float4 MaterialParams4;
 };
 
 float RoundedRectSdf(float2 p, float2 halfSize, float radius)
@@ -19,18 +21,54 @@ float RoundedRectSdf(float2 p, float2 halfSize, float radius)
     return length(max(q, 0.0f.xx)) + min(max(q.x, q.y), 0.0f) - radius;
 }
 
-float SurfaceHeight(float t)
+float ConvexSquircle(float t)
 {
-    // Convex quarter-superellipse profile used by the reference implementations.
-    // t = 0 is the outside edge of the bezel and t = 1 is the flat interior.
     float s = 1.0f - saturate(t);
     return pow(saturate(1.0f - s * s * s * s), 0.25f);
 }
 
+float ConvexCircle(float t)
+{
+    float s = 1.0f - saturate(t);
+    return sqrt(saturate(1.0f - s * s));
+}
+
+float ConcaveCircle(float t)
+{
+    return 1.0f - ConvexCircle(t);
+}
+
+float SmootherStep01(float t)
+{
+    t = saturate(t);
+    return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+}
+
+float SurfaceHeight(float t, float profile)
+{
+    // Profiles intentionally mirror the reference implementation: convex squircle,
+    // convex circle, concave circle, and a lip that blends convex and concave surfaces.
+    t = saturate(t);
+    if (profile < 0.5f)
+    {
+        return ConvexSquircle(t);
+    }
+    if (profile < 1.5f)
+    {
+        return ConvexCircle(t);
+    }
+    if (profile < 2.5f)
+    {
+        return ConcaveCircle(t);
+    }
+
+    float convex = ConvexSquircle(saturate(t * 2.0f));
+    float concave = ConcaveCircle(t) + 0.1f;
+    return lerp(convex, concave, SmootherStep01(t));
+}
+
 float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float centerSdf)
 {
-    // A half-pixel numerical derivative is stable across straight edges and rounded corners,
-    // and unlike a radial approximation it produces the correct normal for non-square glass.
     const float epsilon = 0.5f;
     float2 gradient = float2(
         RoundedRectSdf(local + float2(epsilon, 0.0f), halfRect, radius) - centerSdf,
@@ -60,9 +98,6 @@ float2 ClampSampleUv(float2 uv, float2 contentMin, float2 contentMax, float2 tex
 
 float4 SampleTransmission(float2 uv, float2 contentMin, float2 contentMax, float2 texelSize, bool hasContentRect)
 {
-    // The source is materialized by the upstream native GaussianBlur graph stage.
-    // Clamp only the sampling coordinates; the final rounded-rectangle coverage is evaluated
-    // independently below so blur/refraction can never soften or square-off the glass corners.
     return texture0.Sample(sampler0, ClampSampleUv(uv, contentMin, contentMax, texelSize, hasContentRect));
 }
 
@@ -81,6 +116,11 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float tintOpacity = saturate(MaterialParams2.z);
     const float saturation = max(MaterialParams2.w, 0.0f);
     const float lightAngle = MaterialParams3.x;
+    const float surfaceProfile = clamp(MaterialParams3.y, 0.0f, 3.0f);
+    const float magnificationStrength = max(MaterialParams3.z, 0.0f);
+    const float highlightSharpness = max(MaterialParams3.w, 0.25f);
+    const float3 tintColor = saturate(MaterialParams4.xyz);
+    const float innerShadowStrength = saturate(MaterialParams4.w);
 
     const float2 contentMin = min(samplerData.xy, samplerData.zw);
     const float2 contentMax = max(samplerData.xy, samplerData.zw);
@@ -99,14 +139,12 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, halfRect, radius);
 
-    // Coverage is intentionally calculated after the blurred/materialized source is sampled.
-    // That separation is what preserves the requested CornerRadius regardless of BlurRadius.
+    // Coverage is evaluated independently from the upstream Gaussian blur. Blur changes
+    // transmitted content but cannot soften or square off the material silhouette.
     const float feather = max(edgeSoftness, 0.5f);
     const float coverage = saturate(0.5f - sdf / feather);
     const float alpha = coverage * saturate(materialOpacity);
 
-    // FXC's SM4 library compiler can emit a false-positive X4000 for helper functions with a
-    // mid-function return. Keep one initialized return value and one final return.
     float4 result = 0.0f.xxxx;
     if (alpha > 0.0f)
     {
@@ -115,14 +153,15 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float bezel = clamp(bezelWidth, 1.0f, maximumBezel);
         const float bezelT = saturate(distanceFromEdge / bezel);
 
-        // Convert the convex profile into an optical displacement. This follows the physical
-        // chain used by the WebGL/SVG references: profile height -> slope -> Snell refraction
-        // angle -> horizontal travel through the remaining glass thickness.
-        const float height = SurfaceHeight(bezelT);
-        const float derivativeStep = 0.001f;
-        const float nextHeight = SurfaceHeight(min(bezelT + derivativeStep, 1.0f));
-        const float derivative = (nextHeight - height) / derivativeStep;
-        const float slopeAngle = atan(derivative * (glassThickness / max(bezel, 1.0f)));
+        // Central difference preserves derivative sign for concave/lip profiles. Clamp the
+        // slope angle before tan() so pathological edge derivatives cannot explode the UVs.
+        const float derivativeStep = 0.0015f;
+        const float t0 = max(bezelT - derivativeStep, 0.0f);
+        const float t1 = min(bezelT + derivativeStep, 1.0f);
+        const float height = SurfaceHeight(bezelT, surfaceProfile);
+        const float derivative = (SurfaceHeight(t1, surfaceProfile) - SurfaceHeight(t0, surfaceProfile)) /
+            max(t1 - t0, 1e-5f);
+        const float slopeAngle = clamp(atan(derivative * (glassThickness / max(bezel, 1.0f))), -1.35f, 1.35f);
         const float refractedSin = clamp(sin(slopeAngle) / refractiveIndex, -1.0f, 1.0f);
         const float refractedAngle = asin(refractedSin);
         const float physicalDisplacement = height * glassThickness * (tan(slopeAngle) - tan(refractedAngle));
@@ -130,9 +169,13 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float displacementPixels = physicalDisplacement * artisticScale;
 
         const float2 normal = RoundedRectNormal(local, halfRect, radius, sdf);
-        const float2 refractUv = uv - normal * texelSize * displacementPixels;
 
-        // Dispersion is strongest in the optical bezel and fades to zero on the flat interior.
+        // The SVG reference's optional magnification is a radial pre-displacement stage.
+        // Expressing it in pixels keeps the control independent of its pixel dimensions.
+        const float2 normalizedLocal = local / max(halfRect, 1.0f.xx);
+        const float2 magnificationOffset = -normalizedLocal * texelSize * magnificationStrength;
+        const float2 refractUv = uv + magnificationOffset - normal * texelSize * displacementPixels;
+
         const float bezelWeight = 1.0f - smoothstep(0.20f, 1.0f, bezelT);
         const float dispersionPixels = dispersionStrength * bezelWeight * (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f));
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
@@ -142,17 +185,15 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             SampleTransmission(refractUv, contentMin, contentMax, texelSize, hasContentRect).g,
             SampleTransmission(refractUv + dispersionOffset, contentMin, contentMax, texelSize, hasContentRect).b);
         color = ApplySaturation(color, saturation);
-        color = lerp(color, 1.0f.xxx, tintOpacity);
+        color = lerp(color, tintColor, tintOpacity);
 
-        // Directional rim/specular response. LightAngle is animatable so the host can make the
-        // highlight follow the pointer without recreating the effect graph.
         const float2 lightDirection = normalize(float2(cos(lightAngle), sin(lightAngle)));
         const float rimDot = abs(dot(normal, lightDirection));
         const float rimFalloff = 1.0f - smoothstep(0.0f, max(bezel * 0.45f, 1.0f), distanceFromEdge);
-        const float specular = pow(saturate(rimDot * rimFalloff), 1.5f) * highlightStrength;
+        const float specular = pow(saturate(rimDot * rimFalloff), highlightSharpness) * highlightStrength;
 
         const float innerShadow = 1.0f - smoothstep(0.0f, max(bezel * 0.65f, 1.0f), distanceFromEdge);
-        color *= 1.0f - innerShadow * 0.09f;
+        color *= 1.0f - innerShadow * innerShadowStrength;
 
         const float innerRim = smoothstep(0.0f, 2.0f, distanceFromEdge) *
             (1.0f - smoothstep(2.0f, 5.0f + feather, distanceFromEdge));
@@ -162,22 +203,17 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             max(borderThickness, 0.0f),
             max(borderThickness, 0.0f) + feather,
             distanceFromEdge);
-        color = lerp(color, 1.0f.xxx, borderMask * 0.20f * highlightStrength);
+        color = lerp(color, tintColor, borderMask * 0.20f * highlightStrength);
         color = saturate(color);
 
-        // Composition expects premultiplied-alpha output from this material.
         result = float4(color * alpha, alpha);
     }
 
     return result;
 }
 
-// MaterializedTexture lowering uses this color passthrough for the source and final wrapper
-// subgraphs. The custom sampler itself remains linked into the final consumer fragment so its
-// SDF is evaluated at destination resolution.
 export float4 MaterializeColor(float4 color) { return color; }
 
-// DWM appends sampler edge-mode suffixes for custom sampler bodies.
 export float4 PSBody(float2 uv, float4 samplerDataExt, float4 samplerData) { return LiquidGlassCore(uv, samplerDataExt, samplerData); }
 export float4 PSBodyCC(float2 uv, float4 samplerDataExt, float4 samplerData) { return LiquidGlassCore(uv, samplerDataExt, samplerData); }
 export float4 PSBodyCW(float2 uv, float4 samplerDataExt, float4 samplerData) { return LiquidGlassCore(uv, samplerDataExt, samplerData); }
