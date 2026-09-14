@@ -114,7 +114,7 @@
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="10">
                     <TextBlock FontSize="16" FontWeight="SemiBold" Text="WinUI.LiquidGlass control gallery" />
-                    <TextBlock Opacity="0.72" Text="These are real component runtime classes. Button and ToggleButton preserve explicit hover/press motion; the input controls keep native WinUI keyboard, gamepad and UIA behavior." TextWrapping="Wrap" />
+                    <TextBlock Opacity="0.72" Text="Real component runtime classes. Slider and ToggleSwitch keep native WinUI behavior while their moving glass surfaces gain optical drag/toggle motion." TextWrapping="Wrap" />
 
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <liquid:LiquidGlassButton Content="Action" />
@@ -160,14 +160,18 @@
                                 BorderThickness="1"
                                 CornerRadius="18"
                                 DispersionStrength="1.1"
+                                EdgeSoftness="{Binding ElementName=GalleryEdgeSoftnessSlider, Path=Value, Mode=OneWay}"
                                 GlassThickness="42"
                                 HighlightStrength="0.9"
                                 HighlightSharpness="{Binding ElementName=GallerySharpnessSlider, Path=Value, Mode=OneWay}"
                                 InnerShadowStrength="{Binding ElementName=GalleryShadowSlider, Path=Value, Mode=OneWay}"
                                 MagnificationStrength="{Binding ElementName=GalleryMagnificationSlider, Path=Value, Mode=OneWay}"
+                                MaterialOpacity="{Binding ElementName=GalleryOpacitySlider, Path=Value, Mode=OneWay}"
                                 RefractiveIndex="1.52"
                                 RefractionStrength="22"
                                 Saturation="1.2"
+                                SpecularSaturation="{Binding ElementName=GallerySpecularSaturationSlider, Path=Value, Mode=OneWay}"
+                                SpecularWidth="{Binding ElementName=GallerySpecularWidthSlider, Path=Value, Mode=OneWay}"
                                 SurfaceProfile="Lip"
                                 TintBlue="1.0"
                                 TintGreen="0.92"
@@ -175,8 +179,8 @@
                                 TintRed="0.78" />
                         </Border.Background>
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock HorizontalAlignment="Center" FontWeight="SemiBold" Text="Lip profile · RGB tint · magnification" />
-                            <TextBlock HorizontalAlignment="Center" Opacity="0.68" Text="Live DependencyProperty bindings; no effect graph rebuild" />
+                            <TextBlock HorizontalAlignment="Center" FontWeight="SemiBold" Text="Lip · Snell refraction · saturated specular" />
+                            <TextBlock HorizontalAlignment="Center" Opacity="0.68" Text="Live DependencyProperty bindings; effect graph stays alive" />
                         </StackPanel>
                     </Border>
 
@@ -190,6 +194,10 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock Text="Magnification" />
                         <TextBlock Grid.Column="1" Text="Highlight sharpness" />
@@ -199,6 +207,14 @@
                         <TextBlock Grid.Row="2" Grid.Column="1" Text="Inner shadow" />
                         <Slider x:Name="GalleryTintSlider" Grid.Row="3" Maximum="0.45" Minimum="0" StepFrequency="0.01" Value="0.11" />
                         <Slider x:Name="GalleryShadowSlider" Grid.Row="3" Grid.Column="1" Maximum="0.35" Minimum="0" StepFrequency="0.01" Value="0.10" />
+                        <TextBlock Grid.Row="4" Text="Specular saturation" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="Specular width" />
+                        <Slider x:Name="GallerySpecularSaturationSlider" Grid.Row="5" Maximum="12" Minimum="0" StepFrequency="0.25" Value="4" />
+                        <Slider x:Name="GallerySpecularWidthSlider" Grid.Row="5" Grid.Column="1" Maximum="6" Minimum="0.25" StepFrequency="0.25" Value="1" />
+                        <TextBlock Grid.Row="6" Text="Edge softness" />
+                        <TextBlock Grid.Row="6" Grid.Column="1" Text="Material opacity" />
+                        <Slider x:Name="GalleryEdgeSoftnessSlider" Grid.Row="7" Maximum="4" Minimum="0.25" StepFrequency="0.25" Value="1" />
+                        <Slider x:Name="GalleryOpacitySlider" Grid.Row="7" Grid.Column="1" Maximum="1" Minimum="0" StepFrequency="0.01" Value="1" />
                     </Grid>
                 </StackPanel>
             </ScrollViewer>
@@ -208,7 +224,7 @@
             <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="18" Spacing="8">
                     <TextBlock FontSize="18" FontWeight="SemiBold" Text="Liquid Glass" />
-                    <TextBlock Opacity="0.68" Text="Optical model + material controls" />
+                    <TextBlock Opacity="0.68" Text="Kube-inspired optical material playground" />
 
                     <TextBlock Margin="0,10,0,0" FontWeight="SemiBold" Text="Brush effect" />
                     <ComboBox x:Name="EffectSelector" HorizontalAlignment="Stretch" SelectedIndex="4" SelectionChanged="OnEffectSelectionChanged">
@@ -223,38 +239,63 @@
                     <Slider x:Name="BorderWidthSlider" Maximum="24" Minimum="0" StepFrequency="1" ValueChanged="OnBorderWidthChanged" Value="2" />
 
                     <StackPanel x:Name="LiquidGlassControls" Margin="0,10,0,0" Spacing="5">
-                        <TextBlock FontSize="14" FontWeight="SemiBold" Text="Geometry &amp; blur" />
+                        <TextBlock FontSize="14" FontWeight="SemiBold" Text="Geometry &amp; coverage" />
                         <TextBlock Text="Blur radius" />
                         <Slider x:Name="BlurRadiusSlider" Maximum="32" Minimum="0" SmallChange="0.25" StepFrequency="0.25" ValueChanged="OnLiquidGlassParameterChanged" Value="12" />
                         <TextBlock Text="Corner radius" />
                         <Slider x:Name="CornerRadiusSlider" Maximum="128" Minimum="0" SmallChange="1" StepFrequency="1" ValueChanged="OnLiquidGlassParameterChanged" Value="36" />
                         <TextBlock Text="Optical bezel width" />
                         <Slider x:Name="BezelWidthSlider" Maximum="96" Minimum="1" SmallChange="1" StepFrequency="1" ValueChanged="OnLiquidGlassParameterChanged" Value="32" />
-                        <TextBlock Text="Glass border highlight width" />
+                        <TextBlock Text="Edge softness" />
+                        <Slider x:Name="EdgeSoftnessSlider" Maximum="8" Minimum="0.25" SmallChange="0.25" StepFrequency="0.25" ValueChanged="OnLiquidGlassParameterChanged" Value="1" />
+                        <TextBlock Text="Material opacity" />
+                        <Slider x:Name="MaterialOpacitySlider" Maximum="1" Minimum="0" SmallChange="0.01" StepFrequency="0.01" ValueChanged="OnLiquidGlassParameterChanged" Value="1" />
+                        <TextBlock Text="Border highlight width" />
                         <Slider x:Name="MaterialBorderThicknessSlider" Maximum="8" Minimum="0" SmallChange="0.25" StepFrequency="0.25" ValueChanged="OnLiquidGlassParameterChanged" Value="1.5" />
 
-                        <TextBlock Margin="0,8,0,0" FontSize="14" FontWeight="SemiBold" Text="Optics" />
+                        <TextBlock Margin="0,8,0,0" FontSize="14" FontWeight="SemiBold" Text="Refraction field" />
+                        <TextBlock Text="Surface profile: 0 squircle · 1 circle · 2 concave · 3 lip" TextWrapping="Wrap" />
+                        <Slider x:Name="SurfaceProfileSlider" Maximum="3" Minimum="0" SmallChange="1" StepFrequency="1" ValueChanged="OnLiquidGlassParameterChanged" Value="0" />
                         <TextBlock Text="Glass thickness" />
                         <Slider x:Name="GlassThicknessSlider" Maximum="160" Minimum="0" SmallChange="1" StepFrequency="1" ValueChanged="OnLiquidGlassParameterChanged" Value="50" />
                         <TextBlock Text="Refractive index (IOR)" />
                         <Slider x:Name="RefractiveIndexSlider" Maximum="3.5" Minimum="1" SmallChange="0.05" StepFrequency="0.05" ValueChanged="OnLiquidGlassParameterChanged" Value="1.5" />
                         <TextBlock Text="Refraction artistic scale" />
                         <Slider x:Name="RefractionStrengthSlider" Maximum="64" Minimum="0" SmallChange="0.25" StepFrequency="0.25" ValueChanged="OnLiquidGlassParameterChanged" Value="24" />
+                        <TextBlock Text="Magnification" />
+                        <Slider x:Name="MagnificationStrengthSlider" Maximum="64" Minimum="0" SmallChange="0.5" StepFrequency="0.5" ValueChanged="OnLiquidGlassParameterChanged" Value="0" />
                         <TextBlock Text="Chromatic dispersion" />
                         <Slider x:Name="DispersionStrengthSlider" Maximum="8" Minimum="0" SmallChange="0.1" StepFrequency="0.1" ValueChanged="OnLiquidGlassParameterChanged" Value="1.2" />
 
-                        <TextBlock Margin="0,8,0,0" FontSize="14" FontWeight="SemiBold" Text="Surface &amp; lighting" />
+                        <TextBlock Margin="0,8,0,0" FontSize="14" FontWeight="SemiBold" Text="Specular &amp; shading" />
                         <TextBlock Text="Highlight strength" />
                         <Slider x:Name="HighlightStrengthSlider" Maximum="2" Minimum="0" SmallChange="0.05" StepFrequency="0.05" ValueChanged="OnLiquidGlassParameterChanged" Value="0.85" />
-                        <TextBlock Text="White tint" />
-                        <Slider x:Name="TintOpacitySlider" Maximum="0.4" Minimum="0" SmallChange="0.01" StepFrequency="0.01" ValueChanged="OnLiquidGlassParameterChanged" Value="0.08" />
-                        <TextBlock Text="Saturation" />
-                        <Slider x:Name="SaturationSlider" Maximum="3" Minimum="0" SmallChange="0.05" StepFrequency="0.05" ValueChanged="OnLiquidGlassParameterChanged" Value="1.25" />
-                        <ToggleSwitch x:Name="PointerLightingToggle" Margin="0,4,0,0" Header="Highlight follows pointer" IsOn="True" Toggled="OnPointerLightingToggled" />
+                        <TextBlock Text="Highlight sharpness" />
+                        <Slider x:Name="HighlightSharpnessSlider" Maximum="12" Minimum="0.25" SmallChange="0.25" StepFrequency="0.25" ValueChanged="OnLiquidGlassParameterChanged" Value="1.5" />
+                        <TextBlock Text="Specular-only saturation" />
+                        <Slider x:Name="SpecularSaturationSlider" Maximum="16" Minimum="0" SmallChange="0.25" StepFrequency="0.25" ValueChanged="OnLiquidGlassParameterChanged" Value="4" />
+                        <TextBlock Text="Specular width" />
+                        <Slider x:Name="SpecularWidthSlider" Maximum="8" Minimum="0.25" SmallChange="0.25" StepFrequency="0.25" ValueChanged="OnLiquidGlassParameterChanged" Value="1" />
+                        <TextBlock Text="Inner shadow" />
+                        <Slider x:Name="InnerShadowStrengthSlider" Maximum="0.75" Minimum="0" SmallChange="0.01" StepFrequency="0.01" ValueChanged="OnLiquidGlassParameterChanged" Value="0.09" />
+
+                        <TextBlock Margin="0,8,0,0" FontSize="14" FontWeight="SemiBold" Text="Transmission color" />
+                        <TextBlock Text="Tint opacity" />
+                        <Slider x:Name="TintOpacitySlider" Maximum="0.6" Minimum="0" SmallChange="0.01" StepFrequency="0.01" ValueChanged="OnLiquidGlassParameterChanged" Value="0.08" />
+                        <TextBlock Text="Base saturation" />
+                        <Slider x:Name="SaturationSlider" Maximum="4" Minimum="0" SmallChange="0.05" StepFrequency="0.05" ValueChanged="OnLiquidGlassParameterChanged" Value="1.25" />
+                        <TextBlock Text="Tint red" />
+                        <Slider x:Name="TintRedSlider" Maximum="1" Minimum="0" SmallChange="0.01" StepFrequency="0.01" ValueChanged="OnLiquidGlassParameterChanged" Value="1" />
+                        <TextBlock Text="Tint green" />
+                        <Slider x:Name="TintGreenSlider" Maximum="1" Minimum="0" SmallChange="0.01" StepFrequency="0.01" ValueChanged="OnLiquidGlassParameterChanged" Value="1" />
+                        <TextBlock Text="Tint blue" />
+                        <Slider x:Name="TintBlueSlider" Maximum="1" Minimum="0" SmallChange="0.01" StepFrequency="0.01" ValueChanged="OnLiquidGlassParameterChanged" Value="1" />
+
+                        <ToggleSwitch x:Name="PointerLightingToggle" Margin="0,6,0,0" Header="Highlight follows pointer" IsOn="True" Toggled="OnPointerLightingToggled" />
                         <TextBlock Text="Manual light angle (radians)" />
                         <Slider x:Name="LightAngleSlider" Maximum="3.14159" Minimum="-3.14159" SmallChange="0.05" StepFrequency="0.05" ValueChanged="OnLiquidGlassParameterChanged" Value="-0.95" />
 
-                        <TextBlock Margin="0,10,0,0" Opacity="0.62" Text="Drag anywhere inside the glass. Resize from the lower-right corner. Pressing the glass adds a subtle spring-scale response." TextWrapping="Wrap" />
+                        <TextBlock Margin="0,10,0,0" Opacity="0.62" Text="Drag anywhere inside the glass. Resize from the lower-right corner. Surface profile, Snell refraction, saturated specular and tint all update without rebuilding the effect graph." TextWrapping="Wrap" />
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
