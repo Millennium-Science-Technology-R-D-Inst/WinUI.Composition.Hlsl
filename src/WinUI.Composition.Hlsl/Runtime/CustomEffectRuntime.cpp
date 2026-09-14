@@ -1932,9 +1932,11 @@ namespace
 						targetData[input].data[1] = modes[input].data[1];
 					}
 				}
-				// A custom pass is materialized. This gives later custom or native
-				// nodes a real surface and avoids cross-profile fragment linking.
-				target.flags = 0;
+				// Preserve the shader template's output/materialization policy. A
+				// MaterializedTexture template marks its custom sampler as a fragment
+				// output so geometry is evaluated at destination resolution instead of
+				// inside an upstream effect's prescaled intermediate. LinkedColor
+				// templates already carry flags == 0 and remain materialized as before.
 				DestroyCompiledResult(shader);
 			}
 			return merged;
