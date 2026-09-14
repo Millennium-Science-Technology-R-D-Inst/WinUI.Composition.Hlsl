@@ -1,9 +1,8 @@
 # LiquidGlassBrush class
 
-An XAML brush that renders the built-in Liquid Glass material.
+A XAML brush that renders the built-in Liquid Glass material.
 
 **Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v0.1.0-preview.8  
 **Assembly:** `WinUI.Composition.Hlsl.dll`
 
 ```idl
@@ -16,12 +15,18 @@ runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `IsEnabled` | `Boolean` | `true` | Enables the effect. When false, the brush displays `FallbackColor`. |
-| `BlurRadius` | `Double` | `12` | Gaussian radius in DIPs (converted internally to standard deviation). |
-| `RefractionStrength` | `Double` | `24` | Edge displacement strength. |
+| `BlurRadius` | `Double` | `12` | Gaussian radius in DIPs. Blur affects transmitted content, not the final rounded silhouette. |
+| `CornerRadius` | `Double` | `36` | Rounded material radius. |
+| `BezelWidth` | `Double` | `32` | Width of the curved optical bezel. |
+| `GlassThickness` | `Double` | `50` | Optical thickness used to turn the refracted ray angle into displacement. |
+| `RefractiveIndex` | `Double` | `1.5` | IOR (index of refraction) used by Snell's law. |
+| `RefractionStrength` | `Double` | `24` | Artistic multiplier over the physically-derived displacement. |
 | `DispersionStrength` | `Double` | `1.2` | RGB dispersion strength. |
-| `CornerRadius` | `Double` | `12` | Rounded material radius. |
-| `BorderThickness` | `Double` | `1` | Border thickness. |
-| `HighlightStrength` | `Double` | `0.8` | Highlight intensity. |
+| `BorderThickness` | `Double` | `1.5` | Bright edge-rim width. |
+| `HighlightStrength` | `Double` | `0.85` | Directional specular intensity. |
+| `TintOpacity` | `Double` | `0.08` | White tint contribution. |
+| `Saturation` | `Double` | `1.25` | Transmitted-color saturation multiplier. |
+| `LightAngle` | `Double` | `-0.95` | Directional highlight angle in radians. |
 
 The numeric dependency properties use `Double`, matching WinUI XAML text conversion. Values are validated and converted to GPU `float` values internally.
 
@@ -34,10 +39,17 @@ Keep material style separate from `RequestedTheme`. Define the same semantic key
 ```xml
 <ResourceDictionary.ThemeDictionaries>
     <ResourceDictionary x:Key="Light">
-        <hlsl:LiquidGlassBrush x:Key="CardMaterialBrush" FallbackColor="#CCFFFFFF" />
+        <hlsl:LiquidGlassBrush
+            x:Key="CardMaterialBrush"
+            FallbackColor="#CCFFFFFF"
+            TintOpacity="0.09" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
-        <hlsl:LiquidGlassBrush x:Key="CardMaterialBrush" FallbackColor="#CC202020" />
+        <hlsl:LiquidGlassBrush
+            x:Key="CardMaterialBrush"
+            FallbackColor="#CC202020"
+            TintOpacity="0.05"
+            Saturation="1.1" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="HighContrast">
         <SolidColorBrush x:Key="CardMaterialBrush" Color="{ThemeResource SystemColorWindowColor}" />
@@ -46,6 +58,10 @@ Keep material style separate from `RequestedTheme`. Define the same semantic key
 ```
 
 Use `{ThemeResource CardMaterialBrush}` from controls. To switch visual material without changing Light/Dark, update `LiquidGlassBrush.IsEnabled` on the active resource.
+
+## Control styling
+
+The C++ demo includes `LiquidGlassControls.xaml`, a deliberately separate prototype resource dictionary with reusable Button, ToggleButton, Slider and card styles. Button and ToggleButton templates expose explicit Normal, PointerOver, Pressed, Disabled, Focused and Checked visual states. Keeping these styles outside the core runtime avoids coupling an experimental control-template ABI to the shader/runtime package; the dictionary can later move to a dedicated `WinUI.Composition.Hlsl.Controls` package.
 
 ## Remarks
 
