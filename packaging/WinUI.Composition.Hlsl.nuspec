@@ -1,4 +1,4 @@
-﻿<?xml version="1.0"?>
+<?xml version="1.0"?>
 <package>
   <metadata>
     <id>WinUI.Composition.Hlsl</id>
@@ -10,11 +10,11 @@
     <icon>assets\MainLogo.png</icon>
     <dependencies>
       <group targetFramework="native">
-        <dependency id="Microsoft.WindowsAppSDK" version="2.4.0"/>
+        <dependency id="Microsoft.WindowsAppSDK" version="1.6.0"/>
         <dependency id="Microsoft.Windows.CppWinRT" version="3.0.260818.1"/>
       </group>
       <group targetFramework="net8.0-windows10.0.26100.0">
-        <dependency id="Microsoft.WindowsAppSDK" version="2.4.0"/>
+        <dependency id="Microsoft.WindowsAppSDK" version="1.6.0"/>
       </group>
     </dependencies>
     <projectUrl>https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl</projectUrl>

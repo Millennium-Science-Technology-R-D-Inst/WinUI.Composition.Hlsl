@@ -1,38 +1,111 @@
 # HlslComposition class
 
-Provides Composition/XAML bridge helpers and side-effect-free runtime capability reporting.
+Provides static helpers that connect `HlslEffect` definitions to `Microsoft.UI.Composition` factories/brushes and bridge Composition brushes to XAML.
 
-**Namespace:** `WinUI.Composition.Hlsl`  
-**Package:** `WinUI.Composition.Hlsl` v1.0.0  
-**Assembly:** `WinUI.Composition.Hlsl.dll`
+Namespace: `WinUI.Composition.Hlsl`
 
-## GetRuntimeCapabilities
+## Definition
+
+```text
+runtimeclass HlslComposition
+```
+
+`HlslComposition` has no instances. All members are static.
+
+## Methods
+
+### GetRuntimeCapabilities
+
+Returns the package capability contract for the current native architecture.
 
 ```csharp
 public static HlslRuntimeCapabilities GetRuntimeCapabilities();
 ```
 
-Returns the packaged native-adapter capability level without installing private hooks or probing the Composition process image. Use it to gate optional materialized effects or fallback UI. See [HlslRuntimeCapabilities](hlsl-runtime-capabilities.md).
-
-## CreateEffectFactory
-
-```csharp
-public static HlslEffectFactory CreateEffectFactory(Compositor compositor, HlslEffect effect);
+```cpp
+static HlslRuntimeCapabilities GetRuntimeCapabilities();
 ```
 
-Creates/caches the Composition factory for the effect description.
+#### Returns
 
-When a custom shader must consume an already-built **native `IGraphicsEffect` graph**, use `HlslEffectKind.MaterializedSampler`, call `CreateGraphicsEffectWithSource(upstream)`, obtain `GetAnimatablePropertyPaths()`, and then call the standard `Compositor.CreateEffectFactory(graph, paths)`.
+An `HlslRuntimeCapabilities` object.
 
-## CreateBackdropBrush
+#### Remarks
+
+The call is side-effect free. It does not install hooks, scan the installed private runtime, create a `Compositor`, or compile a shader. Use it for feature presentation/diagnostics, not as a per-frame query.
+
+---
+
+### CreateEffectFactory
+
+Creates a Composition effect factory for an HLSL effect.
 
 ```csharp
-public static HlslEffectBrush CreateBackdropBrush(Compositor compositor, HlslEffect effect);
+public static HlslEffectFactory CreateEffectFactory(
+    Compositor compositor,
+    HlslEffect effect);
 ```
 
-Convenience path that binds `compositor.CreateBackdropBrush()` to every declared source parameter. For a single-source effect this is equivalent to binding the normal `SourceName`; for a linked multi-source effect all named inputs receive the same backdrop brush.
+#### Parameters
 
-## CreateBrushWithSources
+`compositor`  
+The `Microsoft.UI.Composition.Compositor` that owns the factory and brushes created from it.
+
+`effect`  
+The immutable HLSL effect definition.
+
+#### Returns
+
+An `HlslEffectFactory` wrapping the native `CompositionEffectFactory`.
+
+#### Exceptions
+
+Throws an invalid-argument error when `compositor` or `effect` is null.
+
+#### Remarks
+
+Factory creation is a setup operation. Reuse the returned factory when creating multiple brushes with the same effect definition.
+
+---
+
+### CreateBackdropBrush
+
+Creates an effect brush and binds a `CompositionBackdropBrush` to every public source of the effect.
+
+```csharp
+public static HlslEffectBrush CreateBackdropBrush(
+    Compositor compositor,
+    HlslEffect effect);
+```
+
+#### Parameters
+
+`compositor`  
+The owner compositor.
+
+`effect`  
+The HLSL effect definition.
+
+#### Returns
+
+A ready-to-use `HlslEffectBrush`.
+
+#### Remarks
+
+For a multi-source effect, the same backdrop brush is bound to each source. Use `CreateBrushWithSources` when each source must be a different Composition brush.
+
+#### Example
+
+```csharp
+var effect = HlslEffect.CreateCompiled(Guid.Empty, library);
+var brush = HlslComposition.CreateBackdropBrush(compositor, effect);
+```
+
+---
+
+### CreateBrushWithSources
+
+Creates an effect brush and binds an ordered collection of Composition brushes to the effect's ordered source schema.
 
 ```csharp
 public static HlslEffectBrush CreateBrushWithSources(
@@ -41,55 +114,92 @@ public static HlslEffectBrush CreateBrushWithSources(
     IReadOnlyList<CompositionBrush> sources);
 ```
 
-Creates the effect brush and binds an ordered list of Composition brushes to the effect's ordered `SourceNames`. The number of brushes must exactly match the effect source count, every source must be non-null, and every source must belong to the same `Compositor` as the destination brush.
+#### Parameters
 
-This is the direct public helper for linked multi-source effects when each HLSL input should consume a different Composition brush:
+`compositor`  
+The owner compositor.
 
-```csharp
-var effect = HlslEffect.CreateAdvanced(
-    shader,
-    HlslEffectKind.Sampler,
-    new[] { "First", "Second" },
-    Array.Empty<HlslProperty>());
+`effect`  
+The effect whose source schema determines the expected source count/order.
 
-var brush = HlslComposition.CreateBrushWithSources(
-    compositor,
-    effect,
-    new CompositionBrush[]
-    {
-        compositor.CreateBackdropBrush(),
-        compositor.CreateColorBrush(),
-    });
-```
+`sources`  
+The brushes to bind. Item `i` is bound to source `i`.
 
-Source ordering is ABI-significant: `sources[0]` is bound to `SourceNames[0]`, `sources[1]` to `SourceNames[1]`, and so on.
+#### Returns
 
-## CreateXamlBrush
+A configured `HlslEffectBrush`.
 
-```csharp
-public static Brush CreateXamlBrush(HlslEffectBrush brush);
-```
+#### Exceptions
 
-Wraps an HLSL effect brush in `XamlCompositionBrushBase` for XAML brush properties.
+Throws an invalid-argument error when a required object is null or when `sources.Count` does not match the effect source count. Invalid/cross-compositor source brushes are rejected by the underlying `SetSource` path.
 
-## CreateXamlBrushFromCompositionBrush
+#### Remarks
 
-```csharp
-public static Brush CreateXamlBrushFromCompositionBrush(CompositionBrush brush);
-```
-
-Bridges any compatible `CompositionBrush` to XAML. This is useful when the graph was assembled through standard Windows Graphics Effects/Composition APIs rather than the HLSL convenience factory.
-
-The bridge stays in the XAML/Composition visual system. It does not create a `SwapChainPanel`, app-owned swap chain, independent HWND overlay, or another rendering tree.
-
-## Validated mixed-graph shape
+For linked samplers, source order also maps to HLSL resources:
 
 ```text
-XAML/Backdrop source
-    -> native Windows Graphics Effects nodes
-    -> MaterializedSampler HLSL node
-    -> CompositionEffectFactory
-    -> CompositionEffectBrush
-    -> CreateXamlBrushFromCompositionBrush
-    -> XAML Brush property
+sources[0] -> texture0/t0 + sampler0/s0
+sources[1] -> texture1/t1 + sampler1/s1
 ```
+
+The method performs setup-time collection validation only. No per-frame source-count validation is involved.
+
+---
+
+### CreateXamlBrush
+
+Converts the Composition brush owned by an `HlslEffectBrush` into a XAML brush.
+
+```csharp
+public static Microsoft.UI.Xaml.Media.Brush CreateXamlBrush(HlslEffectBrush brush);
+```
+
+#### Parameters
+
+`brush`  
+The HLSL effect brush to bridge into XAML.
+
+#### Returns
+
+A XAML `Brush` backed by the same Composition brush.
+
+#### Exceptions
+
+Throws an invalid-argument error when `brush` is null.
+
+---
+
+### CreateXamlBrushFromCompositionBrush
+
+Bridges an arbitrary `CompositionBrush` to a XAML brush.
+
+```csharp
+public static Microsoft.UI.Xaml.Media.Brush CreateXamlBrushFromCompositionBrush(
+    CompositionBrush brush);
+```
+
+#### Parameters
+
+`brush`  
+A valid Composition brush.
+
+#### Returns
+
+A XAML `Brush` backed by the supplied Composition brush.
+
+#### Exceptions
+
+Throws an invalid-argument error when `brush` is null.
+
+## Remarks
+
+`HlslComposition` is a convenience layer. It does not create a custom swap chain or second visual tree. The returned objects remain part of the normal Composition/XAML pipeline.
+
+For maximum reuse, create the immutable `HlslEffect` once, create/reuse a factory at the compositor lifetime you need, then update brush properties/sources rather than recompiling shader code.
+
+## See also
+
+- [HlslEffect](hlsl-effect.md)
+- [HlslEffectBrush](hlsl-effect-brush.md)
+- [HlslRuntimeCapabilities](hlsl-runtime-capabilities.md)
+- [Get started](../get-started.md)

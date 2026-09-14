@@ -1,6 +1,7 @@
 #include <d3dcompiler.h>
 #include <d3d11shader.h>
 #include <cstring>
+#include <iostream>
 #include <string>
 
 #include "ConsumerSampler.g.h"
@@ -100,31 +101,45 @@ namespace
             bytecode[0] == 'D' && bytecode[1] == 'X' &&
             bytecode[2] == 'B' && bytecode[3] == 'C';
     }
+
+    int Fail(int code, char const* message)
+    {
+        std::cerr << "NativeShaderConsumer validation failed [" << code << "]: " << message << '\n';
+        return code;
+    }
 }
 
 int main()
 {
-    if (!IsDxbc(g_ConsumerSampler_Shader) ||
-        !HasLibraryExport(g_ConsumerSampler_Shader, "PSBody") ||
+    if (!IsDxbc(g_ConsumerSampler_Shader))
+        return Fail(11, "ConsumerSampler is not DXBC.");
+    if (!HasLibraryExport(g_ConsumerSampler_Shader, "PSBody") ||
         !HasLibraryExport(g_ConsumerSampler_Shader, "PSBodyCC") ||
-        !HasLibraryExport(g_ConsumerSampler_Shader, "__WinUICompositionHlsl_Metadata_K1_P2_S1") ||
-        !HasSamplerBindings(g_ConsumerSampler_Shader, 1)) return 1;
+        !HasLibraryExport(g_ConsumerSampler_Shader, "__WinUICompositionHlsl_Metadata_K1_P2_S1"))
+        return Fail(12, "ConsumerSampler exports or metadata are incomplete.");
+    if (!HasSamplerBindings(g_ConsumerSampler_Shader, 1))
+        return Fail(13, "ConsumerSampler texture0/sampler0 bindings do not map to t0/s0.");
 
     if (!IsDxbc(g_ConsumerMaterializedSampler_Shader) ||
         !HasLibraryExport(g_ConsumerMaterializedSampler_Shader, "MaterializeColor") ||
         !HasLibraryExport(g_ConsumerMaterializedSampler_Shader, "PSBody") ||
-        !HasLibraryExport(g_ConsumerMaterializedSampler_Shader, "__WinUICompositionHlsl_Metadata_K2_P2_S1") ||
-        !HasSamplerBindings(g_ConsumerMaterializedSampler_Shader, 1)) return 2;
+        !HasLibraryExport(g_ConsumerMaterializedSampler_Shader, "__WinUICompositionHlsl_Metadata_K2_P2_S1"))
+        return Fail(21, "ConsumerMaterializedSampler exports or metadata are incomplete.");
+    if (!HasSamplerBindings(g_ConsumerMaterializedSampler_Shader, 1))
+        return Fail(22, "ConsumerMaterializedSampler texture0/sampler0 bindings do not map to t0/s0.");
 
     if (!IsDxbc(g_ConsumerMultiSourceColor_Shader) ||
         !HasLibraryExport(g_ConsumerMultiSourceColor_Shader, "PSBody") ||
-        !HasLibraryExport(g_ConsumerMultiSourceColor_Shader, "__WinUICompositionHlsl_Metadata_K0_P2_S2")) return 3;
+        !HasLibraryExport(g_ConsumerMultiSourceColor_Shader, "__WinUICompositionHlsl_Metadata_K0_P2_S2"))
+        return Fail(31, "ConsumerMultiSourceColor exports or metadata are incomplete.");
 
     if (!IsDxbc(g_ConsumerMultiSourceSampler_Shader) ||
         !HasLibraryExport(g_ConsumerMultiSourceSampler_Shader, "PSBody") ||
         !HasLibraryExport(g_ConsumerMultiSourceSampler_Shader, "PSBodyCC") ||
-        !HasLibraryExport(g_ConsumerMultiSourceSampler_Shader, "__WinUICompositionHlsl_Metadata_K1_P2_S2") ||
-        !HasSamplerBindings(g_ConsumerMultiSourceSampler_Shader, 2)) return 4;
+        !HasLibraryExport(g_ConsumerMultiSourceSampler_Shader, "__WinUICompositionHlsl_Metadata_K1_P2_S2"))
+        return Fail(41, "ConsumerMultiSourceSampler exports or metadata are incomplete.");
+    if (!HasSamplerBindings(g_ConsumerMultiSourceSampler_Shader, 2))
+        return Fail(42, "ConsumerMultiSourceSampler resource bindings do not map source order to tN/sN.");
 
     return 0;
 }

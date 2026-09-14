@@ -50,8 +50,14 @@ The runtime contains an exploratory general custom-graph path that can discover 
 
 Those shapes remain capability-gated/fail-closed until graph topology, input mapping, downstream bounds, edge modes, resize/property-update behavior, and real runtime execution are validated. Merely deleting the current single-source/subgraph checks would not constitute support.
 
-## Architecture validation
+## Architecture support
 
-Released Windows App SDK 1.6-2.4 have been runtime-tested for the current single-source materialized path on x86 and x64. ARM64 has an adapter/build path but remains Experimental until real-device validation is complete.
+The single-source materialized path is part of the public support contract on x86, x64, and ARM64. The NuGet package requires Windows App SDK 1.6 or later.
 
-Private ABI support must be revalidated for future releases rather than inferred from version numbers.
+x86/x64 private-adapter resolution is version-independent rather than keyed to a Windows App SDK version table. The package therefore does not impose a 2.4 upper bound. A future Windows implementation that removes or fundamentally redesigns the underlying private mechanism can still require adapter work; unrecognized private layouts fail closed.
+
+## Performance notes
+
+Materialization creates a real pass boundary and intermediate surface, so it is more expensive than a linked fragment when linked sampling is sufficient. Use `MaterializedSampler` only when the shader needs arbitrary sampling of a materialized upstream result.
+
+Topology/property validation happens during graph/factory setup. It is not repeated per pixel or per frame by the package.

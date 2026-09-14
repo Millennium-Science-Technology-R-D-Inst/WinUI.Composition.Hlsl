@@ -1,43 +1,90 @@
 # HlslCompiler class
 
-`HlslCompiler` compiles application HLSL into an immutable `HlslShaderLibrary` on a background thread. It emits the same Composition wrappers/resource bindings/self-description metadata as the MSBuild `<HlslCompositionShader>` pipeline.
+Compiles runtime-provided HLSL into an immutable `HlslShaderLibrary` asynchronously.
 
-## Basic compilation
+Namespace: `WinUI.Composition.Hlsl`
 
-```csharp
-var library = await HlslCompiler.CompileAsync(
-    shader,
-    HlslEffectKind.Auto,
-    HlslShaderProfile.Pixel40);
-```
-
-`Auto` probes the supported public contracts and requires exactly one match. For one source it can resolve `Color`, `Sampler`, or `MaterializedSampler`; for more than one source it resolves linked `Color` or `Sampler`.
-
-## Multi-source compilation
-
-```csharp
-var library = await HlslCompiler.CompileAdvancedAsync(
-    shader,
-    HlslEffectKind.Auto,
-    HlslShaderProfile.Pixel40,
-    sourceCount: 2);
-```
-
-`sourceCount` must be 1-16. `MaterializedSampler` remains exactly one source.
-
-For a sampler, generated resources are explicitly bound:
+## Definition
 
 ```text
-source 0 -> texture0 : t0, sampler0 : s0
-source 1 -> texture1 : t1, sampler1 : s1
+runtimeclass HlslCompiler
+```
+
+All methods are static.
+
+> [!NOTE]
+> Prefer the MSBuild `<HlslCompositionShader>` item for shader source that is known when the application is built. `HlslCompiler` is intended for generated, downloaded, edited, or otherwise runtime-only source.
+
+## CompileAsync
+
+Compiles a single-source shader.
+
+```csharp
+public static IAsyncOperation<HlslShaderLibrary> CompileAsync(
+    string shader,
+    HlslEffectKind kind,
+    HlslShaderProfile profile);
+```
+
+### Parameters
+
+`shader`  
+HLSL source text.
+
+`kind`  
+The public HLSL calling contract. `Auto` probes the supported contracts and requires exactly one match.
+
+`profile`  
+The linkable shader-library target.
+
+### Returns
+
+An asynchronous operation that produces an immutable `HlslShaderLibrary`.
+
+### Remarks
+
+Compilation runs away from the UI thread. It does not create a `Compositor`, factory, brush, or install the private Composition adapter.
+
+---
+
+## CompileAdvancedAsync
+
+Compiles a linked shader with an explicit source count.
+
+```csharp
+public static IAsyncOperation<HlslShaderLibrary> CompileAdvancedAsync(
+    string shader,
+    HlslEffectKind kind,
+    HlslShaderProfile profile,
+    uint sourceCount);
+```
+
+### Parameters
+
+`sourceCount`  
+Number of ordered linked inputs. Valid range is 1-16. `MaterializedSampler` currently requires exactly 1.
+
+### Remarks
+
+For `Sampler`, generated resource bindings are deterministic:
+
+```text
+source 0 -> texture0/t0 + sampler0/s0
+source 1 -> texture1/t1 + sampler1/s1
 ...
 ```
 
-This mapping is identical to the build-time compiler and is documented in [resource-binding-contract.md](../design/resource-binding-contract.md).
+---
 
-## Typed properties
+## Property overloads
 
-Use the typed overloads when the shader uses `HlslProperty` descriptors:
+The compiler provides two property families.
+
+`CompileWithProperties*` / `CompileAdvancedWithProperties*` use legacy `HlslFloatProperty` scalar descriptors.
+
+`CompileWithTypedProperties*` / `CompileAdvancedWithTypedProperties*` use `HlslProperty` and support scalar, vector, and matrix values.
+
+Example:
 
 ```csharp
 var library = await HlslCompiler.CompileAdvancedWithTypedPropertiesAsync(
@@ -48,22 +95,64 @@ var library = await HlslCompiler.CompileAdvancedWithTypedPropertiesAsync(
     properties);
 ```
 
-Available property types are Scalar, Vector2/3/4, Matrix3x2, and Matrix4x4. The compiler injects the `UserConstants : register(b0)` representation using the same layout implementation used by native effect construction, then reflects the compiled library to ensure the actual constant-buffer layout matches the schema.
+The typed path emits `UserConstants : register(b0)` using the same layout schema consumed by the native property updater and precompiled-effect validator.
 
-There are matching `...AndDefinesAsync` overloads. Defines use `NAME` or `NAME=VALUE`; the compiler accepts at most 64 definitions.
+## Define overloads
 
-## Profiles
+Methods ending in `WithDefinesAsync` or `WithPropertiesAndDefinesAsync` accept a list of preprocessor definitions.
 
-| API profile | FXC target |
+Each item uses one of these forms:
+
+```text
+NAME
+NAME=VALUE
+```
+
+The compiler validates the definition name before invoking FXC. A maximum of 64 definitions is accepted.
+
+## Method groups
+
+| Method family | Sources | Properties | Defines |
+| --- | --- | --- | --- |
+| `CompileAsync` | 1 | none | no |
+| `CompileWithDefinesAsync` | 1 | none | yes |
+| `CompileWithPropertiesAsync` | 1 | scalar legacy | no |
+| `CompileWithPropertiesAndDefinesAsync` | 1 | scalar legacy | yes |
+| `CompileWithTypedPropertiesAsync` | 1 | typed | no |
+| `CompileWithTypedPropertiesAndDefinesAsync` | 1 | typed | yes |
+| `CompileAdvancedAsync` | 1-16 | none | no |
+| `CompileAdvancedWithDefinesAsync` | 1-16 | none | yes |
+| `CompileAdvancedWithPropertiesAsync` | 1-16 | scalar legacy | no |
+| `CompileAdvancedWithPropertiesAndDefinesAsync` | 1-16 | scalar legacy | yes |
+| `CompileAdvancedWithTypedPropertiesAsync` | 1-16 | typed | no |
+| `CompileAdvancedWithTypedPropertiesAndDefinesAsync` | 1-16 | typed | yes |
+
+## Shader profiles
+
+| `HlslShaderProfile` | FXC target |
 | --- | --- |
 | `Level91` | `lib_4_0_level_9_1_ps_only` |
 | `Level93` | `lib_4_0_level_9_3_ps_only` |
 | `Pixel40` | `lib_4_0` |
 
-These are shader-linking library targets, not standalone `ps_*` stage shaders.
+These targets are linkable shader libraries. They are not standalone application `ps_*` shaders.
 
-## Production guidance
+## Exceptions
 
-Prefer `<HlslCompositionShader>` for source known at build time because syntax/contract failures then fail MSBuild and native C++ can embed the resulting `.g.h`. Use `HlslCompiler` for genuinely runtime-generated/development source and cache `HlslShaderLibrary.Bytecode` when appropriate.
+Compilation fails when FXC rejects the source, `Auto` cannot resolve exactly one contract, the source count is outside the supported range, a `MaterializedSampler` requests more than one source, a property/define schema is invalid, or generated bytecode does not satisfy the package ABI.
 
-The compiler does not create a `Compositor`, brush, or effect factory and does not install the private Composition adapter during background compilation.
+Callers should treat compilation errors like compiler errors and surface them at the point where runtime-provided source is authored/loaded. Do not retry compilation every frame.
+
+## Performance guidance
+
+- Compile once and reuse/cache the resulting `HlslShaderLibrary`.
+- Persist `HlslShaderLibrary.Bytecode` when a runtime-generated shader will be reused in later sessions.
+- Do not use runtime compilation for static package assets merely to avoid an MSBuild item.
+- Compilation/reflection is setup work; brush rendering and property animation do not invoke this class.
+
+## See also
+
+- [HlslShaderLibrary](hlsl-shader-library.md)
+- [HlslEffectKind](hlsl-effect-kind.md)
+- [HlslProperty](hlsl-property.md)
+- [Get started](../get-started.md)

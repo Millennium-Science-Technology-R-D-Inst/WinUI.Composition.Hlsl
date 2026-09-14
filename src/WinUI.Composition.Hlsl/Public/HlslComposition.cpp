@@ -38,10 +38,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 #elif defined(_M_ARM64)
 		return make<HlslRuntimeCapabilities>(
 			Hlsl::HlslNativeArchitecture::Arm64,
-			Hlsl::HlslRuntimeSupportLevel::Experimental,
+			Hlsl::HlslRuntimeSupportLevel::Validated,
 			true,
 			true,
-			false,
+			true,
 			true,
 			false,
 			false,
