@@ -20,9 +20,9 @@ Returns the packaged native-adapter capability level without installing private 
 public static HlslEffectFactory CreateEffectFactory(Compositor compositor, HlslEffect effect);
 ```
 
-Creates/caches the Composition factory for the effect's normal one-source description.
+Creates/caches the Composition factory for the effect description.
 
-When a custom shader must consume an already-built **native `IGraphicsEffect` graph**, use `HlslEffectKind.MaterializedSampler`, call `CreateGraphicsEffectWithSource(upstream)`, obtain `GetAnimatablePropertyPaths()`, and then call the standard `Compositor.CreateEffectFactory(graph, paths)`. Ordinary `Color/Sampler` mixed-native upstream graphs are intentionally rejected until their private linked-subgraph ABI is verified.
+When a custom shader must consume an already-built **native `IGraphicsEffect` graph**, use `HlslEffectKind.MaterializedSampler`, call `CreateGraphicsEffectWithSource(upstream)`, obtain `GetAnimatablePropertyPaths()`, and then call the standard `Compositor.CreateEffectFactory(graph, paths)`.
 
 ## CreateBackdropBrush
 
@@ -30,7 +30,39 @@ When a custom shader must consume an already-built **native `IGraphicsEffect` gr
 public static HlslEffectBrush CreateBackdropBrush(Compositor compositor, HlslEffect effect);
 ```
 
-Convenience path for one-source effects whose source should be `compositor.CreateBackdropBrush()`.
+Convenience path that binds `compositor.CreateBackdropBrush()` to every declared source parameter. For a single-source effect this is equivalent to binding the normal `SourceName`; for a linked multi-source effect all named inputs receive the same backdrop brush.
+
+## CreateBrushWithSources
+
+```csharp
+public static HlslEffectBrush CreateBrushWithSources(
+    Compositor compositor,
+    HlslEffect effect,
+    IReadOnlyList<CompositionBrush> sources);
+```
+
+Creates the effect brush and binds an ordered list of Composition brushes to the effect's ordered `SourceNames`. The number of brushes must exactly match the effect source count, every source must be non-null, and every source must belong to the same `Compositor` as the destination brush.
+
+This is the direct public helper for linked multi-source effects when each HLSL input should consume a different Composition brush:
+
+```csharp
+var effect = HlslEffect.CreateAdvanced(
+    shader,
+    HlslEffectKind.Sampler,
+    new[] { "First", "Second" },
+    Array.Empty<HlslProperty>());
+
+var brush = HlslComposition.CreateBrushWithSources(
+    compositor,
+    effect,
+    new CompositionBrush[]
+    {
+        compositor.CreateBackdropBrush(),
+        compositor.CreateColorBrush(),
+    });
+```
+
+Source ordering is ABI-significant: `sources[0]` is bound to `SourceNames[0]`, `sources[1]` to `SourceNames[1]`, and so on.
 
 ## CreateXamlBrush
 

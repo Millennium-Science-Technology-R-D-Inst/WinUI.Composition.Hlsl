@@ -10,6 +10,26 @@ export namespace hlsl::compiler
 		"", "CC", "CW", "CM", "WC", "WW", "WM", "MC", "MW", "MM", "C", "W", "M"
 	};
 
+	inline void AppendCompiledShaderMetadata(
+		std::string& code,
+		std::uint32_t effectKind,
+		std::uint32_t shaderProfile,
+		std::uint32_t sourceCount)
+	{
+		// Keep build-time and runtime-compiled libraries self-describing without
+		// introducing a second sidecar asset. The marker is an unused exported HLSL
+		// function; Composition links the PSBody* exports it needs and ignores this
+		// reserved library export. HlslShaderLibrary reflects the marker when the
+		// caller wants to reconstruct Kind/Profile/SourceCount from embedded bytecode.
+		code += "\n#line 1 \"WinUI.Composition.Hlsl.Metadata.hlsl\"\nexport float4 __WinUICompositionHlsl_Metadata_K";
+		code += std::to_string(effectKind);
+		code += "_P";
+		code += std::to_string(shaderProfile);
+		code += "_S";
+		code += std::to_string(sourceCount);
+		code += "(float4 value){return value;}\n";
+	}
+
 	inline std::string BuildPublicShaderSource(
 		std::string_view declarations,
 		std::string_view userShader,

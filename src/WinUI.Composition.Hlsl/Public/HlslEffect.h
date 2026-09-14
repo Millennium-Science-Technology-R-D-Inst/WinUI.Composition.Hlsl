@@ -22,6 +22,10 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		static Hlsl::HlslEffect CreateColorTransform(hstring const& shader);
 		static Hlsl::HlslEffect CreateCustomSampler(hstring const& shader);
 		static Hlsl::HlslEffect CreateCustomMaterializedSampler(hstring const& shader);
+		static Hlsl::HlslEffect CreateCompiled(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
+		static Hlsl::HlslEffect CreateCompiledFromGeneratedByteArray(
+			winrt::guid const& id,
+			winrt::array_view<std::uint8_t const> bytecode);
 		static Hlsl::HlslEffect CreateCompiledColor(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateCompiledSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);
 		static Hlsl::HlslEffect CreateCompiledMaterializedSampler(winrt::guid const& id, Hlsl::HlslShaderLibrary const& shader);

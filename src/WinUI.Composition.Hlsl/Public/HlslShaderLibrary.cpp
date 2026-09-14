@@ -8,6 +8,37 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	namespace
 	{
+		constexpr std::array<char const*, 13> RequiredSamplerExports{
+			"PSBody", "PSBodyCC", "PSBodyCW", "PSBodyCM", "PSBodyWC", "PSBodyWW", "PSBodyWM",
+			"PSBodyMC", "PSBodyMW", "PSBodyMM", "PSBodyC", "PSBodyW", "PSBodyM"
+		};
+
+		struct ReflectedEffectAbi
+		{
+			Hlsl::HlslEffectKind kind{};
+			std::uint32_t sourceCount{};
+		};
+
+		struct EmbeddedMetadata
+		{
+			Hlsl::HlslEffectKind kind{};
+			Hlsl::HlslShaderProfile profile{};
+			std::optional<std::uint32_t> sourceCount;
+		};
+
+		void ValidateProfile(Hlsl::HlslShaderProfile profile)
+		{
+			switch (profile)
+			{
+				case Hlsl::HlslShaderProfile::Level91:
+				case Hlsl::HlslShaderProfile::Level93:
+				case Hlsl::HlslShaderProfile::Pixel40:
+					return;
+				default:
+					throw hresult_invalid_argument(L"Unknown HLSL shader profile.");
+			}
+		}
+
 		com_ptr<ID3D11LibraryReflection> ReflectLibrary(std::span<std::uint8_t const> bytecode)
 		{
 			com_ptr<ID3D11LibraryReflection> reflection;
@@ -47,7 +78,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				desc.Columns == columns;
 		}
 
-		bool HasColorAbi(ID3D11FunctionReflection* function)
+		bool HasSingleColorAbi(ID3D11FunctionReflection* function)
 		{
 			if (!function) return false;
 			D3D11_FUNCTION_DESC desc{};
@@ -56,19 +87,258 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				IsFloatVector(function->GetFunctionParameter(0), 4);
 		}
 
-		bool HasSamplerAbi(ID3D11FunctionReflection* function, bool materialized)
+		std::optional<std::uint32_t> GetColorSourceCount(ID3D11FunctionReflection* function)
 		{
-			if (!function) return false;
+			if (!function) return std::nullopt;
 			D3D11_FUNCTION_DESC desc{};
 			if (FAILED(function->GetDesc(&desc)) || !desc.HasReturn ||
-				desc.FunctionParameterCount != (materialized ? 3 : 2) ||
-				!IsFloatVector(function->GetFunctionParameter(-1), 4) ||
-				!IsFloatVector(function->GetFunctionParameter(0), 2) ||
-				!IsFloatVector(function->GetFunctionParameter(1), 4))
+				desc.FunctionParameterCount < 1 || desc.FunctionParameterCount > 16 ||
+				!IsFloatVector(function->GetFunctionParameter(-1), 4))
 			{
-				return false;
+				return std::nullopt;
 			}
-			return !materialized || IsFloatVector(function->GetFunctionParameter(2), 4);
+			for (UINT index = 0; index < desc.FunctionParameterCount; ++index)
+			{
+				if (!IsFloatVector(function->GetFunctionParameter(index), 4))
+				{
+					return std::nullopt;
+				}
+			}
+			return desc.FunctionParameterCount;
+		}
+
+		std::optional<std::uint32_t> GetSamplerSourceCount(
+			ID3D11FunctionReflection* function,
+			bool materialized)
+		{
+			if (!function) return std::nullopt;
+			D3D11_FUNCTION_DESC desc{};
+			if (FAILED(function->GetDesc(&desc)) || !desc.HasReturn ||
+				!IsFloatVector(function->GetFunctionParameter(-1), 4))
+			{
+				return std::nullopt;
+			}
+
+			auto const parametersPerSource = materialized ? 3u : 2u;
+			if (desc.FunctionParameterCount == 0 ||
+				desc.FunctionParameterCount % parametersPerSource != 0)
+			{
+				return std::nullopt;
+			}
+			auto const sourceCount = desc.FunctionParameterCount / parametersPerSource;
+			if (sourceCount < 1 || sourceCount > 16)
+			{
+				return std::nullopt;
+			}
+
+			for (UINT source = 0; source < sourceCount; ++source)
+			{
+				auto const base = source * parametersPerSource;
+				if (!IsFloatVector(function->GetFunctionParameter(base), 2) ||
+					!IsFloatVector(function->GetFunctionParameter(base + 1), 4) ||
+					(materialized && !IsFloatVector(function->GetFunctionParameter(base + 2), 4)))
+				{
+					return std::nullopt;
+				}
+			}
+			return sourceCount;
+		}
+
+		ReflectedEffectAbi InferEffectAbi(ID3D11LibraryReflection* reflection)
+		{
+			auto* body = FindFunction(reflection, "PSBody");
+			if (!body)
+			{
+				throw hresult_invalid_argument(L"The DXBC library does not expose the required PSBody function.");
+			}
+
+			if (auto const colorSourceCount = GetColorSourceCount(body))
+			{
+				return { Hlsl::HlslEffectKind::Color, *colorSourceCount };
+			}
+
+			auto const materializedSourceCount = GetSamplerSourceCount(body, true);
+			auto const samplerSourceCount = GetSamplerSourceCount(body, false);
+			if (materializedSourceCount && samplerSourceCount)
+			{
+				throw hresult_invalid_argument(L"The DXBC library exposes an ambiguous sampler ABI.");
+			}
+			if (!materializedSourceCount && !samplerSourceCount)
+			{
+				throw hresult_invalid_argument(L"The DXBC library does not match a supported Composition HLSL ABI.");
+			}
+
+			auto const materialized = materializedSourceCount.has_value();
+			auto const sourceCount = materialized ? *materializedSourceCount : *samplerSourceCount;
+		for (auto const* exportName : RequiredSamplerExports)
+			{
+				auto const exportSourceCount = GetSamplerSourceCount(FindFunction(reflection, exportName), materialized);
+				if (!exportSourceCount || *exportSourceCount != sourceCount)
+				{
+					throw hresult_invalid_argument(materialized
+						? L"Compiled materialized sampler libraries must export all PSBody edge-mode variants with the same float2/float4/float4 source groups."
+						: L"Compiled sampler libraries must export all PSBody edge-mode variants with the same float2/float4 source groups.");
+				}
+			}
+
+			if (materialized)
+			{
+				if (sourceCount != 1)
+				{
+					throw hresult_invalid_argument(L"MaterializedSampler currently supports exactly one source.");
+				}
+				if (!HasSingleColorAbi(FindFunction(reflection, "MaterializeColor")))
+				{
+					throw hresult_invalid_argument(L"Compiled materialized sampler libraries must export float4 MaterializeColor(float4 color).");
+				}
+				return { Hlsl::HlslEffectKind::MaterializedSampler, sourceCount };
+			}
+
+			return { Hlsl::HlslEffectKind::Sampler, sourceCount };
+		}
+
+		std::optional<EmbeddedMetadata> FindEmbeddedMetadata(ID3D11LibraryReflection* reflection)
+		{
+			std::optional<EmbeddedMetadata> result;
+			auto accept = [&](ID3D11FunctionReflection* marker, EmbeddedMetadata metadata)
+				{
+					if (!marker) return;
+					if (!HasSingleColorAbi(marker))
+					{
+						throw hresult_invalid_argument(
+							L"The DXBC library contains a malformed WinUI.Composition.Hlsl metadata marker.");
+					}
+					if (result)
+					{
+						throw hresult_invalid_argument(L"The DXBC library contains conflicting WinUI.Composition.Hlsl metadata markers.");
+					}
+					result = metadata;
+				};
+
+			for (std::uint32_t kind = 0; kind <= 2; ++kind)
+			{
+				for (std::uint32_t profile = 0; profile <= 2; ++profile)
+				{
+					for (std::uint32_t sourceCount = 1; sourceCount <= 16; ++sourceCount)
+					{
+						auto name = std::string("__WinUICompositionHlsl_Metadata_K") +
+							std::to_string(kind) + "_P" + std::to_string(profile) +
+							"_S" + std::to_string(sourceCount);
+						accept(
+							FindFunction(reflection, name.c_str()),
+							EmbeddedMetadata{
+								static_cast<Hlsl::HlslEffectKind>(kind),
+								static_cast<Hlsl::HlslShaderProfile>(profile),
+								sourceCount });
+					}
+
+					// Accept the original single-source K/P marker so generated DXBC from
+					// pre-SourceCount package versions remains loadable. Its source count is
+					// inferred from PSBody rather than trusted from metadata.
+					auto legacyName = std::string("__WinUICompositionHlsl_Metadata_K") +
+						std::to_string(kind) + "_P" + std::to_string(profile);
+					accept(
+						FindFunction(reflection, legacyName.c_str()),
+						EmbeddedMetadata{
+							static_cast<Hlsl::HlslEffectKind>(kind),
+							static_cast<Hlsl::HlslShaderProfile>(profile),
+							std::nullopt });
+				}
+			}
+			return result;
+		}
+
+		Hlsl::HlslShaderLibrary CreateValidatedLibrary(
+			std::span<std::uint8_t const> bytecode,
+			std::optional<Hlsl::HlslShaderProfile> requestedProfile)
+		{
+			if (bytecode.size() < 4 || bytecode.size() > 16 * 1024 * 1024)
+			{
+				throw hresult_invalid_argument(L"Shader bytecode must contain a DXBC library no larger than 16 MiB.");
+			}
+			if (memcmp(bytecode.data(), "DXBC", 4) != 0)
+			{
+				throw hresult_invalid_argument(L"Shader bytecode is not a DXBC container.");
+			}
+			if (requestedProfile) ValidateProfile(*requestedProfile);
+
+			std::vector<std::uint8_t> owned(bytecode.begin(), bytecode.end());
+			try
+			{
+				auto reflection = ReflectLibrary(owned);
+				D3D11_LIBRARY_DESC desc{};
+				check_hresult(reflection->GetDesc(&desc));
+				if (desc.FunctionCount == 0)
+				{
+					throw hresult_invalid_argument(L"DXBC library does not contain any reflected HLSL functions.");
+				}
+
+				auto const effectAbi = InferEffectAbi(reflection.get());
+				auto const metadata = FindEmbeddedMetadata(reflection.get());
+				if (metadata && metadata->kind != effectAbi.kind)
+				{
+					throw hresult_invalid_argument(L"Embedded shader metadata does not match the reflected Composition HLSL ABI.");
+				}
+				if (metadata && metadata->sourceCount && *metadata->sourceCount != effectAbi.sourceCount)
+				{
+					throw hresult_invalid_argument(L"Embedded shader source-count metadata does not match the reflected Composition HLSL ABI.");
+				}
+
+				Hlsl::HlslShaderProfile profile{};
+				if (requestedProfile)
+				{
+					profile = *requestedProfile;
+					if (metadata && metadata->profile != profile)
+					{
+						throw hresult_invalid_argument(L"The explicit HLSL shader profile does not match the embedded build metadata.");
+					}
+				}
+				else
+				{
+					if (!metadata)
+					{
+						throw hresult_invalid_argument(
+							L"The DXBC library does not contain WinUI.Composition.Hlsl build metadata. Use the overload that supplies an explicit shader profile for external or legacy bytecode.");
+					}
+					profile = metadata->profile;
+				}
+
+				return make<HlslShaderLibrary>(
+					std::move(owned),
+					profile,
+					effectAbi.kind,
+					effectAbi.sourceCount);
+			}
+			catch (hresult_invalid_argument const&)
+			{
+				throw;
+			}
+			catch (...)
+			{
+				throw hresult_invalid_argument(L"Shader bytecode is not a valid reflectable HLSL DXBC library.");
+			}
+		}
+
+		Hlsl::HlslShaderLibrary CreateValidatedLibraryFromBuffer(
+			Windows::Storage::Streams::IBuffer const& bytecode,
+			std::optional<Hlsl::HlslShaderProfile> requestedProfile)
+		{
+			if (!bytecode)
+			{
+				throw hresult_invalid_argument(L"The shader bytecode buffer is null.");
+			}
+
+			auto access = bytecode.as<::Windows::Storage::Streams::IBufferByteAccess>();
+			byte* data{};
+			check_hresult(access->Buffer(&data));
+			if (!data && bytecode.Length() != 0)
+			{
+				throw hresult_invalid_argument(L"The shader bytecode buffer is not readable.");
+			}
+
+			return CreateValidatedLibrary(
+				std::span<std::uint8_t const>{ reinterpret_cast<std::uint8_t const*>(data), bytecode.Length() },
+				requestedProfile);
 		}
 	}
 
@@ -76,50 +346,24 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Windows::Storage::Streams::IBuffer const& bytecode,
 		Hlsl::HlslShaderProfile profile)
 	{
-		if (!bytecode || bytecode.Length() < 4 || bytecode.Length() > 16 * 1024 * 1024)
-		{
-			throw hresult_invalid_argument(L"Shader bytecode must contain a DXBC library no larger than 16 MiB.");
-		}
+		return CreateValidatedLibraryFromBuffer(bytecode, profile);
+	}
 
-		switch (profile)
-		{
-			case Hlsl::HlslShaderProfile::Level91:
-			case Hlsl::HlslShaderProfile::Level93:
-			case Hlsl::HlslShaderProfile::Pixel40:
-				break;
-			default:
-				throw hresult_invalid_argument(L"Unknown HLSL shader profile.");
-		}
+	Hlsl::HlslShaderLibrary HlslShaderLibrary::CreateFromByteArray(
+		winrt::array_view<std::uint8_t const> bytecode,
+		Hlsl::HlslShaderProfile profile)
+	{
+		return CreateValidatedLibrary(
+			std::span<std::uint8_t const>{ bytecode.data(), bytecode.size() },
+			profile);
+	}
 
-		auto access = bytecode.as<::Windows::Storage::Streams::IBufferByteAccess>();
-		byte* data{};
-		check_hresult(access->Buffer(&data));
-		if (!data || memcmp(data, "DXBC", 4) != 0)
-		{
-			throw hresult_invalid_argument(L"Shader bytecode is not a DXBC container.");
-		}
-
-		std::vector<std::uint8_t> owned(data, data + bytecode.Length());
-		try
-		{
-			auto reflection = ReflectLibrary(owned);
-			D3D11_LIBRARY_DESC desc{};
-			check_hresult(reflection->GetDesc(&desc));
-			if (desc.FunctionCount == 0)
-			{
-				throw hresult_invalid_argument(L"DXBC library does not contain any exported HLSL functions.");
-			}
-		}
-		catch (hresult_invalid_argument const&)
-		{
-			throw;
-		}
-		catch (...)
-		{
-			throw hresult_invalid_argument(L"Shader bytecode is not a valid reflectable HLSL DXBC library.");
-		}
-
-		return make<HlslShaderLibrary>(std::move(owned), profile);
+	Hlsl::HlslShaderLibrary HlslShaderLibrary::CreateFromGeneratedByteArray(
+		winrt::array_view<std::uint8_t const> bytecode)
+	{
+		return CreateValidatedLibrary(
+			std::span<std::uint8_t const>{ bytecode.data(), bytecode.size() },
+			std::nullopt);
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadFromFileAsync(
@@ -131,7 +375,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			throw hresult_invalid_argument(L"The shader file is null.");
 		}
 		auto buffer = co_await Windows::Storage::FileIO::ReadBufferAsync(file);
-		co_return Create(buffer, profile);
+		co_return CreateValidatedLibraryFromBuffer(buffer, profile);
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadFromApplicationUriAsync(
@@ -144,6 +388,28 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 		auto file = co_await Windows::Storage::StorageFile::GetFileFromApplicationUriAsync(uri);
 		co_return co_await LoadFromFileAsync(file, profile);
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadGeneratedFromFileAsync(
+		Windows::Storage::StorageFile const& file)
+	{
+		if (!file)
+		{
+			throw hresult_invalid_argument(L"The shader file is null.");
+		}
+		auto buffer = co_await Windows::Storage::FileIO::ReadBufferAsync(file);
+		co_return CreateValidatedLibraryFromBuffer(buffer, std::nullopt);
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslShaderLibrary::LoadGeneratedFromApplicationUriAsync(
+		Windows::Foundation::Uri const& uri)
+	{
+		if (!uri)
+		{
+			throw hresult_invalid_argument(L"The shader URI is null.");
+		}
+		auto file = co_await Windows::Storage::StorageFile::GetFileFromApplicationUriAsync(uri);
+		co_return co_await LoadGeneratedFromFileAsync(file);
 	}
 
 	Windows::Storage::Streams::IBuffer HlslShaderLibrary::Bytecode() const
@@ -160,48 +426,24 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		return buffer;
 	}
 
-	void HlslShaderLibrary::ValidateForEffect(Hlsl::HlslEffectKind kind, std::span<std::wstring const> propertyNames) const
+	void HlslShaderLibrary::ValidateForEffect(
+		Hlsl::HlslEffectKind kind,
+		std::uint32_t sourceCount,
+		std::span<std::wstring const> propertyNames) const
 	{
-		bool sampler{};
-		bool materialized{};
-		switch (kind)
+		if (sourceCount == 0 || sourceCount > 16)
 		{
-			case Hlsl::HlslEffectKind::Color: break;
-			case Hlsl::HlslEffectKind::Sampler: sampler = true; break;
-			case Hlsl::HlslEffectKind::MaterializedSampler: sampler = true; materialized = true; break;
-			default: throw hresult_invalid_argument(L"Unknown HLSL effect kind.");
+			throw hresult_invalid_argument(L"Composition HLSL supports between 1 and 16 sources.");
 		}
-
 		auto reflection = ReflectLibrary(m_bytecode);
-		auto* function = FindFunction(reflection.get(), "PSBody");
-		if (!function)
+		auto const reflectedAbi = InferEffectAbi(reflection.get());
+		if (reflectedAbi.kind != kind || reflectedAbi.kind != m_effectKind)
 		{
-			throw hresult_invalid_argument(L"The DXBC library does not export the required PSBody function.");
+			throw hresult_invalid_argument(L"The requested effect kind does not match the compiled Composition HLSL ABI.");
 		}
-
-		if (sampler)
+		if (reflectedAbi.sourceCount != sourceCount || reflectedAbi.sourceCount != m_sourceCount)
 		{
-			static constexpr char const* requiredSamplerExports[] = {
-				"PSBody", "PSBodyCC", "PSBodyCW", "PSBodyCM", "PSBodyWC", "PSBodyWW", "PSBodyWM",
-				"PSBodyMC", "PSBodyMW", "PSBodyMM", "PSBodyC", "PSBodyW", "PSBodyM"
-			};
-			for (auto const* exportName : requiredSamplerExports)
-			{
-				if (!HasSamplerAbi(FindFunction(reflection.get(), exportName), materialized))
-				{
-					throw hresult_invalid_argument(materialized
-						? L"Compiled materialized sampler libraries must export all PSBody edge-mode variants with ABI float4(float2 uv, float4 samplerDataExt, float4 samplerData)."
-						: L"Compiled sampler libraries must export all PSBody edge-mode variants with ABI float4(float2 uv, float4 samplerDataExt).");
-				}
-			}
-			if (materialized && !HasColorAbi(FindFunction(reflection.get(), "MaterializeColor")))
-			{
-				throw hresult_invalid_argument(L"Compiled materialized sampler libraries must export float4 MaterializeColor(float4 color).");
-			}
-		}
-		else if (!HasColorAbi(function))
-		{
-			throw hresult_invalid_argument(L"Compiled color PSBody must have ABI float4 PSBody(float4 color).");
+			throw hresult_invalid_argument(L"The requested source count does not match the compiled Composition HLSL ABI.");
 		}
 
 		if (propertyNames.empty())
@@ -209,7 +451,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			return;
 		}
 
-		auto* constants = function->GetConstantBufferByName("UserConstants");
+		auto* function = FindFunction(reflection.get(), "PSBody");
+		auto* constants = function ? function->GetConstantBufferByName("UserConstants") : nullptr;
 		if (!constants)
 		{
 			throw hresult_invalid_argument(L"Compiled shader properties require cbuffer UserConstants : register(b0).");

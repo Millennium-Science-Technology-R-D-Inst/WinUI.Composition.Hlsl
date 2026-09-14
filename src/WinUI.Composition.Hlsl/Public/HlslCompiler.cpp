@@ -30,7 +30,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				case Hlsl::HlslEffectKind::Color: return {};
 				case Hlsl::HlslEffectKind::Sampler: return { true, false };
 				case Hlsl::HlslEffectKind::MaterializedSampler: return { true, true };
-				default: throw hresult_invalid_argument(L"Unknown HLSL effect kind.");
+				default: throw hresult_invalid_argument(L"Auto is a compiler-only HLSL effect kind; a concrete Composition effect kind is required here.");
 			}
 		}
 
@@ -96,8 +96,6 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslShaderProfile profile,
 			std::span<MacroDefinition const> definitions)
 		{
-			// D3D_SHADER_MACRO is declared by the Windows SDK in the global namespace.
-			// Qualify it explicitly because this implementation itself lives under winrt::.
 			std::vector<::D3D_SHADER_MACRO> macros;
 			if (!definitions.empty())
 			{
@@ -149,15 +147,15 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			std::vector<std::wstring> propertyNames;
 			std::vector<MacroDefinition> definitions;
 			Hlsl::HlslEffectKind kind{};
-			bool sampler{};
-			bool materialized{};
 			Hlsl::HlslShaderProfile profile{};
+			std::uint32_t sourceCount{ 1 };
 		};
 
 		CompileInput PrepareInput(
 			hstring const& shader,
 			Hlsl::HlslEffectKind kind,
 			Hlsl::HlslShaderProfile profile,
+			std::uint32_t sourceCount,
 			Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties,
 			Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
 		{
@@ -167,10 +165,20 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			{
 				throw hresult_invalid_argument(L"Shader source must be non-empty, contain no embedded NUL, and be no larger than 1 MiB.");
 			}
-			auto const kindInfo = GetEffectKindInfo(kind);
+			if (sourceCount == 0 || sourceCount > 16)
+			{
+				throw hresult_invalid_argument(L"Composition HLSL supports between 1 and 16 sources.");
+			}
+			if (kind != Hlsl::HlslEffectKind::Auto)
+			{
+				auto const info = GetEffectKindInfo(kind);
+				if (info.materialized && sourceCount != 1)
+				{
+					throw hresult_invalid_argument(L"MaterializedSampler currently supports exactly one source.");
+				}
+			}
 			input.kind = kind;
-			input.sampler = kindInfo.sampler;
-			input.materialized = kindInfo.materialized;
+			input.sourceCount = sourceCount;
 			(void)ShaderTarget(profile);
 			input.profile = profile;
 			input.definitions = CopyDefines(definitions);
@@ -190,14 +198,74 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			return input;
 		}
 
+		Hlsl::HlslShaderLibrary CompileConcreteKind(CompileInput const& input, Hlsl::HlslEffectKind kind)
+		{
+			auto const info = GetEffectKindInfo(kind);
+			if (info.materialized && input.sourceCount != 1)
+			{
+				throw hresult_invalid_argument(L"MaterializedSampler currently supports exactly one source.");
+			}
+			auto source = hlsl::compiler::BuildPublicShaderSource(
+				input.declarations,
+				input.shader,
+				info.sampler,
+				info.materialized,
+				input.sourceCount);
+			hlsl::compiler::AppendCompiledShaderMetadata(
+				source,
+				static_cast<std::uint32_t>(kind),
+				static_cast<std::uint32_t>(input.profile),
+				input.sourceCount);
+			auto bytes = CompileLibrary(source, input.profile, input.definitions);
+			auto projected = make<HlslShaderLibrary>(std::move(bytes), input.profile, kind, input.sourceCount);
+			get_self<HlslShaderLibrary>(projected)->ValidateForEffect(kind, input.sourceCount, input.propertyNames);
+			return projected;
+		}
+
 		Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> CompilePreparedAsync(CompileInput input)
 		{
 			co_await resume_background();
-			auto source = hlsl::compiler::BuildPublicShaderSource(input.declarations, input.shader, input.sampler, input.materialized);
-			auto bytes = CompileLibrary(source, input.profile, input.definitions);
-			auto projected = make<HlslShaderLibrary>(std::move(bytes), input.profile);
-			get_self<HlslShaderLibrary>(projected)->ValidateForEffect(input.kind, input.propertyNames);
-			co_return projected;
+			if (input.kind != Hlsl::HlslEffectKind::Auto)
+			{
+				co_return CompileConcreteKind(input, input.kind);
+			}
+
+			static constexpr Hlsl::HlslEffectKind candidates[]{
+				Hlsl::HlslEffectKind::Color,
+				Hlsl::HlslEffectKind::Sampler,
+				Hlsl::HlslEffectKind::MaterializedSampler,
+			};
+			Hlsl::HlslShaderLibrary match{ nullptr };
+			std::uint32_t matchCount{};
+			for (auto candidate : candidates)
+			{
+				if (candidate == Hlsl::HlslEffectKind::MaterializedSampler && input.sourceCount != 1)
+				{
+					continue;
+				}
+				try
+				{
+					auto compiled = CompileConcreteKind(input, candidate);
+					++matchCount;
+					if (matchCount == 1) match = std::move(compiled);
+				}
+				catch (hresult_error const&)
+				{
+					// Candidate compilation/reflection failures are expected while probing.
+				}
+			}
+
+			if (matchCount == 0)
+			{
+				throw hresult_invalid_argument(
+					L"HLSL effect kind could not be inferred. The shader must match exactly one supported public contract for the requested source count, or specify the kind explicitly.");
+			}
+			if (matchCount != 1)
+			{
+				throw hresult_invalid_argument(
+					L"HLSL effect kind is ambiguous because the source matches more than one public contract. Specify Color or Sampler explicitly.");
+			}
+			co_return match;
 		}
 	}
 
@@ -206,7 +274,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Hlsl::HlslEffectKind kind,
 		Hlsl::HlslShaderProfile profile)
 	{
-		return CompilePreparedAsync(PrepareInput(shader, kind, profile, nullptr, nullptr));
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, 1, nullptr, nullptr));
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileWithDefinesAsync(
@@ -215,7 +283,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Hlsl::HlslShaderProfile profile,
 		Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
 	{
-		return CompilePreparedAsync(PrepareInput(shader, kind, profile, nullptr, definitions));
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, 1, nullptr, definitions));
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileWithPropertiesAsync(
@@ -224,7 +292,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Hlsl::HlslShaderProfile profile,
 		Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties)
 	{
-		return CompilePreparedAsync(PrepareInput(shader, kind, profile, properties, nullptr));
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, 1, properties, nullptr));
 	}
 
 	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileWithPropertiesAndDefinesAsync(
@@ -234,6 +302,46 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties,
 		Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
 	{
-		return CompilePreparedAsync(PrepareInput(shader, kind, profile, properties, definitions));
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, 1, properties, definitions));
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileAdvancedAsync(
+		hstring const& shader,
+		Hlsl::HlslEffectKind kind,
+		Hlsl::HlslShaderProfile profile,
+		std::uint32_t sourceCount)
+	{
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, sourceCount, nullptr, nullptr));
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileAdvancedWithDefinesAsync(
+		hstring const& shader,
+		Hlsl::HlslEffectKind kind,
+		Hlsl::HlslShaderProfile profile,
+		std::uint32_t sourceCount,
+		Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
+	{
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, sourceCount, nullptr, definitions));
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileAdvancedWithPropertiesAsync(
+		hstring const& shader,
+		Hlsl::HlslEffectKind kind,
+		Hlsl::HlslShaderProfile profile,
+		std::uint32_t sourceCount,
+		Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties)
+	{
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, sourceCount, properties, nullptr));
+	}
+
+	Windows::Foundation::IAsyncOperation<Hlsl::HlslShaderLibrary> HlslCompiler::CompileAdvancedWithPropertiesAndDefinesAsync(
+		hstring const& shader,
+		Hlsl::HlslEffectKind kind,
+		Hlsl::HlslShaderProfile profile,
+		std::uint32_t sourceCount,
+		Windows::Foundation::Collections::IVectorView<Hlsl::HlslFloatProperty> const& properties,
+		Windows::Foundation::Collections::IVectorView<hstring> const& definitions)
+	{
+		return CompilePreparedAsync(PrepareInput(shader, kind, profile, sourceCount, properties, definitions));
 	}
 }

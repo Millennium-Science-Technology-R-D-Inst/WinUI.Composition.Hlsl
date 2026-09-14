@@ -13,8 +13,5 @@
       <Version>2.1.7-experimental</Version>
     </PackageVersion>
     <PackageVersion Include="WinUI.Composition.Hlsl" Version="1.0.0" />
-    <PackageVersion Include="YexuanXiao.CppWinRTPlus.Ext">
-      <Version>0.9.0.4</Version>
-    </PackageVersion>
   </ItemGroup>
 </Project>
