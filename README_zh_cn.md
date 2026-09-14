@@ -7,6 +7,14 @@
 <p align="center">让自定义 HLSL 作为 WinUI 3 Composition 原生 effect node 工作，并最终回到 XAML Brush。</p>
 <p align="center"><a href="README.md">English</a> · <a href="README_zh_cn.md">简体中文</a></p>
 
+<p align="center">
+  <a href="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml/badge.svg?branch=master"></a>
+  <a href="https://www.nuget.org/packages/WinUI.Composition.Hlsl"><img alt="NuGet" src="https://img.shields.io/nuget/v/WinUI.Composition.Hlsl?logo=nuget"></a>
+  <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <img alt="C++23" src="https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus">
+  <img alt="WinUI 3" src="https://img.shields.io/badge/WinUI-3-0078D4">
+</p>
+
 ## 这个包解决什么问题
 
 `WinUI.Composition.Hlsl` 把应用自己的 HLSL 接入现有 Windows Graphics Effects / `Microsoft.UI.Composition` / WinUI 3 XAML 渲染链：
@@ -25,6 +33,8 @@ HLSL / FXC linkable library
 ## 版本与兼容性
 
 NuGet 包最低依赖 **Windows App SDK 1.6**，并提供 **x86、x64、ARM64** 三种 native runtime asset。
+
+每次通过验证的 `master` push 都会自动发布正式 NuGet 包，版本格式为 `1.0.<CI run number>`；例如 CI #80 对应 `1.0.80`。
 
 Custom shader backend 依赖未公开的 Composition 私有实现 ABI。遇到无法安全识别的布局时会 fail closed，而不是继续向未知私有结构写入猜测数据。实现细节、支持边界和运行时安全约束见 [整体架构](docs/architecture.md) 与 [Runtime safety](docs/design/runtime-safety.md)。
 
@@ -49,7 +59,7 @@ Custom shader backend 依赖未公开的 Composition 私有实现 ABI。遇到�
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.0" />
+  <PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.*" />
   <HlslCompositionShader Include="Effects\Invert.hlsl" />
 </ItemGroup>
 ```
@@ -156,7 +166,7 @@ README 只负责项目入口，完整文档从这里开始：
 .\tests\build.ps1 -Language CSharp
 ```
 
-CI 会构建 x64/Win32/ARM64 native asset、CsWinRT projection、generated shader fixture、preview NuGet，并使用生成的 NuGet 再构建下游 C++/C# consumer。
+CI 会构建 x64/Win32/ARM64 native asset、CsWinRT projection、generated shader fixture、NuGet 包，并使用生成的 NuGet 再构建下游 C++/C# consumer。`master` push 全部验证通过后，会直接由 `ci.yml` 通过 OIDC trusted publishing 发布该包到 NuGet.org。
 
 ## License
 

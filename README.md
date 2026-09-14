@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml/badge.svg?branch=master"></a>
+  <a href="https://www.nuget.org/packages/WinUI.Composition.Hlsl"><img alt="NuGet" src="https://img.shields.io/nuget/v/WinUI.Composition.Hlsl?logo=nuget"></a>
   <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="C++23" src="https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus">
   <img alt="WinUI 3" src="https://img.shields.io/badge/WinUI-3-0078D4">
@@ -33,6 +34,8 @@ It is not an app-owned D3D renderer: no `SwapChainPanel`, custom presentation lo
 
 The NuGet package requires **Windows App SDK 1.6 or later** and ships native runtime assets for **x86, x64, and ARM64**.
 
+Each validated `master` push is published automatically to NuGet.org as a stable `1.0.<CI run number>` package.
+
 Custom shader execution relies on a private, undocumented Composition implementation ABI. Unsupported layouts fail closed instead of writing guessed private data. See [Architecture](docs/architecture.md) and [Runtime safety](docs/design/runtime-safety.md) for implementation details and support boundaries.
 
 ## Main capabilities
@@ -56,7 +59,7 @@ Add the package and a shader item:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.0" />
+  <PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.*" />
   <HlslCompositionShader Include="Effects\Invert.hlsl" />
 </ItemGroup>
 ```
@@ -163,7 +166,7 @@ Useful references:
 .\tests\build.ps1 -Language CSharp
 ```
 
-CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, a preview NuGet package, and downstream C++/C# package consumers.
+CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, a NuGet package, and downstream C++/C# package consumers. Successful `master` push runs publish that validated package directly from `ci.yml` to NuGet.org through OIDC trusted publishing.
 
 ## License
 
