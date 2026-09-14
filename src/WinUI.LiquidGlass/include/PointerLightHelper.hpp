@@ -13,9 +13,9 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto self = static_cast<Self*>(this);
             self->PointerEntered([this](auto const&, auto const&) { BeginTracking(); });
-            self->PointerMoved([this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+            self->PointerMoved([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
-                UpdateLight(args);
+                UpdateLight(sender, args);
             });
             self->PointerExited([this](auto const&, auto const&) { EndTracking(); });
         }
@@ -31,7 +31,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
         }
 
-        void UpdateLight(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        template<typename Sender>
+        void UpdateLight(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
             auto self = static_cast<Self*>(this);
             auto brush = self->GlassBrush();
@@ -43,8 +44,10 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_tracking = true;
             }
 
-            auto element = self->template as<Microsoft::UI::Xaml::FrameworkElement>();
-            auto relativeTo = self->template as<Microsoft::UI::Xaml::UIElement>();
+            auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
+            auto relativeTo = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
+            if (!element || !relativeTo) return;
+
             auto const width = element.ActualWidth();
             auto const height = element.ActualHeight();
             if (width <= 0.0 || height <= 0.0) return;

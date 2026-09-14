@@ -135,6 +135,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
             Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
 
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
+        Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
         bool m_interactionsWired{};
     };
 

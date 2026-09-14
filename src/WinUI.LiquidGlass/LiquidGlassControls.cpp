@@ -149,7 +149,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
             else if (auto c = target.try_as<Controls::Control>()) c.Background(brush);
         }
 
-        void Scale(FrameworkElement const& target, float x, float y)
+        void SetElementScale(FrameworkElement const& target, float x, float y)
         {
             if (!target) return;
             auto v = Hosting::ElementCompositionPreview::GetElementVisual(target);
@@ -204,7 +204,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
     Brush Type::GlassBrush() const { return GetValue(GlassBrushProperty()).try_as<Brush>(); } \
     void Type::GlassBrush(Brush const& value) { SetValue(GlassBrushProperty(), value); } \
     void Type::OnGlassBrushChanged(DependencyObject const& o, DependencyPropertyChangedEventArgs const& e) { \
-        GetSelf(o)->ApplyGlassBrush(e.NewValue().try_as<Brush>()); }
+        detail::EnsureDependencyProperty<Type>::GetSelf(o)->ApplyGlassBrush(e.NewValue().try_as<Brush>()); }
 
 #define BACKGROUND_BRUSH(Type) \
     void Type::ApplyGlassBrush(Brush const& value) { m_glassBrush = value; Background(AsBrush(value)); }
@@ -226,7 +226,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
     LiquidGlassTextBox::LiquidGlassTextBox()
     {
         GlassBrush(CreateBrush(Preset::Search));
-        Loaded([](auto const& s, auto const&) { Scale(s.template try_as<FrameworkElement>(), .8f, .8f); });
+        Loaded([](auto const& s, auto const&) { SetElementScale(s.template try_as<FrameworkElement>(), .8f, .8f); });
         GotFocus([](auto const& s, auto const&) {
             AnimateScale(s.template try_as<FrameworkElement>(), 1, 120ms);
             if (auto c = s.template try_as<WinUI::LiquidGlass::LiquidGlassTextBox>(); c && c.GlassBrush())
@@ -276,48 +276,59 @@ namespace winrt::WinUI::LiquidGlass::implementation
         RenderTransformOrigin({ .5f, .5f });
         m_dragTransform = Media::CompositeTransform{};
         RenderTransform(m_dragTransform);
-        Loaded([](auto const& s, auto const&) { Scale(s.template try_as<FrameworkElement>(), .8f, .8f); });
+        Loaded([](auto const& s, auto const&) { SetElementScale(s.template try_as<FrameworkElement>(), .8f, .8f); });
 
         auto weak = get_weak();
-        PointerPressed([weak](auto const&, Xaml::Input::PointerRoutedEventArgs const& e) {
-            auto self = weak.get(); if (!self) return;
-            auto element = self->as<Xaml::UIElement>();
+        PointerPressed([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
+            auto self = weak.get();
+            auto element = sender.template try_as<Xaml::UIElement>();
+            auto frameworkElement = sender.template try_as<FrameworkElement>();
+            if (!self || !element || !frameworkElement) return;
             auto p = e.GetCurrentPoint(element);
             self->m_activePointerId = p.PointerId(); self->m_lastPointer = p.Position();
-            self->m_dragging = self->CapturePointer(e.Pointer());
+            self->m_dragging = element.CapturePointer(e.Pointer());
             if (!self->m_dragging) return;
             if (auto b = self->GlassBrush()) { b.RefractionStrength(24); b.MagnificationStrength(48); b.InnerShadowStrength(.27); }
-            AnimateScale(self->as<FrameworkElement>(), 1, 110ms); e.Handled(true);
+            AnimateScale(frameworkElement, 1, 110ms); e.Handled(true);
         });
-        PointerMoved([weak](auto const&, Xaml::Input::PointerRoutedEventArgs const& e) {
-            auto self = weak.get(); if (!self || !self->m_dragging) return;
-            auto p = e.GetCurrentPoint(self->as<Xaml::UIElement>()); if (p.PointerId() != self->m_activePointerId) return;
+        PointerMoved([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
+            auto self = weak.get();
+            auto element = sender.template try_as<Xaml::UIElement>();
+            auto frameworkElement = sender.template try_as<FrameworkElement>();
+            if (!self || !self->m_dragging || !element || !frameworkElement) return;
+            auto p = e.GetCurrentPoint(element); if (p.PointerId() != self->m_activePointerId) return;
             auto pos = p.Position(); auto dx = pos.X - self->m_lastPointer.X; auto dy = pos.Y - self->m_lastPointer.Y;
             self->m_dragTransform.TranslateX(self->m_dragTransform.TranslateX() + dx);
             self->m_dragTransform.TranslateY(self->m_dragTransform.TranslateY() + dy);
             auto sy = std::max(.7f, 1.f - std::abs(float(dx * 60)) / 5000.f);
-            Scale(self->as<FrameworkElement>(), 2.f - sy, sy); self->m_lastPointer = pos; e.Handled(true);
+            SetElementScale(frameworkElement, 2.f - sy, sy); self->m_lastPointer = pos; e.Handled(true);
         });
-        PointerReleased([weak](auto const&, Xaml::Input::PointerRoutedEventArgs const& e) {
-            auto self = weak.get(); if (!self || !self->m_dragging) return;
-            self->ReleasePointerCapture(e.Pointer()); self->m_dragging = false; self->m_activePointerId = 0;
+        PointerReleased([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
+            auto self = weak.get();
+            auto element = sender.template try_as<Xaml::UIElement>();
+            auto frameworkElement = sender.template try_as<FrameworkElement>();
+            if (!self || !self->m_dragging || !element || !frameworkElement) return;
+            element.ReleasePointerCapture(e.Pointer()); self->m_dragging = false; self->m_activePointerId = 0;
             if (auto b = self->GlassBrush()) { b.RefractionStrength(19.2); b.MagnificationStrength(24); b.InnerShadowStrength(.20); }
-            AnimateScale(self->as<FrameworkElement>(), .8f, 180ms); e.Handled(true);
+            AnimateScale(frameworkElement, .8f, 180ms); e.Handled(true);
         });
-        PointerCaptureLost([weak](auto const&, auto const&) {
-            auto self = weak.get(); if (!self) return;
+        PointerCaptureLost([weak](auto const& sender, auto const&) {
+            auto self = weak.get();
+            auto frameworkElement = sender.template try_as<FrameworkElement>();
+            if (!self || !frameworkElement) return;
             self->m_dragging = false; self->m_activePointerId = 0;
             if (auto b = self->GlassBrush()) { b.RefractionStrength(19.2); b.MagnificationStrength(24); b.InnerShadowStrength(.20); }
-            AnimateScale(self->as<FrameworkElement>(), .8f, 180ms);
+            AnimateScale(frameworkElement, .8f, 180ms);
         });
     }
 
     GLASS_DP(LiquidGlassSlider)
     void LiquidGlassSlider::ApplyGlassBrush(Brush const& value)
     {
-        m_glassBrush = value; Background(AsBrush(value));
-        if (auto thumb = SliderThumb(this->as<Controls::Slider>()))
-            if (auto surface = BrushSurface(thumb)) SetSurface(surface, AsBrush(value));
+        m_glassBrush = value;
+        Background(AsBrush(value));
+        if (m_thumb)
+            if (auto surface = BrushSurface(m_thumb)) SetSurface(surface, AsBrush(value));
     }
     LiquidGlassSlider::LiquidGlassSlider()
     {
@@ -327,13 +338,14 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto self = weak.get(); if (!self || self->m_interactionsWired) return;
             auto slider = sender.template try_as<Controls::Slider>(); if (!slider) return;
             auto thumb = SliderThumb(slider); if (!thumb) return;
+            self->m_thumb = thumb;
             if (auto b = self->GlassBrush())
             {
                 auto radius = std::max(1.0, std::min(thumb.ActualWidth(), thumb.ActualHeight()) * .5);
                 b.CornerRadius(radius); b.BezelWidth(std::max(1.0, std::min(16.0, radius - .5)));
                 if (auto surface = BrushSurface(thumb)) SetSurface(surface, AsBrush(b));
             }
-            Scale(thumb, .6f, .6f);
+            SetElementScale(thumb, .6f, .6f);
             thumb.DragStarted([weak](auto const& s, auto const&) {
                 AnimateScale(s.template try_as<FrameworkElement>(), 1, 90ms);
                 if (auto self = weak.get()) SliderState(self->GlassBrush(), true);
@@ -355,25 +367,25 @@ namespace winrt::WinUI::LiquidGlass::implementation
         Loaded([weak](auto const& sender, auto const&) {
             auto self = weak.get(); if (!self || self->m_interactionsWired) return;
             if (auto knob = NamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>())
-                Scale(knob, .65f, .65f);
+                SetElementScale(knob, .65f, .65f);
             self->m_interactionsWired = true;
         });
-        PointerPressed([weak](auto const&, auto const&) {
+        PointerPressed([weak](auto const& sender, auto const&) {
             if (auto self = weak.get()) {
-                auto knob = NamedDescendant(self->as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
+                auto knob = NamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
                 AnimateScale(knob, .9f, 90ms); SwitchState(self->GlassBrush(), true);
             }
         });
-        auto release = [weak](auto const&, auto const&) {
+        auto release = [weak](auto const& sender, auto const&) {
             if (auto self = weak.get()) {
-                auto knob = NamedDescendant(self->as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
+                auto knob = NamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
                 AnimateScale(knob, .65f, 190ms); SwitchState(self->GlassBrush(), false);
             }
         };
         PointerReleased(release); PointerCaptureLost(release);
-        auto pulse = [weak](auto const&, auto const&) {
+        auto pulse = [weak](auto const& sender, auto const&) {
             if (auto self = weak.get()) {
-                auto knob = NamedDescendant(self->as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
+                auto knob = NamedDescendant(sender.template try_as<DependencyObject>(), L"SwitchKnob").try_as<FrameworkElement>();
                 AnimateScale(knob, .75f, 110ms);
             }
         };
