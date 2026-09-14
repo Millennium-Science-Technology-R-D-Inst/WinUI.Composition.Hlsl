@@ -1,4 +1,4 @@
-﻿namespace WinUI.Composition.Hlsl
+namespace WinUI.Composition.Hlsl
 {
     enum HlslEffectKind { Color, Sampler, MaterializedSampler, Auto };
     enum HlslPropertyType { Scalar, Vector2, Vector3, Vector4, Matrix3x2, Matrix4x4 };
@@ -12,6 +12,12 @@
         Boolean NativeAdapterAvailable{ get; };
         Boolean SupportsCompositionGraphNodes{ get; };
         Boolean SupportsMaterializedGraphs{ get; };
+        Boolean SupportsLinkedMultiSource{ get; };
+        Boolean SupportsMaterializedMultiSource{ get; };
+        Boolean SupportsMultipleCustomNodes{ get; };
+        Boolean SupportsNativeNodesAfterCustom{ get; };
+        Boolean SupportsVectorProperties{ get; };
+        Boolean SupportsMatrixProperties{ get; };
         Boolean SupportsAsyncCompilation{ get; };
         Boolean UsesPrivateCompositionAbi{ get; };
     }

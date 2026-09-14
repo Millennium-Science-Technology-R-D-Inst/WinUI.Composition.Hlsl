@@ -1,4 +1,4 @@
-﻿#include "HlslComposition.h"
+#include "HlslComposition.h"
 #include "HlslComposition.g.cpp"
 #include "HlslEffect.h"
 #include "HlslEffectFactory.h"
@@ -14,6 +14,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslRuntimeSupportLevel::Validated,
 			true,
 			true,
+			true,
+			true,
+			false,
+			false,
+			false,
+			true,
 			true);
 #elif defined(_M_IX86)
 		return make<HlslRuntimeCapabilities>(
@@ -21,18 +27,36 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			Hlsl::HlslRuntimeSupportLevel::Experimental,
 			true,
 			true,
-			false);
+			false,
+			true,
+			false,
+			false,
+			false,
+			true,
+			true);
 #elif defined(_M_ARM64)
 		return make<HlslRuntimeCapabilities>(
 			Hlsl::HlslNativeArchitecture::Arm64,
 			Hlsl::HlslRuntimeSupportLevel::Experimental,
 			true,
 			true,
-			false);
+			false,
+			true,
+			false,
+			false,
+			false,
+			true,
+			true);
 #else
 		return make<HlslRuntimeCapabilities>(
 			Hlsl::HlslNativeArchitecture::Unknown,
 			Hlsl::HlslRuntimeSupportLevel::Unsupported,
+			false,
+			false,
+			false,
+			false,
+			false,
+			false,
 			false,
 			false,
 			false);
