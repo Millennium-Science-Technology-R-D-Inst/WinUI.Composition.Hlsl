@@ -1,4 +1,8 @@
 #pragma once
+#include <winrt/Microsoft.UI.Xaml.Media.h>
+#include <winrt/WinUI.Composition.Hlsl.h>
+#include <winrt/Windows.UI.h>
+
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassButton.g.h"
 #include "LiquidGlassToggleButton.g.h"
