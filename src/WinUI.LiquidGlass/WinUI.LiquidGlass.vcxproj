@@ -6,7 +6,6 @@
     <ProjectName>WinUI.LiquidGlass</ProjectName>
     <CppWinRTOptimized>true</CppWinRTOptimized>
     <CppWinRTBuildModule>true</CppWinRTBuildModule>
-    <CppWinRTModuleInclude>WinUI.Composition.Hlsl</CppWinRTModuleInclude>
     <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
     <CppWinRTGenerateWindowsMetadata>true</CppWinRTGenerateWindowsMetadata>
     <MinimalCoreWin>true</MinimalCoreWin>
