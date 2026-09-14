@@ -1,9 +1,8 @@
 #pragma once
-#include <winrt/Microsoft.UI.Xaml.Controls.h>
-#include <winrt/Microsoft.UI.Xaml.Media.h>
-#include <winrt/WinUI.Composition.Hlsl.h>
-#include <winrt/Windows.Foundation.h>
-#include <winrt/Windows.UI.h>
+
+#include "winrt_module_imports.h"
+#include "include/EnsureDependencyProperty.hpp"
+#include "include/TemplateControlHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -18,35 +17,67 @@
 #include "LiquidGlassComboBox.g.h"
 #include "LiquidGlassToggleSwitch.g.h"
 
+namespace winrt::WinUI::LiquidGlass::detail
+{
+    inline constexpr wchar_t ThemeResourceUri[] =
+        L"ms-appx:///WinUI.LiquidGlass/Themes/Generic.xaml";
+}
+
 namespace winrt::WinUI::LiquidGlass::implementation
 {
-#define WINUI_LIQUID_GLASS_CONTROL_DECLARATION(Type) \
-    struct Type : Type##T<Type> \
-    { \
-        Type(); \
+#define WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+        static void EnsureDependencyProperties(); \
+        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty(); \
         WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const; \
+        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value); \
     private: \
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr }; \
-        bool m_interactionsWired{}; \
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value); \
+        static void OnGlassBrushChanged( \
+            Microsoft::UI::Xaml::DependencyObject const& object, \
+            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args); \
+        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
+
+#define WINUI_LIQUID_GLASS_STYLED_DECLARATION(Type) \
+    struct Type : Type##T<Type>, \
+        detail::EnsureDependencyProperty<Type>, \
+        detail::TemplateControlHelper<Type> \
+    { \
+        constexpr static auto ResourceUri = detail::ThemeResourceUri; \
+        Type(); \
+        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
     };
 
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassCard)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassButton)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassToggleButton)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassHyperlinkButton)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassCheckBox)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassRadioButton)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassSlider)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassTextBox)
-    WINUI_LIQUID_GLASS_CONTROL_DECLARATION(LiquidGlassComboBox)
+#define WINUI_LIQUID_GLASS_PLAIN_DECLARATION(Type) \
+    struct Type : Type##T<Type>, detail::EnsureDependencyProperty<Type> \
+    { \
+        Type(); \
+        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+    };
 
-#undef WINUI_LIQUID_GLASS_CONTROL_DECLARATION
+    WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassCard)
+    WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassButton)
+    WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassToggleButton)
+    WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassHyperlinkButton)
 
-    struct LiquidGlassMagnifier : LiquidGlassMagnifierT<LiquidGlassMagnifier>
+    struct LiquidGlassMagnifier :
+        LiquidGlassMagnifierT<LiquidGlassMagnifier>,
+        detail::EnsureDependencyProperty<LiquidGlassMagnifier>,
+        detail::TemplateControlHelper<LiquidGlassMagnifier>
     {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassMagnifier();
+
+        static void EnsureDependencyProperties();
+        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
         WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+
     private:
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        static void OnGlassBrushChanged(
+            Microsoft::UI::Xaml::DependencyObject const& object,
+            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
+
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Media::CompositeTransform m_dragTransform{ nullptr };
         Windows::Foundation::Point m_lastPointer{};
@@ -54,32 +85,92 @@ namespace winrt::WinUI::LiquidGlass::implementation
         bool m_dragging{};
     };
 
-    struct LiquidGlassPasswordBox : LiquidGlassPasswordBoxT<LiquidGlassPasswordBox>
+    WINUI_LIQUID_GLASS_PLAIN_DECLARATION(LiquidGlassCheckBox)
+    WINUI_LIQUID_GLASS_PLAIN_DECLARATION(LiquidGlassRadioButton)
+
+    struct LiquidGlassSlider :
+        LiquidGlassSliderT<LiquidGlassSlider>,
+        detail::EnsureDependencyProperty<LiquidGlassSlider>
+    {
+        LiquidGlassSlider();
+
+        static void EnsureDependencyProperties();
+        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
+        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+
+    private:
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        static void OnGlassBrushChanged(
+            Microsoft::UI::Xaml::DependencyObject const& object,
+            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
+
+        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
+        bool m_interactionsWired{};
+    };
+
+    WINUI_LIQUID_GLASS_PLAIN_DECLARATION(LiquidGlassTextBox)
+
+    struct LiquidGlassPasswordBox :
+        LiquidGlassPasswordBoxT<LiquidGlassPasswordBox>,
+        detail::EnsureDependencyProperty<LiquidGlassPasswordBox>
     {
         LiquidGlassPasswordBox();
+
         hstring PlaceholderText() const;
         void PlaceholderText(hstring const& value);
         hstring Password() const;
         void Password(hstring const& value);
+
+        static void EnsureDependencyProperties();
+        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
         WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+
     private:
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        static void OnGlassBrushChanged(
+            Microsoft::UI::Xaml::DependencyObject const& object,
+            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
+
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Controls::PasswordBox m_passwordBox{ nullptr };
     };
 
-    struct LiquidGlassToggleSwitch : LiquidGlassToggleSwitchT<LiquidGlassToggleSwitch>
+    WINUI_LIQUID_GLASS_PLAIN_DECLARATION(LiquidGlassComboBox)
+
+    struct LiquidGlassToggleSwitch :
+        LiquidGlassToggleSwitchT<LiquidGlassToggleSwitch>,
+        detail::EnsureDependencyProperty<LiquidGlassToggleSwitch>,
+        detail::TemplateControlHelper<LiquidGlassToggleSwitch>
     {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassToggleSwitch();
+
         Windows::Foundation::IInspectable Header() const;
         void Header(Windows::Foundation::IInspectable const& value);
         bool IsOn() const;
         void IsOn(bool value);
+
+        static void EnsureDependencyProperties();
+        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
         WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+
     private:
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        static void OnGlassBrushChanged(
+            Microsoft::UI::Xaml::DependencyObject const& object,
+            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
+
         WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Windows::Foundation::IInspectable m_header{ nullptr };
         bool m_interactionsWired{};
     };
+
+#undef WINUI_LIQUID_GLASS_PLAIN_DECLARATION
+#undef WINUI_LIQUID_GLASS_STYLED_DECLARATION
+#undef WINUI_LIQUID_GLASS_COMMON_MEMBERS
 }
 
 namespace winrt::WinUI::LiquidGlass::factory_implementation

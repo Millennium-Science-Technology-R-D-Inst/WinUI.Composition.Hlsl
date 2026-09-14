@@ -3,80 +3,91 @@ namespace WinUI.LiquidGlass
     [webhosthidden] runtimeclass LiquidGlassCard : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassCard();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassMagnifier : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassMagnifier();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassButton : Microsoft.UI.Xaml.Controls.Button
     {
         LiquidGlassButton();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassToggleButton : Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
     {
         LiquidGlassToggleButton();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassHyperlinkButton : Microsoft.UI.Xaml.Controls.HyperlinkButton
     {
         LiquidGlassHyperlinkButton();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassCheckBox : Microsoft.UI.Xaml.Controls.CheckBox
     {
         LiquidGlassCheckBox();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassRadioButton : Microsoft.UI.Xaml.Controls.RadioButton
     {
         LiquidGlassRadioButton();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassSlider : Microsoft.UI.Xaml.Controls.Slider
     {
         LiquidGlassSlider();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassTextBox : Microsoft.UI.Xaml.Controls.TextBox
     {
         LiquidGlassTextBox();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
-    // PasswordBox is sealed in WinUI. Preserve the public control surface through a
-    // composable ContentControl that hosts and forwards to the real PasswordBox.
+    // PasswordBox is sealed in WinUI. This composable wrapper hosts the real PasswordBox.
     [webhosthidden] runtimeclass LiquidGlassPasswordBox : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassPasswordBox();
         String PlaceholderText;
         String Password;
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
     [webhosthidden] runtimeclass LiquidGlassComboBox : Microsoft.UI.Xaml.Controls.ComboBox
     {
         LiquidGlassComboBox();
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 
-    // ToggleSwitch is also sealed. ToggleButton supplies native toggle semantics and is
-    // composable; Header/IsOn keep the familiar switch-facing API used by the demo.
+    // ToggleSwitch is sealed. ToggleButton keeps native toggle semantics while exposing
+    // the familiar Header/IsOn surface.
     [webhosthidden] runtimeclass LiquidGlassToggleSwitch : Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
     {
         LiquidGlassToggleSwitch();
         Object Header;
         Boolean IsOn;
-        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush{ get; };
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
 }
