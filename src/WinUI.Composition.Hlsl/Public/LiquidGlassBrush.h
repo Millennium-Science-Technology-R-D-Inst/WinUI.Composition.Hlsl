@@ -33,6 +33,25 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		double HighlightStrength() const;
 		void HighlightStrength(double value);
 		static Microsoft::UI::Xaml::DependencyProperty HighlightStrengthProperty();
+		double BezelWidth() const;
+		void BezelWidth(double value);
+		static Microsoft::UI::Xaml::DependencyProperty BezelWidthProperty();
+		double GlassThickness() const;
+		void GlassThickness(double value);
+		static Microsoft::UI::Xaml::DependencyProperty GlassThicknessProperty();
+		double RefractiveIndex() const;
+		void RefractiveIndex(double value);
+		static Microsoft::UI::Xaml::DependencyProperty RefractiveIndexProperty();
+		double TintOpacity() const;
+		void TintOpacity(double value);
+		static Microsoft::UI::Xaml::DependencyProperty TintOpacityProperty();
+		double Saturation() const;
+		void Saturation(double value);
+		static Microsoft::UI::Xaml::DependencyProperty SaturationProperty();
+		double LightAngle() const;
+		void LightAngle(double value);
+		static Microsoft::UI::Xaml::DependencyProperty LightAngleProperty();
+
 	private:
 		void Update();
 		friend class hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush>;
