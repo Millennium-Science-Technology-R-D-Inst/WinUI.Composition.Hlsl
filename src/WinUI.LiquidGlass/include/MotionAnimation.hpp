@@ -68,7 +68,10 @@ namespace winrt::WinUI::LiquidGlass::detail
         if (implementation::LiquidGlassInteraction::GetUseSpringMotion(owner))
         {
             auto animation = visual.Compositor().CreateSpringVector3Animation();
-            animation.FinalValue({ static_cast<float>(x), static_cast<float>(y), 1.0f });
+            auto const finalValue = Windows::Foundation::Numerics::float3{
+                static_cast<float>(x), static_cast<float>(y), 1.0f };
+            animation.FinalValue(box_value(finalValue).as<
+                Windows::Foundation::IReference<Windows::Foundation::Numerics::float3>>());
             animation.DampingRatio(static_cast<float>(std::clamp(
                 implementation::LiquidGlassInteraction::GetSpringDampingRatio(owner), .05, 3.0)));
             animation.Period(std::chrono::milliseconds{

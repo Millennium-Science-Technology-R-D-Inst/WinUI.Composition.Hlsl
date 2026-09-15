@@ -20,6 +20,7 @@
                     liquid:LiquidGlassInteraction.UseSpringMotion="True"
                     liquid:LiquidGlassInteraction.SpringDampingRatio="0.82"
                     liquid:LiquidGlassInteraction.SpringPeriod="180"
+                    liquid:LiquidGlassInteraction.OpticsTransitionDuration="110"
                     liquid:LiquidGlassInteraction.RespectSystemAnimations="True"
                     liquid:LiquidGlassInteraction.ActivatedRefractionMultiplier="1.1"
                     liquid:LiquidGlassInteraction.ActivatedDispersionMultiplier="1.08"

@@ -163,6 +163,7 @@ namespace WinUI.Composition.Hlsl
     [default_interface] runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
     {
         LiquidGlassBrush();
+        LiquidGlassMaterial Material{ get; };
         Boolean IsEnabled;
         static Microsoft.UI.Xaml.DependencyProperty IsEnabledProperty{ get; };
         Double BlurRadius;

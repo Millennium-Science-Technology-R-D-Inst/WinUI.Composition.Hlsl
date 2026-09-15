@@ -72,6 +72,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
     LIQUID_GLASS_DOUBLE_DP(PressedScale, 0.965)
     LIQUID_GLASS_DOUBLE_DP(FocusedScale, 1.0)
     LIQUID_GLASS_DOUBLE_DP(MotionDuration, 120.0)
+    LIQUID_GLASS_DOUBLE_DP(OpticsTransitionDuration, 110.0)
     LIQUID_GLASS_BOOL_DP(UseSpringMotion, true)
     LIQUID_GLASS_DOUBLE_DP(SpringDampingRatio, 0.82)
     LIQUID_GLASS_DOUBLE_DP(SpringPeriod, 180.0)

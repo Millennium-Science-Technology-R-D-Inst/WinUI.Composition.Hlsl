@@ -50,6 +50,10 @@ namespace WinUI.LiquidGlass
         static Double GetMotionDuration(Microsoft.UI.Xaml.DependencyObject element);
         static void SetMotionDuration(Microsoft.UI.Xaml.DependencyObject element, Double value);
 
+        static Microsoft.UI.Xaml.DependencyProperty OpticsTransitionDurationProperty{ get; };
+        static Double GetOpticsTransitionDuration(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetOpticsTransitionDuration(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
         static Microsoft.UI.Xaml.DependencyProperty UseSpringMotionProperty{ get; };
         static Boolean GetUseSpringMotion(Microsoft.UI.Xaml.DependencyObject element);
         static void SetUseSpringMotion(Microsoft.UI.Xaml.DependencyObject element, Boolean value);

@@ -30,6 +30,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LIQUID_GLASS_INTERACTION_DOUBLE(PressedScale)
         LIQUID_GLASS_INTERACTION_DOUBLE(FocusedScale)
         LIQUID_GLASS_INTERACTION_DOUBLE(MotionDuration)
+        LIQUID_GLASS_INTERACTION_DOUBLE(OpticsTransitionDuration)
         LIQUID_GLASS_INTERACTION_BOOL(UseSpringMotion)
         LIQUID_GLASS_INTERACTION_DOUBLE(SpringDampingRatio)
         LIQUID_GLASS_INTERACTION_DOUBLE(SpringPeriod)

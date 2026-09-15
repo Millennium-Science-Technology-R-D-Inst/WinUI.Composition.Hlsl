@@ -1,5 +1,7 @@
 #pragma once
 
+#include "MotionAnimation.hpp"
+
 namespace winrt::WinUI::LiquidGlass::detail
 {
     enum class PersistentOpticsKind
@@ -12,6 +14,7 @@ namespace winrt::WinUI::LiquidGlass::detail
     struct OpticsSnapshot
     {
         WinUI::Composition::Hlsl::LiquidGlassBrush brush{ nullptr };
+        Microsoft::UI::Xaml::DependencyObject owner{ nullptr };
         double blur{};
         double refraction{};
         double dispersion{};
@@ -60,7 +63,72 @@ namespace winrt::WinUI::LiquidGlass::detail
         if (!state.active) return;
         ApplySnapshot(state);
         state.brush = nullptr;
+        state.owner = nullptr;
         state.active = false;
+    }
+
+    inline void AnimateOpticsScalar(
+        WinUI::Composition::Hlsl::HlslEffectBrush const& effect,
+        Microsoft::UI::Composition::CompositionEffectBrush const& compositionBrush,
+        Microsoft::UI::Composition::CompositionEasingFunction const& easing,
+        std::chrono::milliseconds duration,
+        wchar_t const* propertyName,
+        double from,
+        double to)
+    {
+        if (!effect || !compositionBrush || std::abs(from - to) <= 1e-5) return;
+
+        auto const path = effect.GetPropertyPath(hstring{ propertyName });
+        compositionBrush.StopAnimation(path);
+
+        auto animation = compositionBrush.Compositor().CreateScalarKeyFrameAnimation();
+        animation.InsertKeyFrame(0.0f, static_cast<float>(from));
+        animation.InsertKeyFrame(1.0f, static_cast<float>(to), easing);
+        animation.Duration(duration);
+        compositionBrush.StartAnimation(path, animation);
+    }
+
+    inline void AnimateOpticsTransition(
+        Microsoft::UI::Xaml::DependencyObject const& owner,
+        WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
+        OpticsSnapshot const& from)
+    {
+        if (!owner || !brush || !from.active || !MotionAnimationsEnabled(owner)) return;
+
+        auto const durationMs = std::clamp(
+            implementation::LiquidGlassInteraction::GetOpticsTransitionDuration(owner), 0.0, 2000.0);
+        if (durationMs <= 0.0) return;
+
+        auto material = brush.Material();
+        if (!material) return;
+        auto effect = material.EffectBrush();
+        if (!effect) return;
+        auto compositionBrush = effect.EffectBrush();
+        if (!compositionBrush) return;
+
+        auto compositor = compositionBrush.Compositor();
+        auto easing = compositor.CreateCubicBezierEasingFunction(
+            Windows::Foundation::Numerics::float2{ 0.20f, 0.0f },
+            Windows::Foundation::Numerics::float2{ 0.0f, 1.0f });
+        auto const duration = std::chrono::milliseconds{
+            static_cast<int64_t>(std::lround(durationMs)) };
+
+        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            L"RefractionStrength", from.refraction, brush.RefractionStrength());
+        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            L"DispersionStrength", from.dispersion, brush.DispersionStrength());
+        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            L"Saturation", from.saturation, brush.Saturation());
+        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            L"Contrast", from.contrast, brush.Contrast());
+        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            L"Exposure", from.exposure, brush.Exposure());
+        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            L"TintOpacity", from.tintOpacity, brush.TintOpacity());
+        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            L"HighlightStrength", from.highlight, brush.HighlightStrength());
+        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            L"InnerShadowStrength", from.innerShadow, brush.InnerShadowStrength());
     }
 
     inline void ApplyOpticsDelta(
@@ -159,12 +227,32 @@ namespace winrt::WinUI::LiquidGlass::detail
     {
         if (state.active || !owner || !brush) return;
         CaptureOptics(brush, state);
+        state.owner = owner;
         ApplyPointerOverOptics(owner, brush);
+        AnimateOpticsTransition(owner, brush, state);
+    }
+
+    inline void LeavePointerOverOptics(
+        Microsoft::UI::Xaml::DependencyObject const& owner,
+        OpticsSnapshot& state)
+    {
+        if (!state.active || !state.brush) return;
+        auto brush = state.brush;
+        OpticsSnapshot from;
+        CaptureOptics(brush, from);
+        RestoreOptics(state);
+        AnimateOpticsTransition(owner, brush, from);
     }
 
     inline void LeavePointerOverOptics(OpticsSnapshot& state)
     {
+        if (!state.active || !state.brush) return;
+        auto owner = state.owner;
+        auto brush = state.brush;
+        OpticsSnapshot from;
+        CaptureOptics(brush, from);
         RestoreOptics(state);
+        if (owner) AnimateOpticsTransition(owner, brush, from);
     }
 
     inline void EnterPressedOptics(
@@ -174,12 +262,32 @@ namespace winrt::WinUI::LiquidGlass::detail
     {
         if (state.active || !owner || !brush) return;
         CaptureOptics(brush, state);
+        state.owner = owner;
         ApplyPressedOptics(owner, brush);
+        AnimateOpticsTransition(owner, brush, state);
+    }
+
+    inline void LeavePressedOptics(
+        Microsoft::UI::Xaml::DependencyObject const& owner,
+        OpticsSnapshot& state)
+    {
+        if (!state.active || !state.brush) return;
+        auto brush = state.brush;
+        OpticsSnapshot from;
+        CaptureOptics(brush, from);
+        RestoreOptics(state);
+        AnimateOpticsTransition(owner, brush, from);
     }
 
     inline void LeavePressedOptics(OpticsSnapshot& state)
     {
+        if (!state.active || !state.brush) return;
+        auto owner = state.owner;
+        auto brush = state.brush;
+        OpticsSnapshot from;
+        CaptureOptics(brush, from);
         RestoreOptics(state);
+        if (owner) AnimateOpticsTransition(owner, brush, from);
     }
 
     template<typename Self, PersistentOpticsKind PersistentKind = PersistentOpticsKind::None>
@@ -284,16 +392,27 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto brush = owner->GlassBrush();
             if (!object || !brush) return;
 
+            if (m_baseline.active && get_abi(m_baseline.brush) != get_abi(brush))
+            {
+                RestoreOptics(m_baseline);
+            }
+
             auto const anyState = m_activated || m_pointerOver || m_pressed;
             if (!anyState)
             {
+                if (!m_baseline.active) return;
+                OpticsSnapshot from;
+                CaptureOptics(brush, from);
                 RestoreOptics(m_baseline);
+                AnimateOpticsTransition(object, brush, from);
                 return;
             }
 
-            if (!m_baseline.active || get_abi(m_baseline.brush) != get_abi(brush))
+            OpticsSnapshot from;
+            CaptureOptics(brush, from);
+
+            if (!m_baseline.active)
             {
-                if (m_baseline.active) RestoreOptics(m_baseline);
                 CaptureOptics(brush, m_baseline);
             }
             else
@@ -304,6 +423,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (m_activated) ApplyActivatedOptics(object, brush);
             if (m_pointerOver) ApplyPointerOverOptics(object, brush);
             if (m_pressed) ApplyPressedOptics(object, brush);
+            AnimateOpticsTransition(object, brush, from);
         }
 
         OpticsSnapshot m_baseline;

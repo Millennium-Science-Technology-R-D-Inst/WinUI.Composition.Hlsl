@@ -10,6 +10,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	struct LiquidGlassBrush : LiquidGlassBrushT<LiquidGlassBrush>
 	{
 		LiquidGlassBrush();
+		Hlsl::LiquidGlassMaterial Material() const { return m_material; }
 		void OnConnected();
 		void OnDisconnected();
 		bool IsEnabled() const;

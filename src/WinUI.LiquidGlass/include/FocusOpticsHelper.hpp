@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MotionAnimation.hpp"
+#include "PressOpticsHelper.hpp"
 
 namespace winrt::WinUI::LiquidGlass::detail
 {
@@ -65,6 +65,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                         m_state.highlight + implementation::LiquidGlassInteraction::GetFocusedHighlightBoost(owner), 0.0, 4.0));
                     brush.InnerShadowStrength(std::clamp(
                         m_state.innerShadow + implementation::LiquidGlassInteraction::GetFocusedInnerShadowBoost(owner), 0.0, 1.0));
+                    AnimateOpticsTransition(owner, brush, m_state);
                 }
             }
 
@@ -82,7 +83,16 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto owner = Owner(sender);
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
-            RestoreOptics(m_state);
+
+            if (m_state.active && m_state.brush)
+            {
+                auto brush = m_state.brush;
+                OpticsSnapshot from;
+                CaptureOptics(brush, from);
+                RestoreOptics(m_state);
+                if (owner) AnimateOpticsTransition(owner, brush, from);
+            }
+
             if (!owner || !element) return;
             auto const scale = std::clamp(
                 implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
