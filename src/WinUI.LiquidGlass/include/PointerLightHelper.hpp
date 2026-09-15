@@ -16,18 +16,37 @@ namespace winrt::WinUI::LiquidGlass::detail
             });
             self->PointerExited([this](auto const&, auto const&) { EndTracking(); });
             self->PointerCanceled([this](auto const&, auto const&) { EndTracking(); });
+            self->PointerCaptureLost([this](auto const&, auto const&) { EndTracking(); });
+            self->Unloaded([this](auto const&, auto const&) { EndTracking(); });
         }
 
     private:
-        static void SetMaterialLightAngle(
-            WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
-            double value)
+        using Brush = WinUI::Composition::Hlsl::LiquidGlassBrush;
+
+        static void SetMaterialLightAngle(Brush const& brush, double value)
         {
             if (!brush) return;
             if (auto material = brush.Material())
             {
                 material.LightAngle(static_cast<float>(value));
             }
+        }
+
+        void TrackBrush(Brush const& brush)
+        {
+            if (!brush)
+            {
+                EndTracking();
+                return;
+            }
+
+            if (m_trackingBrush && get_abi(m_trackingBrush) != get_abi(brush))
+            {
+                SetMaterialLightAngle(m_trackingBrush, m_trackingBrush.LightAngle());
+            }
+
+            m_trackingBrush = brush;
+            m_tracking = true;
         }
 
         template<typename Sender>
@@ -37,11 +56,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!object || !implementation::LiquidGlassInteraction::GetPointerLightingEnabled(object)) return;
 
             auto self = static_cast<Self*>(this);
-            if (auto brush = self->GlassBrush())
-            {
-                m_restingLightAngle = brush.LightAngle();
-                m_tracking = true;
-            }
+            TrackBrush(self->GlassBrush());
         }
 
         template<typename Sender>
@@ -56,12 +71,15 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             auto self = static_cast<Self*>(this);
             auto brush = self->GlassBrush();
-            if (!brush) return;
-
-            if (!m_tracking)
+            if (!brush)
             {
-                m_restingLightAngle = brush.LightAngle();
-                m_tracking = true;
+                EndTracking();
+                return;
+            }
+
+            if (!m_tracking || !m_trackingBrush || get_abi(m_trackingBrush) != get_abi(brush))
+            {
+                TrackBrush(brush);
             }
 
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
@@ -80,9 +98,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const pointerAngle = std::atan2(dy, dx);
             auto const influence = std::clamp(
                 implementation::LiquidGlassInteraction::GetPointerLightInfluence(object), 0.0, 1.0);
+            auto const restingLightAngle = brush.LightAngle();
 
-            auto const x = std::cos(m_restingLightAngle) * (1.0 - influence) + std::cos(pointerAngle) * influence;
-            auto const y = std::sin(m_restingLightAngle) * (1.0 - influence) + std::sin(pointerAngle) * influence;
+            auto const x = std::cos(restingLightAngle) * (1.0 - influence) + std::cos(pointerAngle) * influence;
+            auto const y = std::sin(restingLightAngle) * (1.0 - influence) + std::sin(pointerAngle) * influence;
             if (std::abs(x) + std::abs(y) > 1e-5)
             {
                 SetMaterialLightAngle(brush, std::atan2(y, x));
@@ -91,20 +110,18 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void EndTracking()
         {
-            if (!m_tracking) return;
-            auto self = static_cast<Self*>(this);
-            if (auto brush = self->GlassBrush())
+            if (m_trackingBrush)
             {
-                // The pointer-light effect is transient and therefore writes to
-                // the live material rather than the XAML dependency property.
-                // Restore the current DP value so an external property change
-                // made while tracking is respected.
-                SetMaterialLightAngle(brush, brush.LightAngle());
+                // Pointer lighting is transient. Restore the authored DP value on
+                // the exact brush whose live material was modified, including when
+                // GlassBrush was replaced while the pointer was still inside.
+                SetMaterialLightAngle(m_trackingBrush, m_trackingBrush.LightAngle());
             }
+            m_trackingBrush = nullptr;
             m_tracking = false;
         }
 
-        double m_restingLightAngle{ -0.95 };
+        Brush m_trackingBrush{ nullptr };
         bool m_tracking{};
     };
 }

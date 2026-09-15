@@ -112,39 +112,127 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_BlurRadius = value;
 	}
 
-#define LIQUID_GLASS_FLOAT_PROPERTY(Name, PropertyName, Minimum, Maximum, Message) \
-	void LiquidGlassMaterial::Name(float value) \
-	{ \
-		ValidateRange(value, Minimum, Maximum, Message); \
-		m_effect.SetFloat(PropertyName, value); \
-		m_##Name = value; \
+	void LiquidGlassMaterial::SetFloatProperty(wchar_t const* propertyName, float& storage, float value, float minimum, float maximum, wchar_t const* message)
+	{
+		ValidateRange(value, minimum, maximum, message);
+		m_effect.SetFloat(propertyName, value);
+		storage = value;
 	}
 
-	LIQUID_GLASS_FLOAT_PROPERTY(RefractionStrength, L"RefractionStrength", 0.0f, 128.0f, L"RefractionStrength must be between 0 and 128.")
-	LIQUID_GLASS_FLOAT_PROPERTY(DispersionStrength, L"DispersionStrength", 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16.")
-	LIQUID_GLASS_FLOAT_PROPERTY(CornerRadius, L"CornerRadius", 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(BorderThickness, L"BorderThickness", 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(HighlightStrength, L"HighlightStrength", 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4.")
-	LIQUID_GLASS_FLOAT_PROPERTY(EdgeSoftness, L"EdgeSoftness", 0.25f, 16.0f, L"EdgeSoftness must be between 0.25 and 16 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(MaterialOpacity, L"MaterialOpacity", 0.0f, 1.0f, L"MaterialOpacity must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(BezelWidth, L"BezelWidth", 1.0f, 256.0f, L"BezelWidth must be between 1 and 256 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(GlassThickness, L"GlassThickness", 0.0f, 256.0f, L"GlassThickness must be between 0 and 256 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(RefractiveIndex, L"RefractiveIndex", 1.0f, 3.5f, L"RefractiveIndex must be between 1 and 3.5.")
-	LIQUID_GLASS_FLOAT_PROPERTY(TintOpacity, L"TintOpacity", 0.0f, 1.0f, L"TintOpacity must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(Saturation, L"Saturation", 0.0f, 4.0f, L"Saturation must be between 0 and 4.")
-	LIQUID_GLASS_FLOAT_PROPERTY(LightAngle, L"LightAngle", -6.2831855f, 6.2831855f, L"LightAngle must be between -2pi and 2pi radians.")
-	LIQUID_GLASS_FLOAT_PROPERTY(MagnificationStrength, L"MagnificationStrength", 0.0f, 128.0f, L"MagnificationStrength must be between 0 and 128 pixels.")
-	LIQUID_GLASS_FLOAT_PROPERTY(HighlightSharpness, L"HighlightSharpness", 0.25f, 64.0f, L"HighlightSharpness must be between 0.25 and 64.")
-	LIQUID_GLASS_FLOAT_PROPERTY(TintRed, L"TintRed", 0.0f, 1.0f, L"TintRed must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(TintGreen, L"TintGreen", 0.0f, 1.0f, L"TintGreen must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(TintBlue, L"TintBlue", 0.0f, 1.0f, L"TintBlue must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(InnerShadowStrength, L"InnerShadowStrength", 0.0f, 1.0f, L"InnerShadowStrength must be between 0 and 1.")
-	LIQUID_GLASS_FLOAT_PROPERTY(SpecularSaturation, L"SpecularSaturation", 0.0f, 50.0f, L"SpecularSaturation must be between 0 and 50.")
-	LIQUID_GLASS_FLOAT_PROPERTY(SpecularWidth, L"SpecularWidth", 0.25f, 32.0f, L"SpecularWidth must be between 0.25 and 32 DIPs.")
-	LIQUID_GLASS_FLOAT_PROPERTY(Contrast, L"Contrast", 0.0f, 4.0f, L"Contrast must be between 0 and 4.")
-	LIQUID_GLASS_FLOAT_PROPERTY(Exposure, L"Exposure", -4.0f, 4.0f, L"Exposure must be between -4 and 4 stops.")
+	void LiquidGlassMaterial::RefractionStrength(float value)
+	{
+		SetFloatProperty(L"RefractionStrength", m_RefractionStrength, value, 0.0f, 128.0f, L"RefractionStrength must be between 0 and 128.");
+	}
 
-#undef LIQUID_GLASS_FLOAT_PROPERTY
+	void LiquidGlassMaterial::DispersionStrength(float value)
+	{
+		SetFloatProperty(L"DispersionStrength", m_DispersionStrength, value, 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16.");
+	}
+
+	void LiquidGlassMaterial::CornerRadius(float value)
+	{
+		SetFloatProperty(L"CornerRadius", m_CornerRadius, value, 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs.");
+	}
+
+	void LiquidGlassMaterial::BorderThickness(float value)
+	{
+		SetFloatProperty(L"BorderThickness", m_BorderThickness, value, 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs.");
+	}
+
+	void LiquidGlassMaterial::HighlightStrength(float value)
+	{
+		SetFloatProperty(L"HighlightStrength", m_HighlightStrength, value, 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4.");
+	}
+
+	void LiquidGlassMaterial::EdgeSoftness(float value)
+	{
+		SetFloatProperty(L"EdgeSoftness", m_EdgeSoftness, value, 0.25f, 16.0f, L"EdgeSoftness must be between 0.25 and 16 DIPs.");
+	}
+
+	void LiquidGlassMaterial::MaterialOpacity(float value)
+	{
+		SetFloatProperty(L"MaterialOpacity", m_MaterialOpacity, value, 0.0f, 1.0f, L"MaterialOpacity must be between 0 and 1.");
+	}
+
+	void LiquidGlassMaterial::BezelWidth(float value)
+	{
+		SetFloatProperty(L"BezelWidth", m_BezelWidth, value, 1.0f, 256.0f, L"BezelWidth must be between 1 and 256 DIPs.");
+	}
+
+	void LiquidGlassMaterial::GlassThickness(float value)
+	{
+		SetFloatProperty(L"GlassThickness", m_GlassThickness, value, 0.0f, 256.0f, L"GlassThickness must be between 0 and 256 DIPs.");
+	}
+
+	void LiquidGlassMaterial::RefractiveIndex(float value)
+	{
+		SetFloatProperty(L"RefractiveIndex", m_RefractiveIndex, value, 1.0f, 3.5f, L"RefractiveIndex must be between 1 and 3.5.");
+	}
+
+	void LiquidGlassMaterial::TintOpacity(float value)
+	{
+		SetFloatProperty(L"TintOpacity", m_TintOpacity, value, 0.0f, 1.0f, L"TintOpacity must be between 0 and 1.");
+	}
+
+	void LiquidGlassMaterial::Saturation(float value)
+	{
+		SetFloatProperty(L"Saturation", m_Saturation, value, 0.0f, 4.0f, L"Saturation must be between 0 and 4.");
+	}
+
+	void LiquidGlassMaterial::LightAngle(float value)
+	{
+		SetFloatProperty(L"LightAngle", m_LightAngle, value, -6.2831855f, 6.2831855f, L"LightAngle must be between -2pi and 2pi radians.");
+	}
+
+	void LiquidGlassMaterial::MagnificationStrength(float value)
+	{
+		SetFloatProperty(L"MagnificationStrength", m_MagnificationStrength, value, 0.0f, 128.0f, L"MagnificationStrength must be between 0 and 128 pixels.");
+	}
+
+	void LiquidGlassMaterial::HighlightSharpness(float value)
+	{
+		SetFloatProperty(L"HighlightSharpness", m_HighlightSharpness, value, 0.25f, 64.0f, L"HighlightSharpness must be between 0.25 and 64.");
+	}
+
+	void LiquidGlassMaterial::TintRed(float value)
+	{
+		SetFloatProperty(L"TintRed", m_TintRed, value, 0.0f, 1.0f, L"TintRed must be between 0 and 1.");
+	}
+
+	void LiquidGlassMaterial::TintGreen(float value)
+	{
+		SetFloatProperty(L"TintGreen", m_TintGreen, value, 0.0f, 1.0f, L"TintGreen must be between 0 and 1.");
+	}
+
+	void LiquidGlassMaterial::TintBlue(float value)
+	{
+		SetFloatProperty(L"TintBlue", m_TintBlue, value, 0.0f, 1.0f, L"TintBlue must be between 0 and 1.");
+	}
+
+	void LiquidGlassMaterial::InnerShadowStrength(float value)
+	{
+		SetFloatProperty(L"InnerShadowStrength", m_InnerShadowStrength, value, 0.0f, 1.0f, L"InnerShadowStrength must be between 0 and 1.");
+	}
+
+	void LiquidGlassMaterial::SpecularSaturation(float value)
+	{
+		SetFloatProperty(L"SpecularSaturation", m_SpecularSaturation, value, 0.0f, 50.0f, L"SpecularSaturation must be between 0 and 50.");
+	}
+
+	void LiquidGlassMaterial::SpecularWidth(float value)
+	{
+		SetFloatProperty(L"SpecularWidth", m_SpecularWidth, value, 0.25f, 32.0f, L"SpecularWidth must be between 0.25 and 32 DIPs.");
+	}
+
+	void LiquidGlassMaterial::Contrast(float value)
+	{
+		SetFloatProperty(L"Contrast", m_Contrast, value, 0.0f, 4.0f, L"Contrast must be between 0 and 4.");
+	}
+
+	void LiquidGlassMaterial::Exposure(float value)
+	{
+		SetFloatProperty(L"Exposure", m_Exposure, value, -4.0f, 4.0f, L"Exposure must be between -4 and 4 stops.");
+	}
 
 	void LiquidGlassMaterial::SurfaceProfile(Hlsl::LiquidGlassSurfaceProfile value)
 	{

@@ -331,6 +331,13 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_pressed = false;
                 Recompute(sender);
             });
+            self->RegisterPropertyChangedCallback(
+                Self::GlassBrushProperty(),
+                [this](Microsoft::UI::Xaml::DependencyObject const& sender,
+                       Microsoft::UI::Xaml::DependencyProperty const&)
+                {
+                    Recompute(sender);
+                });
 
             if constexpr (PersistentKind == PersistentOpticsKind::Toggle)
             {
@@ -388,14 +395,17 @@ namespace winrt::WinUI::LiquidGlass::detail
         void Recompute(Sender const& sender)
         {
             auto object = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!object) return;
+
             auto owner = static_cast<Self*>(this);
             auto brush = owner->GlassBrush();
-            if (!object || !brush) return;
-
-            if (m_baseline.active && get_abi(m_baseline.brush) != get_abi(brush))
+            if (m_baseline.active && (!brush || get_abi(m_baseline.brush) != get_abi(brush)))
             {
+                // A runtime GlassBrush replacement must restore the detached
+                // brush before the active state is recomputed on the new one.
                 RestoreOptics(m_baseline);
             }
+            if (!brush) return;
 
             auto const anyState = m_activated || m_pointerOver || m_pressed;
             if (!anyState)

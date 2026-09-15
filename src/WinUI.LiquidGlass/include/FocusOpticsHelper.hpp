@@ -12,8 +12,23 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const& sender, auto const&) { ApplyRest(sender); });
-            self->GotFocus([this](auto const& sender, auto const&) { EnterFocus(sender); });
-            self->LostFocus([this](auto const& sender, auto const&) { LeaveFocus(sender); });
+            self->GotFocus([this](auto const& sender, auto const&)
+            {
+                m_focused = true;
+                Recompute(sender);
+            });
+            self->LostFocus([this](auto const& sender, auto const&)
+            {
+                m_focused = false;
+                Recompute(sender);
+            });
+            self->RegisterPropertyChangedCallback(
+                Self::GlassBrushProperty(),
+                [this](Microsoft::UI::Xaml::DependencyObject const& sender,
+                       Microsoft::UI::Xaml::DependencyProperty const&)
+                {
+                    Recompute(sender);
+                });
         }
 
     private:
@@ -34,66 +49,79 @@ namespace winrt::WinUI::LiquidGlass::detail
             SetElementScale(element, scale, scale);
         }
 
+        static void ApplyFocusedOptics(
+            Microsoft::UI::Xaml::DependencyObject const& owner,
+            WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
+        {
+            ApplyOpticsDelta(
+                brush,
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedBlurBoost(owner), -64.0, 64.0),
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedRefractionMultiplier(owner), 0.0, 4.0),
+                0.0,
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedDispersionMultiplier(owner), 0.0, 8.0),
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedSaturationMultiplier(owner), 0.0, 8.0),
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedContrastMultiplier(owner), 0.0, 8.0),
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedExposureBoost(owner), -8.0, 8.0),
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedTintBoost(owner), -1.0, 1.0),
+                1.0,
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedHighlightBoost(owner), -4.0, 4.0),
+                std::clamp(implementation::LiquidGlassInteraction::GetFocusedInnerShadowBoost(owner), -1.0, 1.0));
+        }
+
         template<typename Sender>
-        void EnterFocus(Sender const& sender)
+        void Recompute(Sender const& sender)
         {
             auto owner = Owner(sender);
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
 
             auto self = static_cast<Self*>(this);
-            if (!m_state.active)
+            auto brush = self->GlassBrush();
+            if (m_state.active && (!brush || get_abi(m_state.brush) != get_abi(brush)))
             {
-                if (auto brush = self->GlassBrush())
-                {
-                    CaptureOptics(brush, m_state);
-                    brush.BlurRadius(std::clamp(
-                        m_state.blur + implementation::LiquidGlassInteraction::GetFocusedBlurBoost(owner), 0.0, 64.0));
-                    brush.RefractionStrength(std::clamp(
-                        m_state.refraction * implementation::LiquidGlassInteraction::GetFocusedRefractionMultiplier(owner), 0.0, 128.0));
-                    brush.DispersionStrength(std::clamp(
-                        m_state.dispersion * implementation::LiquidGlassInteraction::GetFocusedDispersionMultiplier(owner), 0.0, 16.0));
-                    brush.Saturation(std::clamp(
-                        m_state.saturation * implementation::LiquidGlassInteraction::GetFocusedSaturationMultiplier(owner), 0.0, 4.0));
-                    brush.Contrast(std::clamp(
-                        m_state.contrast * implementation::LiquidGlassInteraction::GetFocusedContrastMultiplier(owner), 0.0, 4.0));
-                    brush.Exposure(std::clamp(
-                        m_state.exposure + implementation::LiquidGlassInteraction::GetFocusedExposureBoost(owner), -4.0, 4.0));
-                    brush.TintOpacity(std::clamp(
-                        m_state.tintOpacity + implementation::LiquidGlassInteraction::GetFocusedTintBoost(owner), 0.0, 1.0));
-                    brush.HighlightStrength(std::clamp(
-                        m_state.highlight + implementation::LiquidGlassInteraction::GetFocusedHighlightBoost(owner), 0.0, 4.0));
-                    brush.InnerShadowStrength(std::clamp(
-                        m_state.innerShadow + implementation::LiquidGlassInteraction::GetFocusedInnerShadowBoost(owner), 0.0, 1.0));
-                    AnimateOpticsTransition(owner, brush, m_state);
-                }
+                // Restore the previous brush before migrating the focused state.
+                // A GlassBrush DP replacement must never leave transient optics
+                // baked into a brush that is no longer attached to the control.
+                RestoreOptics(m_state);
             }
 
-            auto const scale = std::clamp(
-                implementation::LiquidGlassInteraction::GetFocusedScale(owner), .25, 4.0);
-            AnimateElementScale(
-                owner,
-                element,
-                scale,
-                implementation::LiquidGlassInteraction::GetMotionDuration(owner));
-        }
+            if (m_focused)
+            {
+                if (brush)
+                {
+                    OpticsSnapshot from;
+                    CaptureOptics(brush, from);
+                    if (!m_state.active)
+                    {
+                        CaptureOptics(brush, m_state);
+                    }
+                    else
+                    {
+                        ApplySnapshot(m_state);
+                    }
+                    ApplyFocusedOptics(owner, brush);
+                    AnimateOpticsTransition(owner, brush, from);
+                }
 
-        template<typename Sender>
-        void LeaveFocus(Sender const& sender)
-        {
-            auto owner = Owner(sender);
-            auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
+                auto const scale = std::clamp(
+                    implementation::LiquidGlassInteraction::GetFocusedScale(owner), .25, 4.0);
+                AnimateElementScale(
+                    owner,
+                    element,
+                    scale,
+                    implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+                return;
+            }
 
             if (m_state.active && m_state.brush)
             {
-                auto brush = m_state.brush;
+                auto activeBrush = m_state.brush;
                 OpticsSnapshot from;
-                CaptureOptics(brush, from);
+                CaptureOptics(activeBrush, from);
                 RestoreOptics(m_state);
-                if (owner) AnimateOpticsTransition(owner, brush, from);
+                AnimateOpticsTransition(owner, activeBrush, from);
             }
 
-            if (!owner || !element) return;
             auto const scale = std::clamp(
                 implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
             AnimateElementScale(
@@ -104,5 +132,6 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
         OpticsSnapshot m_state;
+        bool m_focused{};
     };
 }

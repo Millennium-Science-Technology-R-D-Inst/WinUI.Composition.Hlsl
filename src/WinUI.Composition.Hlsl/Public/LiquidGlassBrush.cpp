@@ -33,64 +33,276 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		get_self<LiquidGlassBrush>(object.as<Hlsl::LiquidGlassBrush>())->Update();
 	}
 
+	DependencyProperty LiquidGlassBrush::RegisterDoubleProperty(wchar_t const* name, double defaultValue)
+	{
+		return DependencyProperty::Register(
+			name,
+			xaml_typename<double>(),
+			xaml_typename<class_type>(),
+			PropertyMetadata(box_value(defaultValue), PropertyChangedCallback{ Changed }));
+	}
+
+	double LiquidGlassBrush::GetDoubleProperty(DependencyProperty const& property) const
+	{
+		return unbox_value<double>(GetValue(property));
+	}
+
+	void LiquidGlassBrush::SetDoubleProperty(DependencyProperty const& property, double value, double minimum, double maximum, wchar_t const* message)
+	{
+		ValidateRange(value, minimum, maximum, message);
+		SetValue(property, box_value(value));
+	}
+
 	DependencyProperty LiquidGlassBrush::IsEnabledProperty()
 	{
-		static auto property = DependencyProperty::Register(L"IsEnabled", winrt::xaml_typename<bool>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(true), PropertyChangedCallback{ Changed }));
+		static auto const property = DependencyProperty::Register(L"IsEnabled", xaml_typename<bool>(), xaml_typename<class_type>(), PropertyMetadata(box_value(true), PropertyChangedCallback{ Changed }));
 		return property;
 	}
-	bool LiquidGlassBrush::IsEnabled() const { return unbox_value<bool>(GetValue(IsEnabledProperty())); }
-	void LiquidGlassBrush::IsEnabled(bool value) { SetValue(IsEnabledProperty(), box_value(value)); }
 
-#define LIQUID_GLASS_WIDEN_IMPL(Value) L##Value
-#define LIQUID_GLASS_WIDEN(Value) LIQUID_GLASS_WIDEN_IMPL(Value)
-#define LIQUID_GLASS_DOUBLE_DP(Name, DefaultValue, Minimum, Maximum, Message) \
-	DependencyProperty LiquidGlassBrush::Name##Property() \
-	{ \
-		static auto property = DependencyProperty::Register(LIQUID_GLASS_WIDEN(#Name), winrt::xaml_typename<double>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(DefaultValue), PropertyChangedCallback{ Changed })); \
-		return property; \
-	} \
-	double LiquidGlassBrush::Name() const { return unbox_value<double>(GetValue(Name##Property())); } \
-	void LiquidGlassBrush::Name(double value) { ValidateRange(value, Minimum, Maximum, Message); SetValue(Name##Property(), box_value(value)); }
+	bool LiquidGlassBrush::IsEnabled() const
+	{
+		return unbox_value<bool>(GetValue(IsEnabledProperty()));
+	}
 
-	LIQUID_GLASS_DOUBLE_DP(BlurRadius, 12.0, 0.0, 64.0, L"BlurRadius must be between 0 and 64 DIPs.")
-	LIQUID_GLASS_DOUBLE_DP(RefractionStrength, 24.0, 0.0, 128.0, L"RefractionStrength must be between 0 and 128.")
-	LIQUID_GLASS_DOUBLE_DP(DispersionStrength, 1.2, 0.0, 16.0, L"DispersionStrength must be between 0 and 16.")
-	LIQUID_GLASS_DOUBLE_DP(CornerRadius, 36.0, 0.0, 512.0, L"CornerRadius must be between 0 and 512 DIPs.")
-	LIQUID_GLASS_DOUBLE_DP(BorderThickness, 1.5, 0.0, 32.0, L"BorderThickness must be between 0 and 32 DIPs.")
-	LIQUID_GLASS_DOUBLE_DP(HighlightStrength, 0.85, 0.0, 4.0, L"HighlightStrength must be between 0 and 4.")
-	LIQUID_GLASS_DOUBLE_DP(EdgeSoftness, 1.0, 0.25, 16.0, L"EdgeSoftness must be between 0.25 and 16 DIPs.")
-	LIQUID_GLASS_DOUBLE_DP(MaterialOpacity, 1.0, 0.0, 1.0, L"MaterialOpacity must be between 0 and 1.")
-	LIQUID_GLASS_DOUBLE_DP(BezelWidth, 32.0, 1.0, 256.0, L"BezelWidth must be between 1 and 256 DIPs.")
-	LIQUID_GLASS_DOUBLE_DP(GlassThickness, 50.0, 0.0, 256.0, L"GlassThickness must be between 0 and 256 DIPs.")
-	LIQUID_GLASS_DOUBLE_DP(RefractiveIndex, 1.5, 1.0, 3.5, L"RefractiveIndex must be between 1 and 3.5.")
-	LIQUID_GLASS_DOUBLE_DP(TintOpacity, 0.08, 0.0, 1.0, L"TintOpacity must be between 0 and 1.")
-	LIQUID_GLASS_DOUBLE_DP(Saturation, 1.25, 0.0, 4.0, L"Saturation must be between 0 and 4.")
-	LIQUID_GLASS_DOUBLE_DP(LightAngle, -0.95, -6.2831855, 6.2831855, L"LightAngle must be between -2pi and 2pi radians.")
-	LIQUID_GLASS_DOUBLE_DP(MagnificationStrength, 0.0, 0.0, 128.0, L"MagnificationStrength must be between 0 and 128 pixels.")
-	LIQUID_GLASS_DOUBLE_DP(HighlightSharpness, 1.5, 0.25, 64.0, L"HighlightSharpness must be between 0.25 and 64.")
-	LIQUID_GLASS_DOUBLE_DP(TintRed, 1.0, 0.0, 1.0, L"TintRed must be between 0 and 1.")
-	LIQUID_GLASS_DOUBLE_DP(TintGreen, 1.0, 0.0, 1.0, L"TintGreen must be between 0 and 1.")
-	LIQUID_GLASS_DOUBLE_DP(TintBlue, 1.0, 0.0, 1.0, L"TintBlue must be between 0 and 1.")
-	LIQUID_GLASS_DOUBLE_DP(InnerShadowStrength, 0.09, 0.0, 1.0, L"InnerShadowStrength must be between 0 and 1.")
-	LIQUID_GLASS_DOUBLE_DP(SpecularSaturation, 4.0, 0.0, 50.0, L"SpecularSaturation must be between 0 and 50.")
-	LIQUID_GLASS_DOUBLE_DP(SpecularWidth, 1.0, 0.25, 32.0, L"SpecularWidth must be between 0.25 and 32 DIPs.")
-	LIQUID_GLASS_DOUBLE_DP(Contrast, 1.0, 0.0, 4.0, L"Contrast must be between 0 and 4.")
-	LIQUID_GLASS_DOUBLE_DP(Exposure, 0.0, -4.0, 4.0, L"Exposure must be between -4 and 4 stops.")
+	void LiquidGlassBrush::IsEnabled(bool value)
+	{
+		SetValue(IsEnabledProperty(), box_value(value));
+	}
 
-#undef LIQUID_GLASS_DOUBLE_DP
-#undef LIQUID_GLASS_WIDEN
-#undef LIQUID_GLASS_WIDEN_IMPL
+	DependencyProperty LiquidGlassBrush::BlurRadiusProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"BlurRadius", 12.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::BlurRadius() const { return GetDoubleProperty(BlurRadiusProperty()); }
+	void LiquidGlassBrush::BlurRadius(double value) { SetDoubleProperty(BlurRadiusProperty(), value, 0.0, 64.0, L"BlurRadius must be between 0 and 64 DIPs."); }
+
+	DependencyProperty LiquidGlassBrush::RefractionStrengthProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"RefractionStrength", 24.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::RefractionStrength() const { return GetDoubleProperty(RefractionStrengthProperty()); }
+	void LiquidGlassBrush::RefractionStrength(double value) { SetDoubleProperty(RefractionStrengthProperty(), value, 0.0, 128.0, L"RefractionStrength must be between 0 and 128."); }
+
+	DependencyProperty LiquidGlassBrush::DispersionStrengthProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"DispersionStrength", 1.2);
+		return property;
+	}
+
+	double LiquidGlassBrush::DispersionStrength() const { return GetDoubleProperty(DispersionStrengthProperty()); }
+	void LiquidGlassBrush::DispersionStrength(double value) { SetDoubleProperty(DispersionStrengthProperty(), value, 0.0, 16.0, L"DispersionStrength must be between 0 and 16."); }
+
+	DependencyProperty LiquidGlassBrush::CornerRadiusProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"CornerRadius", 36.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::CornerRadius() const { return GetDoubleProperty(CornerRadiusProperty()); }
+	void LiquidGlassBrush::CornerRadius(double value) { SetDoubleProperty(CornerRadiusProperty(), value, 0.0, 512.0, L"CornerRadius must be between 0 and 512 DIPs."); }
+
+	DependencyProperty LiquidGlassBrush::BorderThicknessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"BorderThickness", 1.5);
+		return property;
+	}
+
+	double LiquidGlassBrush::BorderThickness() const { return GetDoubleProperty(BorderThicknessProperty()); }
+	void LiquidGlassBrush::BorderThickness(double value) { SetDoubleProperty(BorderThicknessProperty(), value, 0.0, 32.0, L"BorderThickness must be between 0 and 32 DIPs."); }
+
+	DependencyProperty LiquidGlassBrush::HighlightStrengthProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"HighlightStrength", 0.85);
+		return property;
+	}
+
+	double LiquidGlassBrush::HighlightStrength() const { return GetDoubleProperty(HighlightStrengthProperty()); }
+	void LiquidGlassBrush::HighlightStrength(double value) { SetDoubleProperty(HighlightStrengthProperty(), value, 0.0, 4.0, L"HighlightStrength must be between 0 and 4."); }
+
+	DependencyProperty LiquidGlassBrush::EdgeSoftnessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"EdgeSoftness", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::EdgeSoftness() const { return GetDoubleProperty(EdgeSoftnessProperty()); }
+	void LiquidGlassBrush::EdgeSoftness(double value) { SetDoubleProperty(EdgeSoftnessProperty(), value, 0.25, 16.0, L"EdgeSoftness must be between 0.25 and 16 DIPs."); }
+
+	DependencyProperty LiquidGlassBrush::MaterialOpacityProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"MaterialOpacity", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::MaterialOpacity() const { return GetDoubleProperty(MaterialOpacityProperty()); }
+	void LiquidGlassBrush::MaterialOpacity(double value) { SetDoubleProperty(MaterialOpacityProperty(), value, 0.0, 1.0, L"MaterialOpacity must be between 0 and 1."); }
+
+	DependencyProperty LiquidGlassBrush::BezelWidthProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"BezelWidth", 32.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::BezelWidth() const { return GetDoubleProperty(BezelWidthProperty()); }
+	void LiquidGlassBrush::BezelWidth(double value) { SetDoubleProperty(BezelWidthProperty(), value, 1.0, 256.0, L"BezelWidth must be between 1 and 256 DIPs."); }
+
+	DependencyProperty LiquidGlassBrush::GlassThicknessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"GlassThickness", 50.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::GlassThickness() const { return GetDoubleProperty(GlassThicknessProperty()); }
+	void LiquidGlassBrush::GlassThickness(double value) { SetDoubleProperty(GlassThicknessProperty(), value, 0.0, 256.0, L"GlassThickness must be between 0 and 256 DIPs."); }
+
+	DependencyProperty LiquidGlassBrush::RefractiveIndexProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"RefractiveIndex", 1.5);
+		return property;
+	}
+
+	double LiquidGlassBrush::RefractiveIndex() const { return GetDoubleProperty(RefractiveIndexProperty()); }
+	void LiquidGlassBrush::RefractiveIndex(double value) { SetDoubleProperty(RefractiveIndexProperty(), value, 1.0, 3.5, L"RefractiveIndex must be between 1 and 3.5."); }
+
+	DependencyProperty LiquidGlassBrush::TintOpacityProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"TintOpacity", 0.08);
+		return property;
+	}
+
+	double LiquidGlassBrush::TintOpacity() const { return GetDoubleProperty(TintOpacityProperty()); }
+	void LiquidGlassBrush::TintOpacity(double value) { SetDoubleProperty(TintOpacityProperty(), value, 0.0, 1.0, L"TintOpacity must be between 0 and 1."); }
+
+	DependencyProperty LiquidGlassBrush::SaturationProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"Saturation", 1.25);
+		return property;
+	}
+
+	double LiquidGlassBrush::Saturation() const { return GetDoubleProperty(SaturationProperty()); }
+	void LiquidGlassBrush::Saturation(double value) { SetDoubleProperty(SaturationProperty(), value, 0.0, 4.0, L"Saturation must be between 0 and 4."); }
+
+	DependencyProperty LiquidGlassBrush::LightAngleProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"LightAngle", -0.95);
+		return property;
+	}
+
+	double LiquidGlassBrush::LightAngle() const { return GetDoubleProperty(LightAngleProperty()); }
+	void LiquidGlassBrush::LightAngle(double value) { SetDoubleProperty(LightAngleProperty(), value, -6.2831855, 6.2831855, L"LightAngle must be between -2pi and 2pi radians."); }
+
+	DependencyProperty LiquidGlassBrush::MagnificationStrengthProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"MagnificationStrength", 0.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::MagnificationStrength() const { return GetDoubleProperty(MagnificationStrengthProperty()); }
+	void LiquidGlassBrush::MagnificationStrength(double value) { SetDoubleProperty(MagnificationStrengthProperty(), value, 0.0, 128.0, L"MagnificationStrength must be between 0 and 128 pixels."); }
+
+	DependencyProperty LiquidGlassBrush::HighlightSharpnessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"HighlightSharpness", 1.5);
+		return property;
+	}
+
+	double LiquidGlassBrush::HighlightSharpness() const { return GetDoubleProperty(HighlightSharpnessProperty()); }
+	void LiquidGlassBrush::HighlightSharpness(double value) { SetDoubleProperty(HighlightSharpnessProperty(), value, 0.25, 64.0, L"HighlightSharpness must be between 0.25 and 64."); }
+
+	DependencyProperty LiquidGlassBrush::TintRedProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"TintRed", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::TintRed() const { return GetDoubleProperty(TintRedProperty()); }
+	void LiquidGlassBrush::TintRed(double value) { SetDoubleProperty(TintRedProperty(), value, 0.0, 1.0, L"TintRed must be between 0 and 1."); }
+
+	DependencyProperty LiquidGlassBrush::TintGreenProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"TintGreen", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::TintGreen() const { return GetDoubleProperty(TintGreenProperty()); }
+	void LiquidGlassBrush::TintGreen(double value) { SetDoubleProperty(TintGreenProperty(), value, 0.0, 1.0, L"TintGreen must be between 0 and 1."); }
+
+	DependencyProperty LiquidGlassBrush::TintBlueProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"TintBlue", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::TintBlue() const { return GetDoubleProperty(TintBlueProperty()); }
+	void LiquidGlassBrush::TintBlue(double value) { SetDoubleProperty(TintBlueProperty(), value, 0.0, 1.0, L"TintBlue must be between 0 and 1."); }
+
+	DependencyProperty LiquidGlassBrush::InnerShadowStrengthProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"InnerShadowStrength", 0.09);
+		return property;
+	}
+
+	double LiquidGlassBrush::InnerShadowStrength() const { return GetDoubleProperty(InnerShadowStrengthProperty()); }
+	void LiquidGlassBrush::InnerShadowStrength(double value) { SetDoubleProperty(InnerShadowStrengthProperty(), value, 0.0, 1.0, L"InnerShadowStrength must be between 0 and 1."); }
+
+	DependencyProperty LiquidGlassBrush::SpecularSaturationProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"SpecularSaturation", 4.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::SpecularSaturation() const { return GetDoubleProperty(SpecularSaturationProperty()); }
+	void LiquidGlassBrush::SpecularSaturation(double value) { SetDoubleProperty(SpecularSaturationProperty(), value, 0.0, 50.0, L"SpecularSaturation must be between 0 and 50."); }
+
+	DependencyProperty LiquidGlassBrush::SpecularWidthProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"SpecularWidth", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::SpecularWidth() const { return GetDoubleProperty(SpecularWidthProperty()); }
+	void LiquidGlassBrush::SpecularWidth(double value) { SetDoubleProperty(SpecularWidthProperty(), value, 0.25, 32.0, L"SpecularWidth must be between 0.25 and 32 DIPs."); }
+
+	DependencyProperty LiquidGlassBrush::ContrastProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"Contrast", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::Contrast() const { return GetDoubleProperty(ContrastProperty()); }
+	void LiquidGlassBrush::Contrast(double value) { SetDoubleProperty(ContrastProperty(), value, 0.0, 4.0, L"Contrast must be between 0 and 4."); }
+
+	DependencyProperty LiquidGlassBrush::ExposureProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"Exposure", 0.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::Exposure() const { return GetDoubleProperty(ExposureProperty()); }
+	void LiquidGlassBrush::Exposure(double value) { SetDoubleProperty(ExposureProperty(), value, -4.0, 4.0, L"Exposure must be between -4 and 4 stops."); }
 
 	DependencyProperty LiquidGlassBrush::SurfaceProfileProperty()
 	{
-		static auto property = DependencyProperty::Register(L"SurfaceProfile", winrt::xaml_typename<Hlsl::LiquidGlassSurfaceProfile>(), winrt::xaml_typename<class_type>(), PropertyMetadata(box_value(Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle), PropertyChangedCallback{ Changed }));
+		static auto const property = DependencyProperty::Register(L"SurfaceProfile", xaml_typename<Hlsl::LiquidGlassSurfaceProfile>(), xaml_typename<class_type>(), PropertyMetadata(box_value(Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle), PropertyChangedCallback{ Changed }));
 		return property;
 	}
-	Hlsl::LiquidGlassSurfaceProfile LiquidGlassBrush::SurfaceProfile() const { return unbox_value<Hlsl::LiquidGlassSurfaceProfile>(GetValue(SurfaceProfileProperty())); }
+
+	Hlsl::LiquidGlassSurfaceProfile LiquidGlassBrush::SurfaceProfile() const
+	{
+		return unbox_value<Hlsl::LiquidGlassSurfaceProfile>(GetValue(SurfaceProfileProperty()));
+	}
+
 	void LiquidGlassBrush::SurfaceProfile(Hlsl::LiquidGlassSurfaceProfile value)
 	{
 		auto const raw = static_cast<int32_t>(value);
-		if (raw < 0 || raw > 3) { throw hresult_invalid_argument(L"SurfaceProfile is not a supported LiquidGlassSurfaceProfile value."); }
+		if (raw < 0 || raw > 3)
+		{
+			throw hresult_invalid_argument(L"SurfaceProfile is not a supported LiquidGlassSurfaceProfile value.");
+		}
 		SetValue(SurfaceProfileProperty(), box_value(value));
 	}
 

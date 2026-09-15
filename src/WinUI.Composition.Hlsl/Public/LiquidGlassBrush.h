@@ -97,6 +97,9 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		friend class hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush>;
 		Microsoft::UI::Composition::CompositionBrush BuildPipeline(Microsoft::UI::Composition::Compositor const&);
 		void ReleasePipeline() noexcept { m_material = nullptr; }
+		static Microsoft::UI::Xaml::DependencyProperty RegisterDoubleProperty(wchar_t const* name, double defaultValue);
+		double GetDoubleProperty(Microsoft::UI::Xaml::DependencyProperty const& property) const;
+		void SetDoubleProperty(Microsoft::UI::Xaml::DependencyProperty const& property, double value, double minimum, double maximum, wchar_t const* message);
 		hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush> m_lifecycle;
 		static void Changed(Microsoft::UI::Xaml::DependencyObject const& object, Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const&);
 		Hlsl::LiquidGlassMaterial m_material{ nullptr };

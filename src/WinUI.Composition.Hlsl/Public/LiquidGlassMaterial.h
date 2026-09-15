@@ -61,6 +61,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void Exposure(float value);
 
 	private:
+		void SetFloatProperty(wchar_t const* propertyName, float& storage, float value, float minimum, float maximum, wchar_t const* message);
 		Hlsl::HlslEffectBrush m_effect{ nullptr };
 		Microsoft::UI::Composition::CompositionEffectBrush m_compositionEffect{ nullptr };
 		float m_BlurRadius{ 12.0f };
