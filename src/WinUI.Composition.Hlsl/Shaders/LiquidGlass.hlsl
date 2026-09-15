@@ -54,25 +54,31 @@ float SmootherStep01(float t)
 float SurfaceHeight(float t, float profile)
 {
     t = saturate(t);
+    float result = 0.0f;
+
     if (profile < 0.5f)
     {
-        return ConvexSquircle(t);
+        result = ConvexSquircle(t);
     }
-    if (profile < 1.5f)
+    else if (profile < 1.5f)
     {
-        return ConvexCircle(t);
+        result = ConvexCircle(t);
     }
-    if (profile < 2.5f)
+    else if (profile < 2.5f)
     {
-        return ConcaveCircle(t);
+        result = ConcaveCircle(t);
+    }
+    else
+    {
+        // Keep x * 2 unsaturated here. kube's Lip deliberately lets the squircle arc
+        // travel through the second half of its domain before smootherstep blends it
+        // into the concave surface.
+        float convex = ConvexSquircleRaw(t * 2.0f);
+        float concave = ConcaveCircle(t) + 0.1f;
+        result = lerp(convex, concave, SmootherStep01(t));
     }
 
-    // Keep x * 2 unsaturated here. kube's Lip deliberately lets the squircle arc
-    // travel through the second half of its domain before smootherstep blends it
-    // into the concave surface.
-    float convex = ConvexSquircleRaw(t * 2.0f);
-    float concave = ConcaveCircle(t) + 0.1f;
-    return lerp(convex, concave, SmootherStep01(t));
+    return result;
 }
 
 float SurfaceDerivative(float t, float profile)
@@ -97,23 +103,23 @@ float CalculateReferenceRefractionDistance(
     const float eta = 1.0f / max(refractiveIndex, 1.0001f);
     const float normalDotIncident = surfaceNormal.y;
     const float k = 1.0f - eta * eta * (1.0f - normalDotIncident * normalDotIncident);
-    if (k <= 0.0f)
+    float result = 0.0f;
+
+    if (k > 0.0f)
     {
-        return 0.0f;
+        const float q = eta * normalDotIncident + sqrt(k);
+        const float2 refracted = float2(
+            -q * surfaceNormal.x,
+            eta - q * surfaceNormal.y);
+
+        if (abs(refracted.y) > 1e-5f)
+        {
+            const float remainingHeight = height * bezelWidth + max(glassThickness, 0.0f);
+            result = refracted.x * (remainingHeight / refracted.y);
+        }
     }
 
-    const float q = eta * normalDotIncident + sqrt(k);
-    const float2 refracted = float2(
-        -q * surfaceNormal.x,
-        eta - q * surfaceNormal.y);
-
-    if (abs(refracted.y) <= 1e-5f)
-    {
-        return 0.0f;
-    }
-
-    const float remainingHeight = height * bezelWidth + max(glassThickness, 0.0f);
-    return refracted.x * (remainingHeight / refracted.y);
+    return result;
 }
 
 float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float centerSdf)
@@ -142,15 +148,17 @@ float3 ApplyExposureContrast(float3 color, float exposure, float contrast)
 
 float2 ClampSampleUv(float2 uv, float2 contentMin, float2 contentMax, float2 texelSize, bool hasContentRect)
 {
-    if (!hasContentRect)
+    float2 result = saturate(uv);
+
+    if (hasContentRect)
     {
-        return saturate(uv);
+        float2 padding = texelSize * 0.5f;
+        float2 minimumUv = min(contentMin + padding, contentMax - padding);
+        float2 maximumUv = max(contentMin + padding, contentMax - padding);
+        result = clamp(uv, minimumUv, maximumUv);
     }
 
-    float2 padding = texelSize * 0.5f;
-    float2 minimumUv = min(contentMin + padding, contentMax - padding);
-    float2 maximumUv = max(contentMin + padding, contentMax - padding);
-    return clamp(uv, minimumUv, maximumUv);
+    return result;
 }
 
 float4 SampleTransmission(float2 uv, float2 contentMin, float2 contentMax, float2 texelSize, bool hasContentRect)
