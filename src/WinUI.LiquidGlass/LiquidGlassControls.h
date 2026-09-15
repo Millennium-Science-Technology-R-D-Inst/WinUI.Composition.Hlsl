@@ -9,6 +9,7 @@
 #include "include/PointerLightHelper.hpp"
 #include "include/PointerFieldHelper.hpp"
 #include "include/PointerMotionHelper.hpp"
+#include "include/ChildSurfaceInteraction.hpp"
 #include "include/PressOpticsHelper.hpp"
 #include "include/FocusOpticsHelper.hpp"
 
@@ -138,13 +139,20 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassSliderT<LiquidGlassSlider>,
         detail::GlassBrushHelper<LiquidGlassSlider>,
         detail::TemplateControlHelper<LiquidGlassSlider>,
-        detail::PointerLightHelper<LiquidGlassSlider>
+        detail::PointerLightHelper<LiquidGlassSlider>,
+        detail::SliderPointerFieldHelper<LiquidGlassSlider>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassSlider();
 
         // C++ implementation hook used by GlassBrushHelper; it is not projected by the IDL.
         void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+
+        void OnApplyTemplate()
+        {
+            base_type::OnApplyTemplate();
+            detail::SliderPointerFieldHelper<LiquidGlassSlider>::RefreshPointerFieldTarget();
+        }
 
     private:
         Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
@@ -198,6 +206,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassToggleSwitch>,
         detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
         detail::PointerLightHelper<LiquidGlassToggleSwitch>,
+        detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>,
         detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
@@ -207,6 +216,20 @@ namespace winrt::WinUI::LiquidGlass::implementation
         void Header(Windows::Foundation::IInspectable const& value);
         bool IsOn() const;
         void IsOn(bool value);
+
+        void OnApplyTemplate()
+        {
+            base_type::OnApplyTemplate();
+            detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>::RefreshInteractionTarget();
+        }
+
+        void OnToggle()
+        {
+            if (!detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>::TryHandleToggle())
+            {
+                base_type::OnToggle();
+            }
+        }
 
     private:
         Windows::Foundation::IInspectable m_header{ nullptr };
