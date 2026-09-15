@@ -74,6 +74,7 @@
     <ClInclude Include="LiquidGlassInteraction.h" />
     <ClInclude Include="LiquidGlassPresets.h" />
     <ClInclude Include="include\EnsureDependencyProperty.hpp" />
+    <ClInclude Include="include\GlassBrushHelper.hpp" />
     <ClInclude Include="include\TemplateControlHelper.hpp" />
     <ClInclude Include="include\PointerLightHelper.hpp" />
     <ClInclude Include="include\PointerMotionHelper.hpp" />

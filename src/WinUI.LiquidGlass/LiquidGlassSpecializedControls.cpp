@@ -35,32 +35,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         }
     }
 
-#define SPECIALIZED_GLASS_DP(Type) \
-    void Type::EnsureDependencyProperties() { (void)GlassBrushProperty(); } \
-    Xaml::DependencyProperty Type::GlassBrushProperty() \
-    { \
-        static auto property = Xaml::DependencyProperty::Register( \
-            L"GlassBrush", xaml_typename<Brush>(), xaml_typename<class_type>(), \
-            Xaml::PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr }, \
-                Xaml::PropertyChangedCallback{ OnGlassBrushChanged } }); \
-        return property; \
-    } \
-    Brush Type::GlassBrush() const { return GetValue(GlassBrushProperty()).try_as<Brush>(); } \
-    void Type::GlassBrush(Brush const& value) { SetValue(GlassBrushProperty(), value); } \
-    void Type::OnGlassBrushChanged( \
-        Xaml::DependencyObject const& object, Xaml::DependencyPropertyChangedEventArgs const& args) \
-    { \
-        detail::EnsureDependencyProperty<Type>::GetSelf(object)->ApplyGlassBrush(args.NewValue().try_as<Brush>()); \
-    }
-
-    SPECIALIZED_GLASS_DP(LiquidGlassFloatingPanel)
-
-    void LiquidGlassFloatingPanel::ApplyGlassBrush(Brush const& value)
-    {
-        m_glassBrush = value;
-        Background(AsMediaBrush(value));
-    }
-
     LiquidGlassFloatingPanel::LiquidGlassFloatingPanel()
     {
         EnsureSpecializedResources();
@@ -68,8 +42,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(WinUI::LiquidGlass::LiquidGlassPresets::CreateBrush(
             WinUI::LiquidGlass::LiquidGlassPreset::FloatingPanel));
     }
-
-    SPECIALIZED_GLASS_DP(LiquidGlassSearchBox)
 
     void LiquidGlassSearchBox::ApplyGlassBrush(Brush const& value)
     {
@@ -129,28 +101,31 @@ namespace winrt::WinUI::LiquidGlass::implementation
     {
         return m_autoSuggestBox.SuggestionChosen(handler);
     }
+
     void LiquidGlassSearchBox::SuggestionChosen(event_token const& token) noexcept
     {
         if (m_autoSuggestBox) m_autoSuggestBox.SuggestionChosen(token);
     }
+
     event_token LiquidGlassSearchBox::TextChanged(
         Windows::Foundation::TypedEventHandler<Controls::AutoSuggestBox, Controls::AutoSuggestBoxTextChangedEventArgs> const& handler)
     {
         return m_autoSuggestBox.TextChanged(handler);
     }
+
     void LiquidGlassSearchBox::TextChanged(event_token const& token) noexcept
     {
         if (m_autoSuggestBox) m_autoSuggestBox.TextChanged(token);
     }
+
     event_token LiquidGlassSearchBox::QuerySubmitted(
         Windows::Foundation::TypedEventHandler<Controls::AutoSuggestBox, Controls::AutoSuggestBoxQuerySubmittedEventArgs> const& handler)
     {
         return m_autoSuggestBox.QuerySubmitted(handler);
     }
+
     void LiquidGlassSearchBox::QuerySubmitted(event_token const& token) noexcept
     {
         if (m_autoSuggestBox) m_autoSuggestBox.QuerySubmitted(token);
     }
-
-#undef SPECIALIZED_GLASS_DP
 }

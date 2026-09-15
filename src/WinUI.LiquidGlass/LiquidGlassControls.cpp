@@ -32,11 +32,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         using Brush = WinUI::Composition::Hlsl::LiquidGlassBrush;
         using Profile = WinUI::Composition::Hlsl::LiquidGlassSurfaceProfile;
         using Xaml::DependencyObject;
-        using Xaml::DependencyProperty;
-        using Xaml::DependencyPropertyChangedEventArgs;
         using Xaml::FrameworkElement;
-        using Xaml::PropertyChangedCallback;
-        using Xaml::PropertyMetadata;
 
         enum class Preset { Panel, Button, Choice, Search, Input, Slider, Switch, Magnifier };
 
@@ -178,37 +174,40 @@ namespace winrt::WinUI::LiquidGlass::implementation
         }
     }
 
-#define GLASS_DP(Type) \
-    void Type::EnsureDependencyProperties() { (void)GlassBrushProperty(); } \
-    DependencyProperty Type::GlassBrushProperty() { \
-        static auto p = DependencyProperty::Register(L"GlassBrush", xaml_typename<Brush>(), \
-            xaml_typename<class_type>(), PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr }, \
-            PropertyChangedCallback{ OnGlassBrushChanged } }); return p; } \
-    Brush Type::GlassBrush() const { return GetValue(GlassBrushProperty()).try_as<Brush>(); } \
-    void Type::GlassBrush(Brush const& value) { SetValue(GlassBrushProperty(), value); } \
-    void Type::OnGlassBrushChanged(DependencyObject const& o, DependencyPropertyChangedEventArgs const& e) { \
-        detail::EnsureDependencyProperty<Type>::GetSelf(o)->ApplyGlassBrush(e.NewValue().try_as<Brush>()); }
+    LiquidGlassCard::LiquidGlassCard()
+    {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
+        GlassBrush(CreateBrush(Preset::Panel));
+    }
 
-#define BACKGROUND_BRUSH(Type) \
-    void Type::ApplyGlassBrush(Brush const& value) { m_glassBrush = value; Background(AsBrush(value)); }
+    LiquidGlassButton::LiquidGlassButton()
+    {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
+        GlassBrush(CreateBrush(Preset::Button));
+    }
 
-#define SIMPLE_STYLED_CONTROL(Type, PresetValue) \
-    GLASS_DP(Type) BACKGROUND_BRUSH(Type) \
-    Type::Type() { DefaultStyleKey(box_value(xaml_typename<class_type>())); GlassBrush(CreateBrush(PresetValue)); }
+    LiquidGlassToggleButton::LiquidGlassToggleButton()
+    {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
+        GlassBrush(CreateBrush(Preset::Button));
+    }
 
-#define SIMPLE_CONTROL(Type, PresetValue) \
-    GLASS_DP(Type) BACKGROUND_BRUSH(Type) \
-    Type::Type() { GlassBrush(CreateBrush(PresetValue)); }
+    LiquidGlassHyperlinkButton::LiquidGlassHyperlinkButton()
+    {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
+        GlassBrush(CreateBrush(Preset::Button));
+    }
 
-    SIMPLE_STYLED_CONTROL(LiquidGlassCard, Preset::Panel)
-    SIMPLE_STYLED_CONTROL(LiquidGlassButton, Preset::Button)
-    SIMPLE_STYLED_CONTROL(LiquidGlassToggleButton, Preset::Button)
-    SIMPLE_STYLED_CONTROL(LiquidGlassHyperlinkButton, Preset::Button)
-    SIMPLE_CONTROL(LiquidGlassCheckBox, Preset::Choice)
-    SIMPLE_CONTROL(LiquidGlassRadioButton, Preset::Choice)
+    LiquidGlassCheckBox::LiquidGlassCheckBox()
+    {
+        GlassBrush(CreateBrush(Preset::Choice));
+    }
 
-    GLASS_DP(LiquidGlassComboBox)
-    BACKGROUND_BRUSH(LiquidGlassComboBox)
+    LiquidGlassRadioButton::LiquidGlassRadioButton()
+    {
+        GlassBrush(CreateBrush(Preset::Choice));
+    }
+
     LiquidGlassComboBox::LiquidGlassComboBox()
     {
         GlassBrush(CreateBrush(Preset::Choice));
@@ -216,8 +215,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.04));
     }
 
-    GLASS_DP(LiquidGlassTextBox)
-    BACKGROUND_BRUSH(LiquidGlassTextBox)
     LiquidGlassTextBox::LiquidGlassTextBox()
     {
         GlassBrush(CreateBrush(Preset::Search));
@@ -227,12 +224,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(140.0));
     }
 
-    GLASS_DP(LiquidGlassPasswordBox)
     void LiquidGlassPasswordBox::ApplyGlassBrush(Brush const& value)
     {
         m_glassBrush = value;
         if (m_passwordBox) m_passwordBox.Background(AsBrush(value));
     }
+
     LiquidGlassPasswordBox::LiquidGlassPasswordBox()
     {
         m_passwordBox = Controls::PasswordBox{};
@@ -245,13 +242,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.04));
         SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(140.0));
     }
+
     hstring LiquidGlassPasswordBox::PlaceholderText() const { return m_passwordBox ? m_passwordBox.PlaceholderText() : hstring{}; }
     void LiquidGlassPasswordBox::PlaceholderText(hstring const& value) { if (m_passwordBox) m_passwordBox.PlaceholderText(value); }
     hstring LiquidGlassPasswordBox::Password() const { return m_passwordBox ? m_passwordBox.Password() : hstring{}; }
     void LiquidGlassPasswordBox::Password(hstring const& value) { if (m_passwordBox) m_passwordBox.Password(value); }
 
-    GLASS_DP(LiquidGlassMagnifier)
-    BACKGROUND_BRUSH(LiquidGlassMagnifier)
     LiquidGlassMagnifier::LiquidGlassMagnifier()
     {
         DefaultStyleKey(box_value(xaml_typename<class_type>()));
@@ -353,7 +349,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         });
     }
 
-    GLASS_DP(LiquidGlassSlider)
     void LiquidGlassSlider::ApplyGlassBrush(Brush const& value)
     {
         m_glassBrush = value;
@@ -361,6 +356,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         if (m_thumb)
             if (auto surface = BrushSurface(m_thumb)) SetSurface(surface, AsBrush(value));
     }
+
     LiquidGlassSlider::LiquidGlassSlider()
     {
         GlassBrush(CreateBrush(Preset::Slider));
@@ -411,8 +407,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         });
     }
 
-    GLASS_DP(LiquidGlassToggleSwitch)
-    BACKGROUND_BRUSH(LiquidGlassToggleSwitch)
     LiquidGlassToggleSwitch::LiquidGlassToggleSwitch()
     {
         DefaultStyleKey(box_value(xaml_typename<class_type>()));
@@ -467,13 +461,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
         };
         Checked(pulse); Unchecked(pulse);
     }
+
     Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const { return m_header; }
     void LiquidGlassToggleSwitch::Header(Windows::Foundation::IInspectable const& value) { m_header = value; Content(value); }
     bool LiquidGlassToggleSwitch::IsOn() const { auto v = IsChecked(); return v && v.Value(); }
     void LiquidGlassToggleSwitch::IsOn(bool value) { IsChecked(box_value(value).as<Windows::Foundation::IReference<bool>>()); }
-
-#undef SIMPLE_CONTROL
-#undef SIMPLE_STYLED_CONTROL
-#undef BACKGROUND_BRUSH
-#undef GLASS_DP
 }

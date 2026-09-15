@@ -2,7 +2,7 @@
 
 #include "winrt_module_imports.h"
 #include "LiquidGlassInteraction.h"
-#include "include/EnsureDependencyProperty.hpp"
+#include "include/GlassBrushHelper.hpp"
 #include "include/TemplateControlHelper.hpp"
 #include "include/PointerLightHelper.hpp"
 #include "include/PointerMotionHelper.hpp"
@@ -32,89 +32,62 @@ namespace winrt::WinUI::LiquidGlass::detail
 
 namespace winrt::WinUI::LiquidGlass::implementation
 {
-#define WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
-        static void EnsureDependencyProperties(); \
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty(); \
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const; \
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value); \
-    private: \
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value); \
-        static void OnGlassBrushChanged( \
-            Microsoft::UI::Xaml::DependencyObject const& object, \
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args); \
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
-
-#define WINUI_LIQUID_GLASS_STYLED_DECLARATION(Type) \
-    struct Type : Type##T<Type>, \
-        detail::EnsureDependencyProperty<Type>, \
-        detail::TemplateControlHelper<Type>, \
-        detail::PointerLightHelper<Type> \
-    { \
-        constexpr static auto ResourceUri = detail::ThemeResourceUri; \
-        Type(); \
-        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+    struct LiquidGlassCard :
+        LiquidGlassCardT<LiquidGlassCard>,
+        detail::GlassBrushHelper<LiquidGlassCard>,
+        detail::TemplateControlHelper<LiquidGlassCard>,
+        detail::PointerLightHelper<LiquidGlassCard>
+    {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
+        LiquidGlassCard();
     };
 
-#define WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION(Type, PersistentKind) \
-    struct Type : Type##T<Type>, \
-        detail::EnsureDependencyProperty<Type>, \
-        detail::TemplateControlHelper<Type>, \
-        detail::PointerLightHelper<Type>, \
-        detail::PointerMotionHelper<Type>, \
-        detail::PressOpticsHelper<Type, detail::PersistentOpticsKind::PersistentKind> \
-    { \
-        constexpr static auto ResourceUri = detail::ThemeResourceUri; \
-        Type(); \
-        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+    struct LiquidGlassButton :
+        LiquidGlassButtonT<LiquidGlassButton>,
+        detail::GlassBrushHelper<LiquidGlassButton>,
+        detail::TemplateControlHelper<LiquidGlassButton>,
+        detail::PointerLightHelper<LiquidGlassButton>,
+        detail::PointerMotionHelper<LiquidGlassButton>,
+        detail::PressOpticsHelper<LiquidGlassButton, detail::PersistentOpticsKind::None>
+    {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
+        LiquidGlassButton();
     };
 
-#define WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION(Type, PersistentKind) \
-    struct Type : Type##T<Type>, \
-        detail::EnsureDependencyProperty<Type>, \
-        detail::PointerLightHelper<Type>, \
-        detail::PointerMotionHelper<Type>, \
-        detail::PressOpticsHelper<Type, detail::PersistentOpticsKind::PersistentKind> \
-    { \
-        Type(); \
-        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+    struct LiquidGlassToggleButton :
+        LiquidGlassToggleButtonT<LiquidGlassToggleButton>,
+        detail::GlassBrushHelper<LiquidGlassToggleButton>,
+        detail::TemplateControlHelper<LiquidGlassToggleButton>,
+        detail::PointerLightHelper<LiquidGlassToggleButton>,
+        detail::PointerMotionHelper<LiquidGlassToggleButton>,
+        detail::PressOpticsHelper<LiquidGlassToggleButton, detail::PersistentOpticsKind::Toggle>
+    {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
+        LiquidGlassToggleButton();
     };
 
-#define WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION(Type) \
-    struct Type : Type##T<Type>, \
-        detail::EnsureDependencyProperty<Type>, \
-        detail::PointerLightHelper<Type>, \
-        detail::FocusOpticsHelper<Type> \
-    { \
-        Type(); \
-        WINUI_LIQUID_GLASS_COMMON_MEMBERS(Type) \
+    struct LiquidGlassHyperlinkButton :
+        LiquidGlassHyperlinkButtonT<LiquidGlassHyperlinkButton>,
+        detail::GlassBrushHelper<LiquidGlassHyperlinkButton>,
+        detail::TemplateControlHelper<LiquidGlassHyperlinkButton>,
+        detail::PointerLightHelper<LiquidGlassHyperlinkButton>,
+        detail::PointerMotionHelper<LiquidGlassHyperlinkButton>,
+        detail::PressOpticsHelper<LiquidGlassHyperlinkButton, detail::PersistentOpticsKind::None>
+    {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
+        LiquidGlassHyperlinkButton();
     };
-
-    WINUI_LIQUID_GLASS_STYLED_DECLARATION(LiquidGlassCard)
-    WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION(LiquidGlassButton, None)
-    WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION(LiquidGlassToggleButton, Toggle)
-    WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION(LiquidGlassHyperlinkButton, None)
 
     struct LiquidGlassMagnifier :
         LiquidGlassMagnifierT<LiquidGlassMagnifier>,
-        detail::EnsureDependencyProperty<LiquidGlassMagnifier>,
+        detail::GlassBrushHelper<LiquidGlassMagnifier>,
         detail::TemplateControlHelper<LiquidGlassMagnifier>,
         detail::PointerLightHelper<LiquidGlassMagnifier>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassMagnifier();
 
-        static void EnsureDependencyProperties();
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-
     private:
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-        static void OnGlassBrushChanged(
-            Microsoft::UI::Xaml::DependencyObject const& object,
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
-
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Media::CompositeTransform m_dragTransform{ nullptr };
         Windows::Foundation::Point m_lastPointer{};
         detail::OpticsSnapshot m_dragOptics;
@@ -123,38 +96,54 @@ namespace winrt::WinUI::LiquidGlass::implementation
         bool m_dragging{};
     };
 
-    WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION(LiquidGlassCheckBox, Toggle)
-    WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION(LiquidGlassRadioButton, Toggle)
+    struct LiquidGlassCheckBox :
+        LiquidGlassCheckBoxT<LiquidGlassCheckBox>,
+        detail::GlassBrushHelper<LiquidGlassCheckBox>,
+        detail::PointerLightHelper<LiquidGlassCheckBox>,
+        detail::PointerMotionHelper<LiquidGlassCheckBox>,
+        detail::PressOpticsHelper<LiquidGlassCheckBox, detail::PersistentOpticsKind::Toggle>
+    {
+        LiquidGlassCheckBox();
+    };
+
+    struct LiquidGlassRadioButton :
+        LiquidGlassRadioButtonT<LiquidGlassRadioButton>,
+        detail::GlassBrushHelper<LiquidGlassRadioButton>,
+        detail::PointerLightHelper<LiquidGlassRadioButton>,
+        detail::PointerMotionHelper<LiquidGlassRadioButton>,
+        detail::PressOpticsHelper<LiquidGlassRadioButton, detail::PersistentOpticsKind::Toggle>
+    {
+        LiquidGlassRadioButton();
+    };
 
     struct LiquidGlassSlider :
         LiquidGlassSliderT<LiquidGlassSlider>,
-        detail::EnsureDependencyProperty<LiquidGlassSlider>,
+        detail::GlassBrushHelper<LiquidGlassSlider>,
         detail::PointerLightHelper<LiquidGlassSlider>
     {
         LiquidGlassSlider();
 
-        static void EnsureDependencyProperties();
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        // C++ implementation hook used by GlassBrushHelper; it is not projected by the IDL.
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
 
     private:
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-        static void OnGlassBrushChanged(
-            Microsoft::UI::Xaml::DependencyObject const& object,
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
-
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
         detail::OpticsSnapshot m_dragOptics;
         bool m_interactionsWired{};
     };
 
-    WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION(LiquidGlassTextBox)
+    struct LiquidGlassTextBox :
+        LiquidGlassTextBoxT<LiquidGlassTextBox>,
+        detail::GlassBrushHelper<LiquidGlassTextBox>,
+        detail::PointerLightHelper<LiquidGlassTextBox>,
+        detail::FocusOpticsHelper<LiquidGlassTextBox>
+    {
+        LiquidGlassTextBox();
+    };
 
     struct LiquidGlassPasswordBox :
         LiquidGlassPasswordBoxT<LiquidGlassPasswordBox>,
-        detail::EnsureDependencyProperty<LiquidGlassPasswordBox>,
+        detail::GlassBrushHelper<LiquidGlassPasswordBox>,
         detail::PointerLightHelper<LiquidGlassPasswordBox>,
         detail::FocusOpticsHelper<LiquidGlassPasswordBox>
     {
@@ -165,26 +154,25 @@ namespace winrt::WinUI::LiquidGlass::implementation
         hstring Password() const;
         void Password(hstring const& value);
 
-        static void EnsureDependencyProperties();
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        // C++ implementation hook used by GlassBrushHelper; it is not projected by the IDL.
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
 
     private:
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-        static void OnGlassBrushChanged(
-            Microsoft::UI::Xaml::DependencyObject const& object,
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
-
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Controls::PasswordBox m_passwordBox{ nullptr };
     };
 
-    WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION(LiquidGlassComboBox)
+    struct LiquidGlassComboBox :
+        LiquidGlassComboBoxT<LiquidGlassComboBox>,
+        detail::GlassBrushHelper<LiquidGlassComboBox>,
+        detail::PointerLightHelper<LiquidGlassComboBox>,
+        detail::FocusOpticsHelper<LiquidGlassComboBox>
+    {
+        LiquidGlassComboBox();
+    };
 
     struct LiquidGlassToggleSwitch :
         LiquidGlassToggleSwitchT<LiquidGlassToggleSwitch>,
-        detail::EnsureDependencyProperty<LiquidGlassToggleSwitch>,
+        detail::GlassBrushHelper<LiquidGlassToggleSwitch>,
         detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
         detail::PointerLightHelper<LiquidGlassToggleSwitch>,
         detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>
@@ -197,48 +185,25 @@ namespace winrt::WinUI::LiquidGlass::implementation
         bool IsOn() const;
         void IsOn(bool value);
 
-        static void EnsureDependencyProperties();
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-
     private:
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-        static void OnGlassBrushChanged(
-            Microsoft::UI::Xaml::DependencyObject const& object,
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
-
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Windows::Foundation::IInspectable m_header{ nullptr };
         bool m_interactionsWired{};
     };
 
     struct LiquidGlassTabBarItem :
         LiquidGlassTabBarItemT<LiquidGlassTabBarItem>,
-        detail::EnsureDependencyProperty<LiquidGlassTabBarItem>,
+        detail::GlassBrushHelper<LiquidGlassTabBarItem>,
         detail::TemplateControlHelper<LiquidGlassTabBarItem, false>,
         detail::PointerLightHelper<LiquidGlassTabBarItem>,
         detail::PointerMotionHelper<LiquidGlassTabBarItem>,
         detail::PressOpticsHelper<LiquidGlassTabBarItem, detail::PersistentOpticsKind::Selector>
     {
         LiquidGlassTabBarItem();
-
-        static void EnsureDependencyProperties();
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-
-    private:
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-        static void OnGlassBrushChanged(
-            Microsoft::UI::Xaml::DependencyObject const& object,
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
     };
 
     struct LiquidGlassTabBar :
         LiquidGlassTabBarT<LiquidGlassTabBar>,
-        detail::EnsureDependencyProperty<LiquidGlassTabBar>,
+        detail::GlassBrushHelper<LiquidGlassTabBar>,
         detail::TemplateControlHelper<LiquidGlassTabBar, false>,
         detail::PointerLightHelper<LiquidGlassTabBar>
     {
@@ -246,46 +211,23 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         Microsoft::UI::Xaml::DependencyObject GetContainerForItemOverride();
         bool IsItemItsOwnContainerOverride(Windows::Foundation::IInspectable const& item);
-
-        static void EnsureDependencyProperties();
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-
-    private:
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-        static void OnGlassBrushChanged(
-            Microsoft::UI::Xaml::DependencyObject const& object,
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
     };
-
-#undef WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION
-#undef WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION
-#undef WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION
-#undef WINUI_LIQUID_GLASS_STYLED_DECLARATION
-#undef WINUI_LIQUID_GLASS_COMMON_MEMBERS
 }
 
 namespace winrt::WinUI::LiquidGlass::factory_implementation
 {
-#define WINUI_LIQUID_GLASS_FACTORY(Type) \
-    struct Type : Type##T<Type, implementation::Type> {};
-
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassCard)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassMagnifier)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassButton)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassToggleButton)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassHyperlinkButton)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassCheckBox)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassRadioButton)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassSlider)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassTextBox)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassPasswordBox)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassComboBox)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassToggleSwitch)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassTabBarItem)
-    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassTabBar)
-
-#undef WINUI_LIQUID_GLASS_FACTORY
+    struct LiquidGlassCard : LiquidGlassCardT<LiquidGlassCard, implementation::LiquidGlassCard> {};
+    struct LiquidGlassMagnifier : LiquidGlassMagnifierT<LiquidGlassMagnifier, implementation::LiquidGlassMagnifier> {};
+    struct LiquidGlassButton : LiquidGlassButtonT<LiquidGlassButton, implementation::LiquidGlassButton> {};
+    struct LiquidGlassToggleButton : LiquidGlassToggleButtonT<LiquidGlassToggleButton, implementation::LiquidGlassToggleButton> {};
+    struct LiquidGlassHyperlinkButton : LiquidGlassHyperlinkButtonT<LiquidGlassHyperlinkButton, implementation::LiquidGlassHyperlinkButton> {};
+    struct LiquidGlassCheckBox : LiquidGlassCheckBoxT<LiquidGlassCheckBox, implementation::LiquidGlassCheckBox> {};
+    struct LiquidGlassRadioButton : LiquidGlassRadioButtonT<LiquidGlassRadioButton, implementation::LiquidGlassRadioButton> {};
+    struct LiquidGlassSlider : LiquidGlassSliderT<LiquidGlassSlider, implementation::LiquidGlassSlider> {};
+    struct LiquidGlassTextBox : LiquidGlassTextBoxT<LiquidGlassTextBox, implementation::LiquidGlassTextBox> {};
+    struct LiquidGlassPasswordBox : LiquidGlassPasswordBoxT<LiquidGlassPasswordBox, implementation::LiquidGlassPasswordBox> {};
+    struct LiquidGlassComboBox : LiquidGlassComboBoxT<LiquidGlassComboBox, implementation::LiquidGlassComboBox> {};
+    struct LiquidGlassToggleSwitch : LiquidGlassToggleSwitchT<LiquidGlassToggleSwitch, implementation::LiquidGlassToggleSwitch> {};
+    struct LiquidGlassTabBarItem : LiquidGlassTabBarItemT<LiquidGlassTabBarItem, implementation::LiquidGlassTabBarItem> {};
+    struct LiquidGlassTabBar : LiquidGlassTabBarT<LiquidGlassTabBar, implementation::LiquidGlassTabBar> {};
 }

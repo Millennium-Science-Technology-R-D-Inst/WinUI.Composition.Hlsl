@@ -11,17 +11,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
 {
     namespace Xaml = Microsoft::UI::Xaml;
     namespace Controls = Xaml::Controls;
-    namespace Media = Xaml::Media;
 
     namespace
     {
-        using Brush = WinUI::Composition::Hlsl::LiquidGlassBrush;
-
-        Media::Brush AsMediaBrush(Brush const& brush)
-        {
-            return brush ? brush.as<Media::Brush>() : Media::Brush{ nullptr };
-        }
-
         void EnsureTabBarResources()
         {
             [[maybe_unused]] static bool loaded = []
@@ -35,31 +27,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         }
     }
 
-#define TAB_GLASS_DP(Type) \
-    void Type::EnsureDependencyProperties() { (void)GlassBrushProperty(); } \
-    Xaml::DependencyProperty Type::GlassBrushProperty() \
-    { \
-        static auto property = Xaml::DependencyProperty::Register( \
-            L"GlassBrush", xaml_typename<Brush>(), xaml_typename<class_type>(), \
-            Xaml::PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr }, \
-                Xaml::PropertyChangedCallback{ OnGlassBrushChanged } }); \
-        return property; \
-    } \
-    Brush Type::GlassBrush() const { return GetValue(GlassBrushProperty()).try_as<Brush>(); } \
-    void Type::GlassBrush(Brush const& value) { SetValue(GlassBrushProperty(), value); } \
-    void Type::ApplyGlassBrush(Brush const& value) \
-    { \
-        m_glassBrush = value; \
-        Background(AsMediaBrush(value)); \
-    } \
-    void Type::OnGlassBrushChanged( \
-        Xaml::DependencyObject const& object, Xaml::DependencyPropertyChangedEventArgs const& args) \
-    { \
-        detail::EnsureDependencyProperty<Type>::GetSelf(object)->ApplyGlassBrush(args.NewValue().try_as<Brush>()); \
-    }
-
-    TAB_GLASS_DP(LiquidGlassTabBarItem)
-
     LiquidGlassTabBarItem::LiquidGlassTabBarItem()
     {
         EnsureTabBarResources();
@@ -68,8 +35,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
             WinUI::LiquidGlass::LiquidGlassPreset::TabBarItem));
         UseSystemFocusVisuals(true);
     }
-
-    TAB_GLASS_DP(LiquidGlassTabBar)
 
     LiquidGlassTabBar::LiquidGlassTabBar()
     {
@@ -106,6 +71,4 @@ namespace winrt::WinUI::LiquidGlass::implementation
     {
         return static_cast<bool>(item.try_as<WinUI::LiquidGlass::LiquidGlassTabBarItem>());
     }
-
-#undef TAB_GLASS_DP
 }

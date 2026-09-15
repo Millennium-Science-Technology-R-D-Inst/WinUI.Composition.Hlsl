@@ -8,27 +8,15 @@ namespace winrt::WinUI::LiquidGlass::implementation
 {
     struct LiquidGlassFloatingPanel :
         LiquidGlassFloatingPanelT<LiquidGlassFloatingPanel>,
-        detail::EnsureDependencyProperty<LiquidGlassFloatingPanel>,
+        detail::GlassBrushHelper<LiquidGlassFloatingPanel>,
         detail::PointerLightHelper<LiquidGlassFloatingPanel>
     {
         LiquidGlassFloatingPanel();
-
-        static void EnsureDependencyProperties();
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-
-    private:
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-        static void OnGlassBrushChanged(
-            Microsoft::UI::Xaml::DependencyObject const& object,
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
     };
 
     struct LiquidGlassSearchBox :
         LiquidGlassSearchBoxT<LiquidGlassSearchBox>,
-        detail::EnsureDependencyProperty<LiquidGlassSearchBox>,
+        detail::GlassBrushHelper<LiquidGlassSearchBox>,
         detail::PointerLightHelper<LiquidGlassSearchBox>,
         detail::FocusOpticsHelper<LiquidGlassSearchBox>
     {
@@ -74,17 +62,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
                 Microsoft::UI::Xaml::Controls::AutoSuggestBoxQuerySubmittedEventArgs> const& handler);
         void QuerySubmitted(event_token const& token) noexcept;
 
-        static void EnsureDependencyProperties();
-        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
-        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
-        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        // C++ implementation hook used by GlassBrushHelper; it is not projected by the IDL.
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
 
     private:
-        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
-        static void OnGlassBrushChanged(
-            Microsoft::UI::Xaml::DependencyObject const& object,
-            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
         Microsoft::UI::Xaml::Controls::AutoSuggestBox m_autoSuggestBox{ nullptr };
     };
 }
