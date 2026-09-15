@@ -83,6 +83,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.RefractiveIndex(1.42); b.HighlightStrength(.38); b.HighlightSharpness(1.7);
             b.SpecularSaturation(6); b.SpecularWidth(1); b.TintOpacity(.12);
             b.InnerShadowStrength(.05); b.FallbackColor({ 0x50, 0xff, 0xff, 0xff }); break;
+        case LiquidGlassPreset::TabBarItem:
+            b.CornerRadius(22); b.BlurRadius(1); b.RefractionStrength(16);
+            b.DispersionStrength(.4); b.BezelWidth(14); b.GlassThickness(52);
+            b.RefractiveIndex(1.42); b.HighlightStrength(.38); b.HighlightSharpness(1.8);
+            b.SpecularSaturation(5); b.SpecularWidth(1); b.TintOpacity(.08);
+            b.InnerShadowStrength(.05); b.FallbackColor({ 0x42, 0xff, 0xff, 0xff }); break;
         default:
             throw hresult_invalid_argument(L"Unknown LiquidGlassPreset value.");
         }

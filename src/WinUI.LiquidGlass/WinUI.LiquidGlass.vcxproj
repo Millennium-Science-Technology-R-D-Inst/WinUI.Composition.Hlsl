@@ -70,6 +70,7 @@
     <Midl Include="LiquidGlass.idl" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="winrt_module_imports.h" />
+    <ClInclude Include="xaml_generated_preamble.h" />
     <ClInclude Include="LiquidGlassInteraction.h" />
     <ClInclude Include="LiquidGlassPresets.h" />
     <ClInclude Include="include\EnsureDependencyProperty.hpp" />
@@ -91,16 +92,20 @@
     <ClInclude Include="LiquidGlassPasswordBox.h" />
     <ClInclude Include="LiquidGlassComboBox.h" />
     <ClInclude Include="LiquidGlassToggleSwitch.h" />
+    <ClInclude Include="LiquidGlassTabBarItem.h" />
+    <ClInclude Include="LiquidGlassTabBar.h" />
 
     <ClCompile Include="LiquidGlassInteraction.cpp" />
     <ClCompile Include="LiquidGlassPresets.cpp" />
     <ClCompile Include="LiquidGlassControls.cpp" />
+    <ClCompile Include="LiquidGlassTabBar.cpp" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ForcedIncludeFiles>$(ProjectDir)winrt_module_imports.h</ForcedIncludeFiles>
     </ClCompile>
 
     <Page Include="Themes\Generic.xaml" />
+    <Page Include="Themes\TabBar.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -115,26 +120,33 @@
     </ProjectReference>
   </ItemGroup>
 
-  <Target Name="InjectModuleImportsIntoXamlGenerated"
+  <!--
+    XAML-generated .cpp files are not authored module translation units. They
+    include textual STL headers (notably <regex>), so importing the WinRT named
+    modules into those TUs can make MSVC see both IFC and textual STL definitions.
+    Keep module.g.cpp on the optimized import path, but give generated XAML code
+    a conventional textual C++/WinRT preamble.
+  -->
+  <Target Name="InjectHeadersIntoXamlGenerated"
           AfterTargets="ComputeXamlGeneratedCompileInputs"
           BeforeTargets="ClCompile">
     <ItemGroup>
       <ClCompile Update="@(ClCompile)"
                  Condition="'%(Filename)' == 'XamlTypeInfo.g' or '%(Filename)' == 'XamlTypeInfo.Impl.g' or '%(Filename)' == 'XamlMetaDataProvider' or '%(Filename)' == 'XamlLibMetadataProvider.g'">
         <PrecompiledHeader>NotUsing</PrecompiledHeader>
-        <ForcedIncludeFiles>$(MSBuildProjectDirectory)\winrt_module_imports.h</ForcedIncludeFiles>
+        <ForcedIncludeFiles>$(MSBuildProjectDirectory)\xaml_generated_preamble.h</ForcedIncludeFiles>
       </ClCompile>
     </ItemGroup>
   </Target>
 
-  <Target Name="InjectModuleImportsIntoXamlGeneratedPass2"
+  <Target Name="InjectHeadersIntoXamlGeneratedPass2"
           AfterTargets="ComputeXamlGeneratedCompileInputs"
           BeforeTargets="CompileXamlGeneratedFiles">
     <ItemGroup>
       <ClCompile Update="@(ClCompile)"
                  Condition="'%(Filename)' == 'XamlTypeInfo.g' or '%(Filename)' == 'XamlTypeInfo.Impl.g' or '%(Filename)' == 'XamlMetaDataProvider' or '%(Filename)' == 'XamlLibMetadataProvider.g'">
         <PrecompiledHeader>NotUsing</PrecompiledHeader>
-        <ForcedIncludeFiles>$(MSBuildProjectDirectory)\winrt_module_imports.h</ForcedIncludeFiles>
+        <ForcedIncludeFiles>$(MSBuildProjectDirectory)\xaml_generated_preamble.h</ForcedIncludeFiles>
       </ClCompile>
     </ItemGroup>
   </Target>

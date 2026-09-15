@@ -21,6 +21,8 @@
 #include "LiquidGlassPasswordBox.g.h"
 #include "LiquidGlassComboBox.g.h"
 #include "LiquidGlassToggleSwitch.g.h"
+#include "LiquidGlassTabBarItem.g.h"
+#include "LiquidGlassTabBar.g.h"
 
 namespace winrt::WinUI::LiquidGlass::detail
 {
@@ -211,6 +213,53 @@ namespace winrt::WinUI::LiquidGlass::implementation
         bool m_interactionsWired{};
     };
 
+    struct LiquidGlassTabBarItem :
+        LiquidGlassTabBarItemT<LiquidGlassTabBarItem>,
+        detail::EnsureDependencyProperty<LiquidGlassTabBarItem>,
+        detail::TemplateControlHelper<LiquidGlassTabBarItem, false>,
+        detail::PointerLightHelper<LiquidGlassTabBarItem>,
+        detail::PointerMotionHelper<LiquidGlassTabBarItem>,
+        detail::PressOpticsHelper<LiquidGlassTabBarItem>
+    {
+        LiquidGlassTabBarItem();
+
+        static void EnsureDependencyProperties();
+        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
+        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+
+    private:
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        static void OnGlassBrushChanged(
+            Microsoft::UI::Xaml::DependencyObject const& object,
+            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
+        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
+    };
+
+    struct LiquidGlassTabBar :
+        LiquidGlassTabBarT<LiquidGlassTabBar>,
+        detail::EnsureDependencyProperty<LiquidGlassTabBar>,
+        detail::TemplateControlHelper<LiquidGlassTabBar, false>,
+        detail::PointerLightHelper<LiquidGlassTabBar>
+    {
+        LiquidGlassTabBar();
+
+        Microsoft::UI::Xaml::DependencyObject GetContainerForItemOverride();
+        bool IsItemItsOwnContainerOverride(Windows::Foundation::IInspectable const& item);
+
+        static void EnsureDependencyProperties();
+        static Microsoft::UI::Xaml::DependencyProperty GlassBrushProperty();
+        WinUI::Composition::Hlsl::LiquidGlassBrush GlassBrush() const;
+        void GlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+
+    private:
+        void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
+        static void OnGlassBrushChanged(
+            Microsoft::UI::Xaml::DependencyObject const& object,
+            Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
+        WinUI::Composition::Hlsl::LiquidGlassBrush m_glassBrush{ nullptr };
+    };
+
 #undef WINUI_LIQUID_GLASS_FOCUSABLE_DECLARATION
 #undef WINUI_LIQUID_GLASS_PLAIN_INTERACTIVE_DECLARATION
 #undef WINUI_LIQUID_GLASS_STYLED_INTERACTIVE_DECLARATION
@@ -235,6 +284,8 @@ namespace winrt::WinUI::LiquidGlass::factory_implementation
     WINUI_LIQUID_GLASS_FACTORY(LiquidGlassPasswordBox)
     WINUI_LIQUID_GLASS_FACTORY(LiquidGlassComboBox)
     WINUI_LIQUID_GLASS_FACTORY(LiquidGlassToggleSwitch)
+    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassTabBarItem)
+    WINUI_LIQUID_GLASS_FACTORY(LiquidGlassTabBar)
 
 #undef WINUI_LIQUID_GLASS_FACTORY
 }

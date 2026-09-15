@@ -6,7 +6,7 @@ Native C++/WinRT Liquid Glass controls for WinUI 3. The package depends on the m
 <PackageReference Include="WinUI.LiquidGlass" Version="1.0.x" />
 ```
 
-Controls: `LiquidGlassCard`, `LiquidGlassMagnifier`, `LiquidGlassButton`, `LiquidGlassToggleButton`, `LiquidGlassHyperlinkButton`, `LiquidGlassCheckBox`, `LiquidGlassRadioButton`, `LiquidGlassSlider`, `LiquidGlassTextBox`, `LiquidGlassPasswordBox`, `LiquidGlassComboBox`, and `LiquidGlassToggleSwitch`.
+Controls: `LiquidGlassCard`, `LiquidGlassMagnifier`, `LiquidGlassButton`, `LiquidGlassToggleButton`, `LiquidGlassHyperlinkButton`, `LiquidGlassCheckBox`, `LiquidGlassRadioButton`, `LiquidGlassSlider`, `LiquidGlassTextBox`, `LiquidGlassPasswordBox`, `LiquidGlassComboBox`, `LiquidGlassToggleSwitch`, `LiquidGlassTabBar`, and `LiquidGlassTabBarItem`.
 
 Each control exposes `GlassBrush` as a dependency property. The default value is a per-instance `WinUI.Composition.Hlsl.LiquidGlassBrush`, while applications can replace it from XAML or C++/WinRT:
 
@@ -26,7 +26,7 @@ Each control exposes `GlassBrush` as a dependency property. The default value is
 
 ## Reusable optical presets
 
-`LiquidGlassPresets.CreateBrush(...)` creates an independent brush with the library's reference optical profile. Available presets are `Panel`, `Button`, `Choice`, `SearchBox`, `Input`, `SliderThumb`, `ToggleSwitchKnob`, `Magnifier`, `FloatingPanel`, and `TabBar`.
+`LiquidGlassPresets.CreateBrush(...)` creates an independent brush with the library's reference optical profile. Available presets are `Panel`, `Button`, `Choice`, `SearchBox`, `Input`, `SliderThumb`, `ToggleSwitchKnob`, `Magnifier`, `FloatingPanel`, `TabBar`, and `TabBarItem`.
 
 ```cpp
 auto glass = WinUI::LiquidGlass::LiquidGlassPresets::CreateBrush(
@@ -35,11 +35,11 @@ glass.TintOpacity(0.16);
 glass.Contrast(1.08);
 ```
 
-The first eight profiles mirror the built-in control baselines. `FloatingPanel` provides the softer media/player-panel treatment and `TabBar` provides a compact bottom-navigation baseline that can be reused by higher-level segmented/tab controls.
+The core profiles mirror the built-in control baselines. `FloatingPanel` provides the softer media/player-panel treatment; `TabBar` provides the outer navigation surface; `TabBarItem` is a smaller independent selection pill.
 
 ## Interaction tuning
 
-`LiquidGlassInteraction` exposes WinUI attached dependency properties rather than baking interaction ratios into every control class. They can be set from XAML, styles, bindings, or C++/WinRT and are shared by the native control presets.
+`LiquidGlassInteraction` exposes WinUI attached dependency properties rather than baking interaction ratios into every control class. They can be set from XAML, styles, bindings, or C++/WinRT and are shared by the native control presets. Values use local-value-first lookup and then walk the visual tree, so a parent `LiquidGlassSlider` or `LiquidGlassTabBar` can configure generated/internal containers without copying every property.
 
 ```xml
 <glass:LiquidGlassButton
@@ -51,18 +51,25 @@ The first eight profiles mirror the built-in control baselines. `FloatingPanel` 
     glass:LiquidGlassInteraction.PressedScale="0.95"
     glass:LiquidGlassInteraction.MotionDuration="135"
     glass:LiquidGlassInteraction.Elasticity="0.55"
+    glass:LiquidGlassInteraction.PressedBlurBoost="1"
     glass:LiquidGlassInteraction.PressedRefractionMultiplier="1.3"
     glass:LiquidGlassInteraction.PressedRefractionBoost="2"
+    glass:LiquidGlassInteraction.PressedDispersionMultiplier="1.15"
+    glass:LiquidGlassInteraction.PressedSaturationMultiplier="1.05"
+    glass:LiquidGlassInteraction.PressedContrastMultiplier="1.06"
+    glass:LiquidGlassInteraction.PressedExposureBoost="0.08"
     glass:LiquidGlassInteraction.PressedTintBoost="0.06"
     glass:LiquidGlassInteraction.PressedHighlightMultiplier="1.18"
     glass:LiquidGlassInteraction.PressedHighlightBoost="0.04"
     glass:LiquidGlassInteraction.PressedInnerShadowBoost="0.06" />
 ```
 
-The same settings drive the specialized interactions: Slider copies the press/motion profile to its native Thumb, ToggleSwitch applies it to the glass knob, and Magnifier combines it with `ActiveMagnificationMultiplier` and directional elasticity. `FocusedScale` plus `FocusedTintBoost` drive the focus response of text/password/combo input controls.
+Press optical state snapshots and restores blur, refraction, dispersion, saturation, contrast, exposure, tint opacity, highlight strength and inner shadow. Focus state exposes the corresponding `Focused*` controls. Geometry parameters such as corner radius, bezel width, glass thickness and IOR remain material-level settings so generic state changes do not cause shape jumps.
+
+The same settings drive specialized interactions: Slider resolves the profile for its native Thumb, ToggleSwitch applies it to the glass knob, Magnifier combines it with `ActiveMagnificationMultiplier` and directional elasticity, and TabBar settings cascade to generated `LiquidGlassTabBarItem` containers. TabBar stays a real WinUI `ListView`, preserving native single-selection, keyboard/gamepad focus and UI Automation behavior.
 
 The material itself remains independently configurable through `LiquidGlassBrush`: blur/frost, saturation, contrast, exposure, tint RGB/opacity, four surface profiles, bezel geometry, glass thickness, IOR/Snell refraction, magnification, chromatic dispersion, directional lighting, highlight sharpness, specular saturation/width, inner shadow, edge softness, material opacity and fallback color.
 
-Templated controls load `ms-appx:///WinUI.LiquidGlass/Themes/Generic.xaml`. Complex input controls intentionally retain the WinUI base templates so keyboard, gamepad, focus, and UI Automation behavior remains platform-native; the glass material is applied to the appropriate native surface at runtime.
+The main templated controls use `ms-appx:///WinUI.LiquidGlass/Themes/Generic.xaml`; TabBar uses a focused `Themes/TabBar.xaml` dictionary. Complex input controls intentionally retain the WinUI base templates so keyboard, gamepad, focus, and UI Automation behavior remains platform-native; the glass material is applied to the appropriate native surface at runtime.
 
-The implementation uses C++/WinRT optimized namespace modules. Generated XAML translation units receive the same module-import preamble as the authored control implementation, while the class-named headers required by `module.g.cpp` are thin forwarding headers into the centralized `LiquidGlassControls` module.
+The implementation keeps C++/WinRT optimized namespace modules for authored/component code and `module.g.cpp`. XAML-generated translation units use a conventional textual C++/WinRT preamble instead of named-module imports because generated code includes textual STL headers such as `<regex>`; keeping those paths separate avoids IFC/textual STL redefinition conflicts on current MSVC while preserving optimized modules for the component itself.

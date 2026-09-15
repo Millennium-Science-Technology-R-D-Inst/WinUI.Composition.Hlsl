@@ -54,16 +54,30 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!owner || !element) return;
 
             auto self = static_cast<Self*>(this);
-            if (!m_focused)
+            if (!m_state.active)
             {
                 if (auto brush = self->GlassBrush())
                 {
-                    m_brush = brush;
-                    m_tintOpacity = brush.TintOpacity();
+                    CaptureOptics(brush, m_state);
+                    brush.BlurRadius(std::clamp(
+                        m_state.blur + implementation::LiquidGlassInteraction::GetFocusedBlurBoost(owner), 0.0, 64.0));
+                    brush.RefractionStrength(std::clamp(
+                        m_state.refraction * implementation::LiquidGlassInteraction::GetFocusedRefractionMultiplier(owner), 0.0, 128.0));
+                    brush.DispersionStrength(std::clamp(
+                        m_state.dispersion * implementation::LiquidGlassInteraction::GetFocusedDispersionMultiplier(owner), 0.0, 16.0));
+                    brush.Saturation(std::clamp(
+                        m_state.saturation * implementation::LiquidGlassInteraction::GetFocusedSaturationMultiplier(owner), 0.0, 4.0));
+                    brush.Contrast(std::clamp(
+                        m_state.contrast * implementation::LiquidGlassInteraction::GetFocusedContrastMultiplier(owner), 0.0, 4.0));
+                    brush.Exposure(std::clamp(
+                        m_state.exposure + implementation::LiquidGlassInteraction::GetFocusedExposureBoost(owner), -4.0, 4.0));
                     brush.TintOpacity(std::clamp(
-                        m_tintOpacity + implementation::LiquidGlassInteraction::GetFocusedTintBoost(owner), 0.0, 1.0));
+                        m_state.tintOpacity + implementation::LiquidGlassInteraction::GetFocusedTintBoost(owner), 0.0, 1.0));
+                    brush.HighlightStrength(std::clamp(
+                        m_state.highlight + implementation::LiquidGlassInteraction::GetFocusedHighlightBoost(owner), 0.0, 4.0));
+                    brush.InnerShadowStrength(std::clamp(
+                        m_state.innerShadow + implementation::LiquidGlassInteraction::GetFocusedInnerShadowBoost(owner), 0.0, 1.0));
                 }
-                m_focused = true;
             }
 
             SetScale(element,
@@ -77,9 +91,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto owner = Owner(sender);
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
-            if (m_focused && m_brush) m_brush.TintOpacity(m_tintOpacity);
-            m_brush = nullptr;
-            m_focused = false;
+            RestoreOptics(m_state);
             if (!owner || !element) return;
             SetScale(element,
                 std::clamp(implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0),
@@ -87,8 +99,6 @@ namespace winrt::WinUI::LiquidGlass::detail
                 implementation::LiquidGlassInteraction::GetMotionDuration(owner));
         }
 
-        WinUI::Composition::Hlsl::LiquidGlassBrush m_brush{ nullptr };
-        double m_tintOpacity{};
-        bool m_focused{};
+        OpticsSnapshot m_state;
     };
 }

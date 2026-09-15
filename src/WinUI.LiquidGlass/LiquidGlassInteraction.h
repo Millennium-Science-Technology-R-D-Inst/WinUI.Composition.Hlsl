@@ -31,13 +31,29 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LIQUID_GLASS_INTERACTION_DOUBLE(FocusedScale)
         LIQUID_GLASS_INTERACTION_DOUBLE(MotionDuration)
         LIQUID_GLASS_INTERACTION_DOUBLE(Elasticity)
+
+        LIQUID_GLASS_INTERACTION_DOUBLE(PressedBlurBoost)
         LIQUID_GLASS_INTERACTION_DOUBLE(PressedRefractionMultiplier)
         LIQUID_GLASS_INTERACTION_DOUBLE(PressedRefractionBoost)
+        LIQUID_GLASS_INTERACTION_DOUBLE(PressedDispersionMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(PressedSaturationMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(PressedContrastMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(PressedExposureBoost)
         LIQUID_GLASS_INTERACTION_DOUBLE(PressedTintBoost)
         LIQUID_GLASS_INTERACTION_DOUBLE(PressedHighlightMultiplier)
         LIQUID_GLASS_INTERACTION_DOUBLE(PressedHighlightBoost)
         LIQUID_GLASS_INTERACTION_DOUBLE(PressedInnerShadowBoost)
+
+        LIQUID_GLASS_INTERACTION_DOUBLE(FocusedBlurBoost)
+        LIQUID_GLASS_INTERACTION_DOUBLE(FocusedRefractionMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(FocusedDispersionMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(FocusedSaturationMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(FocusedContrastMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(FocusedExposureBoost)
         LIQUID_GLASS_INTERACTION_DOUBLE(FocusedTintBoost)
+        LIQUID_GLASS_INTERACTION_DOUBLE(FocusedHighlightBoost)
+        LIQUID_GLASS_INTERACTION_DOUBLE(FocusedInnerShadowBoost)
+
         LIQUID_GLASS_INTERACTION_DOUBLE(ActiveMagnificationMultiplier)
 
 #undef LIQUID_GLASS_INTERACTION_DOUBLE
