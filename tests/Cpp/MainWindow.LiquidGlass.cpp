@@ -29,6 +29,8 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
         m_liquidGlassMaterial.EdgeSoftness(static_cast<float>(EdgeSoftnessSlider().Value()));
         m_liquidGlassMaterial.MaterialOpacity(static_cast<float>(MaterialOpacitySlider().Value()));
         m_liquidGlassMaterial.InnerShadowStrength(static_cast<float>(InnerShadowStrengthSlider().Value()));
+        m_liquidGlassMaterial.Contrast(static_cast<float>(ContrastSlider().Value()));
+        m_liquidGlassMaterial.Exposure(static_cast<float>(ExposureSlider().Value()));
         m_liquidGlassMaterial.TintRed(static_cast<float>(TintRedSlider().Value()));
         m_liquidGlassMaterial.TintGreen(static_cast<float>(TintGreenSlider().Value()));
         m_liquidGlassMaterial.TintBlue(static_cast<float>(TintBlueSlider().Value()));
@@ -62,6 +64,8 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
         EdgeSoftnessSlider().ValueChanged(onRangeChanged);
         MaterialOpacitySlider().ValueChanged(onRangeChanged);
         InnerShadowStrengthSlider().ValueChanged(onRangeChanged);
+        ContrastSlider().ValueChanged(onRangeChanged);
+        ExposureSlider().ValueChanged(onRangeChanged);
         TintRedSlider().ValueChanged(onRangeChanged);
         TintGreenSlider().ValueChanged(onRangeChanged);
         TintBlueSlider().ValueChanged(onRangeChanged);
