@@ -1,8 +1,8 @@
 #pragma once
 
-// XAML-generated translation units are ordinary textual C++ sources. Do not
-// force C++/WinRT named-module imports into them: the generated code includes
-// STL headers such as <regex>, and mixing those textual headers with imported
+// XAML-generated translation units are ordinary textual C++ sources. Keep
+// C++/WinRT named-module imports out of these TUs: the generated code includes
+// textual STL headers such as <regex>, and mixing those headers with imported
 // IFC/header-unit state can produce duplicate std definitions on newer MSVC.
 #include "pch.h"
 
@@ -13,27 +13,13 @@
 #undef GetCurrentTime
 #endif
 
-#include <winrt/Windows.Foundation.h>
-#include <winrt/Windows.Foundation.Collections.h>
-#include <winrt/Windows.Foundation.Numerics.h>
-#include <winrt/Windows.UI.h>
-#include <winrt/Windows.UI.Xaml.Interop.h>
-
-#include <winrt/Microsoft.UI.Composition.h>
-#include <winrt/Microsoft.UI.Dispatching.h>
-#include <winrt/Microsoft.UI.Xaml.h>
-#include <winrt/Microsoft.UI.Xaml.Controls.h>
-#include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
-#include <winrt/Microsoft.UI.Xaml.Data.h>
-#include <winrt/Microsoft.UI.Xaml.Hosting.h>
-#include <winrt/Microsoft.UI.Xaml.Input.h>
-#include <winrt/Microsoft.UI.Xaml.Interop.h>
-#include <winrt/Microsoft.UI.Xaml.Markup.h>
-#include <winrt/Microsoft.UI.Xaml.Media.h>
-#include <winrt/Microsoft.UI.Xaml.Media.Animation.h>
-#include <winrt/Microsoft.UI.Xaml.Media.Imaging.h>
-#include <winrt/Microsoft.UI.Xaml.Navigation.h>
-#include <winrt/Microsoft.UI.Xaml.Shapes.h>
-#include <winrt/Microsoft.UI.Xaml.XamlTypeInfo.h>
-
-#include <winrt/WinUI.Composition.Hlsl.h>
+// The generated XamlTypeInfo implementation constructs authored runtime-class
+// implementation types. Use textual WinRT headers in this generated TU, import
+// this component's own projection explicitly, then expose the authored
+// implementation definitions used by XamlTypeInfo.g.cpp.
+#define WINUI_LIQUID_GLASS_TEXTUAL_WINRT 1
+#include "winrt_module_imports.h"
+#include <winrt/WinUI.LiquidGlass.h>
+#include "LiquidGlassControls.h"
+#include "LiquidGlassSpecializedControls.h"
+#undef WINUI_LIQUID_GLASS_TEXTUAL_WINRT

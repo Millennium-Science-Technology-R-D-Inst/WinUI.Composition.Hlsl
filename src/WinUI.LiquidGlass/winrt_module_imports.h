@@ -2,7 +2,7 @@
 
 #include "pch.h"
 
-#ifdef __INTELLISENSE__
+#if defined(__INTELLISENSE__) || defined(WINUI_LIQUID_GLASS_TEXTUAL_WINRT)
 
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>

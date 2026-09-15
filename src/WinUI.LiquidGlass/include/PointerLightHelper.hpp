@@ -19,6 +19,17 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
     private:
+        static void SetMaterialLightAngle(
+            WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
+            double value)
+        {
+            if (!brush) return;
+            if (auto material = brush.Material())
+            {
+                material.LightAngle(static_cast<float>(value));
+            }
+        }
+
         template<typename Sender>
         void BeginTracking(Sender const& sender)
         {
@@ -72,14 +83,24 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             auto const x = std::cos(m_restingLightAngle) * (1.0 - influence) + std::cos(pointerAngle) * influence;
             auto const y = std::sin(m_restingLightAngle) * (1.0 - influence) + std::sin(pointerAngle) * influence;
-            if (std::abs(x) + std::abs(y) > 1e-5) brush.LightAngle(std::atan2(y, x));
+            if (std::abs(x) + std::abs(y) > 1e-5)
+            {
+                SetMaterialLightAngle(brush, std::atan2(y, x));
+            }
         }
 
         void EndTracking()
         {
             if (!m_tracking) return;
             auto self = static_cast<Self*>(this);
-            if (auto brush = self->GlassBrush()) brush.LightAngle(m_restingLightAngle);
+            if (auto brush = self->GlassBrush())
+            {
+                // The pointer-light effect is transient and therefore writes to
+                // the live material rather than the XAML dependency property.
+                // Restore the current DP value so an external property change
+                // made while tracking is respected.
+                SetMaterialLightAngle(brush, brush.LightAngle());
+            }
             m_tracking = false;
         }
 
