@@ -137,18 +137,25 @@ float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float cent
     const float2 q = abs(local) - (halfRect - radius.xx);
     const float2 outside = max(q, 0.0f.xx);
     const float outsideLength = length(outside);
+    float2 result = float2(0.0f, -1.0f);
 
+    // FXC's Debug data-flow pass is conservative around multiple return paths in
+    // library functions. Keep a definitely initialized result and return once.
     if (outsideLength > 1e-5f)
     {
-        return (outside / outsideLength) * signs;
+        result = (outside / outsideLength) * signs;
+    }
+    else if (q.x > q.y)
+    {
+        // Inside the corner arc the SDF is linear along the dominant axis.
+        result = float2(signs.x, 0.0f);
+    }
+    else
+    {
+        result = float2(0.0f, signs.y);
     }
 
-    // Inside the corner arc the SDF is linear along the dominant axis.
-    if (q.x > q.y)
-    {
-        return float2(signs.x, 0.0f);
-    }
-    return float2(0.0f, signs.y);
+    return result;
 }
 
 float CalculatePointerInteraction(
