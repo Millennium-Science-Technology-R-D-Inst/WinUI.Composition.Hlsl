@@ -21,9 +21,9 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
     private:
-        using Brush = WinUI::Composition::Hlsl::LiquidGlassBrush;
+        using LightBrush = WinUI::Composition::Hlsl::LiquidGlassBrush;
 
-        static void SetMaterialLightAngle(Brush const& brush, double value)
+        static void SetMaterialLightAngle(LightBrush const& brush, double value)
         {
             if (!brush) return;
             if (auto material = brush.Material())
@@ -32,7 +32,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
         }
 
-        void TrackBrush(Brush const& brush)
+        void TrackBrush(LightBrush const& brush)
         {
             if (!brush)
             {
@@ -121,7 +121,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_tracking = false;
         }
 
-        Brush m_trackingBrush{ nullptr };
+        LightBrush m_trackingBrush{ nullptr };
         bool m_tracking{};
     };
 }
