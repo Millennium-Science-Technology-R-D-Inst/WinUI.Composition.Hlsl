@@ -15,6 +15,11 @@
                 <liquid:LiquidGlassTabBar
                     SelectedIndex="0"
                     liquid:LiquidGlassInteraction.PointerLightInfluence="0.85"
+                    liquid:LiquidGlassInteraction.PointerDisplacement="3"
+                    liquid:LiquidGlassInteraction.PressedDisplacementMultiplier="1.5"
+                    liquid:LiquidGlassInteraction.PointerOverRefractionMultiplier="1.08"
+                    liquid:LiquidGlassInteraction.PointerOverTintBoost="0.04"
+                    liquid:LiquidGlassInteraction.PointerOverHighlightMultiplier="1.1"
                     liquid:LiquidGlassInteraction.PressedBlurBoost="1"
                     liquid:LiquidGlassInteraction.PressedDispersionMultiplier="1.15"
                     liquid:LiquidGlassInteraction.PressedContrastMultiplier="1.06"

@@ -51,6 +51,12 @@ The core profiles mirror the built-in control baselines. `FloatingPanel` provide
     glass:LiquidGlassInteraction.PressedScale="0.95"
     glass:LiquidGlassInteraction.MotionDuration="135"
     glass:LiquidGlassInteraction.Elasticity="0.55"
+    glass:LiquidGlassInteraction.PointerDisplacement="3"
+    glass:LiquidGlassInteraction.PressedDisplacementMultiplier="1.5"
+    glass:LiquidGlassInteraction.PointerOverRefractionMultiplier="1.08"
+    glass:LiquidGlassInteraction.PointerOverDispersionMultiplier="1.05"
+    glass:LiquidGlassInteraction.PointerOverTintBoost="0.04"
+    glass:LiquidGlassInteraction.PointerOverHighlightMultiplier="1.10"
     glass:LiquidGlassInteraction.PressedBlurBoost="1"
     glass:LiquidGlassInteraction.PressedRefractionMultiplier="1.3"
     glass:LiquidGlassInteraction.PressedRefractionBoost="2"
@@ -64,7 +70,9 @@ The core profiles mirror the built-in control baselines. `FloatingPanel` provide
     glass:LiquidGlassInteraction.PressedInnerShadowBoost="0.06" />
 ```
 
-Press optical state snapshots and restores blur, refraction, dispersion, saturation, contrast, exposure, tint opacity, highlight strength and inner shadow. Focus state exposes the corresponding `Focused*` controls. Geometry parameters such as corner radius, bezel width, glass thickness and IOR remain material-level settings so generic state changes do not cause shape jumps.
+Pointer-over, press and focus optical layers snapshot and restore blur, refraction, dispersion, saturation, contrast, exposure, tint opacity, highlight strength and inner shadow. Pointer-over and press stack in order, so a release returns to the hover optical state before pointer exit returns to the resting brush. Geometry parameters such as corner radius, bezel width, glass thickness and IOR remain material-level settings so generic state changes do not cause shape jumps.
+
+`PointerDisplacement` adds a magnetic pointer-following translation using the WinUI `UIElement.Translation` facade while preserving and restoring the application's existing translation vector. The displacement uses a bounded `tanh` curve; `PressedDisplacementMultiplier` controls the stronger pressed response independently from `Elasticity`, which controls anisotropic liquid stretch. Either behavior can be disabled independently by setting its value to zero.
 
 The same settings drive specialized interactions: Slider resolves the profile for its native Thumb, ToggleSwitch applies it to the glass knob, Magnifier combines it with `ActiveMagnificationMultiplier` and directional elasticity, and TabBar settings cascade to generated `LiquidGlassTabBarItem` containers. TabBar stays a real WinUI `ListView`, preserving native single-selection, keyboard/gamepad focus and UI Automation behavior.
 

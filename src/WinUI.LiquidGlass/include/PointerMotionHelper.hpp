@@ -10,16 +10,51 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const& sender, auto const&) { ApplyRest(sender); });
-            self->PointerEntered([this](auto const& sender, auto const&) { m_pointerOver = true; AnimateState(sender); });
+            self->PointerEntered([this](auto const& sender, auto const&)
+            {
+                CaptureTranslation(sender);
+                m_pointerOver = true;
+                AnimateState(sender);
+            });
             self->PointerMoved([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
-                ApplyElasticity(sender, args);
+                ApplyPointerResponse(sender, args);
             });
-            self->PointerExited([this](auto const& sender, auto const&) { m_pointerOver = false; if (!m_pressed) AnimateState(sender); });
-            self->PointerPressed([this](auto const& sender, auto const&) { m_pressed = true; AnimateState(sender); });
-            self->PointerReleased([this](auto const& sender, auto const&) { m_pressed = false; AnimateState(sender); });
-            self->PointerCaptureLost([this](auto const& sender, auto const&) { m_pressed = false; AnimateState(sender); });
-            self->PointerCanceled([this](auto const& sender, auto const&) { m_pressed = false; AnimateState(sender); });
+            self->PointerExited([this](auto const& sender, auto const&)
+            {
+                m_pointerOver = false;
+                if (!m_pressed)
+                {
+                    AnimateState(sender);
+                    RestoreTranslation(sender);
+                }
+            });
+            self->PointerPressed([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+            {
+                CaptureTranslation(sender);
+                m_pressed = true;
+                AnimateState(sender);
+                ApplyPointerDisplacement(sender, args);
+            });
+            self->PointerReleased([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+            {
+                m_pressed = false;
+                AnimateState(sender);
+                if (m_pointerOver) ApplyPointerDisplacement(sender, args);
+                else RestoreTranslation(sender);
+            });
+            self->PointerCaptureLost([this](auto const& sender, auto const&)
+            {
+                m_pressed = false;
+                AnimateState(sender);
+                RestoreTranslation(sender);
+            });
+            self->PointerCanceled([this](auto const& sender, auto const&)
+            {
+                m_pressed = false;
+                AnimateState(sender);
+                RestoreTranslation(sender);
+            });
         }
 
     private:
@@ -54,6 +89,25 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
         template<typename Sender>
+        void CaptureTranslation(Sender const& sender)
+        {
+            if (m_translationCaptured) return;
+            auto element = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
+            if (!element) return;
+            m_restTranslation = element.Translation();
+            m_translationCaptured = true;
+        }
+
+        template<typename Sender>
+        void RestoreTranslation(Sender const& sender)
+        {
+            if (!m_translationCaptured) return;
+            if (auto element = sender.template try_as<Microsoft::UI::Xaml::UIElement>())
+                element.Translation(m_restTranslation);
+            m_translationCaptured = false;
+        }
+
+        template<typename Sender>
         void ApplyRest(Sender const& sender)
         {
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
@@ -78,9 +132,16 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
         template<typename Sender>
-        void ApplyElasticity(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        void ApplyPointerResponse(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
             if (!m_pointerOver) return;
+            ApplyElasticity(sender, args);
+            ApplyPointerDisplacement(sender, args);
+        }
+
+        template<typename Sender>
+        void ApplyElasticity(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        {
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             auto relativeTo = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
@@ -111,6 +172,47 @@ namespace winrt::WinUI::LiquidGlass::detail
             SetScale(element, sx, sy);
         }
 
+        template<typename Sender>
+        void ApplyPointerDisplacement(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        {
+            auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
+            auto relativeTo = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
+            if (!owner || !element || !relativeTo) return;
+
+            CaptureTranslation(sender);
+            if (!m_translationCaptured) return;
+
+            auto const maxDisplacement = std::clamp(
+                implementation::LiquidGlassInteraction::GetPointerDisplacement(owner), 0.0, 64.0);
+            if (maxDisplacement <= 1e-5)
+            {
+                element.Translation(m_restTranslation);
+                return;
+            }
+
+            auto const width = element.ActualWidth();
+            auto const height = element.ActualHeight();
+            if (width <= 0.0 || height <= 0.0) return;
+
+            auto const point = args.GetCurrentPoint(relativeTo).Position();
+            auto const nx = std::clamp((point.X / width) * 2.0 - 1.0, -1.0, 1.0);
+            auto const ny = std::clamp((point.Y / height) * 2.0 - 1.0, -1.0, 1.0);
+            auto const normalizer = std::tanh(1.35);
+            auto const curveX = std::tanh(nx * 1.35) / normalizer;
+            auto const curveY = std::tanh(ny * 1.35) / normalizer;
+            auto const pressMultiplier = m_pressed
+                ? std::clamp(implementation::LiquidGlassInteraction::GetPressedDisplacementMultiplier(owner), 0.0, 4.0)
+                : 1.0;
+
+            element.Translation({
+                m_restTranslation.x + static_cast<float>(curveX * maxDisplacement * pressMultiplier),
+                m_restTranslation.y + static_cast<float>(curveY * maxDisplacement * pressMultiplier),
+                m_restTranslation.z });
+        }
+
+        Windows::Foundation::Numerics::float3 m_restTranslation{};
+        bool m_translationCaptured{};
         bool m_pointerOver{};
         bool m_pressed{};
     };

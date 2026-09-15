@@ -18,10 +18,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         {
             if (!element) return nullptr;
 
-            // WinUI has no WPF-style Inherits metadata. Treat these interaction
-            // knobs as lightweight inherited settings so a Slider can configure
-            // its internal Thumb and a TabBar can configure generated item
-            // containers. A local value always wins.
             auto current = element;
             while (current)
             {
@@ -77,6 +73,20 @@ namespace winrt::WinUI::LiquidGlass::implementation
     LIQUID_GLASS_DOUBLE_DP(FocusedScale, 1.0)
     LIQUID_GLASS_DOUBLE_DP(MotionDuration, 120.0)
     LIQUID_GLASS_DOUBLE_DP(Elasticity, 0.18)
+    LIQUID_GLASS_DOUBLE_DP(PointerDisplacement, 2.5)
+    LIQUID_GLASS_DOUBLE_DP(PressedDisplacementMultiplier, 1.45)
+
+    LIQUID_GLASS_DOUBLE_DP(PointerOverBlurBoost, 0.0)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverRefractionMultiplier, 1.05)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverRefractionBoost, 0.0)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverDispersionMultiplier, 1.03)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverSaturationMultiplier, 1.01)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverContrastMultiplier, 1.02)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverExposureBoost, 0.0)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverTintBoost, 0.025)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverHighlightMultiplier, 1.08)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverHighlightBoost, 0.01)
+    LIQUID_GLASS_DOUBLE_DP(PointerOverInnerShadowBoost, 0.01)
 
     LIQUID_GLASS_DOUBLE_DP(PressedBlurBoost, 0.0)
     LIQUID_GLASS_DOUBLE_DP(PressedRefractionMultiplier, 1.18)

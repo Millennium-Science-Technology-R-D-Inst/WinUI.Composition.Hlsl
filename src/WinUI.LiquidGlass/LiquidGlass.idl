@@ -54,6 +54,58 @@ namespace WinUI.LiquidGlass
         static Double GetElasticity(Microsoft.UI.Xaml.DependencyObject element);
         static void SetElasticity(Microsoft.UI.Xaml.DependencyObject element, Double value);
 
+        static Microsoft.UI.Xaml.DependencyProperty PointerDisplacementProperty{ get; };
+        static Double GetPointerDisplacement(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerDisplacement(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PressedDisplacementMultiplierProperty{ get; };
+        static Double GetPressedDisplacementMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPressedDisplacementMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverBlurBoostProperty{ get; };
+        static Double GetPointerOverBlurBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverBlurBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverRefractionMultiplierProperty{ get; };
+        static Double GetPointerOverRefractionMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverRefractionMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverRefractionBoostProperty{ get; };
+        static Double GetPointerOverRefractionBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverRefractionBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverDispersionMultiplierProperty{ get; };
+        static Double GetPointerOverDispersionMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverDispersionMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverSaturationMultiplierProperty{ get; };
+        static Double GetPointerOverSaturationMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverSaturationMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverContrastMultiplierProperty{ get; };
+        static Double GetPointerOverContrastMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverContrastMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverExposureBoostProperty{ get; };
+        static Double GetPointerOverExposureBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverExposureBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverTintBoostProperty{ get; };
+        static Double GetPointerOverTintBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverTintBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverHighlightMultiplierProperty{ get; };
+        static Double GetPointerOverHighlightMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverHighlightMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverHighlightBoostProperty{ get; };
+        static Double GetPointerOverHighlightBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverHighlightBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty PointerOverInnerShadowBoostProperty{ get; };
+        static Double GetPointerOverInnerShadowBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetPointerOverInnerShadowBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
         static Microsoft.UI.Xaml.DependencyProperty PressedBlurBoostProperty{ get; };
         static Double GetPressedBlurBoost(Microsoft.UI.Xaml.DependencyObject element);
         static void SetPressedBlurBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
