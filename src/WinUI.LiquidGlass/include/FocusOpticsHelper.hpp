@@ -1,5 +1,7 @@
 #pragma once
 
+#include "MotionAnimation.hpp"
+
 namespace winrt::WinUI::LiquidGlass::detail
 {
     template<typename Self>
@@ -21,29 +23,15 @@ namespace winrt::WinUI::LiquidGlass::detail
             return sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
         }
 
-        static void SetScale(Microsoft::UI::Xaml::FrameworkElement const& element, double value, bool animate, double durationMs)
-        {
-            if (!element) return;
-            auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(element);
-            visual.CenterPoint({ float(element.ActualWidth() * .5), float(element.ActualHeight() * .5), 0 });
-            if (!animate)
-            {
-                visual.Scale({ static_cast<float>(value), static_cast<float>(value), 1 });
-                return;
-            }
-            auto animation = visual.Compositor().CreateVector3KeyFrameAnimation();
-            animation.InsertKeyFrame(1.0f, { static_cast<float>(value), static_cast<float>(value), 1 });
-            animation.Duration(std::chrono::milliseconds{ static_cast<int64_t>(std::lround(std::clamp(durationMs, 0.0, 2000.0))) });
-            visual.StartAnimation(L"Scale", animation);
-        }
-
         template<typename Sender>
         void ApplyRest(Sender const& sender)
         {
             auto owner = Owner(sender);
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
-            SetScale(element, std::clamp(implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0), false, 0);
+            auto const scale = std::clamp(
+                implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+            SetElementScale(element, scale, scale);
         }
 
         template<typename Sender>
@@ -80,9 +68,12 @@ namespace winrt::WinUI::LiquidGlass::detail
                 }
             }
 
-            SetScale(element,
-                std::clamp(implementation::LiquidGlassInteraction::GetFocusedScale(owner), .25, 4.0),
-                true,
+            auto const scale = std::clamp(
+                implementation::LiquidGlassInteraction::GetFocusedScale(owner), .25, 4.0);
+            AnimateElementScale(
+                owner,
+                element,
+                scale,
                 implementation::LiquidGlassInteraction::GetMotionDuration(owner));
         }
 
@@ -93,9 +84,12 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             RestoreOptics(m_state);
             if (!owner || !element) return;
-            SetScale(element,
-                std::clamp(implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0),
-                true,
+            auto const scale = std::clamp(
+                implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+            AnimateElementScale(
+                owner,
+                element,
+                scale,
                 implementation::LiquidGlassInteraction::GetMotionDuration(owner));
         }
 

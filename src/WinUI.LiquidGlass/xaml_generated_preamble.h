@@ -6,6 +6,13 @@
 // IFC/header-unit state can produce duplicate std definitions on newer MSVC.
 #include "pch.h"
 
+// windows.h still exports legacy function-like macros. C++/WinRT projections
+// contain legitimate methods with the same names (Storyboard::GetCurrentTime),
+// so keep those macros out of generated projection/XAML translation units.
+#ifdef GetCurrentTime
+#undef GetCurrentTime
+#endif
+
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.Numerics.h>

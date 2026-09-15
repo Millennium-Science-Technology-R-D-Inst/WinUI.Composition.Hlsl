@@ -153,21 +153,15 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void SetElementScale(FrameworkElement const& target, double x, double y)
         {
-            if (!target) return;
-            auto v = Hosting::ElementCompositionPreview::GetElementVisual(target);
-            v.CenterPoint({ float(target.ActualWidth() * .5), float(target.ActualHeight() * .5), 0 });
-            v.Scale({ static_cast<float>(x), static_cast<float>(y), 1 });
+            detail::SetElementScale(target, x, y);
         }
 
         void AnimateScale(FrameworkElement const& target, double x, double y, double durationMs)
         {
             if (!target) return;
-            auto v = Hosting::ElementCompositionPreview::GetElementVisual(target);
-            v.CenterPoint({ float(target.ActualWidth() * .5), float(target.ActualHeight() * .5), 0 });
-            auto a = v.Compositor().CreateVector3KeyFrameAnimation();
-            a.InsertKeyFrame(1, { static_cast<float>(x), static_cast<float>(y), 1 });
-            a.Duration(std::chrono::milliseconds{ static_cast<int64_t>(std::lround(std::clamp(durationMs, 0.0, 2000.0))) });
-            v.StartAnimation(L"Scale", a);
+            auto owner = target.try_as<DependencyObject>();
+            if (!owner) return;
+            detail::AnimateElementScale(owner, target, x, y, durationMs);
         }
 
         void AnimateScale(FrameworkElement const& target, double value, double durationMs)
@@ -181,22 +175,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
                 ? L"HorizontalThumb" : L"VerticalThumb";
             auto thumb = NamedDescendant(slider, name).try_as<Primitives::Thumb>();
             return thumb ? thumb : Descendant<Primitives::Thumb>(slider);
-        }
-
-        void CopyPressInteraction(DependencyObject const& source, DependencyObject const& target)
-        {
-            if (!source || !target) return;
-#define COPY_INTERACTION(Name) target.SetValue(LiquidGlassInteraction::Name##Property(), source.GetValue(LiquidGlassInteraction::Name##Property()))
-            COPY_INTERACTION(RestScale);
-            COPY_INTERACTION(PressedScale);
-            COPY_INTERACTION(MotionDuration);
-            COPY_INTERACTION(PressedRefractionMultiplier);
-            COPY_INTERACTION(PressedRefractionBoost);
-            COPY_INTERACTION(PressedTintBoost);
-            COPY_INTERACTION(PressedHighlightMultiplier);
-            COPY_INTERACTION(PressedHighlightBoost);
-            COPY_INTERACTION(PressedInnerShadowBoost);
-#undef COPY_INTERACTION
         }
     }
 
@@ -403,7 +381,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto owner = slider.template try_as<DependencyObject>();
             auto thumb = SliderThumb(slider); if (!owner || !thumb) return;
             self->m_thumb = thumb;
-            CopyPressInteraction(owner, thumb);
             if (auto b = self->GlassBrush())
             {
                 auto radius = std::max(1.0, std::min(thumb.ActualWidth(), thumb.ActualHeight()) * .5);

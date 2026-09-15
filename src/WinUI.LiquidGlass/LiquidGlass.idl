@@ -50,6 +50,22 @@ namespace WinUI.LiquidGlass
         static Double GetMotionDuration(Microsoft.UI.Xaml.DependencyObject element);
         static void SetMotionDuration(Microsoft.UI.Xaml.DependencyObject element, Double value);
 
+        static Microsoft.UI.Xaml.DependencyProperty UseSpringMotionProperty{ get; };
+        static Boolean GetUseSpringMotion(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetUseSpringMotion(Microsoft.UI.Xaml.DependencyObject element, Boolean value);
+
+        static Microsoft.UI.Xaml.DependencyProperty SpringDampingRatioProperty{ get; };
+        static Double GetSpringDampingRatio(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetSpringDampingRatio(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty SpringPeriodProperty{ get; };
+        static Double GetSpringPeriod(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetSpringPeriod(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty RespectSystemAnimationsProperty{ get; };
+        static Boolean GetRespectSystemAnimations(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetRespectSystemAnimations(Microsoft.UI.Xaml.DependencyObject element, Boolean value);
+
         static Microsoft.UI.Xaml.DependencyProperty ElasticityProperty{ get; };
         static Double GetElasticity(Microsoft.UI.Xaml.DependencyObject element);
         static void SetElasticity(Microsoft.UI.Xaml.DependencyObject element, Double value);
