@@ -4,6 +4,7 @@
 
 #include "MainWindow.g.h"
 import winrt.WinUI.Composition.Hlsl;
+import winrt.WinUI.LiquidGlass;
 import winrt.Microsoft.UI.Dispatching;
 
 namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
