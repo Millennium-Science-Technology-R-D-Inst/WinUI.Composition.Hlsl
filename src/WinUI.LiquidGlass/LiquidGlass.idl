@@ -78,6 +78,34 @@ namespace WinUI.LiquidGlass
         static Double GetPressedDisplacementMultiplier(Microsoft.UI.Xaml.DependencyObject element);
         static void SetPressedDisplacementMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
 
+        static Microsoft.UI.Xaml.DependencyProperty ActivatedRefractionMultiplierProperty{ get; };
+        static Double GetActivatedRefractionMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetActivatedRefractionMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty ActivatedDispersionMultiplierProperty{ get; };
+        static Double GetActivatedDispersionMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetActivatedDispersionMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty ActivatedSaturationMultiplierProperty{ get; };
+        static Double GetActivatedSaturationMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetActivatedSaturationMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty ActivatedContrastMultiplierProperty{ get; };
+        static Double GetActivatedContrastMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetActivatedContrastMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty ActivatedTintBoostProperty{ get; };
+        static Double GetActivatedTintBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetActivatedTintBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty ActivatedHighlightMultiplierProperty{ get; };
+        static Double GetActivatedHighlightMultiplier(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetActivatedHighlightMultiplier(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
+        static Microsoft.UI.Xaml.DependencyProperty ActivatedInnerShadowBoostProperty{ get; };
+        static Double GetActivatedInnerShadowBoost(Microsoft.UI.Xaml.DependencyObject element);
+        static void SetActivatedInnerShadowBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);
+
         static Microsoft.UI.Xaml.DependencyProperty PointerOverBlurBoostProperty{ get; };
         static Double GetPointerOverBlurBoost(Microsoft.UI.Xaml.DependencyObject element);
         static void SetPointerOverBlurBoost(Microsoft.UI.Xaml.DependencyObject element, Double value);

@@ -444,7 +444,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
                 auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>();
                 auto const scale = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
                 AnimateScale(knob, scale, LiquidGlassInteraction::GetMotionDuration(owner));
-                detail::EnterPressedOptics(owner, self->GlassBrush(), self->m_pressOptics);
             }
         });
         auto release = [weak](auto const& sender, auto const&) {
@@ -453,7 +452,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
                 auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>();
                 auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
                 AnimateScale(knob, scale, LiquidGlassInteraction::GetMotionDuration(owner));
-                detail::LeavePressedOptics(self->m_pressOptics);
             }
         };
         PointerReleased(release); PointerCaptureLost(release); PointerCanceled(release);

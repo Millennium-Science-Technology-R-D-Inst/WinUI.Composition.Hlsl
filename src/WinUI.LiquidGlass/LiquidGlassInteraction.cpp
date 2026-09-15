@@ -80,6 +80,14 @@ namespace winrt::WinUI::LiquidGlass::implementation
     LIQUID_GLASS_DOUBLE_DP(PointerDisplacement, 2.5)
     LIQUID_GLASS_DOUBLE_DP(PressedDisplacementMultiplier, 1.45)
 
+    LIQUID_GLASS_DOUBLE_DP(ActivatedRefractionMultiplier, 1.08)
+    LIQUID_GLASS_DOUBLE_DP(ActivatedDispersionMultiplier, 1.06)
+    LIQUID_GLASS_DOUBLE_DP(ActivatedSaturationMultiplier, 1.03)
+    LIQUID_GLASS_DOUBLE_DP(ActivatedContrastMultiplier, 1.04)
+    LIQUID_GLASS_DOUBLE_DP(ActivatedTintBoost, 0.10)
+    LIQUID_GLASS_DOUBLE_DP(ActivatedHighlightMultiplier, 1.12)
+    LIQUID_GLASS_DOUBLE_DP(ActivatedInnerShadowBoost, 0.03)
+
     LIQUID_GLASS_DOUBLE_DP(PointerOverBlurBoost, 0.0)
     LIQUID_GLASS_DOUBLE_DP(PointerOverRefractionMultiplier, 1.05)
     LIQUID_GLASS_DOUBLE_DP(PointerOverRefractionBoost, 0.0)

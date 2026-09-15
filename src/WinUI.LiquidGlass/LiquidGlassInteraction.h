@@ -38,6 +38,14 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LIQUID_GLASS_INTERACTION_DOUBLE(PointerDisplacement)
         LIQUID_GLASS_INTERACTION_DOUBLE(PressedDisplacementMultiplier)
 
+        LIQUID_GLASS_INTERACTION_DOUBLE(ActivatedRefractionMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(ActivatedDispersionMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(ActivatedSaturationMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(ActivatedContrastMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(ActivatedTintBoost)
+        LIQUID_GLASS_INTERACTION_DOUBLE(ActivatedHighlightMultiplier)
+        LIQUID_GLASS_INTERACTION_DOUBLE(ActivatedInnerShadowBoost)
+
         LIQUID_GLASS_INTERACTION_DOUBLE(PointerOverBlurBoost)
         LIQUID_GLASS_INTERACTION_DOUBLE(PointerOverRefractionMultiplier)
         LIQUID_GLASS_INTERACTION_DOUBLE(PointerOverRefractionBoost)

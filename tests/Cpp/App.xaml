@@ -21,6 +21,10 @@
                     liquid:LiquidGlassInteraction.SpringDampingRatio="0.82"
                     liquid:LiquidGlassInteraction.SpringPeriod="180"
                     liquid:LiquidGlassInteraction.RespectSystemAnimations="True"
+                    liquid:LiquidGlassInteraction.ActivatedRefractionMultiplier="1.1"
+                    liquid:LiquidGlassInteraction.ActivatedDispersionMultiplier="1.08"
+                    liquid:LiquidGlassInteraction.ActivatedTintBoost="0.12"
+                    liquid:LiquidGlassInteraction.ActivatedHighlightMultiplier="1.15"
                     liquid:LiquidGlassInteraction.PointerOverRefractionMultiplier="1.08"
                     liquid:LiquidGlassInteraction.PointerOverTintBoost="0.04"
                     liquid:LiquidGlassInteraction.PointerOverHighlightMultiplier="1.1"
@@ -36,6 +40,7 @@
 
             <DataTemplate x:Key="LiquidGlassSpecializedSmokeTemplate">
                 <StackPanel Spacing="8">
+                    <liquid:LiquidGlassToggleButton Content="Pinned" IsChecked="True" />
                     <liquid:LiquidGlassSearchBox PlaceholderText="Search" Text="Liquid glass" />
                     <liquid:LiquidGlassFloatingPanel>
                         <TextBlock Text="Floating media panel" />
