@@ -46,7 +46,17 @@ namespace winrt::WinUI::LiquidGlass::implementation
     void LiquidGlassSearchBox::ApplyGlassBrush(Brush const& value)
     {
         m_glassBrush = value;
-        if (m_autoSuggestBox) m_autoSuggestBox.Background(AsMediaBrush(value));
+
+        // The wrapper owns the glass surface. Keeping the sealed AutoSuggestBox itself
+        // transparent prevents its stock rectangular background from covering the rounded
+        // liquid-glass geometry while retaining native text editing, suggestions and UIA.
+        Background(AsMediaBrush(value));
+        if (m_autoSuggestBox)
+        {
+            m_autoSuggestBox.Background(Media::Brush{ nullptr });
+            m_autoSuggestBox.BorderBrush(Media::Brush{ nullptr });
+            m_autoSuggestBox.BorderThickness({ 0.0, 0.0, 0.0, 0.0 });
+        }
     }
 
     LiquidGlassSearchBox::LiquidGlassSearchBox()
@@ -57,6 +67,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
         m_autoSuggestBox = Controls::AutoSuggestBox{};
         m_autoSuggestBox.HorizontalAlignment(Xaml::HorizontalAlignment::Stretch);
         m_autoSuggestBox.VerticalAlignment(Xaml::VerticalAlignment::Center);
+        m_autoSuggestBox.Background(Media::Brush{ nullptr });
+        m_autoSuggestBox.BorderBrush(Media::Brush{ nullptr });
+        m_autoSuggestBox.BorderThickness({ 0.0, 0.0, 0.0, 0.0 });
         HorizontalContentAlignment(Xaml::HorizontalAlignment::Stretch);
         VerticalContentAlignment(Xaml::VerticalAlignment::Center);
         IsTabStop(false);

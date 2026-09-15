@@ -27,16 +27,25 @@
     </Style>
 
     <Style TargetType="local:LiquidGlassSearchBox">
-        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="MinHeight" Value="56" />
+        <Setter Property="CornerRadius" Value="28" />
+        <Setter Property="Padding" Value="1" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:LiquidGlassSearchBox">
-                    <ContentPresenter Content="{TemplateBinding Content}"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}"
-                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}"
+                            Control.IsTemplateFocusTarget="True">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

@@ -179,24 +179,22 @@ float3 ApplyExposureContrast(float3 color, float exposure, float contrast)
     return (color - 0.5f.xxx) * max(contrast, 0.0f) + 0.5f.xxx;
 }
 
-float2 ClampSampleUv(float2 uv, float2 contentMin, float2 contentMax, float2 texelSize, bool hasContentRect)
+float2 ClampSampleUv(float2 uv, float2 texelSize)
 {
-    float2 result = saturate(uv);
-
-    if (hasContentRect)
-    {
-        float2 padding = texelSize * 0.5f;
-        float2 minimumUv = min(contentMin + padding, contentMax - padding);
-        float2 maximumUv = max(contentMin + padding, contentMax - padding);
-        result = clamp(uv, minimumUv, maximumUv);
-    }
-
-    return result;
+    // samplerData describes the *unpadded* content rectangle inside a materialized
+    // upstream surface. Geometry uses that rectangle, but sampling must retain the
+    // Gaussian blur/refraction padding around it. Clamping back to contentMin/contentMax
+    // repeats a rectangular edge texel and creates bright/smeared bands at rounded
+    // corners. Clamp only to the real texture boundary (half a texel inset).
+    const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
+    const float2 minimumUv = min(halfTexel, 1.0f.xx - halfTexel);
+    const float2 maximumUv = max(halfTexel, 1.0f.xx - halfTexel);
+    return clamp(uv, minimumUv, maximumUv);
 }
 
-float4 SampleTransmission(float2 uv, float2 contentMin, float2 contentMax, float2 texelSize, bool hasContentRect)
+float4 SampleTransmission(float2 uv, float2 texelSize)
 {
-    return texture0.Sample(sampler0, ClampSampleUv(uv, contentMin, contentMax, texelSize, hasContentRect));
+    return texture0.Sample(sampler0, ClampSampleUv(uv, texelSize));
 }
 
 float ReferenceSpecularCoefficient(
@@ -346,9 +344,9 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
         float3 color = float3(
-            SampleTransmission(sampleUv - dispersionOffset, contentMin, contentMax, texelSize, hasContentRect).r,
-            SampleTransmission(sampleUv, contentMin, contentMax, texelSize, hasContentRect).g,
-            SampleTransmission(sampleUv + dispersionOffset, contentMin, contentMax, texelSize, hasContentRect).b);
+            SampleTransmission(sampleUv - dispersionOffset, texelSize).r,
+            SampleTransmission(sampleUv, texelSize).g,
+            SampleTransmission(sampleUv + dispersionOffset, texelSize).b);
         color = ApplySaturation(color, saturation);
         color = ApplyExposureContrast(color, exposure, contrast);
         color = lerp(color, tintColor, tintOpacity);

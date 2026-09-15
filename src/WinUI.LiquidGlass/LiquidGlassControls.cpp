@@ -200,11 +200,13 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
     LiquidGlassCheckBox::LiquidGlassCheckBox()
     {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
         GlassBrush(CreateBrush(Preset::Choice));
     }
 
     LiquidGlassRadioButton::LiquidGlassRadioButton()
     {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
         GlassBrush(CreateBrush(Preset::Choice));
     }
 
@@ -282,10 +284,27 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto element = sender.template try_as<Xaml::UIElement>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
             if (!self || !owner || !element || !frameworkElement) return;
-            auto p = e.GetCurrentPoint(element);
-            self->m_activePointerId = p.PointerId(); self->m_lastPointer = p.Position();
+
+            auto xamlRoot = frameworkElement.XamlRoot();
+            auto coordinateRoot = xamlRoot ? xamlRoot.Content() : Xaml::UIElement{ nullptr };
+            if (!coordinateRoot) coordinateRoot = element;
+
+            auto const point = e.GetCurrentPoint(coordinateRoot);
+            self->m_activePointerId = point.PointerId();
+            self->m_dragCoordinateRoot = coordinateRoot;
+            self->m_dragStartPointer = point.Position();
+            self->m_lastPointer = point.Position();
+            self->m_lastPointerTime = std::chrono::steady_clock::now();
+            self->m_dragStartTranslateX = self->m_dragTransform.TranslateX();
+            self->m_dragStartTranslateY = self->m_dragTransform.TranslateY();
+            self->m_smoothedVelocityX = 0.0;
             self->m_dragging = element.CapturePointer(e.Pointer());
-            if (!self->m_dragging) return;
+            if (!self->m_dragging)
+            {
+                self->m_dragCoordinateRoot = nullptr;
+                return;
+            }
+
             if (auto b = self->GlassBrush())
             {
                 self->m_dragMagnification = b.MagnificationStrength();
@@ -297,51 +316,74 @@ namespace winrt::WinUI::LiquidGlass::implementation
             AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
             e.Handled(true);
         });
+
         PointerMoved([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
             auto self = weak.get();
             auto owner = sender.template try_as<DependencyObject>();
-            auto element = sender.template try_as<Xaml::UIElement>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !self->m_dragging || !owner || !element || !frameworkElement) return;
-            auto p = e.GetCurrentPoint(element); if (p.PointerId() != self->m_activePointerId) return;
-            auto pos = p.Position(); auto dx = pos.X - self->m_lastPointer.X; auto dy = pos.Y - self->m_lastPointer.Y;
-            self->m_dragTransform.TranslateX(self->m_dragTransform.TranslateX() + dx);
-            self->m_dragTransform.TranslateY(self->m_dragTransform.TranslateY() + dy);
+            if (!self || !self->m_dragging || !owner || !frameworkElement || !self->m_dragCoordinateRoot) return;
 
-            auto const distance = std::sqrt(dx * dx + dy * dy);
-            auto const elasticity = std::clamp(LiquidGlassInteraction::GetElasticity(owner), 0.0, 1.0);
-            auto const amount = std::min(.32, elasticity * distance / 70.0);
-            auto const base = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
-            if (distance > 1e-4)
+            auto const point = e.GetCurrentPoint(self->m_dragCoordinateRoot);
+            if (point.PointerId() != self->m_activePointerId) return;
+
+            auto const position = point.Position();
+            self->m_dragTransform.TranslateX(
+                self->m_dragStartTranslateX + position.X - self->m_dragStartPointer.X);
+            self->m_dragTransform.TranslateY(
+                self->m_dragStartTranslateY + position.Y - self->m_dragStartPointer.Y);
+
+            auto const now = std::chrono::steady_clock::now();
+            auto const seconds = std::chrono::duration<double>(now - self->m_lastPointerTime).count();
+            if (seconds > 1e-4)
             {
-                auto const nx = std::abs(dx) / distance;
-                auto const ny = std::abs(dy) / distance;
-                auto sx = base * (1.0 + amount * nx);
-                auto sy = base * (1.0 + amount * ny);
-                if (nx > ny) sy *= 1.0 - amount * .45;
-                else sx *= 1.0 - amount * .45;
-                SetElementScale(frameworkElement, sx, sy);
+                auto const instantaneousVelocityX = (position.X - self->m_lastPointer.X) / seconds;
+                self->m_smoothedVelocityX += (instantaneousVelocityX - self->m_smoothedVelocityX) * 0.22;
             }
-            self->m_lastPointer = pos; e.Handled(true);
+
+            // Match kube's lens deformation model: horizontal drag velocity compresses Y
+            // (down to 70%) and expands X by the same amount. The drag position itself is
+            // calculated in the stable XamlRoot coordinate space above and is unaffected by
+            // this visual deformation.
+            auto const base = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
+            auto const compression = std::clamp(std::abs(self->m_smoothedVelocityX) / 5000.0, 0.0, 0.30);
+            auto const scaleY = base * (1.0 - compression);
+            auto const scaleX = base + (base - scaleY);
+            SetElementScale(frameworkElement, scaleX, scaleY);
+
+            self->m_lastPointer = position;
+            self->m_lastPointerTime = now;
+            e.Handled(true);
         });
+
         PointerReleased([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
             auto self = weak.get();
             auto owner = sender.template try_as<DependencyObject>();
             auto element = sender.template try_as<Xaml::UIElement>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
             if (!self || !self->m_dragging || !owner || !element || !frameworkElement) return;
-            element.ReleasePointerCapture(e.Pointer()); self->m_dragging = false; self->m_activePointerId = 0;
+
+            self->m_dragging = false;
+            self->m_activePointerId = 0;
+            self->m_dragCoordinateRoot = nullptr;
+            self->m_smoothedVelocityX = 0.0;
+            element.ReleasePointerCapture(e.Pointer());
             if (self->m_dragOptics.brush) self->m_dragOptics.brush.MagnificationStrength(self->m_dragMagnification);
             detail::LeavePressedOptics(self->m_dragOptics);
             auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
-            AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner)); e.Handled(true);
+            AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
+            e.Handled(true);
         });
+
         PointerCaptureLost([weak](auto const& sender, auto const&) {
             auto self = weak.get();
             auto owner = sender.template try_as<DependencyObject>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !owner || !frameworkElement) return;
-            self->m_dragging = false; self->m_activePointerId = 0;
+            if (!self || !self->m_dragging || !owner || !frameworkElement) return;
+
+            self->m_dragging = false;
+            self->m_activePointerId = 0;
+            self->m_dragCoordinateRoot = nullptr;
+            self->m_smoothedVelocityX = 0.0;
             if (self->m_dragOptics.brush) self->m_dragOptics.brush.MagnificationStrength(self->m_dragMagnification);
             detail::LeavePressedOptics(self->m_dragOptics);
             auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
@@ -359,6 +401,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
     LiquidGlassSlider::LiquidGlassSlider()
     {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
         GlassBrush(CreateBrush(Preset::Slider));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.6));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
@@ -377,10 +420,25 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto owner = slider.template try_as<DependencyObject>();
             auto thumb = SliderThumb(slider); if (!owner || !thumb) return;
             self->m_thumb = thumb;
+
+            // kube's optical thumb is 90x60 (r=30). The old implementation inherited
+            // WinUI's ~18px Thumb and then recomputed CornerRadius from that tiny template
+            // part, unintentionally collapsing the r=30 preset to roughly r=9.
+            if (slider.Orientation() == Controls::Orientation::Horizontal)
+            {
+                thumb.Width(90.0);
+                thumb.Height(60.0);
+            }
+            else
+            {
+                thumb.Width(60.0);
+                thumb.Height(90.0);
+            }
+
             if (auto b = self->GlassBrush())
             {
-                auto radius = std::max(1.0, std::min(thumb.ActualWidth(), thumb.ActualHeight()) * .5);
-                b.CornerRadius(radius); b.BezelWidth(std::max(1.0, std::min(16.0, radius - .5)));
+                b.CornerRadius(30.0);
+                b.BezelWidth(16.0);
                 if (auto surface = BrushSurface(thumb)) SetSurface(surface, AsBrush(b));
             }
             auto const restScale = std::clamp(LiquidGlassInteraction::GetRestScale(thumb), .25, 4.0);

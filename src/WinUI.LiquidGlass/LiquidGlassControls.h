@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "winrt_module_imports.h"
 #include "LiquidGlassInteraction.h"
 #include "include/GlassBrushHelper.hpp"
@@ -95,9 +97,15 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
     private:
         Microsoft::UI::Xaml::Media::CompositeTransform m_dragTransform{ nullptr };
+        Microsoft::UI::Xaml::UIElement m_dragCoordinateRoot{ nullptr };
+        Windows::Foundation::Point m_dragStartPointer{};
         Windows::Foundation::Point m_lastPointer{};
+        std::chrono::steady_clock::time_point m_lastPointerTime{};
         detail::OpticsSnapshot m_dragOptics;
+        double m_dragStartTranslateX{};
+        double m_dragStartTranslateY{};
         double m_dragMagnification{};
+        double m_smoothedVelocityX{};
         uint32_t m_activePointerId{};
         bool m_dragging{};
     };
@@ -105,30 +113,34 @@ namespace winrt::WinUI::LiquidGlass::implementation
     struct LiquidGlassCheckBox :
         LiquidGlassCheckBoxT<LiquidGlassCheckBox>,
         detail::GlassBrushHelper<LiquidGlassCheckBox>,
+        detail::TemplateControlHelper<LiquidGlassCheckBox>,
         detail::PointerLightHelper<LiquidGlassCheckBox>,
-        detail::PointerFieldHelper<LiquidGlassCheckBox>,
         detail::PointerMotionHelper<LiquidGlassCheckBox>,
         detail::PressOpticsHelper<LiquidGlassCheckBox, detail::PersistentOpticsKind::Toggle>
     {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassCheckBox();
     };
 
     struct LiquidGlassRadioButton :
         LiquidGlassRadioButtonT<LiquidGlassRadioButton>,
         detail::GlassBrushHelper<LiquidGlassRadioButton>,
+        detail::TemplateControlHelper<LiquidGlassRadioButton>,
         detail::PointerLightHelper<LiquidGlassRadioButton>,
-        detail::PointerFieldHelper<LiquidGlassRadioButton>,
         detail::PointerMotionHelper<LiquidGlassRadioButton>,
         detail::PressOpticsHelper<LiquidGlassRadioButton, detail::PersistentOpticsKind::Toggle>
     {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassRadioButton();
     };
 
     struct LiquidGlassSlider :
         LiquidGlassSliderT<LiquidGlassSlider>,
         detail::GlassBrushHelper<LiquidGlassSlider>,
+        detail::TemplateControlHelper<LiquidGlassSlider>,
         detail::PointerLightHelper<LiquidGlassSlider>
     {
+        constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassSlider();
 
         // C++ implementation hook used by GlassBrushHelper; it is not projected by the IDL.

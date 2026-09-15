@@ -4,8 +4,10 @@
     xmlns:local="using:WinUI.LiquidGlass"
     xmlns:hlsl="using:WinUI.Composition.Hlsl">
 
+    <!-- Container surfaces. Their XAML geometry deliberately matches the shader presets. -->
     <Style TargetType="local:LiquidGlassCard">
         <Setter Property="Padding" Value="20" />
+        <Setter Property="CornerRadius" Value="31" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Stretch" />
         <Setter Property="Template">
@@ -44,46 +46,57 @@
                         <ContentPresenter Content="{TemplateBinding Content}"
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
                                           HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
-    <Style TargetType="local:LiquidGlassButton">
-        <Setter Property="MinHeight" Value="36" />
-        <Setter Property="Padding" Value="14,8" />
-        <Setter Property="HorizontalContentAlignment" Value="Center" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
+    <!--
+      Native-derived controls intentionally inherit Microsoft's default style metrics and
+      focus/accessibility behavior. Their templates retain the native VisualState names but
+      never replace the LiquidGlassBrush with a solid state brush; state color is layered on
+      top of the glass instead.
+    -->
+    <Style TargetType="local:LiquidGlassButton" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:LiquidGlassButton">
                     <Grid x:Name="Root">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                                BorderThickness="1" CornerRadius="8" />
-                        <Border x:Name="StateOverlay" Background="Transparent" CornerRadius="8" />
-                        <Border x:Name="FocusRing" Margin="-2"
-                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
-                                BorderThickness="2" CornerRadius="10"
-                                IsHitTestVisible="False" Opacity="0" />
-                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                        <Border x:Name="GlassSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}" />
+                        <Border x:Name="StateOverlay"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                IsHitTestVisible="False"
+                                Opacity="0" />
+                        <ContentPresenter x:Name="ContentPresenter"
+                                          Control.IsTemplateFocusTarget="True"
+                                          AutomationProperties.AccessibilityView="Raw"
                                           Content="{TemplateBinding Content}"
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
-                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                          ContentTransitions="{TemplateBinding ContentTransitions}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.12" /></VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="StateOverlay.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="StateOverlay.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
-                            </VisualStateGroup>
-                            <VisualStateGroup x:Name="FocusStates">
-                                <VisualState x:Name="Unfocused" /><VisualState x:Name="PointerFocused" />
-                                <VisualState x:Name="Focused"><VisualState.Setters><Setter Target="FocusRing.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.18" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters>
+                                </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                     </Grid>
@@ -92,36 +105,72 @@
         </Setter>
     </Style>
 
-    <Style TargetType="local:LiquidGlassToggleButton">
-        <Setter Property="MinHeight" Value="36" />
-        <Setter Property="Padding" Value="14,8" />
-        <Setter Property="HorizontalContentAlignment" Value="Center" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Style TargetType="local:LiquidGlassToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}">
+        <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:LiquidGlassToggleButton">
                     <Grid x:Name="Root">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" />
-                        <Border x:Name="StateOverlay" Background="Transparent" CornerRadius="8" />
-                        <Border x:Name="CheckedOverlay" Background="Transparent" CornerRadius="8" />
-                        <Border x:Name="FocusRing" Margin="-2" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2" CornerRadius="10" IsHitTestVisible="False" Opacity="0" />
-                        <ContentPresenter Margin="{TemplateBinding Padding}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}" />
+                        <Border x:Name="StateOverlay"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                IsHitTestVisible="False"
+                                Opacity="0" />
+                        <Border x:Name="CheckedOverlay"
+                                Background="{ThemeResource AccentFillColorSecondaryBrush}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                IsHitTestVisible="False"
+                                Opacity="0" />
+                        <ContentPresenter x:Name="ContentPresenter"
+                                          Control.IsTemplateFocusTarget="True"
+                                          AutomationProperties.AccessibilityView="Raw"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          ContentTransitions="{TemplateBinding ContentTransitions}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.12" /></VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="StateOverlay.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="StateOverlay.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
-                            </VisualStateGroup>
-                            <VisualStateGroup x:Name="CheckStates">
-                                <VisualState x:Name="Unchecked" />
-                                <VisualState x:Name="Checked"><VisualState.Setters><Setter Target="CheckedOverlay.Background" Value="{ThemeResource AccentFillColorSecondaryBrush}" /><Setter Target="CheckedOverlay.Opacity" Value="0.18" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Indeterminate"><VisualState.Setters><Setter Target="CheckedOverlay.Background" Value="{ThemeResource AccentFillColorTertiaryBrush}" /><Setter Target="CheckedOverlay.Opacity" Value="0.12" /></VisualState.Setters></VisualState>
-                            </VisualStateGroup>
-                            <VisualStateGroup x:Name="FocusStates">
-                                <VisualState x:Name="Unfocused" /><VisualState x:Name="PointerFocused" />
-                                <VisualState x:Name="Focused"><VisualState.Setters><Setter Target="FocusRing.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.18" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.18" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.22" /><Setter Target="StateOverlay.Opacity" Value="0.06" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.26" /><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.10" /><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Indeterminate">
+                                    <VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.12" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminatePointerOver">
+                                    <VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.16" /><Setter Target="StateOverlay.Opacity" Value="0.06" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminatePressed">
+                                    <VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.20" /><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminateDisabled">
+                                    <VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.08" /><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters>
+                                </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                     </Grid>
@@ -130,30 +179,37 @@
         </Setter>
     </Style>
 
-    <Style TargetType="local:LiquidGlassHyperlinkButton">
-        <Setter Property="MinHeight" Value="34" />
-        <Setter Property="Padding" Value="12,7" />
-        <Setter Property="HorizontalContentAlignment" Value="Center" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Style TargetType="local:LiquidGlassHyperlinkButton" BasedOn="{StaticResource DefaultHyperlinkButtonStyle}">
+        <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:LiquidGlassHyperlinkButton">
                     <Grid x:Name="Root">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" />
-                        <Border x:Name="StateOverlay" Background="Transparent" CornerRadius="8" />
-                        <Border x:Name="FocusRing" Margin="-2" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2" CornerRadius="10" IsHitTestVisible="False" Opacity="0" />
-                        <ContentPresenter Margin="{TemplateBinding Padding}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}" />
+                        <Border x:Name="StateOverlay"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                IsHitTestVisible="False"
+                                Opacity="0" />
+                        <ContentPresenter x:Name="ContentPresenter"
+                                          Control.IsTemplateFocusTarget="True"
+                                          AutomationProperties.AccessibilityView="Raw"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          ContentTransitions="{TemplateBinding ContentTransitions}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.12" /></VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="StateOverlay.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="StateOverlay.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.18" /></VisualState.Setters></VisualState>
                                 <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
-                            </VisualStateGroup>
-                            <VisualStateGroup x:Name="FocusStates">
-                                <VisualState x:Name="Unfocused" /><VisualState x:Name="PointerFocused" />
-                                <VisualState x:Name="Focused"><VisualState.Setters><Setter Target="FocusRing.Opacity" Value="1" /></VisualState.Setters></VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                     </Grid>
@@ -162,39 +218,147 @@
         </Setter>
     </Style>
 
-    <Style TargetType="local:LiquidGlassToggleSwitch">
-        <Setter Property="MinHeight" Value="40" />
+    <Style TargetType="local:LiquidGlassCheckBox" BasedOn="{StaticResource DefaultCheckBoxStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="CornerRadius" Value="5" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:LiquidGlassCheckBox">
+                    <Grid x:Name="RootGrid" Control.IsTemplateFocusTarget="True">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0" Width="20" Height="32" VerticalAlignment="Top">
+                            <Border x:Name="ChoiceGlass" Width="20" Height="20" VerticalAlignment="Center"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{TemplateBinding CornerRadius}" />
+                            <Border x:Name="ChoiceAccent" Width="20" Height="20" VerticalAlignment="Center"
+                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                    CornerRadius="{TemplateBinding CornerRadius}" Opacity="0" />
+                            <FontIcon x:Name="CheckGlyph" FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                      Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0" />
+                        </Grid>
+                        <ContentPresenter x:Name="ContentPresenter" Grid.Column="1"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          ContentTransitions="{TemplateBinding ContentTransitions}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          AutomationProperties.AccessibilityView="Raw" />
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CombinedStates">
+                                <VisualState x:Name="UncheckedNormal" />
+                                <VisualState x:Name="UncheckedPointerOver"><VisualState.Setters><Setter Target="ChoiceGlass.Opacity" Value="0.92" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="UncheckedPressed"><VisualState.Setters><Setter Target="ChoiceGlass.Opacity" Value="0.78" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="UncheckedDisabled"><VisualState.Setters><Setter Target="RootGrid.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="CheckedNormal"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.78" /><Setter Target="CheckGlyph.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.90" /><Setter Target="CheckGlyph.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.66" /><Setter Target="CheckGlyph.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="CheckedDisabled"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.44" /><Setter Target="CheckGlyph.Opacity" Value="0.65" /><Setter Target="RootGrid.Opacity" Value="0.55" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="IndeterminateNormal"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.78" /><Setter Target="CheckGlyph.Glyph" Value="&#xE738;" /><Setter Target="CheckGlyph.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="IndeterminatePointerOver"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.90" /><Setter Target="CheckGlyph.Glyph" Value="&#xE738;" /><Setter Target="CheckGlyph.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="IndeterminatePressed"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.66" /><Setter Target="CheckGlyph.Glyph" Value="&#xE738;" /><Setter Target="CheckGlyph.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="IndeterminateDisabled"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.44" /><Setter Target="CheckGlyph.Glyph" Value="&#xE738;" /><Setter Target="CheckGlyph.Opacity" Value="0.65" /><Setter Target="RootGrid.Opacity" Value="0.55" /></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="local:LiquidGlassRadioButton" BasedOn="{StaticResource DefaultRadioButtonStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:LiquidGlassRadioButton">
+                    <Grid x:Name="RootGrid" Control.IsTemplateFocusTarget="True">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0" Width="20" Height="32" VerticalAlignment="Top">
+                            <Ellipse x:Name="ChoiceGlass" Width="20" Height="20" VerticalAlignment="Center"
+                                     Fill="{TemplateBinding Background}"
+                                     Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                                     StrokeThickness="1" />
+                            <Ellipse x:Name="ChoiceAccent" Width="20" Height="20" VerticalAlignment="Center"
+                                     Fill="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0" />
+                            <Ellipse x:Name="CheckGlyph" Width="8" Height="8" VerticalAlignment="Center"
+                                     Fill="{ThemeResource TextOnAccentFillColorPrimaryBrush}" Opacity="0" />
+                        </Grid>
+                        <ContentPresenter x:Name="ContentPresenter" Grid.Column="1"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          ContentTransitions="{TemplateBinding ContentTransitions}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          AutomationProperties.AccessibilityView="Raw" />
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="ChoiceGlass.Opacity" Value="0.92" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="ChoiceGlass.Opacity" Value="0.78" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="RootGrid.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="CheckStates">
+                                <VisualState x:Name="Unchecked" />
+                                <VisualState x:Name="Checked"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.82" /><Setter Target="CheckGlyph.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Indeterminate"><VisualState.Setters><Setter Target="ChoiceAccent.Opacity" Value="0.55" /><Setter Target="CheckGlyph.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Native Slider mechanics are retained. C++ resizes the actual template Thumb to kube's 90x60 lens. -->
+    <Style TargetType="local:LiquidGlassSlider" BasedOn="{StaticResource DefaultSliderStyle}">
+        <Setter Property="MinHeight" Value="60" />
+    </Style>
+
+    <!-- The ToggleButton-derived switch must use ToggleButton's combined state names. -->
+    <Style TargetType="local:LiquidGlassToggleSwitch" BasedOn="{StaticResource DefaultToggleButtonStyle}">
+        <Setter Property="MinWidth" Value="160" />
+        <Setter Property="MinHeight" Value="67" />
+        <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:LiquidGlassToggleSwitch">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Grid x:Name="SwitchGlyph" Width="72" Height="40">
-                            <Border x:Name="Track" Width="64" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#7794949F" CornerRadius="14" />
-                            <Border x:Name="CheckedTrack" Width="64" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#DD3BBF4E" CornerRadius="14" Opacity="0" />
-                            <Border x:Name="SwitchKnob" Width="58" Height="36" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{TemplateBinding Background}" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="18">
+                    <StackPanel x:Name="Root" Orientation="Horizontal" Spacing="10">
+                        <Grid x:Name="SwitchGlyph" Width="160" Height="67" Control.IsTemplateFocusTarget="True">
+                            <Border x:Name="Track" Width="160" Height="67" Background="#7794949F" CornerRadius="33.5" />
+                            <Border x:Name="CheckedTrack" Width="160" Height="67" Background="#EE3BBF4E" CornerRadius="33.5" Opacity="0" />
+                            <Border x:Name="SwitchKnob" Width="146" Height="92"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="46">
                                 <Border.RenderTransform><TranslateTransform x:Name="KnobTranslate" X="0" /></Border.RenderTransform>
                             </Border>
-                            <Border x:Name="FocusRing" Margin="1" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2" CornerRadius="20" IsHitTestVisible="False" Opacity="0" />
                         </Grid>
-                        <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" VerticalAlignment="Center" />
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          VerticalAlignment="Center" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Track.Opacity" Value="0.88" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Pressed" />
-                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="SwitchGlyph.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
-                            </VisualStateGroup>
-                            <VisualStateGroup x:Name="CheckStates">
-                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16" /></VisualStateGroup.Transitions>
-                                <VisualState x:Name="Unchecked"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="0" /><Setter Target="CheckedTrack.Opacity" Value="0" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Checked"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="14" /><Setter Target="CheckedTrack.Opacity" Value="1" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Indeterminate"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="7" /><Setter Target="CheckedTrack.Opacity" Value="0.55" /></VisualState.Setters></VisualState>
-                            </VisualStateGroup>
-                            <VisualStateGroup x:Name="FocusStates">
-                                <VisualState x:Name="Unfocused" /><VisualState x:Name="PointerFocused" />
-                                <VisualState x:Name="Focused"><VisualState.Setters><Setter Target="FocusRing.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Track.Opacity" Value="0.92" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Track.Opacity" Value="0.78" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Checked"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="51" /><Setter Target="CheckedTrack.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="51" /><Setter Target="CheckedTrack.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="51" /><Setter Target="CheckedTrack.Opacity" Value="0.90" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="CheckedDisabled"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="51" /><Setter Target="CheckedTrack.Opacity" Value="0.55" /><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Indeterminate"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="25.5" /><Setter Target="CheckedTrack.Opacity" Value="0.55" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="IndeterminatePointerOver"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="25.5" /><Setter Target="CheckedTrack.Opacity" Value="0.62" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="IndeterminatePressed"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="25.5" /><Setter Target="CheckedTrack.Opacity" Value="0.48" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="IndeterminateDisabled"><VisualState.Setters><Setter Target="KnobTranslate.X" Value="25.5" /><Setter Target="CheckedTrack.Opacity" Value="0.35" /><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                     </StackPanel>
@@ -203,14 +367,15 @@
         </Setter>
     </Style>
 
+    <!-- Optional styles for stock WinUI controls when a dedicated runtimeclass is not required. -->
     <Style x:Key="LiquidGlassCardStyle" TargetType="ContentControl">
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContentControl"><Border BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="16" Padding="20"><Border.Background><hlsl:LiquidGlassBrush CornerRadius="16" BezelWidth="24" GlassThickness="90" RefractiveIndex="1.3" SpecularSaturation="6" /></Border.Background><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" /></Border></ControlTemplate></Setter.Value></Setter>
     </Style>
-    <Style x:Key="LiquidGlassButtonStyle" TargetType="Button">
-        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border CornerRadius="8" Padding="{TemplateBinding Padding}"><Border.Background><hlsl:LiquidGlassBrush CornerRadius="8" BlurRadius="1" SpecularSaturation="5" /></Border.Background><ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border></ControlTemplate></Setter.Value></Setter>
+    <Style x:Key="LiquidGlassButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border CornerRadius="8" Padding="{TemplateBinding Padding}" Control.IsTemplateFocusTarget="True"><Border.Background><hlsl:LiquidGlassBrush CornerRadius="8" BlurRadius="1" SpecularSaturation="5" /></Border.Background><ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" /></Border></ControlTemplate></Setter.Value></Setter>
     </Style>
-    <Style x:Key="LiquidGlassToggleButtonStyle" TargetType="ToggleButton">
-        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton"><Border CornerRadius="8" Padding="{TemplateBinding Padding}"><Border.Background><hlsl:LiquidGlassBrush CornerRadius="8" BlurRadius="1" SpecularSaturation="5" /></Border.Background><ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border></ControlTemplate></Setter.Value></Setter>
+    <Style x:Key="LiquidGlassToggleButtonStyle" TargetType="ToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}">
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton"><Border CornerRadius="8" Padding="{TemplateBinding Padding}" Control.IsTemplateFocusTarget="True"><Border.Background><hlsl:LiquidGlassBrush CornerRadius="8" BlurRadius="1" SpecularSaturation="5" /></Border.Background><ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" /></Border></ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style x:Key="LiquidGlassSliderStyle" TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}" />
 </ResourceDictionary>
