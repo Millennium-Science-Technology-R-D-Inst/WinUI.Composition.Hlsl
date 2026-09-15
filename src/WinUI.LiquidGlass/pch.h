@@ -15,7 +15,10 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
+#include <vector>

@@ -72,6 +72,17 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		animatableProperties.Append(CustomLiquidGlassEffect::SpecularWidthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::ContrastPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::ExposurePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerXPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerYPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerInteractionRadiusPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerInteractionStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerVelocityXPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerVelocityYPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerHoverRangePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerActivePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerRefractionStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerHighlightStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::PointerMotionRefractionStrengthPropertyPath);
 
 		auto definition = CustomLiquidGlassEffect::Description();
 		auto compositionFactory = compositor.CreateEffectFactory(graph, animatableProperties);
@@ -103,6 +114,21 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"SpecularWidth", m_SpecularWidth);
 		m_effect.SetFloat(L"Contrast", m_Contrast);
 		m_effect.SetFloat(L"Exposure", m_Exposure);
+
+		// Pointer-field state is transient Composition state rather than XAML dependency
+		// properties. Spatial values are normalized so XAML layout DIPs and shader raster
+		// coordinates remain aligned under DPI/compositor scaling.
+		m_effect.SetFloat(L"PointerX", 0.0f);
+		m_effect.SetFloat(L"PointerY", 0.0f);
+		m_effect.SetFloat(L"PointerInteractionRadius", 0.65f);
+		m_effect.SetFloat(L"PointerInteractionStrength", 1.0f);
+		m_effect.SetFloat(L"PointerVelocityX", 0.0f);
+		m_effect.SetFloat(L"PointerVelocityY", 0.0f);
+		m_effect.SetFloat(L"PointerHoverRange", 0.10f);
+		m_effect.SetFloat(L"PointerActive", 0.0f);
+		m_effect.SetFloat(L"PointerRefractionStrength", 5.0f);
+		m_effect.SetFloat(L"PointerHighlightStrength", 0.22f);
+		m_effect.SetFloat(L"PointerMotionRefractionStrength", 5.0f);
 	}
 
 	void LiquidGlassMaterial::BlurRadius(float value)

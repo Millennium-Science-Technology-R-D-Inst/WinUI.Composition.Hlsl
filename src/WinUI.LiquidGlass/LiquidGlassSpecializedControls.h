@@ -9,7 +9,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
     struct LiquidGlassFloatingPanel :
         LiquidGlassFloatingPanelT<LiquidGlassFloatingPanel>,
         detail::GlassBrushHelper<LiquidGlassFloatingPanel>,
-        detail::PointerLightHelper<LiquidGlassFloatingPanel>
+        detail::PointerLightHelper<LiquidGlassFloatingPanel>,
+        detail::PointerFieldHelper<LiquidGlassFloatingPanel>
     {
         LiquidGlassFloatingPanel();
     };
@@ -18,6 +19,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassSearchBoxT<LiquidGlassSearchBox>,
         detail::GlassBrushHelper<LiquidGlassSearchBox>,
         detail::PointerLightHelper<LiquidGlassSearchBox>,
+        detail::PointerFieldHelper<LiquidGlassSearchBox>,
         detail::FocusOpticsHelper<LiquidGlassSearchBox>
     {
         LiquidGlassSearchBox();

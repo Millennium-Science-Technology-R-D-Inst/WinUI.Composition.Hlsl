@@ -30,6 +30,17 @@ namespace CustomLiquidGlassEffect
 	inline constexpr wchar_t SpecularWidthPropertyPath[] = L"BackdropLiquidGlassEffect.SpecularWidth";
 	inline constexpr wchar_t ContrastPropertyPath[] = L"BackdropLiquidGlassEffect.Contrast";
 	inline constexpr wchar_t ExposurePropertyPath[] = L"BackdropLiquidGlassEffect.Exposure";
+	inline constexpr wchar_t PointerXPropertyPath[] = L"BackdropLiquidGlassEffect.PointerX";
+	inline constexpr wchar_t PointerYPropertyPath[] = L"BackdropLiquidGlassEffect.PointerY";
+	inline constexpr wchar_t PointerInteractionRadiusPropertyPath[] = L"BackdropLiquidGlassEffect.PointerInteractionRadius";
+	inline constexpr wchar_t PointerInteractionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.PointerInteractionStrength";
+	inline constexpr wchar_t PointerVelocityXPropertyPath[] = L"BackdropLiquidGlassEffect.PointerVelocityX";
+	inline constexpr wchar_t PointerVelocityYPropertyPath[] = L"BackdropLiquidGlassEffect.PointerVelocityY";
+	inline constexpr wchar_t PointerHoverRangePropertyPath[] = L"BackdropLiquidGlassEffect.PointerHoverRange";
+	inline constexpr wchar_t PointerActivePropertyPath[] = L"BackdropLiquidGlassEffect.PointerActive";
+	inline constexpr wchar_t PointerRefractionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.PointerRefractionStrength";
+	inline constexpr wchar_t PointerHighlightStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.PointerHighlightStrength";
+	inline constexpr wchar_t PointerMotionRefractionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.PointerMotionRefractionStrength";
 
 	std::shared_ptr<hlsl::engine::EffectDefinition const> Description();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect();

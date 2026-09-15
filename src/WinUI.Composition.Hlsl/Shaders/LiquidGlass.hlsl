@@ -15,6 +15,12 @@ cbuffer LiquidGlassConstants : register(b0)
     float4 MaterialParams4;
     // x = specular-only saturation, y = specular width in DIPs, z = contrast, w = exposure in stops
     float4 MaterialParams5;
+    // xy = normalized pointer position in local control space, z = normalized interaction radius, w = strength
+    float4 MaterialParams6;
+    // xy = normalized pointer velocity/second, z = normalized outside hover range, w = pointer active
+    float4 MaterialParams7;
+    // x = pointer refraction strength, y = pointer highlight strength, z = motion refraction strength
+    float4 MaterialParams8;
 };
 
 float RoundedRectSdf(float2 p, float2 halfSize, float radius)
@@ -132,6 +138,33 @@ float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float cent
     return gradientLength > 1e-5f ? gradient / gradientLength : float2(0.0f, -1.0f);
 }
 
+float CalculatePointerInteraction(
+    float2 pixelPosition,
+    float2 pointerPosition,
+    float2 halfRect,
+    float radius,
+    float hoverRange,
+    float interactionRadius)
+{
+    // Pointer and pixel positions are now in exactly the same shader-local space.
+    // Negative SDF is inside the glass; positive SDF is distance outside the shape.
+    const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
+    float shapeActivation = pointerSdf <= 0.0f ? 1.0f : 0.0f;
+    if (pointerSdf > 0.0f && hoverRange > 1e-4f)
+    {
+        shapeActivation = 1.0f - smoothstep(0.0f, hoverRange, pointerSdf);
+    }
+
+    const float pointerDistance = length(pixelPosition - pointerPosition);
+    float localInfluence = 0.0f;
+    if (interactionRadius > 1e-4f)
+    {
+        localInfluence = 1.0f - smoothstep(0.0f, interactionRadius, pointerDistance);
+    }
+
+    return saturate(shapeActivation * localInfluence);
+}
+
 float3 ApplySaturation(float3 color, float saturation)
 {
     const float luminance = dot(color, float3(0.2126f, 0.7152f, 0.0722f));
@@ -206,6 +239,15 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float specularWidth = max(MaterialParams5.y, 0.25f);
     const float contrast = max(MaterialParams5.z, 0.0f);
     const float exposure = clamp(MaterialParams5.w, -4.0f, 4.0f);
+    const float2 pointerNormalized = MaterialParams6.xy;
+    const float pointerInteractionRadiusNormalized = max(MaterialParams6.z, 0.0f);
+    const float pointerInteractionStrength = max(MaterialParams6.w, 0.0f);
+    const float2 pointerVelocityNormalized = MaterialParams7.xy;
+    const float pointerHoverRangeNormalized = max(MaterialParams7.z, 0.0f);
+    const float pointerActive = saturate(MaterialParams7.w);
+    const float pointerRefractionStrength = max(MaterialParams8.x, 0.0f);
+    const float pointerHighlightStrength = max(MaterialParams8.y, 0.0f);
+    const float pointerMotionRefractionStrength = max(MaterialParams8.z, 0.0f);
 
     const float2 contentMin = min(samplerData.xy, samplerData.zw);
     const float2 contentMax = max(samplerData.xy, samplerData.zw);
@@ -216,8 +258,13 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 
     const float2 localUvPixelStep = max(abs(ddx(localUv)) + abs(ddy(localUv)), 1e-6f.xx);
     const float2 rectSize = max(1.0f.xx / localUvPixelStep, 1.0f.xx);
+    const float maximumExtent = max(max(rectSize.x, rectSize.y), 1.0f);
     const float2 texelSize = max(samplerDataExt.zw, 1e-6f.xx);
     const float2 localPosition = localUv * rectSize;
+    const float2 pointerPosition = pointerNormalized * rectSize;
+    const float2 pointerVelocity = pointerVelocityNormalized * rectSize;
+    const float pointerInteractionRadius = pointerInteractionRadiusNormalized * maximumExtent;
+    const float pointerHoverRange = pointerHoverRangeNormalized * maximumExtent;
     const float2 halfRect = rectSize * 0.5f;
     const float2 local = localPosition - halfRect;
     const float halfMinSize = max(min(halfRect.x, halfRect.y), 1.0f);
@@ -250,8 +297,37 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
         const float displacementPixels = referenceDisplacement * artisticScale;
 
+        const float pointerInteraction = CalculatePointerInteraction(
+            localPosition,
+            pointerPosition,
+            halfRect,
+            radius,
+            pointerHoverRange,
+            pointerInteractionRadius) * pointerInteractionStrength * pointerActive;
+
+        float2 pointerDirection = 0.0f.xx;
+        const float pointerDistance = length(localPosition - pointerPosition);
+        if (pointerDistance > 1e-4f)
+        {
+            pointerDirection = (localPosition - pointerPosition) / pointerDistance;
+        }
+
+        float2 motionDirection = 0.0f.xx;
+        const float pointerSpeed = length(pointerVelocity);
+        if (pointerSpeed > 1e-4f)
+        {
+            motionDirection = -pointerVelocity / pointerSpeed;
+        }
+
+        const float pointerSpeedWeight = saturate(pointerSpeed / max(maximumExtent * 7.0f, 1.0f));
+        const float2 pointerRefractionOffset =
+            pointerDirection * pointerInteraction * pointerRefractionStrength;
+        const float2 pointerMotionOffset =
+            motionDirection * pointerSpeedWeight * pointerInteraction * pointerMotionRefractionStrength;
+
         const float2 normal = RoundedRectNormal(local, halfRect, radius, sdf);
-        const float2 refractionPixelOffset = -normal * displacementPixels;
+        const float2 refractionPixelOffset =
+            -normal * displacementPixels + pointerRefractionOffset + pointerMotionOffset;
         const float2 refractedUv = uv + refractionPixelOffset * texelSize;
 
         // kube's magnifier is a first displacement pass whose output is then sampled by the
@@ -295,6 +371,20 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             lightDirection,
             highlightSharpness);
 
+        float pointerSpecular = 0.0f;
+        const float pointerLightDistance = length(pointerPosition - localPosition);
+        if (pointerLightDistance > 1e-4f && pointerInteraction > 0.0f)
+        {
+            const float2 pointerLightDirection = (pointerPosition - localPosition) / pointerLightDistance;
+            pointerSpecular = ReferenceSpecularCoefficient(
+                distanceFromEdge,
+                specularWidth,
+                feather,
+                normal,
+                pointerLightDirection,
+                highlightSharpness) * pointerInteraction * pointerHighlightStrength;
+        }
+
         // kube first saturates the refracted image only inside the specular image alpha,
         // then blends a faded grayscale specular image over it. The generated specular map's
         // alpha is coefficient^2, while its RGB is coefficient, hence the two terms below.
@@ -302,6 +392,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float3 saturatedSpecularColor = ApplySaturation(color, specularSaturation);
         color = lerp(color, saturatedSpecularColor, specularMask);
         color += (specularCoefficient * specularMask * highlightStrength).xxx;
+        color += pointerSpecular.xxx;
 
         const float innerRim = smoothstep(specularWidth, specularWidth + 1.0f, distanceFromEdge) *
             (1.0f - smoothstep(specularWidth + 1.0f, specularWidth + 3.0f + feather, distanceFromEdge));

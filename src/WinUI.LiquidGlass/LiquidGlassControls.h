@@ -5,6 +5,7 @@
 #include "include/GlassBrushHelper.hpp"
 #include "include/TemplateControlHelper.hpp"
 #include "include/PointerLightHelper.hpp"
+#include "include/PointerFieldHelper.hpp"
 #include "include/PointerMotionHelper.hpp"
 #include "include/PressOpticsHelper.hpp"
 #include "include/FocusOpticsHelper.hpp"
@@ -36,7 +37,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassCardT<LiquidGlassCard>,
         detail::GlassBrushHelper<LiquidGlassCard>,
         detail::TemplateControlHelper<LiquidGlassCard>,
-        detail::PointerLightHelper<LiquidGlassCard>
+        detail::PointerLightHelper<LiquidGlassCard>,
+        detail::PointerFieldHelper<LiquidGlassCard>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassCard();
@@ -47,6 +49,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassButton>,
         detail::TemplateControlHelper<LiquidGlassButton>,
         detail::PointerLightHelper<LiquidGlassButton>,
+        detail::PointerFieldHelper<LiquidGlassButton>,
         detail::PointerMotionHelper<LiquidGlassButton>,
         detail::PressOpticsHelper<LiquidGlassButton, detail::PersistentOpticsKind::None>
     {
@@ -59,6 +62,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassToggleButton>,
         detail::TemplateControlHelper<LiquidGlassToggleButton>,
         detail::PointerLightHelper<LiquidGlassToggleButton>,
+        detail::PointerFieldHelper<LiquidGlassToggleButton>,
         detail::PointerMotionHelper<LiquidGlassToggleButton>,
         detail::PressOpticsHelper<LiquidGlassToggleButton, detail::PersistentOpticsKind::Toggle>
     {
@@ -71,6 +75,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassHyperlinkButton>,
         detail::TemplateControlHelper<LiquidGlassHyperlinkButton>,
         detail::PointerLightHelper<LiquidGlassHyperlinkButton>,
+        detail::PointerFieldHelper<LiquidGlassHyperlinkButton>,
         detail::PointerMotionHelper<LiquidGlassHyperlinkButton>,
         detail::PressOpticsHelper<LiquidGlassHyperlinkButton, detail::PersistentOpticsKind::None>
     {
@@ -82,7 +87,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassMagnifierT<LiquidGlassMagnifier>,
         detail::GlassBrushHelper<LiquidGlassMagnifier>,
         detail::TemplateControlHelper<LiquidGlassMagnifier>,
-        detail::PointerLightHelper<LiquidGlassMagnifier>
+        detail::PointerLightHelper<LiquidGlassMagnifier>,
+        detail::PointerFieldHelper<LiquidGlassMagnifier>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassMagnifier();
@@ -100,6 +106,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassCheckBoxT<LiquidGlassCheckBox>,
         detail::GlassBrushHelper<LiquidGlassCheckBox>,
         detail::PointerLightHelper<LiquidGlassCheckBox>,
+        detail::PointerFieldHelper<LiquidGlassCheckBox>,
         detail::PointerMotionHelper<LiquidGlassCheckBox>,
         detail::PressOpticsHelper<LiquidGlassCheckBox, detail::PersistentOpticsKind::Toggle>
     {
@@ -110,6 +117,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassRadioButtonT<LiquidGlassRadioButton>,
         detail::GlassBrushHelper<LiquidGlassRadioButton>,
         detail::PointerLightHelper<LiquidGlassRadioButton>,
+        detail::PointerFieldHelper<LiquidGlassRadioButton>,
         detail::PointerMotionHelper<LiquidGlassRadioButton>,
         detail::PressOpticsHelper<LiquidGlassRadioButton, detail::PersistentOpticsKind::Toggle>
     {
@@ -136,6 +144,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassTextBoxT<LiquidGlassTextBox>,
         detail::GlassBrushHelper<LiquidGlassTextBox>,
         detail::PointerLightHelper<LiquidGlassTextBox>,
+        detail::PointerFieldHelper<LiquidGlassTextBox>,
         detail::FocusOpticsHelper<LiquidGlassTextBox>
     {
         LiquidGlassTextBox();
@@ -145,6 +154,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassPasswordBoxT<LiquidGlassPasswordBox>,
         detail::GlassBrushHelper<LiquidGlassPasswordBox>,
         detail::PointerLightHelper<LiquidGlassPasswordBox>,
+        detail::PointerFieldHelper<LiquidGlassPasswordBox>,
         detail::FocusOpticsHelper<LiquidGlassPasswordBox>
     {
         LiquidGlassPasswordBox();
@@ -165,6 +175,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassComboBoxT<LiquidGlassComboBox>,
         detail::GlassBrushHelper<LiquidGlassComboBox>,
         detail::PointerLightHelper<LiquidGlassComboBox>,
+        detail::PointerFieldHelper<LiquidGlassComboBox>,
         detail::FocusOpticsHelper<LiquidGlassComboBox>
     {
         LiquidGlassComboBox();
@@ -195,6 +206,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassTabBarItem>,
         detail::TemplateControlHelper<LiquidGlassTabBarItem, false>,
         detail::PointerLightHelper<LiquidGlassTabBarItem>,
+        detail::PointerFieldHelper<LiquidGlassTabBarItem>,
         detail::PointerMotionHelper<LiquidGlassTabBarItem>,
         detail::PressOpticsHelper<LiquidGlassTabBarItem, detail::PersistentOpticsKind::Selector>
     {
@@ -205,7 +217,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         LiquidGlassTabBarT<LiquidGlassTabBar>,
         detail::GlassBrushHelper<LiquidGlassTabBar>,
         detail::TemplateControlHelper<LiquidGlassTabBar, false>,
-        detail::PointerLightHelper<LiquidGlassTabBar>
+        detail::PointerLightHelper<LiquidGlassTabBar>,
+        detail::PointerFieldHelper<LiquidGlassTabBar>
     {
         LiquidGlassTabBar();
 

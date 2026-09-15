@@ -77,6 +77,7 @@
     <ClInclude Include="include\GlassBrushHelper.hpp" />
     <ClInclude Include="include\TemplateControlHelper.hpp" />
     <ClInclude Include="include\PointerLightHelper.hpp" />
+    <ClInclude Include="include\PointerFieldHelper.hpp" />
     <ClInclude Include="include\PointerMotionHelper.hpp" />
     <ClInclude Include="include\PressOpticsHelper.hpp" />
     <ClInclude Include="include\FocusOpticsHelper.hpp" />
