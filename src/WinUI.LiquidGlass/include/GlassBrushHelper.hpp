@@ -4,10 +4,44 @@
 
 namespace winrt::WinUI::LiquidGlass::detail
 {
+    inline void EnsureLiquidGlassInputResources()
+    {
+        // Do not use a function-local `static bool = [] { ... }()` here. If a control is
+        // constructed before Application::Current() is available, that pattern permanently
+        // caches `false` and the input templates can never be loaded later in the process.
+        // XAML controls are UI-thread-affine, so this small one-time guard needs no locking.
+        static bool loaded{};
+        if (loaded)
+        {
+            return;
+        }
+
+        namespace Xaml = Microsoft::UI::Xaml;
+        auto app = Xaml::Application::Current();
+        if (!app)
+        {
+            return;
+        }
+
+        Xaml::ResourceDictionary dictionary;
+        dictionary.Source(Windows::Foundation::Uri{
+            L"ms-appx:///WinUI.LiquidGlass/Themes/NativeInputs.xaml" });
+        app.Resources().MergedDictionaries().Append(dictionary);
+        loaded = true;
+    }
+
     template<typename Derived>
     struct GlassBrushHelper : EnsureDependencyProperty<Derived>
     {
         using Brush = WinUI::Composition::Hlsl::LiquidGlassBrush;
+
+        GlassBrushHelper()
+        {
+            // The component keeps its native-input templates in one shared dictionary.
+            // Loading it here makes those styles available before a derived constructor
+            // assigns DefaultStyleKey. The dictionary is merged only once per process.
+            EnsureLiquidGlassInputResources();
+        }
 
         static void EnsureDependencyProperties()
         {

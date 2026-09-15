@@ -33,6 +33,15 @@ namespace winrt::WinUI::LiquidGlass::implementation
                 return true;
             }();
         }
+
+        Xaml::Style SpecializedStyle(wchar_t const* key)
+        {
+            auto resources = Xaml::Application::Current().Resources();
+            auto boxedKey = box_value(hstring{ key });
+            return resources.HasKey(boxedKey)
+                ? resources.Lookup(boxedKey).try_as<Xaml::Style>()
+                : Xaml::Style{ nullptr };
+        }
     }
 
     LiquidGlassFloatingPanel::LiquidGlassFloatingPanel()
@@ -70,6 +79,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
         m_autoSuggestBox.Background(Media::Brush{ nullptr });
         m_autoSuggestBox.BorderBrush(Media::Brush{ nullptr });
         m_autoSuggestBox.BorderThickness({ 0.0, 0.0, 0.0, 0.0 });
+        if (auto textBoxStyle = SpecializedStyle(L"LiquidGlassAutoSuggestBoxTextBoxStyle"))
+        {
+            m_autoSuggestBox.TextBoxStyle(textBoxStyle);
+        }
         HorizontalContentAlignment(Xaml::HorizontalAlignment::Stretch);
         VerticalContentAlignment(Xaml::VerticalAlignment::Center);
         IsTabStop(false);

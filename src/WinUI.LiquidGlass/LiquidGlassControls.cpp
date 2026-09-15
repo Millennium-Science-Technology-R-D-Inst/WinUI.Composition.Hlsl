@@ -201,7 +201,11 @@ namespace winrt::WinUI::LiquidGlass::implementation
     LiquidGlassCheckBox::LiquidGlassCheckBox()
     {
         DefaultStyleKey(box_value(xaml_typename<class_type>()));
-        GlassBrush(CreateBrush(Preset::Choice));
+        auto brush = CreateBrush(Preset::Choice);
+        // Choice is circular for RadioButton. CheckBox keeps WinUI's rounded-square
+        // 20x20 geometry, so keep the shader SDF on the same r=5 silhouette.
+        brush.CornerRadius(5.0);
+        GlassBrush(brush);
     }
 
     LiquidGlassRadioButton::LiquidGlassRadioButton()
@@ -212,6 +216,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
     LiquidGlassComboBox::LiquidGlassComboBox()
     {
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
         GlassBrush(CreateBrush(Preset::Choice));
         SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.01));
         SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.04));
@@ -219,7 +224,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
     LiquidGlassTextBox::LiquidGlassTextBox()
     {
-        GlassBrush(CreateBrush(Preset::Search));
+        DefaultStyleKey(box_value(xaml_typename<class_type>()));
+        // TextBox is an input surface, not the 56-DIP search capsule. Using the Search
+        // preset gave the shader r=28 while the native input outline was r=8.
+        GlassBrush(CreateBrush(Preset::Input));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.98));
         SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.0));
         SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.15));
@@ -394,7 +402,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
     void LiquidGlassSlider::ApplyGlassBrush(Brush const& value)
     {
         m_glassBrush = value;
-        Background(AsBrush(value));
+        // Slider.Background belongs to the native track. The liquid-glass material is
+        // exclusively the optical Thumb surface, matching kube's separate track/lens model.
         if (m_thumb)
             if (auto surface = BrushSurface(m_thumb)) SetSurface(surface, AsBrush(value));
     }
@@ -507,17 +516,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
             }
         };
         PointerReleased(release); PointerCaptureLost(release); PointerCanceled(release);
-        auto pulse = [weak](auto const& sender, auto const&) {
-            if (auto self = weak.get()) {
-                auto owner = sender.template try_as<DependencyObject>(); if (!owner) return;
-                auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>();
-                auto const rest = LiquidGlassInteraction::GetRestScale(owner);
-                auto const pressed = LiquidGlassInteraction::GetPressedScale(owner);
-                AnimateScale(knob, std::clamp(rest + (pressed - rest) * .4, .25, 4.0),
-                    LiquidGlassInteraction::GetMotionDuration(owner));
-            }
-        };
-        Checked(pulse); Unchecked(pulse);
     }
 
     Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const { return m_header; }

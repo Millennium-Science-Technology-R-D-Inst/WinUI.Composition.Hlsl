@@ -50,4 +50,253 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!--
+      AutoSuggestBox is sealed, so LiquidGlassSearchBox hosts the native control and
+      supplies this TextBoxStyle to its internal TextBox. All required part names are
+      retained; hover/focus changes borders and foregrounds but never paints an opaque
+      TextControlBackground over the wrapper's live LiquidGlassBrush.
+    -->
+    <Style x:Key="LiquidGlassAutoSuggestBoxTextBoxStyle" TargetType="TextBox">
+        <Setter Property="MinWidth" Value="{ThemeResource TextControlThemeMinWidth}" />
+        <Setter Property="MinHeight" Value="{ThemeResource TextControlThemeMinHeight}" />
+        <Setter Property="Foreground" Value="{ThemeResource TextControlForeground}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="SelectionHighlightColor" Value="{ThemeResource TextControlSelectionHighlightColor}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+        <Setter Property="FontSize" Value="{ThemeResource ControlContentThemeFontSize}" />
+        <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Auto" />
+        <Setter Property="ScrollViewer.VerticalScrollMode" Value="Auto" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Hidden" />
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Hidden" />
+        <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="False" />
+        <Setter Property="Padding" Value="{ThemeResource TextControlThemePadding}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Grid>
+                        <Grid.Resources>
+                            <Style x:Name="DeleteButtonStyle" TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Grid x:Name="ButtonLayoutGrid"
+                                                  BorderBrush="{ThemeResource TextControlButtonBorderBrush}"
+                                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                                  Background="{ThemeResource TextControlButtonBackground}"
+                                                  Margin="{ThemeResource AutoSuggestBoxDeleteButtonMargin}"
+                                                  CornerRadius="{ThemeResource ControlCornerRadius}">
+                                                <VisualStateManager.VisualStateGroups>
+                                                    <VisualStateGroup x:Name="CommonStates">
+                                                        <VisualState x:Name="Normal" />
+                                                        <VisualState x:Name="PointerOver">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="ButtonLayoutGrid.Background" Value="{ThemeResource TextControlButtonBackgroundPointerOver}" />
+                                                                <Setter Target="ButtonLayoutGrid.BorderBrush" Value="{ThemeResource TextControlButtonBorderBrushPointerOver}" />
+                                                                <Setter Target="GlyphElement.Foreground" Value="{ThemeResource TextControlButtonForegroundPointerOver}" />
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Pressed">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="ButtonLayoutGrid.Background" Value="{ThemeResource TextControlButtonBackgroundPressed}" />
+                                                                <Setter Target="ButtonLayoutGrid.BorderBrush" Value="{ThemeResource TextControlButtonBorderBrushPressed}" />
+                                                                <Setter Target="GlyphElement.Foreground" Value="{ThemeResource TextControlButtonForegroundPressed}" />
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="ButtonLayoutGrid.Opacity" Value="0" /></VisualState.Setters></VisualState>
+                                                    </VisualStateGroup>
+                                                </VisualStateManager.VisualStateGroups>
+                                                <TextBlock x:Name="GlyphElement"
+                                                           Foreground="{ThemeResource TextControlButtonForeground}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           FontStyle="Normal"
+                                                           FontSize="12"
+                                                           Text="&#xE894;"
+                                                           FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                                           IsTextScaleFactorEnabled="False"
+                                                           AutomationProperties.AccessibilityView="Raw" />
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+
+                            <Style x:Name="QueryButtonStyle" TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <ContentPresenter x:Name="ContentPresenter"
+                                                              Background="{ThemeResource TextControlButtonBackground}"
+                                                              BorderBrush="{ThemeResource TextControlButtonBorderBrush}"
+                                                              BorderThickness="{TemplateBinding BorderThickness}"
+                                                              Content="{TemplateBinding Content}"
+                                                              CornerRadius="{TemplateBinding CornerRadius}"
+                                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                              ContentTransitions="{TemplateBinding ContentTransitions}"
+                                                              FontSize="12"
+                                                              Margin="{ThemeResource AutoSuggestBoxInnerButtonMargin}"
+                                                              Padding="{TemplateBinding Padding}"
+                                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                              AutomationProperties.AccessibilityView="Raw">
+                                                <VisualStateManager.VisualStateGroups>
+                                                    <VisualStateGroup x:Name="CommonStates">
+                                                        <VisualState x:Name="Normal" />
+                                                        <VisualState x:Name="PointerOver">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="ContentPresenter.Background" Value="{ThemeResource TextControlButtonBackgroundPointerOver}" />
+                                                                <Setter Target="ContentPresenter.BorderBrush" Value="{ThemeResource TextControlButtonBorderBrushPointerOver}" />
+                                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource TextControlButtonForegroundPointerOver}" />
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Pressed">
+                                                            <VisualState.Setters>
+                                                                <Setter Target="ContentPresenter.Background" Value="{ThemeResource TextControlButtonBackgroundPressed}" />
+                                                                <Setter Target="ContentPresenter.BorderBrush" Value="{ThemeResource TextControlButtonBorderBrushPressed}" />
+                                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource TextControlButtonForegroundPressed}" />
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                        <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="ContentPresenter.Opacity" Value="0" /></VisualState.Setters></VisualState>
+                                                    </VisualStateGroup>
+                                                </VisualStateManager.VisualStateGroups>
+                                            </ContentPresenter>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Grid.Resources>
+
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="HeaderContentPresenter.Foreground" Value="{ThemeResource TextControlHeaderForegroundDisabled}" />
+                                        <Setter Target="ContentElement.Foreground" Value="{ThemeResource TextControlForegroundDisabled}" />
+                                        <Setter Target="PlaceholderTextContentPresenter.Foreground" Value="{ThemeResource TextControlPlaceholderForegroundDisabled}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="PlaceholderTextContentPresenter.Foreground" Value="{ThemeResource TextControlPlaceholderForegroundPointerOver}" />
+                                        <Setter Target="ContentElement.Foreground" Value="{ThemeResource TextControlForegroundPointerOver}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Focused">
+                                    <VisualState.Setters>
+                                        <Setter Target="PlaceholderTextContentPresenter.Foreground" Value="{ThemeResource TextControlPlaceholderForegroundFocused}" />
+                                        <Setter Target="ContentElement.Foreground" Value="{ThemeResource TextControlForegroundFocused}" />
+                                        <Setter Target="QueryButton.Foreground" Value="{ThemeResource TextControlButtonForeground}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="ButtonStates">
+                                <VisualState x:Name="ButtonVisible"><VisualState.Setters><Setter Target="DeleteButton.Visibility" Value="Visible" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="ButtonCollapsed" />
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="4" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border x:Name="BorderElement"
+                                Grid.Row="1"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                Grid.ColumnSpan="4"
+                                CornerRadius="{TemplateBinding CornerRadius}" />
+
+                        <ContentPresenter x:Name="HeaderContentPresenter"
+                                          x:DeferLoadStrategy="Lazy"
+                                          Visibility="Collapsed"
+                                          Grid.Row="0"
+                                          Foreground="{ThemeResource TextControlHeaderForeground}"
+                                          Margin="{ThemeResource AutoSuggestBoxTopHeaderMargin}"
+                                          Grid.ColumnSpan="4"
+                                          Content="{TemplateBinding Header}"
+                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                          FontWeight="Normal"
+                                          TextWrapping="Wrap" />
+
+                        <ScrollViewer x:Name="ContentElement"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      Grid.Row="1"
+                                      HorizontalScrollMode="{TemplateBinding ScrollViewer.HorizontalScrollMode}"
+                                      HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
+                                      VerticalScrollMode="{TemplateBinding ScrollViewer.VerticalScrollMode}"
+                                      VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}"
+                                      IsHorizontalRailEnabled="{TemplateBinding ScrollViewer.IsHorizontalRailEnabled}"
+                                      IsVerticalRailEnabled="{TemplateBinding ScrollViewer.IsVerticalRailEnabled}"
+                                      IsDeferredScrollingEnabled="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      Margin="0"
+                                      Padding="{TemplateBinding Padding}"
+                                      IsTabStop="False"
+                                      AutomationProperties.AccessibilityView="Raw"
+                                      ZoomMode="Disabled" />
+
+                        <ContentControl x:Name="PlaceholderTextContentPresenter"
+                                        Grid.Row="1"
+                                        Foreground="{ThemeResource TextControlPlaceholderForeground}"
+                                        Margin="0"
+                                        Padding="{TemplateBinding Padding}"
+                                        IsTabStop="False"
+                                        Grid.ColumnSpan="2"
+                                        VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                        HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                        Content="{TemplateBinding PlaceholderText}"
+                                        IsHitTestVisible="False" />
+
+                        <Button x:Name="DeleteButton"
+                                Grid.Row="1" Grid.Column="1"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Style="{StaticResource DeleteButtonStyle}"
+                                BorderThickness="0"
+                                Padding="{ThemeResource HelperButtonThemePadding}"
+                                IsTabStop="False"
+                                Visibility="Collapsed"
+                                FontSize="{TemplateBinding FontSize}"
+                                Width="32"
+                                AutomationProperties.AccessibilityView="Raw"
+                                VerticalAlignment="Stretch" />
+
+                        <Button x:Name="QueryButton"
+                                Grid.Row="1" Grid.Column="2"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Style="{StaticResource QueryButtonStyle}"
+                                BorderThickness="0"
+                                Margin="2,0,0,0"
+                                Padding="{ThemeResource HelperButtonThemePadding}"
+                                IsTabStop="False"
+                                FontSize="{TemplateBinding FontSize}"
+                                Width="32"
+                                Height="28"
+                                VerticalAlignment="Stretch"
+                                AutomationProperties.AccessibilityView="Raw" />
+
+                        <ContentPresenter x:Name="DescriptionPresenter"
+                                          Grid.Row="2" Grid.ColumnSpan="4"
+                                          Content="{TemplateBinding Description}"
+                                          x:Load="False"
+                                          Foreground="{ThemeResource SystemControlDescriptionTextForegroundBrush}"
+                                          AutomationProperties.AccessibilityView="Raw" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 </ResourceDictionary>
