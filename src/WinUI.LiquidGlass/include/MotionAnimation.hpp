@@ -99,4 +99,57 @@ namespace winrt::WinUI::LiquidGlass::detail
     {
         AnimateElementScale(owner, element, value, value, durationMs);
     }
+
+    inline void SetElementTranslation(
+        Microsoft::UI::Xaml::FrameworkElement const& element,
+        Windows::Foundation::Numerics::float3 const& value)
+    {
+        if (!element) return;
+
+        Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(element, true);
+        auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(element);
+        visual.StopAnimation(L"Translation");
+        // Translation is a XAML facade property. The backing Visual accepts animations
+        // targeting "Translation", but the immediate value is written through UIElement.
+        element.Translation(value);
+    }
+
+    inline void AnimateElementTranslation(
+        Microsoft::UI::Xaml::DependencyObject const& owner,
+        Microsoft::UI::Xaml::FrameworkElement const& element,
+        Windows::Foundation::Numerics::float3 const& value,
+        double durationMs)
+    {
+        if (!owner || !element) return;
+
+        Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(element, true);
+        auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(element);
+
+        if (!MotionAnimationsEnabled(owner))
+        {
+            visual.StopAnimation(L"Translation");
+            element.Translation(value);
+            return;
+        }
+
+        if (implementation::LiquidGlassInteraction::GetUseSpringMotion(owner))
+        {
+            auto animation = visual.Compositor().CreateSpringVector3Animation();
+            animation.FinalValue(box_value(value).as<
+                Windows::Foundation::IReference<Windows::Foundation::Numerics::float3>>());
+            animation.DampingRatio(static_cast<float>(std::clamp(
+                implementation::LiquidGlassInteraction::GetSpringDampingRatio(owner), .05, 3.0)));
+            animation.Period(std::chrono::milliseconds{
+                static_cast<int64_t>(std::lround(std::clamp(
+                    implementation::LiquidGlassInteraction::GetSpringPeriod(owner), 16.0, 2000.0))) });
+            visual.StartAnimation(L"Translation", animation);
+            return;
+        }
+
+        auto animation = visual.Compositor().CreateVector3KeyFrameAnimation();
+        animation.InsertKeyFrame(1.0f, value);
+        animation.Duration(std::chrono::milliseconds{
+            static_cast<int64_t>(std::lround(std::clamp(durationMs, 0.0, 2000.0))) });
+        visual.StartAnimation(L"Translation", animation);
+    }
 }

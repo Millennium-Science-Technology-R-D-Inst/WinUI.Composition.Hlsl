@@ -130,12 +130,25 @@ float CalculateReferenceRefractionDistance(
 
 float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float centerSdf)
 {
-    const float epsilon = 0.5f;
-    float2 gradient = float2(
-        RoundedRectSdf(local + float2(epsilon, 0.0f), halfRect, radius) - centerSdf,
-        RoundedRectSdf(local + float2(0.0f, epsilon), halfRect, radius) - centerSdf);
-    float gradientLength = length(gradient);
-    return gradientLength > 1e-5f ? gradient / gradientLength : float2(0.0f, -1.0f);
+    // Use the analytic rounded-rectangle SDF gradient instead of a finite difference.
+    // A fixed half-pixel probe produces visible directional facets at large blur/radius
+    // values because the specular/refraction normal changes in discrete corner bands.
+    const float2 signs = float2(local.x < 0.0f ? -1.0f : 1.0f, local.y < 0.0f ? -1.0f : 1.0f);
+    const float2 q = abs(local) - (halfRect - radius.xx);
+    const float2 outside = max(q, 0.0f.xx);
+    const float outsideLength = length(outside);
+
+    if (outsideLength > 1e-5f)
+    {
+        return (outside / outsideLength) * signs;
+    }
+
+    // Inside the corner arc the SDF is linear along the dominant axis.
+    if (q.x > q.y)
+    {
+        return float2(signs.x, 0.0f);
+    }
+    return float2(0.0f, signs.y);
 }
 
 float CalculatePointerInteraction(
@@ -269,10 +282,12 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, halfRect, radius);
 
-    // Coverage is evaluated after the materialized Gaussian blur. Blur therefore affects
-    // transmitted content without changing the rounded-rectangle silhouette.
-    const float feather = max(edgeSoftness, 0.25f);
-    const float coverage = saturate(0.5f - sdf / feather);
+    // Keep silhouette anti-aliasing tied to the actual SDF footprint, not to the
+    // materialized blur radius. fwidth gives a stable ~pixel-wide lower bound while
+    // EdgeSoftness remains the explicit user control for a wider edge transition.
+    const float sdfFootprint = max(abs(ddx(sdf)) + abs(ddy(sdf)), 0.5f);
+    const float feather = max(edgeSoftness, sdfFootprint * 0.5f);
+    const float coverage = 1.0f - smoothstep(-feather, feather, sdf);
     const float alpha = coverage * saturate(materialOpacity);
 
     float4 result = 0.0f.xxxx;

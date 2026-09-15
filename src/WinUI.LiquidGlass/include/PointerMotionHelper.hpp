@@ -20,7 +20,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             });
             self->PointerMoved([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
-                ApplyPointerResponse(sender, args);
+                if (m_pressed) ApplyDragResponse(sender, args);
+                else ApplyPointerResponse(sender, args);
             });
             self->PointerExited([this](auto const& sender, auto const&)
             {
@@ -34,38 +35,55 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->PointerPressed([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
                 CaptureTranslation(sender);
+                BeginDrag(sender, args);
                 m_pressed = true;
                 AnimateState(sender);
-                ApplyPointerDisplacement(sender, args);
+                ApplyDragResponse(sender, args);
             });
-            self->PointerReleased([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+            self->PointerReleased([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
             {
                 m_pressed = false;
+                EndDrag();
                 AnimateState(sender);
-                if (m_pointerOver) ApplyPointerDisplacement(sender, args);
-                else RestoreTranslation(sender);
+                RestoreTranslation(sender);
             });
             self->PointerCaptureLost([this](auto const& sender, auto const&)
             {
                 m_pressed = false;
+                EndDrag();
                 AnimateState(sender);
                 RestoreTranslation(sender);
             });
             self->PointerCanceled([this](auto const& sender, auto const&)
             {
                 m_pressed = false;
+                EndDrag();
                 AnimateState(sender);
                 RestoreTranslation(sender);
             });
         }
 
     private:
+        static double SaturatingDistance(double value, double limit)
+        {
+            value = std::abs(value);
+            if (value <= 1e-6 || limit <= 0.0) return 0.0;
+
+            // SuGarToolkit's liquid-glass interaction uses k*x/(x+618) for both
+            // offset and stretch. It keeps short drags precise while asymptotically
+            // bounding extreme drags instead of hard-clamping them.
+            constexpr double growth = 618.0;
+            return limit * value / (value + growth);
+        }
+
         template<typename Sender>
         void CaptureTranslation(Sender const& sender)
         {
             if (m_translationCaptured) return;
-            auto element = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
+            auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!element) return;
+
+            Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(element, true);
             m_restTranslation = element.Translation();
             m_translationCaptured = true;
         }
@@ -74,9 +92,37 @@ namespace winrt::WinUI::LiquidGlass::detail
         void RestoreTranslation(Sender const& sender)
         {
             if (!m_translationCaptured) return;
-            if (auto element = sender.template try_as<Microsoft::UI::Xaml::UIElement>())
-                element.Translation(m_restTranslation);
-            m_translationCaptured = false;
+            auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
+            if (!owner || !element) return;
+
+            AnimateElementTranslation(
+                owner,
+                element,
+                m_restTranslation,
+                implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+        }
+
+        template<typename Sender>
+        void BeginDrag(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        {
+            auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
+            auto uiElement = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
+            if (!element || !uiElement) return;
+
+            auto xamlRoot = element.XamlRoot();
+            m_dragCoordinateRoot = xamlRoot ? xamlRoot.Content() : Microsoft::UI::Xaml::UIElement{ nullptr };
+            if (!m_dragCoordinateRoot) m_dragCoordinateRoot = uiElement;
+
+            auto const point = args.GetCurrentPoint(m_dragCoordinateRoot);
+            m_activePointerId = point.PointerId();
+            m_dragStart = point.Position();
+        }
+
+        void EndDrag()
+        {
+            m_activePointerId = 0;
+            m_dragCoordinateRoot = nullptr;
         }
 
         template<typename Sender>
@@ -85,6 +131,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
+            CaptureTranslation(sender);
             auto const scale = std::clamp(implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
             SetElementScale(element, scale, scale);
         }
@@ -136,10 +183,9 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const nx = std::clamp((point.X / width) * 2.0 - 1.0, -1.0, 1.0);
             auto const ny = std::clamp((point.Y / height) * 2.0 - 1.0, -1.0, 1.0);
             auto const radial = std::min(1.0, std::sqrt(nx * nx + ny * ny));
-            auto const amount = elasticity * radial * (m_pressed ? .060 : .032);
+            auto const amount = elasticity * radial * .032;
             auto const base = std::clamp(
-                m_pressed ? implementation::LiquidGlassInteraction::GetPressedScale(owner)
-                          : implementation::LiquidGlassInteraction::GetPointerOverScale(owner),
+                implementation::LiquidGlassInteraction::GetPointerOverScale(owner),
                 .25, 4.0);
 
             auto sx = base * (1.0 + amount * std::abs(nx));
@@ -147,6 +193,61 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (std::abs(nx) > std::abs(ny)) sy *= 1.0 - amount * .35;
             else sx *= 1.0 - amount * .35;
             SetElementScale(element, sx, sy);
+        }
+
+        template<typename Sender>
+        void ApplyDragResponse(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        {
+            if (!m_dragCoordinateRoot || m_activePointerId == 0) return;
+
+            auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
+            if (!owner || !element) return;
+
+            auto const point = args.GetCurrentPoint(m_dragCoordinateRoot);
+            if (point.PointerId() != m_activePointerId) return;
+
+            auto const width = element.ActualWidth();
+            auto const height = element.ActualHeight();
+            if (width <= 0.0 || height <= 0.0) return;
+
+            auto const deltaX = static_cast<double>(point.Position().X - m_dragStart.X);
+            auto const deltaY = static_cast<double>(point.Position().Y - m_dragStart.Y);
+            auto const absX = std::abs(deltaX);
+            auto const absY = std::abs(deltaY);
+
+            auto const elasticity = std::clamp(
+                implementation::LiquidGlassInteraction::GetElasticity(owner), 0.0, 1.0);
+            auto const responseGain = elasticity <= 1e-5
+                ? 0.0
+                : std::clamp(elasticity / .18, 0.0, 3.0);
+
+            // Keep the same three bounded response families used by SuGarToolkit:
+            // 16 DIP axial stretch, 0.382 relative cross-axis compression and
+            // 24 DIP drag offset. Elasticity scales their amplitude without changing
+            // the asymptotic response curve.
+            auto const stretchX = SaturatingDistance(absX, 16.0 * responseGain) -
+                SaturatingDistance(absY, .382 * responseGain) * width;
+            auto const stretchY = SaturatingDistance(absY, 16.0 * responseGain) -
+                SaturatingDistance(absX, .382 * responseGain) * height;
+            auto const scaleBase = std::clamp(
+                implementation::LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
+            auto const relativeScaleX = std::clamp(1.0 + stretchX / width, .62, 1.45);
+            auto const relativeScaleY = std::clamp(1.0 + stretchY / height, .62, 1.45);
+            SetElementScale(element, scaleBase * relativeScaleX, scaleBase * relativeScaleY);
+
+            auto const maxDisplacement = std::clamp(
+                implementation::LiquidGlassInteraction::GetPointerDisplacement(owner), 0.0, 64.0);
+            auto const configuredGain = maxDisplacement > 1e-5
+                ? std::clamp(maxDisplacement / 2.5, 0.0, 8.0)
+                : 0.0;
+            auto const offsetLimit = 24.0 * responseGain * configuredGain;
+            auto const offsetX = std::copysign(SaturatingDistance(absX, offsetLimit), deltaX);
+            auto const offsetY = std::copysign(SaturatingDistance(absY, offsetLimit), deltaY);
+            SetElementTranslation(element, {
+                m_restTranslation.x + static_cast<float>(offsetX),
+                m_restTranslation.y + static_cast<float>(offsetY),
+                m_restTranslation.z });
         }
 
         template<typename Sender>
@@ -164,7 +265,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 implementation::LiquidGlassInteraction::GetPointerDisplacement(owner), 0.0, 64.0);
             if (maxDisplacement <= 1e-5)
             {
-                element.Translation(m_restTranslation);
+                SetElementTranslation(element, m_restTranslation);
                 return;
             }
 
@@ -178,17 +279,17 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const normalizer = std::tanh(1.35);
             auto const curveX = std::tanh(nx * 1.35) / normalizer;
             auto const curveY = std::tanh(ny * 1.35) / normalizer;
-            auto const pressMultiplier = m_pressed
-                ? std::clamp(implementation::LiquidGlassInteraction::GetPressedDisplacementMultiplier(owner), 0.0, 4.0)
-                : 1.0;
 
-            element.Translation({
-                m_restTranslation.x + static_cast<float>(curveX * maxDisplacement * pressMultiplier),
-                m_restTranslation.y + static_cast<float>(curveY * maxDisplacement * pressMultiplier),
+            SetElementTranslation(element, {
+                m_restTranslation.x + static_cast<float>(curveX * maxDisplacement),
+                m_restTranslation.y + static_cast<float>(curveY * maxDisplacement),
                 m_restTranslation.z });
         }
 
         Windows::Foundation::Numerics::float3 m_restTranslation{};
+        Microsoft::UI::Xaml::UIElement m_dragCoordinateRoot{ nullptr };
+        Windows::Foundation::Point m_dragStart{};
+        uint32_t m_activePointerId{};
         bool m_translationCaptured{};
         bool m_pointerOver{};
         bool m_pressed{};
