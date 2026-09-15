@@ -240,4 +240,35 @@ namespace WinUI.LiquidGlass
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
         static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
+
+    [webhosthidden] runtimeclass LiquidGlassFloatingPanel : Microsoft.UI.Xaml.Controls.ContentControl
+    {
+        LiquidGlassFloatingPanel();
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
+    }
+
+    [webhosthidden] runtimeclass LiquidGlassSearchBox : Microsoft.UI.Xaml.Controls.ContentControl
+    {
+        LiquidGlassSearchBox();
+        String Text;
+        String PlaceholderText;
+        Object ItemsSource;
+        Microsoft.UI.Xaml.DataTemplate ItemTemplate;
+        Boolean IsSuggestionListOpen;
+        Boolean AutoMaximizeSuggestionArea;
+        Double MaxSuggestionListHeight;
+        Boolean UpdateTextOnSelect;
+        String TextMemberPath;
+        Object Header;
+        Microsoft.UI.Xaml.Controls.IconElement QueryIcon;
+        Microsoft.UI.Xaml.Controls.AutoSuggestBox InnerAutoSuggestBox{ get; };
+
+        event Windows.Foundation.TypedEventHandler<Microsoft.UI.Xaml.Controls.AutoSuggestBox, Microsoft.UI.Xaml.Controls.AutoSuggestBoxSuggestionChosenEventArgs> SuggestionChosen;
+        event Windows.Foundation.TypedEventHandler<Microsoft.UI.Xaml.Controls.AutoSuggestBox, Microsoft.UI.Xaml.Controls.AutoSuggestBoxTextChangedEventArgs> TextChanged;
+        event Windows.Foundation.TypedEventHandler<Microsoft.UI.Xaml.Controls.AutoSuggestBox, Microsoft.UI.Xaml.Controls.AutoSuggestBoxQuerySubmittedEventArgs> QuerySubmitted;
+
+        WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
+        static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
+    }
 }

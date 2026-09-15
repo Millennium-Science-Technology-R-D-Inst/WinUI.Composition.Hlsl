@@ -11,8 +11,6 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- XAML-consumer smoke coverage for the component package. This also
-                 verifies attached interaction properties are discoverable through WinMD. -->
             <DataTemplate x:Key="LiquidGlassTabBarSmokeTemplate">
                 <liquid:LiquidGlassTabBar
                     SelectedIndex="0"
@@ -25,6 +23,15 @@
                     <liquid:LiquidGlassTabBarItem Content="Library" />
                     <liquid:LiquidGlassTabBarItem Content="Settings" />
                 </liquid:LiquidGlassTabBar>
+            </DataTemplate>
+
+            <DataTemplate x:Key="LiquidGlassSpecializedSmokeTemplate">
+                <StackPanel Spacing="8">
+                    <liquid:LiquidGlassSearchBox PlaceholderText="Search" Text="Liquid glass" />
+                    <liquid:LiquidGlassFloatingPanel>
+                        <TextBlock Text="Floating media panel" />
+                    </liquid:LiquidGlassFloatingPanel>
+                </StackPanel>
             </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>

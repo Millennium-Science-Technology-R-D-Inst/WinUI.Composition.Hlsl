@@ -80,6 +80,7 @@
     <ClInclude Include="include\PressOpticsHelper.hpp" />
     <ClInclude Include="include\FocusOpticsHelper.hpp" />
     <ClInclude Include="LiquidGlassControls.h" />
+    <ClInclude Include="LiquidGlassSpecializedControls.h" />
     <ClInclude Include="LiquidGlassCard.h" />
     <ClInclude Include="LiquidGlassMagnifier.h" />
     <ClInclude Include="LiquidGlassButton.h" />
@@ -94,11 +95,14 @@
     <ClInclude Include="LiquidGlassToggleSwitch.h" />
     <ClInclude Include="LiquidGlassTabBarItem.h" />
     <ClInclude Include="LiquidGlassTabBar.h" />
+    <ClInclude Include="LiquidGlassFloatingPanel.h" />
+    <ClInclude Include="LiquidGlassSearchBox.h" />
 
     <ClCompile Include="LiquidGlassInteraction.cpp" />
     <ClCompile Include="LiquidGlassPresets.cpp" />
     <ClCompile Include="LiquidGlassControls.cpp" />
     <ClCompile Include="LiquidGlassTabBar.cpp" />
+    <ClCompile Include="LiquidGlassSpecializedControls.cpp" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ForcedIncludeFiles>$(ProjectDir)winrt_module_imports.h</ForcedIncludeFiles>
@@ -106,6 +110,7 @@
 
     <Page Include="Themes\Generic.xaml" />
     <Page Include="Themes\TabBar.xaml" />
+    <Page Include="Themes\Specialized.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -120,13 +125,6 @@
     </ProjectReference>
   </ItemGroup>
 
-  <!--
-    XAML-generated .cpp files are not authored module translation units. They
-    include textual STL headers (notably <regex>), so importing the WinRT named
-    modules into those TUs can make MSVC see both IFC and textual STL definitions.
-    Keep module.g.cpp on the optimized import path, but give generated XAML code
-    a conventional textual C++/WinRT preamble.
-  -->
   <Target Name="InjectHeadersIntoXamlGenerated"
           AfterTargets="ComputeXamlGeneratedCompileInputs"
           BeforeTargets="ClCompile">
