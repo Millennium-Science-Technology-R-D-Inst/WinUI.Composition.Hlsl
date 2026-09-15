@@ -55,8 +55,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:LiquidGlassTabBarItem">
-                    <Grid x:Name="Root"
-                          Control.IsTemplateFocusTarget="True">
+                    <Grid x:Name="Root" Control.IsTemplateFocusTarget="True">
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                                 BorderThickness="1"
@@ -64,10 +63,12 @@
                         <Border x:Name="StateOverlay"
                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                 CornerRadius="{TemplateBinding CornerRadius}"
+                                IsHitTestVisible="False"
                                 Opacity="0" />
                         <Border x:Name="SelectedOverlay"
                                 Background="{ThemeResource AccentFillColorSecondaryBrush}"
                                 CornerRadius="{TemplateBinding CornerRadius}"
+                                IsHitTestVisible="False"
                                 Opacity="0" />
                         <ContentPresenter Margin="{TemplateBinding Padding}"
                                           Content="{TemplateBinding Content}"
@@ -75,6 +76,11 @@
                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
 
+                        <!--
+                          ListViewItem drives the current WinUI state names
+                          PointerOverSelected / PressedSelected (not SelectedPointerOver /
+                          SelectedPressed). Disabled is a separate DisabledStates group.
+                        -->
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualStateGroup.Transitions>
@@ -82,36 +88,31 @@
                                 </VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal" />
                                 <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters>
-                                        <Setter Target="StateOverlay.Opacity" Value="0.10" />
-                                    </VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
-                                    <VisualState.Setters>
-                                        <Setter Target="StateOverlay.Opacity" Value="0.16" />
-                                    </VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.16" /></VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Selected">
-                                    <VisualState.Setters>
-                                        <Setter Target="SelectedOverlay.Opacity" Value="0.18" />
-                                    </VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="SelectedOverlay.Opacity" Value="0.18" /></VisualState.Setters>
                                 </VisualState>
-                                <VisualState x:Name="SelectedPointerOver">
+                                <VisualState x:Name="PointerOverSelected">
                                     <VisualState.Setters>
                                         <Setter Target="SelectedOverlay.Opacity" Value="0.22" />
                                         <Setter Target="StateOverlay.Opacity" Value="0.06" />
                                     </VisualState.Setters>
                                 </VisualState>
-                                <VisualState x:Name="SelectedPressed">
+                                <VisualState x:Name="PressedSelected">
                                     <VisualState.Setters>
                                         <Setter Target="SelectedOverlay.Opacity" Value="0.26" />
                                         <Setter Target="StateOverlay.Opacity" Value="0.08" />
                                     </VisualState.Setters>
                                 </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="DisabledStates">
+                                <VisualState x:Name="Enabled" />
                                 <VisualState x:Name="Disabled">
-                                    <VisualState.Setters>
-                                        <Setter Target="Root.Opacity" Value="0.45" />
-                                    </VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>

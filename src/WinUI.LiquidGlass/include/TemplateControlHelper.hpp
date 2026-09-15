@@ -20,16 +20,25 @@ namespace winrt::WinUI::LiquidGlass::detail
                 }
                 else
                 {
-                    [[maybe_unused]] static bool resourceLoaded = []
+                    // Older WinUI projections may not expose DefaultStyleResourceUri.
+                    // Metadata/type activation can happen before Application::Current(), so
+                    // do not permanently cache a failed first attempt in a static lambda.
+                    static bool resourceLoaded{};
+                    if (resourceLoaded)
                     {
-                        winrt::Microsoft::UI::Xaml::ResourceDictionary dictionary;
-                        dictionary.Source(winrt::Windows::Foundation::Uri{ Self::ResourceUri });
-                        winrt::Microsoft::UI::Xaml::Application::Current()
-                            .Resources()
-                            .MergedDictionaries()
-                            .Append(dictionary);
-                        return true;
-                    }();
+                        return;
+                    }
+
+                    auto app = winrt::Microsoft::UI::Xaml::Application::Current();
+                    if (!app)
+                    {
+                        return;
+                    }
+
+                    winrt::Microsoft::UI::Xaml::ResourceDictionary dictionary;
+                    dictionary.Source(winrt::Windows::Foundation::Uri{ Self::ResourceUri });
+                    app.Resources().MergedDictionaries().Append(dictionary);
+                    resourceLoaded = true;
                 }
             }
             else

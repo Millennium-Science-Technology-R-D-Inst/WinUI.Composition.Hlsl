@@ -24,19 +24,37 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void EnsureSpecializedResources()
         {
-            [[maybe_unused]] static bool loaded = []
+            // A metadata/type-activation path may construct a runtimeclass before a XAML
+            // Application exists. Retry on the next real control construction instead of
+            // caching that first miss forever.
+            static bool loaded{};
+            if (loaded)
             {
-                Xaml::ResourceDictionary dictionary;
-                dictionary.Source(Windows::Foundation::Uri{
-                    L"ms-appx:///WinUI.LiquidGlass/Themes/Specialized.xaml" });
-                Xaml::Application::Current().Resources().MergedDictionaries().Append(dictionary);
-                return true;
-            }();
+                return;
+            }
+
+            auto app = Xaml::Application::Current();
+            if (!app)
+            {
+                return;
+            }
+
+            Xaml::ResourceDictionary dictionary;
+            dictionary.Source(Windows::Foundation::Uri{
+                L"ms-appx:///WinUI.LiquidGlass/Themes/Specialized.xaml" });
+            app.Resources().MergedDictionaries().Append(dictionary);
+            loaded = true;
         }
 
         Xaml::Style SpecializedStyle(wchar_t const* key)
         {
-            auto resources = Xaml::Application::Current().Resources();
+            auto app = Xaml::Application::Current();
+            if (!app)
+            {
+                return nullptr;
+            }
+
+            auto resources = app.Resources();
             auto boxedKey = box_value(hstring{ key });
             return resources.HasKey(boxedKey)
                 ? resources.Lookup(boxedKey).try_as<Xaml::Style>()

@@ -23,10 +23,15 @@ namespace winrt::WinUI::LiquidGlass::detail
             return;
         }
 
-        Xaml::ResourceDictionary dictionary;
-        dictionary.Source(Windows::Foundation::Uri{
-            L"ms-appx:///WinUI.LiquidGlass/Themes/NativeInputs.xaml" });
-        app.Resources().MergedDictionaries().Append(dictionary);
+        auto dictionaries = app.Resources().MergedDictionaries();
+        for (auto const* uri : {
+            L"ms-appx:///WinUI.LiquidGlass/Themes/NativeInputs.xaml",
+            L"ms-appx:///WinUI.LiquidGlass/Themes/PasswordInput.xaml" })
+        {
+            Xaml::ResourceDictionary dictionary;
+            dictionary.Source(Windows::Foundation::Uri{ uri });
+            dictionaries.Append(dictionary);
+        }
         loaded = true;
     }
 
@@ -37,9 +42,9 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         GlassBrushHelper()
         {
-            // The component keeps its native-input templates in one shared dictionary.
-            // Loading it here makes those styles available before a derived constructor
-            // assigns DefaultStyleKey. The dictionary is merged only once per process.
+            // The component keeps its native-input templates in shared dictionaries.
+            // Load them before a derived constructor assigns DefaultStyleKey or creates
+            // a sealed native child such as PasswordBox.
             EnsureLiquidGlassInputResources();
         }
 

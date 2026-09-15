@@ -16,14 +16,26 @@ namespace winrt::WinUI::LiquidGlass::implementation
     {
         void EnsureTabBarResources()
         {
-            [[maybe_unused]] static bool loaded = []
+            // A first construction attempt can happen before Application::Current() is
+            // available (for example during metadata/type activation). Do not permanently
+            // cache that miss; retry when a real XAML application constructs the control.
+            static bool loaded{};
+            if (loaded)
             {
-                Xaml::ResourceDictionary dictionary;
-                dictionary.Source(Windows::Foundation::Uri{
-                    L"ms-appx:///WinUI.LiquidGlass/Themes/TabBar.xaml" });
-                Xaml::Application::Current().Resources().MergedDictionaries().Append(dictionary);
-                return true;
-            }();
+                return;
+            }
+
+            auto app = Xaml::Application::Current();
+            if (!app)
+            {
+                return;
+            }
+
+            Xaml::ResourceDictionary dictionary;
+            dictionary.Source(Windows::Foundation::Uri{
+                L"ms-appx:///WinUI.LiquidGlass/Themes/TabBar.xaml" });
+            app.Resources().MergedDictionaries().Append(dictionary);
+            loaded = true;
         }
     }
 

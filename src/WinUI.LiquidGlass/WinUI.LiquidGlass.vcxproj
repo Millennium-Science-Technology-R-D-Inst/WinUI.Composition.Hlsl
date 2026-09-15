@@ -114,6 +114,7 @@
     <Page Include="Themes\TabBar.xaml" />
     <Page Include="Themes\Specialized.xaml" />
     <Page Include="Themes\NativeInputs.xaml" />
+    <Page Include="Themes\PasswordInput.xaml" />
   </ItemGroup>
 
   <ItemGroup>
