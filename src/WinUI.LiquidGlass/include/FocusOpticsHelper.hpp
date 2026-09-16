@@ -11,7 +11,20 @@ namespace winrt::WinUI::LiquidGlass::detail
         FocusOpticsHelper()
         {
             auto self = static_cast<Self*>(this);
+            // Text-entry focus should acknowledge immediately. A keyframe duration is a
+            // better contract than a spring whose settling time ignores MotionDuration.
+            self->SetValue(
+                implementation::LiquidGlassInteraction::UseSpringMotionProperty(),
+                box_value(false));
+
             self->Loaded([this](auto const& sender, auto const&) { ApplyRest(sender); });
+            self->Unloaded([this](auto const&, auto const&)
+            {
+                // XAML teardown can run after the compositor has closed the material.
+                // Drop transient bookkeeping without writing the brush back.
+                m_state = {};
+                m_focused = false;
+            });
             self->GotFocus([this](auto const& sender, auto const&)
             {
                 m_focused = true;
@@ -75,13 +88,21 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
 
+            // Once detached from a XamlRoot, interaction state is no longer observable and
+            // the underlying CompositionEffectBrush may already be closed. Teardown is a
+            // reference cleanup operation, not a final material mutation.
+            if (!element.XamlRoot())
+            {
+                m_state = {};
+                return;
+            }
+
             auto self = static_cast<Self*>(this);
             auto brush = self->GlassBrush();
             if (m_state.active && (!brush || get_abi(m_state.brush) != get_abi(brush)))
             {
-                // Restore the previous brush before migrating the focused state.
-                // A GlassBrush DP replacement must never leave transient optics
-                // baked into a brush that is no longer attached to the control.
+                // Runtime brush replacement is still a live transition; restore the old
+                // brush before migrating the focused state to the replacement.
                 RestoreOptics(m_state);
             }
 
