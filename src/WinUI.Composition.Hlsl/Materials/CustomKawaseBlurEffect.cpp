@@ -32,13 +32,13 @@ namespace
 
 	constexpr KawaseConstants kSamplerInitial{ 1.0f, {} };
 	constexpr KawaseConstants kResolveInitial{ 1.0f, {} };
-	constexpr uint32_t kDCompositionExpressionTypeScalar = 18;
-	constexpr uint32_t kPropertyTypeSingle = 8;
-	constexpr uint16_t kUvArgument = 0x0100;
-	constexpr uint16_t kColorArgument = 0x0200;
-	constexpr uint16_t kSamplerDataArgument = 0x0300;
-	constexpr uint16_t kSamplerDataExtArgument = 0x0400;
-	constexpr uint16_t kCustomSamplerResult = 0x0200;
+	constexpr std::uint32_t kDCompositionExpressionTypeScalar = 18;
+	constexpr std::uint32_t kPropertyTypeSingle = 8;
+	constexpr std::uint16_t kUvArgument = 0x0100;
+	constexpr std::uint16_t kColorArgument = 0x0200;
+	constexpr std::uint16_t kSamplerDataArgument = 0x0300;
+	constexpr std::uint16_t kSamplerDataExtArgument = 0x0400;
+	constexpr std::uint16_t kCustomSamplerResult = 0x0200;
 
 	CustomEffectRuntime::PropertyDescriptor const kSpreadProperties[] = {
 		{ L"Spread", 0, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, nullptr, 1.0f },
@@ -67,12 +67,12 @@ namespace
 		{ L"RawSource", CustomEffectRuntime::SourceKind::Backdrop, false, false },
 		{ L"BlurredSource", CustomEffectRuntime::SourceKind::Backdrop, false, false },
 	};
-	uint16_t const kSamplerArguments[] = {
+	std::uint16_t const kSamplerArguments[] = {
 		kUvArgument,
 		kSamplerDataExtArgument,
 		kSamplerDataArgument,
 	};
-	uint16_t const kResolveArguments[] = {
+	std::uint16_t const kResolveArguments[] = {
 		kColorArgument,
 		kColorArgument,
 	};
