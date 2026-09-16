@@ -178,8 +178,7 @@ float3 ApplyExposureContrast(float3 color, float exposure, float contrast)
     return (color - 0.5f.xxx) * max(contrast, 0.0f) + 0.5f.xxx;
 }
 
-float2 ClampSampleUv(
-    float2 uv,
+float4 CalculateTransmissionBounds(
     float2 texelSize,
     float2 contentMin,
     float2 contentMax,
@@ -188,39 +187,74 @@ float2 ClampSampleUv(
     const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
     const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
     const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
-    float2 result = clamp(uv, textureMin, textureMax);
+    float2 safeMin = textureMin;
+    float2 safeMax = textureMax;
 
     if (hasContentRect)
     {
-        // Materialized Gaussian blur supplies padding around samplerData's logical content
-        // rectangle. Keep most of that padding available to refraction, but do not sample the
-        // outer transparent fringe. Concave/Lip fields can otherwise expose a large black band
-        // when their steep edge vectors reach the materialized surface boundary.
         const float2 paddingBefore = max(contentMin - textureMin, 0.0f.xx);
         const float2 paddingAfter = max(textureMax - contentMax, 0.0f.xx);
-        const float2 safeMin = max(textureMin, contentMin - paddingBefore * 0.75f);
-        const float2 safeMax = min(textureMax, contentMax + paddingAfter * 0.75f);
-        result = clamp(uv, safeMin, safeMax);
+
+        // D2D SOFT Gaussian blur grows the output by 6 sigma in total, or about
+        // 3 sigma on each side of the logical content. The outer part of that
+        // allocation is the transparent-black kernel tail rather than useful
+        // backdrop data. Keep the inner one-sigma region available to refraction.
+        const float gaussianSupportFraction = 1.0f / 3.0f;
+        safeMin = max(textureMin, contentMin - paddingBefore * gaussianSupportFraction);
+        safeMax = min(textureMax, contentMax + paddingAfter * gaussianSupportFraction);
     }
 
-    // FXC Debug's data-flow pass can report a helper with multiple conditional return paths
-    // as potentially uninitialized. Keep one definitely initialized result and return once.
-    return result;
+    return float4(safeMin, safeMax);
 }
 
-float4 SampleTransmission(
-    float2 uv,
-    float2 texelSize,
-    float2 contentMin,
-    float2 contentMax,
-    bool hasContentRect)
+float OffsetScaleToBounds(
+    float2 origin,
+    float2 offset,
+    float2 safeMin,
+    float2 safeMax)
 {
-    const float2 sampleUv = ClampSampleUv(uv, texelSize, contentMin, contentMax, hasContentRect);
+    float result = 1.0f;
+    const float epsilon = 1e-7f;
+
+    if (offset.x > epsilon)
+        result = min(result, (safeMax.x - origin.x) / offset.x);
+    else if (offset.x < -epsilon)
+        result = min(result, (safeMin.x - origin.x) / offset.x);
+
+    if (offset.y > epsilon)
+        result = min(result, (safeMax.y - origin.y) / offset.y);
+    else if (offset.y < -epsilon)
+        result = min(result, (safeMin.y - origin.y) / offset.y);
+
+    return saturate(result);
+}
+
+float CalculateTransmissionOffsetScale(
+    float2 origin,
+    float2 baseOffset,
+    float2 dispersionOffset,
+    float2 safeMin,
+    float2 safeMax)
+{
+    const float redScale = OffsetScaleToBounds(
+        origin, baseOffset - dispersionOffset, safeMin, safeMax);
+    const float greenScale = OffsetScaleToBounds(
+        origin, baseOffset, safeMin, safeMax);
+    const float blueScale = OffsetScaleToBounds(
+        origin, baseOffset + dispersionOffset, safeMin, safeMax);
+    return min(redScale, min(greenScale, blueScale));
+}
+
+float4 SampleTransmission(float2 uv, float2 texelSize)
+{
+    const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
+    const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
+    const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
+    const float2 sampleUv = clamp(uv, textureMin, textureMax);
     float4 result = texture0.Sample(sampler0, sampleUv);
 
     // D2D's SOFT Gaussian-blur border is materialized as premultiplied transparent padding.
-    // Refraction/dispersion need the transmitted color, not that padding alpha folded into RGB;
-    // otherwise steep Concave/Lip offsets darken into a black band before they reach the clamp.
+    // Refraction/dispersion need the transmitted color, not that padding alpha folded into RGB.
     if (result.a > 1e-5f)
         result.rgb /= result.a;
 
@@ -335,8 +369,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 
         // Keep optics and final coverage as separate fields, but let the optical surface cross
         // the same subpixel SDF neighborhood instead of forcing displacement to zero exactly at
-        // the silhouette. This removes the visibly clipped rounded-corner transition while the
-        // independent coverage field still owns final alpha.
+        // the silhouette. The independent coverage field still owns final alpha.
         const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
         const float opticalInterior = smoothstep(-opticalFeather, opticalFeather, -sdf);
         const float rawDisplacementPixels =
@@ -389,10 +422,32 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) * opticalInterior;
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
+        // Apply one common boundary scale to the completed R/G/B sample offsets instead of
+        // clamping each channel independently. This preserves the required ordering
+        // Source(x + Refraction(x) + Magnification(x + Refraction(x))) and keeps dispersion
+        // coherent while smoothly reducing only the part of the field that cannot be backed
+        // by the materialized source texture.
+        const float4 transmissionBounds = CalculateTransmissionBounds(
+            texelSize, contentMin, contentMax, hasContentRect);
+        const float2 transmissionOrigin = clamp(uv, transmissionBounds.xy, transmissionBounds.zw);
+        const float2 baseSampleOffset = sampleUv - uv;
+        const float transmissionScale = CalculateTransmissionOffsetScale(
+            transmissionOrigin,
+            baseSampleOffset,
+            dispersionOffset,
+            transmissionBounds.xy,
+            transmissionBounds.zw);
+        const float2 redSampleUv = transmissionOrigin +
+            (baseSampleOffset - dispersionOffset) * transmissionScale;
+        const float2 greenSampleUv = transmissionOrigin +
+            baseSampleOffset * transmissionScale;
+        const float2 blueSampleUv = transmissionOrigin +
+            (baseSampleOffset + dispersionOffset) * transmissionScale;
+
         float3 color = float3(
-            SampleTransmission(sampleUv - dispersionOffset, texelSize, contentMin, contentMax, hasContentRect).r,
-            SampleTransmission(sampleUv, texelSize, contentMin, contentMax, hasContentRect).g,
-            SampleTransmission(sampleUv + dispersionOffset, texelSize, contentMin, contentMax, hasContentRect).b);
+            SampleTransmission(redSampleUv, texelSize).r,
+            SampleTransmission(greenSampleUv, texelSize).g,
+            SampleTransmission(blueSampleUv, texelSize).b);
         color = ApplySaturation(color, saturation);
         color = ApplyExposureContrast(color, exposure, contrast);
         color = lerp(color, tintColor, tintOpacity);
