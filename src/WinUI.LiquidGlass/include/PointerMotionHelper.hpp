@@ -12,6 +12,15 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const& sender, auto const&) { ApplyRest(sender); });
+            self->Unloaded([this](auto const&, auto const&)
+            {
+                // Pointer-up can be swallowed by navigation/window teardown. Drop transient
+                // interaction state without touching Composition; Loaded restores the stable
+                // translation/scale once the visual is valid again.
+                m_pointerOver = false;
+                m_pressed = false;
+                EndDrag();
+            });
 
             auto bindPointerHandler = [self](
                 auto routedEvent,
@@ -167,6 +176,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
             CaptureTranslation(sender);
+            if (m_translationCaptured)
+                SetElementTranslation(element, m_restTranslation);
             auto const scale = std::clamp(implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
             SetElementScale(element, scale, scale);
         }
