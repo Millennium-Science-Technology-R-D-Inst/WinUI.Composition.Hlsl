@@ -47,7 +47,9 @@ namespace winrt::WinUI::LiquidGlass::detail
                 [id](Target const& target) { return target.id == id; });
             if (found == m_targets.end()) return;
 
-            found->deactivate();
+            // Unregister only changes routing ownership. The target decides whether it is
+            // still safe to touch its Composition material. In particular, XAML can raise
+            // Unloaded after the compositor has already closed CompositionEffectBrush.
             m_targets.erase(found);
             if (m_targets.empty()) Detach();
         }
@@ -188,7 +190,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const&, auto const&) { Attach(); });
-            self->Unloaded([this](auto const&, auto const&) { Detach(); });
+            self->Unloaded([this](auto const&, auto const&) { Detach(false); });
             self->SizeChanged([this](auto const&, auto const&)
             {
                 m_configurationDirty = true;
@@ -219,9 +221,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
             catch (winrt::hresult_error const& error)
             {
-                // Window teardown can close the underlying CompositionEffectBrush before
-                // XAML raises Unloaded. Resetting pointer properties is only cleanup at that
-                // point, so RO_E_CLOSED is benign; all other failures remain visible.
+                // A non-teardown routing callback can still race compositor shutdown.
+                // RO_E_CLOSED is benign cleanup; other HRESULTs remain programming errors.
                 if (error.code() != winrt::hresult{ RO_E_CLOSED }) throw;
             }
         }
@@ -260,7 +261,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_registrationId = id;
         }
 
-        void Detach()
+        void Detach(bool deactivate = true)
         {
             if (m_router && m_registrationId)
             {
@@ -268,7 +269,25 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
             m_registrationId = 0;
             m_router.reset();
-            DeactivateTrackedMaterial();
+
+            if (deactivate)
+            {
+                DeactivateTrackedMaterial();
+            }
+            else
+            {
+                // Unloaded is a lifetime boundary, not an optical-state transition. During
+                // window teardown Composition objects may already be closed, so do not make
+                // any WinRT calls into the effect brush here. Dropping our references is enough.
+                ClearTrackedMaterial();
+            }
+        }
+
+        void ClearTrackedMaterial() noexcept
+        {
+            m_trackingMaterial = nullptr;
+            m_active = false;
+            m_lastPointValid = false;
         }
 
         void TrackMaterial(WinUI::Composition::Hlsl::LiquidGlassMaterial const& material)
@@ -281,8 +300,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             if (!material)
             {
-                m_trackingMaterial = nullptr;
-                m_lastPointValid = false;
+                ClearTrackedMaterial();
                 return;
             }
 
@@ -419,9 +437,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 DeactivateEffect(m_trackingMaterial.EffectBrush());
             }
-            m_trackingMaterial = nullptr;
-            m_active = false;
-            m_lastPointValid = false;
+            ClearTrackedMaterial();
         }
 
         std::shared_ptr<PointerFieldRouter> m_router;
