@@ -434,18 +434,20 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
                 highlightSharpness) * pointerInteraction * pointerHighlightStrength;
         }
 
-        // kube first saturates the refracted image only inside the specular image alpha,
-        // then blends a faded grayscale specular image over it. The generated specular map's
-        // alpha is coefficient^2, while its RGB is coefficient, hence the two terms below.
+        // Reproduce kube's SVG graph rather than approximating the final highlight as
+        // additive white. The specular asset stores coefficient in RGB and coefficient^2
+        // in alpha. First blend the saturated refraction through that alpha, then apply the
+        // faded grayscale specular layer with normal source-over compositing.
         const float specularMask = specularCoefficient * specularCoefficient;
         const float3 saturatedSpecularColor = ApplySaturation(color, specularSaturation);
         color = lerp(color, saturatedSpecularColor, specularMask);
-        color += (specularCoefficient * specularMask * highlightStrength).xxx;
-        color += pointerSpecular.xxx;
+        const float specularAlpha = saturate(specularMask * highlightStrength);
+        color = lerp(color, specularCoefficient.xxx, specularAlpha);
 
-        const float innerRim = smoothstep(specularWidth, specularWidth + 1.0f, distanceFromEdge) *
-            (1.0f - smoothstep(specularWidth + 1.0f, specularWidth + 3.0f + feather, distanceFromEdge));
-        color += (innerRim * 0.10f * highlightStrength).xxx;
+        // Pointer lighting is an interaction extension, not part of kube's static SVG
+        // filter. Treat it as another bounded source-over highlight so fast pointer motion
+        // cannot create HDR-like additive white seams at the rounded silhouette.
+        color = lerp(color, 1.0f.xxx, saturate(pointerSpecular));
         color = saturate(color);
 
         result = float4(color * alpha, alpha);
