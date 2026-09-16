@@ -12,55 +12,90 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const& sender, auto const&) { ApplyRest(sender); });
-            self->PointerEntered([this](auto const& sender, auto const&)
+
+            auto bindPointerHandler = [self](
+                auto routedEvent,
+                Windows::Foundation::IInspectable& storage,
+                auto&& callback)
             {
-                CaptureTranslation(sender);
-                m_pointerOver = true;
-                AnimateState(sender);
-            });
-            self->PointerMoved([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
-            {
-                if (m_pressed) ApplyDragResponse(sender, args);
-                else ApplyPointerResponse(sender, args);
-            });
-            self->PointerExited([this](auto const& sender, auto const&)
-            {
-                m_pointerOver = false;
-                if (!m_pressed)
+                using Handler = Microsoft::UI::Xaml::Input::PointerEventHandler;
+                storage = winrt::box_value<Handler>({ std::forward<decltype(callback)>(callback) });
+                self->AddHandler(routedEvent, storage, true);
+            };
+
+            // ButtonBase handles PointerPressed/Released before ordinary instance handlers.
+            // Listen with handledEventsToo so native Button/Toggle/CheckBox descendants keep
+            // the same liquid motion contract as plain content controls.
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerEnteredEvent(),
+                m_pointerEnteredHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
                 {
+                    CaptureTranslation(sender);
+                    m_pointerOver = true;
+                    AnimateState(sender);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerMovedEvent(),
+                m_pointerMovedHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+                {
+                    if (m_pressed) ApplyDragResponse(sender, args);
+                    else ApplyPointerResponse(sender, args);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerExitedEvent(),
+                m_pointerExitedHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pointerOver = false;
+                    if (!m_pressed)
+                    {
+                        AnimateState(sender);
+                        RestoreTranslation(sender);
+                    }
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerPressedEvent(),
+                m_pointerPressedHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+                {
+                    CaptureTranslation(sender);
+                    BeginDrag(sender, args);
+                    m_pressed = true;
+                    AnimateState(sender);
+                    ApplyDragResponse(sender, args);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(),
+                m_pointerReleasedHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pressed = false;
+                    EndDrag();
                     AnimateState(sender);
                     RestoreTranslation(sender);
-                }
-            });
-            self->PointerPressed([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
-            {
-                CaptureTranslation(sender);
-                BeginDrag(sender, args);
-                m_pressed = true;
-                AnimateState(sender);
-                ApplyDragResponse(sender, args);
-            });
-            self->PointerReleased([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
-            {
-                m_pressed = false;
-                EndDrag();
-                AnimateState(sender);
-                RestoreTranslation(sender);
-            });
-            self->PointerCaptureLost([this](auto const& sender, auto const&)
-            {
-                m_pressed = false;
-                EndDrag();
-                AnimateState(sender);
-                RestoreTranslation(sender);
-            });
-            self->PointerCanceled([this](auto const& sender, auto const&)
-            {
-                m_pressed = false;
-                EndDrag();
-                AnimateState(sender);
-                RestoreTranslation(sender);
-            });
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(),
+                m_pointerCaptureLostHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pressed = false;
+                    EndDrag();
+                    AnimateState(sender);
+                    RestoreTranslation(sender);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(),
+                m_pointerCanceledHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pressed = false;
+                    EndDrag();
+                    AnimateState(sender);
+                    RestoreTranslation(sender);
+                });
         }
 
     private:
@@ -288,6 +323,13 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         Windows::Foundation::Numerics::float3 m_restTranslation{};
         Microsoft::UI::Xaml::UIElement m_dragCoordinateRoot{ nullptr };
+        Windows::Foundation::IInspectable m_pointerEnteredHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerMovedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerExitedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
         Windows::Foundation::Point m_dragStart{};
         uint32_t m_activePointerId{};
         bool m_translationCaptured{};

@@ -301,36 +301,69 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 InitializePersistentState(sender);
             });
-            self->PointerEntered([this](auto const& sender, auto const&)
+
+            auto bindPointerHandler = [self](
+                auto routedEvent,
+                Windows::Foundation::IInspectable& storage,
+                auto&& callback)
             {
-                m_pointerOver = true;
-                Recompute(sender);
-            });
-            self->PointerExited([this](auto const& sender, auto const&)
-            {
-                m_pointerOver = false;
-                Recompute(sender);
-            });
-            self->PointerPressed([this](auto const& sender, auto const&)
-            {
-                m_pressed = true;
-                Recompute(sender);
-            });
-            self->PointerReleased([this](auto const& sender, auto const&)
-            {
-                m_pressed = false;
-                Recompute(sender);
-            });
-            self->PointerCaptureLost([this](auto const& sender, auto const&)
-            {
-                m_pressed = false;
-                Recompute(sender);
-            });
-            self->PointerCanceled([this](auto const& sender, auto const&)
-            {
-                m_pressed = false;
-                Recompute(sender);
-            });
+                using Handler = Microsoft::UI::Xaml::Input::PointerEventHandler;
+                storage = winrt::box_value<Handler>({ std::forward<decltype(callback)>(callback) });
+                self->AddHandler(routedEvent, storage, true);
+            };
+
+            // ButtonBase consumes press/release pointer events in its class handler. Optical
+            // state must observe those handled events or derived native controls otherwise
+            // keep the resting material while their visual state says Pressed.
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerEnteredEvent(),
+                m_pointerEnteredHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pointerOver = true;
+                    Recompute(sender);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerExitedEvent(),
+                m_pointerExitedHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pointerOver = false;
+                    Recompute(sender);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerPressedEvent(),
+                m_pointerPressedHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pressed = true;
+                    Recompute(sender);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(),
+                m_pointerReleasedHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pressed = false;
+                    Recompute(sender);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(),
+                m_pointerCaptureLostHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pressed = false;
+                    Recompute(sender);
+                });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(),
+                m_pointerCanceledHandler,
+                [this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+                {
+                    m_pressed = false;
+                    Recompute(sender);
+                });
+
             self->RegisterPropertyChangedCallback(
                 Self::GlassBrushProperty(),
                 [this](Microsoft::UI::Xaml::DependencyObject const& sender,
@@ -437,6 +470,12 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
         OpticsSnapshot m_baseline;
+        Windows::Foundation::IInspectable m_pointerEnteredHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerExitedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
         bool m_activated{};
         bool m_pointerOver{};
         bool m_pressed{};
