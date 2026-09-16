@@ -136,6 +136,21 @@ namespace winrt::WinUI::LiquidGlass::detail
             thumb.Height(horizontal ? 60.0 : 90.0);
             thumb.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
 
+            // Kube drags the 90-DIP logical lens so that its 0.6-rest-scale visual center
+            // can travel from 27 DIPs to trackWidth-27 DIPs. WinUI normally reserves the
+            // full unscaled Thumb width when calculating the Slider lane, which would inset
+            // the value endpoints by 45 DIPs. A -18 DIP layout margin makes the Thumb's
+            // desired lane footprint 54 DIPs while preserving its actual 90x60 shader surface.
+            // This is the same geometry as kube's drag bounds (-18 .. width-90+18).
+            if (horizontal)
+            {
+                thumb.Margin({ -18.0, 0.0, -18.0, 0.0 });
+            }
+            else
+            {
+                thumb.Margin({ 0.0, -18.0, 0.0, -18.0 });
+            }
+
             auto glass = self->GlassBrush();
             if (glass)
             {
