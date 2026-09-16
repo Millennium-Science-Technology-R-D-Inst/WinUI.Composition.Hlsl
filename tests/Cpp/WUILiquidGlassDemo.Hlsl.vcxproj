@@ -1,213 +1,36 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <RepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</RepositoryRoot>
-  </PropertyGroup>
+  <PropertyGroup><RepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</RepositoryRoot></PropertyGroup>
   <PropertyGroup Label="Globals">
-    <CppWinRTOptimized>true</CppWinRTOptimized>
-    <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
-    <CppWinRTBuildModule>true</CppWinRTBuildModule>
-    <MinimalCoreWin>true</MinimalCoreWin>
-    <ProjectGuid>{8bf9eaa4-ea72-409e-a9a9-f140f7540c9a}</ProjectGuid>
-    <ProjectName>WUILiquidGlassDemo.Hlsl</ProjectName>
-    <RootNamespace>WUILiquidGlassDemo_Hlsl</RootNamespace>
-    <!--
-      $(TargetName) should be same as $(RootNamespace) so that the produced binaries (.exe/.pri/etc.)
-      have a name that matches the .winmd
-    -->
-    <TargetName>$(RootNamespace)</TargetName>
-    <DefaultLanguage>en-US</DefaultLanguage>
-    <MinimumVisualStudioVersion>18.8</MinimumVisualStudioVersion>
-    <AppContainerApplication>false</AppContainerApplication>
-    <AppxPackage>true</AppxPackage>
-    <ApplicationType>Windows Store</ApplicationType>
-    <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <WindowsTargetPlatformMinVersion>10.0.17763.0</WindowsTargetPlatformMinVersion>
-    <UseWinUI>true</UseWinUI>
-    <EnableMsixTooling>true</EnableMsixTooling>
-    <EnableNativePackageReferenceSupport>true</EnableNativePackageReferenceSupport>
+    <CppWinRTOptimized>true</CppWinRTOptimized><CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge><CppWinRTBuildModule>true</CppWinRTBuildModule><MinimalCoreWin>true</MinimalCoreWin>
+    <ProjectGuid>{8bf9eaa4-ea72-409e-a9a9-f140f7540c9a}</ProjectGuid><ProjectName>WUILiquidGlassDemo.Hlsl</ProjectName><RootNamespace>WUILiquidGlassDemo_Hlsl</RootNamespace><TargetName>$(RootNamespace)</TargetName><DefaultLanguage>en-US</DefaultLanguage><MinimumVisualStudioVersion>18.8</MinimumVisualStudioVersion><AppContainerApplication>false</AppContainerApplication><AppxPackage>true</AppxPackage><ApplicationType>Windows Store</ApplicationType><ApplicationTypeRevision>10.0</ApplicationTypeRevision><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion><WindowsTargetPlatformMinVersion>10.0.17763.0</WindowsTargetPlatformMinVersion><UseWinUI>true</UseWinUI><EnableMsixTooling>true</EnableMsixTooling><EnableNativePackageReferenceSupport>true</EnableNativePackageReferenceSupport>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug|x64">
-      <Configuration>Debug</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug|ARM64">
-      <Configuration>Debug</Configuration>
-      <Platform>ARM64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x64">
-      <Configuration>Release</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|ARM64">
-      <Configuration>Release</Configuration>
-      <Platform>ARM64</Platform>
-    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32"><Configuration>Debug</Configuration><Platform>Win32</Platform></ProjectConfiguration><ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration><ProjectConfiguration Include="Debug|ARM64"><Configuration>Debug</Configuration><Platform>ARM64</Platform></ProjectConfiguration><ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration><ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration><ProjectConfiguration Include="Release|ARM64"><Configuration>Release</Configuration><Platform>ARM64</Platform></ProjectConfiguration>
   </ItemGroup>
-  <PropertyGroup Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v145</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-    <DesktopCompatible>true</DesktopCompatible>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <LinkIncremental>true</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <LinkIncremental>false</LinkIncremental>
-  </PropertyGroup>
+  <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v145</PlatformToolset><CharacterSet>Unicode</CharacterSet><DesktopCompatible>true</DesktopCompatible></PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration"><UseDebugLibraries>true</UseDebugLibraries><LinkIncremental>true</LinkIncremental></PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration"><UseDebugLibraries>false</UseDebugLibraries><WholeProgramOptimization>true</WholeProgramOptimization><LinkIncremental>false</LinkIncremental></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
-  <PropertyGroup>
-    <OutDir>$(MSBuildThisFileDirectory)Output\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(MSBuildThisFileDirectory)Output\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <GeneratedFilesDir>$(IntDir)Generated Files\</GeneratedFilesDir>
-    <AppxPackageDir>$(MSBuildThisFileDirectory)AppPackages\</AppxPackageDir>
-  </PropertyGroup>
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
-      <WarningLevel>Level4</WarningLevel>
-      <LanguageStandard>stdcpp23</LanguageStandard>
-      <AdditionalOptions>%(AdditionalOptions) /bigobj</AdditionalOptions>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies>dxguid.lib;d2d1.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
-    <ClCompile>
-      <PreprocessorDefinitions>WINRT_ENABLE_LEGACY_COM;NOMINMAX;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
-    <ClCompile>
-      <PreprocessorDefinitions>WINRT_ENABLE_LEGACY_COM;NOMINMAX;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemGroup Condition="'$(WindowsPackageType)'!='None' and Exists('Package.appxmanifest')">
-    <AppxManifest Include="Package.appxmanifest">
-      <SubType>Designer</SubType>
-    </AppxManifest>
-  </ItemGroup>
-  <ItemGroup>
-    <Manifest Include="app.manifest" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="App.xaml.h">
-      <DependentUpon>App.xaml</DependentUpon>
-    </ClInclude>
-    <ClInclude Include="MainWindow.xaml.h">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
-    </ClInclude>
-    <ClInclude Include="pch.h" />
-    <ClInclude Include="XamlWorkaround.h" />
-    <ClCompile Include="windows.graphic.effects.interop.ixx" />
-  </ItemGroup>
-  <ItemGroup>
-    <ApplicationDefinition Include="App.xaml" />
-    <Page Include="MainWindow.xaml" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="ApiSurfaceCompile.cpp" />
-    <ClCompile Include="App.xaml.cpp">
-      <DependentUpon>App.xaml</DependentUpon>
-    </ClCompile>
-    <ClCompile Include="MainWindow.xaml.cpp">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
-    </ClCompile>
-    <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <Midl Include="MainWindow.idl">
-      <SubType>Code</SubType>
-      <DependentUpon>MainWindow.xaml</DependentUpon>
-    </Midl>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="readme.txt">
-      <DeploymentContent>false</DeploymentContent>
-    </Text>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="Assets\LockScreenLogo.scale-200.png" />
-    <Image Include="Assets\SplashScreen.scale-200.png" />
-    <Image Include="Assets\Square150x150Logo.scale-200.png" />
-    <Image Include="Assets\Square44x44Logo.scale-200.png" />
-    <Image Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
-    <Image Include="Assets\StoreLogo.png" />
-    <Image Include="Assets\Wide310x150Logo.scale-200.png" />
-  </ItemGroup>
-  <!--
-    Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging
-    Tools extension to be activated for this project even if the Windows App SDK Nuget
-    package has not yet been restored.
-  -->
-  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
-    <ProjectCapability Include="Msix" />
-  </ItemGroup>
-  <!-- Inject module imports into XAML-generated source files. XAML is a two-pass
-       build, so the same metadata must be applied before both compile phases. -->
-  <Target Name="InjectModuleImportsIntoXamlGenerated" AfterTargets="ComputeXamlGeneratedCompileInputs" BeforeTargets="ClCompile">
-    <ItemGroup>
-      <ClCompile Update="@(ClCompile)" Condition="'%(Filename)' == 'XamlTypeInfo.g' or '%(Filename)' == 'XamlTypeInfo.Impl.g' or '%(Filename)' == 'XamlMetaDataProvider' or '%(Filename)' == 'XamlLibMetadataProvider.g'">
-        <PrecompiledHeader>NotUsing</PrecompiledHeader>
-        <ForcedIncludeFiles>$(MSBuildProjectDirectory)\XamlWorkaround.h</ForcedIncludeFiles>
-      </ClCompile>
-    </ItemGroup>
-  </Target>
-  <Target Name="InjectModuleImportsIntoXamlGeneratedPass2" AfterTargets="ComputeXamlGeneratedCompileInputs" BeforeTargets="CompileXamlGeneratedFiles">
-    <ItemGroup>
-      <ClCompile Update="@(ClCompile)" Condition="'%(Filename)' == 'XamlTypeInfo.g' or '%(Filename)' == 'XamlTypeInfo.Impl.g' or '%(Filename)' == 'XamlMetaDataProvider' or '%(Filename)' == 'XamlLibMetadataProvider.g'">
-        <PrecompiledHeader>NotUsing</PrecompiledHeader>
-        <ForcedIncludeFiles>$(MSBuildProjectDirectory)\XamlWorkaround.h</ForcedIncludeFiles>
-      </ClCompile>
-    </ItemGroup>
-  </Target>
-  <!--
-    Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
-    Explorer "Package and Publish" context menu entry to be enabled for this project even if
-    the Windows App SDK Nuget package has not yet been restored.
-  -->
-  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
-    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
-  </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets" />
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Windows.CppWinRT" />
-    <PackageReference Include="Microsoft.Windows.ImplementationLibrary" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj">
-      <Project>{52a0f546-89a6-4fd2-ba87-f8f06b5542a8}</Project>
-    </ProjectReference>
-  </ItemGroup>
+  <ImportGroup Label="ExtensionSettings" /><ImportGroup Label="PropertySheets"><Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" /></ImportGroup><PropertyGroup Label="UserMacros" />
+  <PropertyGroup><OutDir>$(MSBuildThisFileDirectory)Output\$(Platform)\$(Configuration)\</OutDir><IntDir>$(MSBuildThisFileDirectory)Output\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir><GeneratedFilesDir>$(IntDir)Generated Files\</GeneratedFilesDir><AppxPackageDir>$(MSBuildThisFileDirectory)AppPackages\</AppxPackageDir></PropertyGroup>
+  <ItemDefinitionGroup><ClCompile><PrecompiledHeader>NotUsing</PrecompiledHeader><PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile><PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile><WarningLevel>Level4</WarningLevel><LanguageStandard>stdcpp23</LanguageStandard><AdditionalOptions>%(AdditionalOptions) /bigobj</AdditionalOptions></ClCompile><Link><AdditionalDependencies>dxguid.lib;d2d1.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'"><ClCompile><PreprocessorDefinitions>WINRT_ENABLE_LEGACY_COM;NOMINMAX;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile></ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'"><ClCompile><PreprocessorDefinitions>WINRT_ENABLE_LEGACY_COM;NOMINMAX;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile><Link><EnableCOMDATFolding>true</EnableCOMDATFolding><OptimizeReferences>true</OptimizeReferences></Link></ItemDefinitionGroup>
+  <ItemGroup Condition="'$(WindowsPackageType)'!='None' and Exists('Package.appxmanifest')"><AppxManifest Include="Package.appxmanifest"><SubType>Designer</SubType></AppxManifest></ItemGroup>
+  <ItemGroup><Manifest Include="app.manifest" /></ItemGroup>
+  <ItemGroup><ClInclude Include="App.xaml.h"><DependentUpon>App.xaml</DependentUpon></ClInclude><ClInclude Include="MainWindow.xaml.h"><DependentUpon>MainWindow.xaml</DependentUpon></ClInclude><ClInclude Include="pch.h" /><ClInclude Include="XamlWorkaround.h" /><ClCompile Include="windows.graphic.effects.interop.ixx" /></ItemGroup>
+  <ItemGroup><ApplicationDefinition Include="App.xaml" /><Page Include="MainWindow.xaml" /></ItemGroup>
+  <ItemGroup><ClCompile Include="ApiSurfaceCompile.cpp" /><ClCompile Include="App.xaml.cpp"><DependentUpon>App.xaml</DependentUpon></ClCompile><ClCompile Include="MainWindow.xaml.cpp"><DependentUpon>MainWindow.xaml</DependentUpon></ClCompile><ClCompile Include="MainWindow.LiquidGlass.cpp"><DependentUpon>MainWindow.xaml</DependentUpon></ClCompile><ClCompile Include="$(GeneratedFilesDir)module.g.cpp" /></ItemGroup>
+  <ItemGroup><Midl Include="MainWindow.idl"><SubType>Code</SubType><DependentUpon>MainWindow.xaml</DependentUpon></Midl></ItemGroup>
+  <ItemGroup><Text Include="readme.txt"><DeploymentContent>false</DeploymentContent></Text></ItemGroup>
+  <ItemGroup><Image Include="Assets\LockScreenLogo.scale-200.png" /><Image Include="Assets\SplashScreen.scale-200.png" /><Image Include="Assets\Square150x150Logo.scale-200.png" /><Image Include="Assets\Square44x44Logo.scale-200.png" /><Image Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" /><Image Include="Assets\StoreLogo.png" /><Image Include="Assets\Wide310x150Logo.scale-200.png" /></ItemGroup>
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'"><ProjectCapability Include="Msix" /></ItemGroup>
+  <Target Name="InjectModuleImportsIntoXamlGenerated" AfterTargets="ComputeXamlGeneratedCompileInputs" BeforeTargets="ClCompile"><ItemGroup><ClCompile Update="@(ClCompile)" Condition="'%(Filename)' == 'XamlTypeInfo.g' or '%(Filename)' == 'XamlTypeInfo.Impl.g' or '%(Filename)' == 'XamlMetaDataProvider' or '%(Filename)' == 'XamlLibMetadataProvider.g'"><PrecompiledHeader>NotUsing</PrecompiledHeader><ForcedIncludeFiles>$(MSBuildProjectDirectory)\XamlWorkaround.h</ForcedIncludeFiles></ClCompile></ItemGroup></Target>
+  <Target Name="InjectModuleImportsIntoXamlGeneratedPass2" AfterTargets="ComputeXamlGeneratedCompileInputs" BeforeTargets="CompileXamlGeneratedFiles"><ItemGroup><ClCompile Update="@(ClCompile)" Condition="'%(Filename)' == 'XamlTypeInfo.g' or '%(Filename)' == 'XamlTypeInfo.Impl.g' or '%(Filename)' == 'XamlMetaDataProvider' or '%(Filename)' == 'XamlLibMetadataProvider.g'"><PrecompiledHeader>NotUsing</PrecompiledHeader><ForcedIncludeFiles>$(MSBuildProjectDirectory)\XamlWorkaround.h</ForcedIncludeFiles></ClCompile></ItemGroup></Target>
+  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'"><HasPackageAndPublishMenu>true</HasPackageAndPublishMenu></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" /><ImportGroup Label="ExtensionTargets" />
+  <ItemGroup><PackageReference Include="Microsoft.Windows.CppWinRT" /><PackageReference Include="Microsoft.Windows.ImplementationLibrary" /><PackageReference Include="Microsoft.Windows.SDK.BuildTools" /><PackageReference Include="Microsoft.WindowsAppSDK" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj"><Project>{52a0f546-89a6-4fd2-ba87-f8f06b5542a8}</Project></ProjectReference><ProjectReference Include="..\..\src\WinUI.LiquidGlass\WinUI.LiquidGlass.vcxproj"><Project>{b3e53b4f-4751-4d13-8d10-4d77f6b8e3c9}</Project></ProjectReference></ItemGroup>
 </Project>

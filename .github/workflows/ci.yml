@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   pack-nuget:
-    name: Pack NuGet
+    name: Pack native packages
     runs-on: windows-2025-vs2026
     outputs:
       package-version: ${{ steps.version.outputs.package-version }}
@@ -48,12 +48,11 @@ jobs:
         shell: pwsh
         run: |
           $version = "1.0.${{ github.run_number }}"
-          $artifact = "WinUI.Composition.Hlsl-$version-attempt-${{ github.run_attempt }}"
+          $artifact = "WinUI-LiquidGlass-$version-attempt-${{ github.run_attempt }}"
           "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "package-version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "package-artifact=$artifact" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           Write-Host "Package version: $version"
-          Write-Host "Package artifact: $artifact"
 
       - name: Prepare package output
         shell: pwsh
@@ -75,14 +74,12 @@ jobs:
 
           "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Windows SDK: $($sdk.Name)"
-          Write-Host "MSBuild: $msbuild"
 
-      - name: Build native package assets
+      - name: Build core and WinUI.LiquidGlass
         shell: pwsh
         run: |
           foreach ($platform in @('x64', 'Win32', 'ARM64')) {
-            Write-Host "Building native Release/$platform"
+            Write-Host "Building core Release/$platform"
             & $env:MSBUILD `
               'src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj' `
               /restore `
@@ -92,7 +89,20 @@ jobs:
               /p:NuGetAudit=false `
               "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
               /m /v:minimal /nologo `
-              /fl "/flp:logfile=native-$platform.log;verbosity=minimal"
+              /fl "/flp:logfile=core-$platform.log;verbosity=minimal"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+            Write-Host "Building WinUI.LiquidGlass Release/$platform"
+            & $env:MSBUILD `
+              'src\WinUI.LiquidGlass\WinUI.LiquidGlass.vcxproj' `
+              /restore `
+              /t:Build `
+              /p:Configuration=Release `
+              "/p:Platform=$platform" `
+              /p:NuGetAudit=false `
+              "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+              /m /v:minimal /nologo `
+              /fl "/flp:logfile=liquidglass-$platform.log;verbosity=minimal"
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
 
@@ -103,8 +113,11 @@ jobs:
           $dxbc = Get-ChildItem 'src\WinUI.Composition.Hlsl\obj\x64\Release' -Recurse -Filter LiquidGlassShader.dxbc -ErrorAction SilentlyContinue | Select-Object -First 1
           if (!$header) { throw 'LiquidGlassShader.g.h was not generated.' }
           if (!$dxbc) { throw 'LiquidGlassShader.dxbc was not generated.' }
-          Write-Host "Generated header: $($header.FullName)"
-          Write-Host "Generated DXBC: $($dxbc.FullName) ($($dxbc.Length) bytes)"
+          $bytes = [System.IO.File]::ReadAllBytes($dxbc.FullName)
+          if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
+            throw 'LiquidGlassShader.dxbc is not a DXBC container.'
+          }
+          Write-Host "Generated: $($dxbc.FullName) ($($dxbc.Length) bytes)"
 
       - name: Build projection package asset
         shell: pwsh
@@ -150,7 +163,6 @@ jobs:
             if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
               throw "$name is not a DXBC container."
             }
-            Write-Host "Verified $($fixture.FullName) ($($fixture.Length) bytes)"
           }
 
       - name: Verify package inputs
@@ -161,14 +173,19 @@ jobs:
             'artifacts\x64\Release\WinUI.Composition.Hlsl.dll',
             'artifacts\Win32\Release\WinUI.Composition.Hlsl.dll',
             'artifacts\ARM64\Release\WinUI.Composition.Hlsl.dll',
-            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll'
+            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll',
+            'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.winmd',
+            'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.pri',
+            'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll',
+            'artifacts\Win32\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll',
+            'artifacts\ARM64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll'
           )
           foreach ($path in $required) {
             if (!(Test-Path $path)) { throw "Missing package input: $path" }
             Write-Host "Found: $path"
           }
 
-      - name: Pack NuGet
+      - name: Pack NuGet packages
         shell: pwsh
         run: |
           & nuget pack `
@@ -177,35 +194,49 @@ jobs:
             -OutputDirectory 'artifacts\packages' `
             -Version $env:PACKAGE_VERSION `
             -NoPackageAnalysis `
-            -Verbosity detailed 2>&1 | Tee-Object -FilePath nuget-pack.log
+            -Verbosity detailed 2>&1 | Tee-Object -FilePath core-nuget-pack.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-          $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
-          $package = Get-ChildItem 'artifacts\packages' -Filter $expected -File | Select-Object -First 1
-          if (!$package) { throw "NuGet pack succeeded but $expected was not produced." }
-          Write-Host "Package: $($package.FullName)"
+          & nuget pack `
+            'packaging\WinUI.LiquidGlass.nuspec' `
+            -BasePath . `
+            -OutputDirectory 'artifacts\packages' `
+            -Version $env:PACKAGE_VERSION `
+            -Properties "HlslVersion=$env:PACKAGE_VERSION" `
+            -NoPackageAnalysis `
+            -Verbosity detailed 2>&1 | Tee-Object -FilePath liquidglass-nuget-pack.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-      - name: Upload NuGet package
+          foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.LiquidGlass')) {
+            $expected = "$id.$env:PACKAGE_VERSION.nupkg"
+            if (!(Test-Path "artifacts\packages\$expected")) {
+              throw "NuGet pack succeeded but $expected was not produced."
+            }
+          }
+
+      - name: Upload NuGet packages
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.version.outputs.package-artifact }}
           if-no-files-found: error
-          path: artifacts/packages/WinUI.Composition.Hlsl.*.nupkg
+          path: artifacts/packages/*.nupkg
 
       - name: Upload pack logs
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: WinUI.Composition.Hlsl-pack-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          name: WinUI-LiquidGlass-pack-logs-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: ignore
           path: |
-            native-*.log
+            core-*.log
+            liquidglass-*.log
             projection-build.log
             native-shader-consumer.log
-            nuget-pack.log
+            core-nuget-pack.log
+            liquidglass-nuget-pack.log
 
   build-cpp-xaml-demo:
-    name: Build C++ XAML demo from packed NuGet
+    name: Build C++ demo from WinUI.LiquidGlass package
     needs: pack-nuget
     runs-on: windows-2025-vs2026
     env:
@@ -214,93 +245,80 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Prepare local NuGet source
+      - name: Prepare package output
         shell: pwsh
         run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
 
-      - name: Download packed NuGet
+      - name: Download packed NuGets
         uses: actions/download-artifact@v8
         with:
           name: ${{ needs.pack-nuget.outputs.package-artifact }}
           path: artifacts/packages
 
-      - name: Configure exact package consumer
+      - name: Configure exact WinUI.LiquidGlass package consumer
         shell: pwsh
         run: |
-          $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
-          $package = Get-ChildItem 'artifacts\packages' -Filter $expected -File | Select-Object -First 1
-          if (!$package) { throw "Expected package $expected was not downloaded." }
-          Write-Host "Consumer package: $($package.FullName)"
+          foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.LiquidGlass')) {
+            $expected = "$id.$env:PACKAGE_VERSION.nupkg"
+            if (!(Test-Path "artifacts\packages\$expected")) { throw "Expected package $expected was not downloaded." }
+          }
 
           $projectPath = (Resolve-Path 'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj').Path
           [xml]$project = Get-Content $projectPath -Raw
           $ns = [System.Xml.XmlNamespaceManager]::new($project.NameTable)
           $ns.AddNamespace('msb', 'http://schemas.microsoft.com/developer/msbuild/2003')
-          $projectRef = $project.SelectSingleNode('//msb:ProjectReference[contains(@Include, "WinUI.Composition.Hlsl.vcxproj")]', $ns)
-          if (!$projectRef) { throw 'WinUI.Composition.Hlsl ProjectReference was not found in the C++ demo.' }
-          $itemGroup = $projectRef.ParentNode
-          [void]$itemGroup.RemoveChild($projectRef)
+          $projectRefs = @($project.SelectNodes('//msb:ProjectReference', $ns))
+          if ($projectRefs.Count -lt 2) { throw 'Expected core and WinUI.LiquidGlass ProjectReference entries in the C++ demo.' }
+          foreach ($projectRef in $projectRefs) {
+            [void]$projectRef.ParentNode.RemoveChild($projectRef)
+          }
+          $itemGroup = $project.CreateElement('ItemGroup', $project.DocumentElement.NamespaceURI)
           $packageRef = $project.CreateElement('PackageReference', $project.DocumentElement.NamespaceURI)
-          $packageRef.SetAttribute('Include', 'WinUI.Composition.Hlsl')
+          $packageRef.SetAttribute('Include', 'WinUI.LiquidGlass')
           $packageRef.SetAttribute('VersionOverride', $env:PACKAGE_VERSION)
           [void]$itemGroup.AppendChild($packageRef)
+          [void]$project.DocumentElement.AppendChild($itemGroup)
           $project.Save($projectPath)
 
-          @'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <packageSources>
-              <clear />
-              <add key="LocalHlsl" value="artifacts/packages" />
-              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-            </packageSources>
-          </configuration>
-          '@ | Set-Content -Path NuGet.CI.Config -Encoding utf8
+          '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear/><add key="LocalPackages" value="artifacts/packages"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources></configuration>' |
+            Set-Content -Path NuGet.CI.Config -Encoding utf8
 
       - name: Resolve Visual Studio and Windows SDK
         shell: pwsh
         run: |
-          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Lib"
-          $sdk = Get-ChildItem $sdkRoot -Directory |
+          $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Lib" -Directory |
             Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
-            Sort-Object { [version]$_.Name } -Descending |
-            Select-Object -First 1
-          if (!$sdk) { throw 'No Windows 10/11 SDK was found on the runner.' }
-
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          if (!$sdk) { throw 'Windows SDK not found.' }
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $msbuild = & $vswhere -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
-          if (!$msbuild) { throw 'Visual Studio MSBuild not found.' }
-
+          if (!$msbuild) { throw 'MSBuild not found.' }
           "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build demo from packed NuGet
+      - name: Build demo from package
         shell: pwsh
         run: |
           & $env:MSBUILD `
             'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj' `
-            /restore `
-            /p:Configuration=Debug `
-            /p:Platform=x64 `
-            /p:NuGetAudit=false `
+            /restore /t:Build `
+            /p:Configuration=Debug /p:Platform=x64 /p:NuGetAudit=false `
             "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
             /fl "/flp:logfile=Cpp-test-build.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-      - name: Upload C++ demo build logs
+      - name: Upload C++ demo build log
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: cpp-xaml-demo-build-logs-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: ignore
-          path: |
-            Cpp-test-build.log
-            tests/Cpp/Output/**/*.log
+          path: Cpp-test-build.log
 
   build-csharp-demo:
-    name: Build C# demo from packed NuGet
+    name: Build C# core demo from packed NuGet
     needs: pack-nuget
     runs-on: windows-2025-vs2026
     env:
@@ -309,17 +327,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Prepare local NuGet source
+      - name: Prepare package output
         shell: pwsh
         run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
 
-      - name: Download packed NuGet
+      - name: Download packed NuGets
         uses: actions/download-artifact@v8
         with:
           name: ${{ needs.pack-nuget.outputs.package-artifact }}
           path: artifacts/packages
 
-      - name: Configure exact managed package consumer
+      - name: Configure exact core package consumer
         shell: pwsh
         run: |
           $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
@@ -332,43 +350,29 @@ jobs:
           $packageRef.SetAttribute('VersionOverride', $env:PACKAGE_VERSION)
           $project.Save($projectPath)
 
-          @'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <packageSources>
-              <clear />
-              <add key="LocalHlsl" value="artifacts/packages" />
-              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-            </packageSources>
-          </configuration>
-          '@ | Set-Content -Path NuGet.CI.Config -Encoding utf8
+          '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear/><add key="LocalPackages" value="artifacts/packages"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources></configuration>' |
+            Set-Content -Path NuGet.CI.Config -Encoding utf8
 
       - name: Resolve Visual Studio and Windows SDK
         shell: pwsh
         run: |
-          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Lib"
-          $sdk = Get-ChildItem $sdkRoot -Directory |
+          $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Lib" -Directory |
             Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
-            Sort-Object { [version]$_.Name } -Descending |
-            Select-Object -First 1
-          if (!$sdk) { throw 'No Windows 10/11 SDK was found on the runner.' }
-
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          if (!$sdk) { throw 'Windows SDK not found.' }
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $msbuild = & $vswhere -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
-          if (!$msbuild) { throw 'Visual Studio MSBuild not found.' }
-
+          if (!$msbuild) { throw 'MSBuild not found.' }
           "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build managed demo from packed NuGet
+      - name: Build managed demo from package
         shell: pwsh
         run: |
           & $env:MSBUILD `
             'tests\CSharp\HlslCSharpConsumer.csproj' `
-            /restore `
-            /p:Configuration=Debug `
-            /p:Platform=x64 `
-            /p:NuGetAudit=false `
+            /restore /t:Build `
+            /p:Configuration=Debug /p:Platform=x64 /p:NuGetAudit=false `
             "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
@@ -391,10 +395,9 @@ jobs:
             if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
               throw "$name is not a DXBC container."
             }
-            Write-Host "Verified $($fixture.FullName) ($($fixture.Length) bytes)"
           }
 
-      - name: Upload C# demo build logs
+      - name: Upload C# demo build log
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -420,38 +423,39 @@ jobs:
       PACKAGE_VERSION: ${{ needs.pack-nuget.outputs.package-version }}
 
     steps:
-      - name: Download validated NuGet package
+      - name: Download validated NuGet packages
         uses: actions/download-artifact@v8
         with:
           name: ${{ needs.pack-nuget.outputs.package-artifact }}
           path: artifacts/packages
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
-      - name: Verify package
+      - name: Verify packages
         shell: bash
         run: |
-          package="artifacts/packages/WinUI.Composition.Hlsl.${PACKAGE_VERSION}.nupkg"
-          if [[ ! -f "$package" ]]; then
-            echo "::error::Expected package not found: $package"
-            exit 1
-          fi
-          echo "PACKAGE_PATH=$package" >> "$GITHUB_ENV"
-          echo "Publishing $package"
+          for id in WinUI.Composition.Hlsl WinUI.LiquidGlass; do
+            package="artifacts/packages/${id}.${PACKAGE_VERSION}.nupkg"
+            if [[ ! -f "$package" ]]; then
+              echo "::error::Expected package not found: $package"
+              exit 1
+            fi
+          done
 
-      - name: NuGet login (OIDC -> temporary API key)
+      - name: NuGet login
         uses: NuGet/login@v1
         id: nuget-login
         with:
           user: ${{ secrets.NUGET_USER }}
 
-      - name: Publish to NuGet.org
+      - name: Publish packages
         shell: bash
         run: |
-          dotnet nuget push "$PACKAGE_PATH" \
-            --source https://api.nuget.org/v3/index.json \
-            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
-            --skip-duplicate
+          for id in WinUI.Composition.Hlsl WinUI.LiquidGlass; do
+            dotnet nuget push "artifacts/packages/${id}.${PACKAGE_VERSION}.nupkg" \
+              --source https://api.nuget.org/v3/index.json \
+              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+              --skip-duplicate
+          done
