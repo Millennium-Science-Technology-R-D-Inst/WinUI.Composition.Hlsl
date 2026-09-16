@@ -19,7 +19,8 @@ cbuffer LiquidGlassConstants : register(b0)
     float4 MaterialParams6;
     // xy = normalized pointer velocity/second, z = normalized outside hover range, w = pointer active
     float4 MaterialParams7;
-    // x = pointer refraction strength, y = pointer highlight strength, z = motion refraction strength
+    // x = pointer refraction strength, y = pointer highlight strength, z = motion refraction strength,
+    // w = Kube displacement-map normalization for the current optical surface
     float4 MaterialParams8;
 };
 
@@ -89,7 +90,10 @@ float SurfaceHeight(float t, float profile)
 
 float SurfaceDerivative(float t, float profile)
 {
-    const float delta = 0.0005f;
+    // Match kube's precomputed 128-sample displacement generator. The generator probes
+    // each surface sample with dx=0.0001; using a wider derivative here changes Snell
+    // normals enough to break the CPU-computed normalization near steep bezel regions.
+    const float delta = 0.0001f;
     const float step = t < 1.0f - delta ? delta : -delta;
     const float y = SurfaceHeight(t, profile);
     return (SurfaceHeight(t + step, profile) - y) / step;
@@ -282,6 +286,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float pointerRefractionStrength = max(MaterialParams8.x, 0.0f);
     const float pointerHighlightStrength = max(MaterialParams8.y, 0.0f);
     const float pointerMotionRefractionStrength = max(MaterialParams8.z, 0.0f);
+    const float refractionNormalization = max(MaterialParams8.w, 0.0f);
 
     const float2 contentMin = min(samplerData.xy, samplerData.zw);
     const float2 contentMax = max(samplerData.xy, samplerData.zw);
@@ -344,7 +349,8 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             glassThickness,
             refractiveIndex);
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
-        const float displacementPixels = referenceDisplacement * artisticScale;
+        const float displacementPixels =
+            referenceDisplacement * artisticScale * refractionNormalization;
 
         const float pointerInteraction = CalculatePointerInteraction(
             localPosition,

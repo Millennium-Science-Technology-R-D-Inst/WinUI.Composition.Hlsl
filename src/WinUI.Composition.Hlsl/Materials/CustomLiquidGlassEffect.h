@@ -41,6 +41,7 @@ namespace CustomLiquidGlassEffect
 	inline constexpr wchar_t PointerRefractionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.PointerRefractionStrength";
 	inline constexpr wchar_t PointerHighlightStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.PointerHighlightStrength";
 	inline constexpr wchar_t PointerMotionRefractionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.PointerMotionRefractionStrength";
+	inline constexpr wchar_t RefractionNormalizationPropertyPath[] = L"BackdropLiquidGlassEffect.RefractionNormalization";
 
 	std::shared_ptr<hlsl::engine::EffectDefinition const> Description();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect();

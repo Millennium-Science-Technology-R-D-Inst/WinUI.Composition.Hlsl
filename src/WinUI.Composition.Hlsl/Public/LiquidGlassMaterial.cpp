@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 
 #include "LiquidGlassMaterial.h"
@@ -30,6 +31,113 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void ValidateBlurRadius(float value)
 		{
 			ValidateRange(value, 0.0f, 64.0f, L"BlurRadius must be finite and between 0 and 64 DIPs.");
+		}
+
+		float ConvexCircle(float x) noexcept
+		{
+			return std::sqrt(std::max(1.0f - (1.0f - x) * (1.0f - x), 0.0f));
+		}
+
+		float ConvexSquircleRaw(float x) noexcept
+		{
+			auto const s = 1.0f - x;
+			return std::pow(std::max(1.0f - s * s * s * s, 0.0f), 0.25f);
+		}
+
+		float ConcaveCircle(float x) noexcept
+		{
+			return 1.0f - ConvexCircle(x);
+		}
+
+		float SmootherStep(float x) noexcept
+		{
+			return 6.0f * x * x * x * x * x -
+				15.0f * x * x * x * x +
+				10.0f * x * x * x;
+		}
+
+		float KubeSurfaceHeight(float x, Hlsl::LiquidGlassSurfaceProfile profile) noexcept
+		{
+			switch (profile)
+			{
+			case Hlsl::LiquidGlassSurfaceProfile::ConvexCircle:
+				return ConvexCircle(x);
+			case Hlsl::LiquidGlassSurfaceProfile::Concave:
+				return ConcaveCircle(x);
+			case Hlsl::LiquidGlassSurfaceProfile::Lip:
+			{
+				auto const blend = SmootherStep(x);
+				auto const convex = ConvexSquircleRaw(x * 2.0f);
+				auto const concave = ConcaveCircle(x) + 0.1f;
+				return convex * (1.0f - blend) + concave * blend;
+			}
+			case Hlsl::LiquidGlassSurfaceProfile::ConvexSquircle:
+			default:
+				return ConvexSquircleRaw(x);
+			}
+		}
+
+		float KubeReferenceDistance(
+			float x,
+			float bezelWidth,
+			float glassThickness,
+			float refractiveIndex,
+			Hlsl::LiquidGlassSurfaceProfile profile) noexcept
+		{
+			auto const y = KubeSurfaceHeight(x, profile);
+			// Kube samples i/128 for i=0..127, so x never reaches one and its derivative
+			// always uses the positive 0.0001 probe.
+			constexpr float dx = 0.0001f;
+			auto const y2 = KubeSurfaceHeight(x + dx, profile);
+			auto const derivative = (y2 - y) / dx;
+			auto const magnitude = std::sqrt(derivative * derivative + 1.0f);
+			auto const normalX = -derivative / magnitude;
+			auto const normalY = -1.0f / magnitude;
+			auto const eta = 1.0f / refractiveIndex;
+			auto const dot = normalY;
+			auto const k = 1.0f - eta * eta * (1.0f - dot * dot);
+			if (k < 0.0f)
+			{
+				return 0.0f;
+			}
+
+			auto const q = eta * dot + std::sqrt(k);
+			auto const refractedX = -q * normalX;
+			auto const refractedY = eta - q * normalY;
+			if (std::abs(refractedY) <= 1e-6f)
+			{
+				return 0.0f;
+			}
+
+			auto const remainingHeight = y * bezelWidth + glassThickness;
+			return refractedX * (remainingHeight / refractedY);
+		}
+
+		float KubeRefractionNormalization(
+			float bezelWidth,
+			float glassThickness,
+			float refractiveIndex,
+			Hlsl::LiquidGlassSurfaceProfile profile) noexcept
+		{
+			float maxDisplacement = 0.0f;
+			for (int32_t i = 0; i < 128; ++i)
+			{
+				auto const x = static_cast<float>(i) / 128.0f;
+				maxDisplacement = std::max(
+					maxDisplacement,
+					std::abs(KubeReferenceDistance(
+						x,
+						bezelWidth,
+						glassThickness,
+						refractiveIndex,
+						profile)));
+			}
+
+			// Kube first divides the displacement-map vector by maximumDisplacement=100,
+			// encodes it as 128 + d*127, then feDisplacementMap decodes channel/255-.5
+			// and multiplies by maxDisplacement*scaleRatio. This is the resulting factor
+			// that must multiply our analytical ray distance for scaleRatio=1.
+			return maxDisplacement * (127.0f / 255.0f) / 100.0f;
 		}
 	}
 
@@ -83,6 +191,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		animatableProperties.Append(CustomLiquidGlassEffect::PointerRefractionStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::PointerHighlightStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::PointerMotionRefractionStrengthPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::RefractionNormalizationPropertyPath);
 
 		auto definition = CustomLiquidGlassEffect::Description();
 		auto compositionFactory = compositor.CreateEffectFactory(graph, animatableProperties);
@@ -114,6 +223,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"SpecularWidth", m_SpecularWidth);
 		m_effect.SetFloat(L"Contrast", m_Contrast);
 		m_effect.SetFloat(L"Exposure", m_Exposure);
+		UpdateRefractionNormalization();
 
 		// Pointer-field state is transient Composition state rather than XAML dependency
 		// properties. Spatial values are normalized so XAML layout DIPs and shader raster
@@ -129,6 +239,17 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"PointerRefractionStrength", 5.0f);
 		m_effect.SetFloat(L"PointerHighlightStrength", 0.22f);
 		m_effect.SetFloat(L"PointerMotionRefractionStrength", 5.0f);
+	}
+
+	void LiquidGlassMaterial::UpdateRefractionNormalization()
+	{
+		m_effect.SetFloat(
+			L"RefractionNormalization",
+			KubeRefractionNormalization(
+				m_BezelWidth,
+				m_GlassThickness,
+				m_RefractiveIndex,
+				m_SurfaceProfile));
 	}
 
 	void LiquidGlassMaterial::BlurRadius(float value)
@@ -183,16 +304,19 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	void LiquidGlassMaterial::BezelWidth(float value)
 	{
 		SetFloatProperty(L"BezelWidth", m_BezelWidth, value, 1.0f, 256.0f, L"BezelWidth must be between 1 and 256 DIPs.");
+		UpdateRefractionNormalization();
 	}
 
 	void LiquidGlassMaterial::GlassThickness(float value)
 	{
 		SetFloatProperty(L"GlassThickness", m_GlassThickness, value, 0.0f, 256.0f, L"GlassThickness must be between 0 and 256 DIPs.");
+		UpdateRefractionNormalization();
 	}
 
 	void LiquidGlassMaterial::RefractiveIndex(float value)
 	{
 		SetFloatProperty(L"RefractiveIndex", m_RefractiveIndex, value, 1.0f, 3.5f, L"RefractiveIndex must be between 1 and 3.5.");
+		UpdateRefractionNormalization();
 	}
 
 	void LiquidGlassMaterial::TintOpacity(float value)
@@ -270,5 +394,6 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		}
 		m_effect.SetFloat(L"SurfaceProfile", static_cast<float>(raw));
 		m_SurfaceProfile = value;
+		UpdateRefractionNormalization();
 	}
 }
