@@ -17,11 +17,13 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             self->Loaded([this](auto const&, auto const&)
             {
+                m_loaded = true;
                 RefreshVisual();
                 QueuePostLoadedRefresh();
             });
             self->Unloaded([this](auto const&, auto const&)
             {
+                m_loaded = false;
                 m_pointerField.Detach(false);
                 m_surface = nullptr;
                 m_thumb = nullptr;
@@ -30,15 +32,16 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 ConfigureResources();
                 m_pointerField.InvalidateBrush();
-                RefreshVisual();
+                if (m_loaded) RefreshVisual();
             });
             self->RegisterPropertyChangedCallback(
                 Microsoft::UI::Xaml::Controls::Slider::OrientationProperty(),
-                [this](auto const&, auto const&) { RefreshVisual(); });
+                [this](auto const&, auto const&) { if (m_loaded) RefreshVisual(); });
         }
 
         void RefreshVisual()
         {
+            if (!m_loaded) return;
             auto self = static_cast<Self*>(this);
             auto root = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!root) return;
@@ -194,6 +197,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerFieldSurface m_pointerField;
         Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
         Microsoft::UI::Xaml::Controls::Border m_surface{ nullptr };
+        bool m_loaded{};
     };
 
     template<typename Self>
@@ -207,11 +211,17 @@ namespace winrt::WinUI::LiquidGlass::detail
             // MotionDuration; the generic spring path intentionally ignores that duration.
             self->SetValue(implementation::LiquidGlassInteraction::UseSpringMotionProperty(), box_value(false));
 
-            self->Loaded([this](auto const& sender, auto const&) { Recompute(sender, false); });
+            self->Loaded([this](auto const& sender, auto const&)
+            {
+                m_loaded = true;
+                RestorePendingBaseline();
+                Recompute(sender, false);
+            });
             self->Unloaded([this](auto const&, auto const&)
             {
-                // Teardown is no-write: the compositor may already have closed the effect.
-                m_baseline = {};
+                // Teardown is no-write. Preserve an active baseline so the logical Brush
+                // parameters can be restored after the composition surface becomes valid.
+                m_loaded = false;
                 m_focused = false;
                 m_pressed = false;
             });
@@ -236,6 +246,13 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(),
                 [this](Microsoft::UI::Xaml::DependencyObject const& sender, auto const&)
                 {
+                    if (!m_loaded)
+                    {
+                        // Detached replacement retires the old material. Do not write the
+                        // saved baseline into a possibly closed CompositionEffectBrush.
+                        m_baseline = {};
+                        return;
+                    }
                     if (m_baseline.active) RestoreOptics(m_baseline);
                     m_baseline = {};
                     Recompute(sender, false);
@@ -243,9 +260,21 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
     private:
+        void RestorePendingBaseline()
+        {
+            if (!m_baseline.active) return;
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            if (brush && m_baseline.brush && get_abi(brush) == get_abi(m_baseline.brush))
+                RestoreOptics(m_baseline);
+            else
+                m_baseline = {};
+        }
+
         template<typename Sender>
         void Recompute(Sender const& sender, bool animate)
         {
+            if (!m_loaded) return;
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
@@ -313,6 +342,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
+        bool m_loaded{};
         bool m_focused{};
         bool m_pressed{};
     };
@@ -324,16 +354,20 @@ namespace winrt::WinUI::LiquidGlass::detail
         ToggleSwitchVisualModel()
         {
             auto self = static_cast<Self*>(this);
-            self->Loaded([this](auto const&, auto const&) { RefreshVisualModel(); });
+            self->Loaded([this](auto const&, auto const&)
+            {
+                m_loaded = true;
+                RefreshVisualModel();
+            });
             self->Unloaded([this](auto const&, auto const&) { ClearForTeardown(); });
             self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
             {
                 m_pointerField.InvalidateBrush();
-                RefreshVisualModel();
+                if (m_loaded) RefreshVisualModel();
             });
             self->RegisterPropertyChangedCallback(
                 Microsoft::UI::Xaml::Controls::Primitives::ToggleButton::IsCheckedProperty(),
-                [this](auto const&, auto const&) { if (!m_dragging) SyncSemanticState(true); });
+                [this](auto const&, auto const&) { if (m_loaded && !m_dragging) SyncSemanticState(true); });
 
             auto bind = [self](auto routedEvent, Windows::Foundation::IInspectable& storage, auto&& callback)
             {
@@ -355,6 +389,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshVisualModel()
         {
+            if (!m_loaded) return;
             auto self = static_cast<Self*>(this);
             auto root = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!root) return;
@@ -549,7 +584,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void BeginDrag(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
-            if (m_dragging) return;
+            if (!m_loaded || m_dragging) return;
             auto self = static_cast<Self*>(this);
             auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>();
@@ -584,7 +619,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void UpdateDrag(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
-            if (!m_dragging || !m_coordinateRoot || !m_knob) return;
+            if (!m_loaded || !m_dragging || !m_coordinateRoot || !m_knob) return;
             auto const point = args.GetCurrentPoint(m_coordinateRoot);
             if (point.PointerId() != m_pointerId) return;
             auto self = static_cast<Self*>(this);
@@ -602,7 +637,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void EndDragFromRelease(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
-            if (!m_dragging) return;
+            if (!m_loaded || !m_dragging) return;
             auto self = static_cast<Self*>(this);
             auto element = self->template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             bool releaseInside = false;
@@ -628,7 +663,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void CancelDrag(bool animate)
         {
-            if (!m_dragging)
+            if (!m_loaded || !m_dragging)
             {
                 m_dragOverrideArmed = false;
                 return;
@@ -639,7 +674,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void EndDrag(bool animate, bool clearOverride)
         {
-            if (!m_dragging) return;
+            if (!m_loaded || !m_dragging) return;
             auto self = static_cast<Self*>(this);
             auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto const semanticRatio = SemanticRatio(self->IsChecked());
@@ -678,14 +713,17 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void ClearForTeardown()
         {
+            // Mark the interaction inactive before releasing capture: PointerCaptureLost may
+            // fire synchronously, and it must not animate a compositor that is tearing down.
+            m_loaded = false;
+            m_dragging = false;
+            m_dragOverrideArmed = false;
             auto self = static_cast<Self*>(this);
             if (auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>())
                 element.ReleasePointerCaptures();
             m_pointerField.Detach(false);
             m_coordinateRoot = nullptr;
             m_pointerId = 0;
-            m_dragging = false;
-            m_dragOverrideArmed = false;
             m_knob = nullptr;
             // Do not call SetElementChildVisual during XAML/compositor teardown.
             ClearTrackVisual(false);
@@ -708,6 +746,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         double m_baseRatio{};
         double m_visualRatio{};
         std::uint32_t m_pointerId{};
+        bool m_loaded{};
         bool m_dragging{};
         bool m_dragOverrideArmed{};
     };
