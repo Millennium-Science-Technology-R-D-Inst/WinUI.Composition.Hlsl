@@ -20,18 +20,28 @@
                               Position/track use the switch's k=1000,d=80-equivalent spring.
                               Kube uses a stiffer k=2000,d=80 spring for thumb scale only;
                               these local attached values override scale without changing travel.
+
+                              Keep motion ownership on this host. The nested glass surface owns
+                              only Z elevation/shadow so it cannot fight the C++ X/Y translation.
                             -->
-                            <Border x:Name="SwitchKnob"
-                                    Width="146" Height="92"
-                                    Margin="-21.95,0,0,0"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="#33FFFFFF"
-                                    BorderThickness="1"
-                                    CornerRadius="46"
-                                    local:LiquidGlassInteraction.SpringDampingRatio="0.8944271909999159"
-                                    local:LiquidGlassInteraction.SpringPeriod="140.49629462081452" />
+                            <Grid x:Name="SwitchKnob"
+                                  Width="146" Height="92"
+                                  Margin="-21.95,0,0,0"
+                                  HorizontalAlignment="Left"
+                                  VerticalAlignment="Center"
+                                  local:LiquidGlassInteraction.SpringDampingRatio="0.8944271909999159"
+                                  local:LiquidGlassInteraction.SpringPeriod="140.49629462081452">
+                                <Border x:Name="SwitchKnobSurface"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="#33FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="46"
+                                        Translation="0,0,8">
+                                    <Border.Shadow>
+                                        <ThemeShadow />
+                                    </Border.Shadow>
+                                </Border>
+                            </Grid>
                         </Grid>
                         <ContentPresenter Content="{TemplateBinding Content}"
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
@@ -39,18 +49,69 @@
                                           VerticalAlignment="Center" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver" />
-                                <VisualState x:Name="Pressed" />
-                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Checked" />
-                                <VisualState x:Name="CheckedPointerOver" />
-                                <VisualState x:Name="CheckedPressed" />
-                                <VisualState x:Name="CheckedDisabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Indeterminate" />
-                                <VisualState x:Name="IndeterminatePointerOver" />
-                                <VisualState x:Name="IndeterminatePressed" />
-                                <VisualState x:Name="IndeterminateDisabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="Normal">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,8" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,9" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,12" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.45" />
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,4" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,8" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,9" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,12" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.45" />
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,4" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Indeterminate">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,8" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminatePointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,9" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminatePressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,12" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminateDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.45" />
+                                        <Setter Target="SwitchKnobSurface.Translation" Value="0,0,4" />
+                                    </VisualState.Setters>
+                                </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                     </StackPanel>
