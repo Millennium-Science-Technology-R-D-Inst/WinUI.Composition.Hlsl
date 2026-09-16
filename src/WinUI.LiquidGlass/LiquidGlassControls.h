@@ -16,6 +16,8 @@
 #include "include/SwitchTrackVisualHelper.hpp"
 #include "include/ControlVisualMotion.hpp"
 #include "include/ChoiceGlyphMotionHelper.hpp"
+#include "include/SliderDragMotionHelper.hpp"
+#include "include/MagnifierMotionHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -95,6 +97,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassMagnifier>,
         detail::PointerLightHelper<LiquidGlassMagnifier>,
         detail::PointerFieldHelper<LiquidGlassMagnifier>,
+        detail::MagnifierMotionHelper<LiquidGlassMagnifier>,
         detail::MotionDefaults<LiquidGlassMagnifier, detail::MotionProfile::Magnifier>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
@@ -145,6 +148,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassSlider>,
         detail::PointerLightHelper<LiquidGlassSlider>,
         detail::SliderSurfaceVisualHelper<LiquidGlassSlider>,
+        detail::SliderDragMotionHelper<LiquidGlassSlider>,
         detail::MotionDefaults<LiquidGlassSlider, detail::MotionProfile::Slider>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
@@ -155,12 +159,15 @@ namespace winrt::WinUI::LiquidGlass::implementation
         {
             base_type::OnApplyTemplate();
             detail::SliderSurfaceVisualHelper<LiquidGlassSlider>::RefreshVisual();
+            detail::SliderDragMotionHelper<LiquidGlassSlider>::RefreshInteractionTarget();
         }
 
     private:
         Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
         detail::OpticsSnapshot m_dragOptics;
-        bool m_interactionsWired{};
+        // Legacy constructor wiring remains compiled for ABI/source stability, but the new
+        // SliderDragMotionHelper is the sole runtime owner of drag scale and optics.
+        bool m_interactionsWired{ true };
     };
 
     struct LiquidGlassTextBox :
