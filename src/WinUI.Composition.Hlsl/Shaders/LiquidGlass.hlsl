@@ -3,24 +3,14 @@ SamplerState sampler0;
 
 cbuffer LiquidGlassConstants : register(b0)
 {
-    // x = border thickness, y = corner radius, z = artistic refraction scale, w = optical bezel width
     float4 MaterialParams0;
-    // x = highlight strength, y = edge softness, z = chromatic dispersion, w = material opacity
     float4 MaterialParams1;
-    // x = glass thickness, y = refractive index, z = tint opacity, w = base saturation
     float4 MaterialParams2;
-    // x = light angle, y = surface profile, z = magnification strength, w = highlight sharpness
     float4 MaterialParams3;
-    // xyz = tint color, w = inner shadow strength
     float4 MaterialParams4;
-    // x = specular-only saturation, y = specular width in DIPs, z = contrast, w = exposure in stops
     float4 MaterialParams5;
-    // xy = normalized pointer position in local control space, z = normalized interaction radius, w = strength
     float4 MaterialParams6;
-    // xy = normalized pointer velocity/second, z = normalized outside hover range, w = pointer active
     float4 MaterialParams7;
-    // x = pointer refraction strength, y = pointer highlight strength, z = motion refraction strength,
-    // w = displacement-map normalization for the current optical surface
     float4 MaterialParams8;
 };
 
@@ -36,10 +26,7 @@ float ConvexSquircleRaw(float t)
     return pow(saturate(1.0f - s * s * s * s), 0.25f);
 }
 
-float ConvexSquircle(float t)
-{
-    return ConvexSquircleRaw(saturate(t));
-}
+float ConvexSquircle(float t) { return ConvexSquircleRaw(saturate(t)); }
 
 float ConvexCircle(float t)
 {
@@ -47,10 +34,7 @@ float ConvexCircle(float t)
     return sqrt(saturate(1.0f - s * s));
 }
 
-float ConcaveCircle(float t)
-{
-    return 1.0f - ConvexCircle(t);
-}
+float ConcaveCircle(float t) { return 1.0f - ConvexCircle(t); }
 
 float SmootherStep01(float t)
 {
@@ -63,21 +47,13 @@ float SurfaceHeight(float t, float profile)
     t = saturate(t);
     float result = 0.0f;
     if (profile < 0.5f)
-    {
         result = ConvexSquircle(t);
-    }
     else if (profile < 1.5f)
-    {
         result = ConvexCircle(t);
-    }
     else if (profile < 2.5f)
-    {
         result = ConcaveCircle(t);
-    }
     else
     {
-        // Lip intentionally lets the convex arc travel through the second half of its
-        // domain before smootherstep blends it into the concave surface.
         float convex = ConvexSquircleRaw(t * 2.0f);
         float concave = ConcaveCircle(t) + 0.1f;
         result = lerp(convex, concave, SmootherStep01(t));
@@ -87,7 +63,6 @@ float SurfaceHeight(float t, float profile)
 
 float SurfaceDerivative(float t, float profile)
 {
-    // Match the 128-sample reference displacement generator.
     const float delta = 0.0001f;
     const float step = t < 1.0f - delta ? delta : -delta;
     const float y = SurfaceHeight(t, profile);
@@ -111,9 +86,7 @@ float CalculateReferenceRefractionDistance(
     if (k > 0.0f)
     {
         const float q = eta * normalDotIncident + sqrt(k);
-        const float2 refracted = float2(
-            -q * surfaceNormal.x,
-            eta - q * surfaceNormal.y);
+        const float2 refracted = float2(-q * surfaceNormal.x, eta - q * surfaceNormal.y);
         if (abs(refracted.y) > 1e-5f)
         {
             const float remainingHeight = height * bezelWidth + max(glassThickness, 0.0f);
@@ -132,17 +105,11 @@ float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float cent
     float2 result = float2(0.0f, -1.0f);
 
     if (outsideLength > 1e-5f)
-    {
         result = (outside / outsideLength) * signs;
-    }
     else if (q.x > q.y)
-    {
         result = float2(signs.x, 0.0f);
-    }
     else
-    {
         result = float2(0.0f, signs.y);
-    }
     return result;
 }
 
@@ -190,28 +157,22 @@ float4 CalculateTransmissionBounds(
     float2 safeMin = textureMin;
     float2 safeMax = textureMax;
 
+    // The separable blur chain materializes full-color intermediates and performs
+    // its own mirrored edge sampling. There is no D2D Gaussian transparent-padding
+    // region to estimate here: samplerData is the authoritative logical content rect.
     if (hasContentRect)
     {
-        const float2 paddingBefore = max(contentMin - textureMin, 0.0f.xx);
-        const float2 paddingAfter = max(textureMax - contentMax, 0.0f.xx);
-
-        // D2D SOFT Gaussian blur grows the output by 6 sigma in total, or about
-        // 3 sigma on each side of the logical content. The outer part of that
-        // allocation is the transparent-black kernel tail rather than useful
-        // backdrop data. Keep the inner one-sigma region available to refraction.
-        const float gaussianSupportFraction = 1.0f / 3.0f;
-        safeMin = max(textureMin, contentMin - paddingBefore * gaussianSupportFraction);
-        safeMax = min(textureMax, contentMax + paddingAfter * gaussianSupportFraction);
+        safeMin = max(textureMin, contentMin);
+        safeMax = min(textureMax, contentMax);
     }
 
+    const float2 center = (safeMin + safeMax) * 0.5f;
+    safeMin = min(safeMin, center);
+    safeMax = max(safeMax, center);
     return float4(safeMin, safeMax);
 }
 
-float OffsetScaleToBounds(
-    float2 origin,
-    float2 offset,
-    float2 safeMin,
-    float2 safeMax)
+float OffsetScaleToBounds(float2 origin, float2 offset, float2 safeMin, float2 safeMax)
 {
     float result = 1.0f;
     const float epsilon = 1e-7f;
@@ -236,12 +197,9 @@ float CalculateTransmissionOffsetScale(
     float2 safeMin,
     float2 safeMax)
 {
-    const float redScale = OffsetScaleToBounds(
-        origin, baseOffset - dispersionOffset, safeMin, safeMax);
-    const float greenScale = OffsetScaleToBounds(
-        origin, baseOffset, safeMin, safeMax);
-    const float blueScale = OffsetScaleToBounds(
-        origin, baseOffset + dispersionOffset, safeMin, safeMax);
+    const float redScale = OffsetScaleToBounds(origin, baseOffset - dispersionOffset, safeMin, safeMax);
+    const float greenScale = OffsetScaleToBounds(origin, baseOffset, safeMin, safeMax);
+    const float blueScale = OffsetScaleToBounds(origin, baseOffset + dispersionOffset, safeMin, safeMax);
     return min(redScale, min(greenScale, blueScale));
 }
 
@@ -250,15 +208,7 @@ float4 SampleTransmission(float2 uv, float2 texelSize)
     const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
     const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
     const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
-    const float2 sampleUv = clamp(uv, textureMin, textureMax);
-    float4 result = texture0.Sample(sampler0, sampleUv);
-
-    // D2D's SOFT Gaussian-blur border is materialized as premultiplied transparent padding.
-    // Refraction/dispersion need the transmitted color, not that padding alpha folded into RGB.
-    if (result.a > 1e-5f)
-        result.rgb /= result.a;
-
-    return result;
+    return texture0.Sample(sampler0, clamp(uv, textureMin, textureMax));
 }
 
 float ReferenceSpecularCoefficient(
@@ -271,16 +221,10 @@ float ReferenceSpecularCoefficient(
 {
     const float width = max(specularWidth, 0.25f);
     const float normalizedDistance = max(distanceFromEdge, 0.0f) / width;
-    const float arcTerm = 1.0f -
-        (1.0f - normalizedDistance) * (1.0f - normalizedDistance);
+    const float arcTerm = 1.0f - (1.0f - normalizedDistance) * (1.0f - normalizedDistance);
     const float arc = sqrt(saturate(arcTerm));
-    const float orientation = pow(
-        saturate(abs(dot(normal, lightDirection))),
-        max(highlightSharpness, 0.25f));
-    const float support = 1.0f - smoothstep(
-        2.0f,
-        2.0f + max(feather / width, 0.25f),
-        normalizedDistance);
+    const float orientation = pow(saturate(abs(dot(normal, lightDirection))), max(highlightSharpness, 0.25f));
+    const float support = 1.0f - smoothstep(2.0f, 2.0f + max(feather / width, 0.25f), normalizedDistance);
     return saturate(orientation * arc * support);
 }
 
@@ -329,13 +273,11 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float2 localUvDx = ddx(localUv);
     const float2 localUvDy = ddy(localUv);
     const float2 localUvPixelStep = max(
-        float2(
-            length(float2(localUvDx.x, localUvDy.x)),
-            length(float2(localUvDx.y, localUvDy.y))),
+        float2(length(float2(localUvDx.x, localUvDy.x)), length(float2(localUvDx.y, localUvDy.y))),
         1e-6f.xx);
     const float2 rectSize = max(1.0f.xx / localUvPixelStep, 1.0f.xx);
     const float maximumExtent = max(max(rectSize.x, rectSize.y), 1.0f);
-    const float2 texelSize = max(samplerDataExt.zw, 1e-6f.xx);
+    const float2 texelSize = max(abs(samplerDataExt.zw), 1e-6f.xx);
     const float2 localPosition = localUv * rectSize;
     const float2 pointerPosition = pointerNormalized * rectSize;
     const float2 pointerVelocity = pointerVelocityNormalized * rectSize;
@@ -347,9 +289,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, halfRect, radius);
 
-    const float sdfPixelFootprint = max(
-        length(float2(ddx(sdf), ddy(sdf))),
-        0.5f);
+    const float sdfPixelFootprint = max(length(float2(ddx(sdf), ddy(sdf))), 0.5f);
     const float feather = max(edgeSoftness, sdfPixelFootprint * 0.5f);
     const float coverage = 1.0f - smoothstep(-feather, feather, sdf);
     const float alpha = coverage * saturate(materialOpacity);
@@ -367,18 +307,11 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             height, derivative, bezel, glassThickness, refractiveIndex);
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
 
-        // Keep optics and final coverage as separate fields, but let the optical surface cross
-        // the same subpixel SDF neighborhood instead of forcing displacement to zero exactly at
-        // the silhouette. The independent coverage field still owns final alpha.
         const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
         const float opticalInterior = smoothstep(-opticalFeather, opticalFeather, -sdf);
-        const float rawDisplacementPixels =
-            referenceDisplacement * artisticScale * refractionNormalization;
+        const float rawDisplacementPixels = referenceDisplacement * artisticScale * refractionNormalization;
         const float displacementLimit = max(maximumExtent * 0.48f, 1.0f);
-        const float displacementPixels = clamp(
-            rawDisplacementPixels,
-            -displacementLimit,
-            displacementLimit) * opticalInterior;
+        const float displacementPixels = clamp(rawDisplacementPixels, -displacementLimit, displacementLimit) * opticalInterior;
 
         const float pointerInteraction = CalculatePointerInteraction(
             localPosition,
@@ -409,6 +342,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             -normal * displacementPixels + pointerRefractionOffset + pointerMotionOffset;
         const float2 refractedUv = uv + refractionPixelOffset * texelSize;
 
+        // Required ordering: Source(x + Refraction(x) + Magnification(x + Refraction(x))).
         const float maximumHalfExtent = max(max(halfRect.x, halfRect.y), 1.0f);
         const float2 refractedLocal = local + refractionPixelOffset;
         const float2 normalizedMagnification = refractedLocal / maximumHalfExtent;
@@ -422,11 +356,8 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) * opticalInterior;
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
-        // Apply one common boundary scale to the completed R/G/B sample offsets instead of
-        // clamping each channel independently. This preserves the required ordering
-        // Source(x + Refraction(x) + Magnification(x + Refraction(x))) and keeps dispersion
-        // coherent while smoothly reducing only the part of the field that cannot be backed
-        // by the materialized source texture.
+        // Keep all spectral channels on one coherent displacement scale. This avoids
+        // per-channel edge pinning while respecting samplerData's valid source rect.
         const float4 transmissionBounds = CalculateTransmissionBounds(
             texelSize, contentMin, contentMax, hasContentRect);
         const float2 transmissionOrigin = clamp(uv, transmissionBounds.xy, transmissionBounds.zw);
@@ -439,8 +370,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             transmissionBounds.zw);
         const float2 redSampleUv = transmissionOrigin +
             (baseSampleOffset - dispersionOffset) * transmissionScale;
-        const float2 greenSampleUv = transmissionOrigin +
-            baseSampleOffset * transmissionScale;
+        const float2 greenSampleUv = transmissionOrigin + baseSampleOffset * transmissionScale;
         const float2 blueSampleUv = transmissionOrigin +
             (baseSampleOffset + dispersionOffset) * transmissionScale;
 

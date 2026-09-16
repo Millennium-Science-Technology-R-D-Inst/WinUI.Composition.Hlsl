@@ -64,7 +64,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void SetFloatProperty(wchar_t const* propertyName, float& storage, float value, float minimum, float maximum, wchar_t const* message);
 		void UpdateRefractionNormalization();
 		Hlsl::HlslEffectBrush m_effect{ nullptr };
-		Microsoft::UI::Composition::CompositionEffectBrush m_compositionEffect{ nullptr };
+		Microsoft::UI::Composition::CompositionEffectBrush m_blurHorizontalBrush{ nullptr };
+		Microsoft::UI::Composition::CompositionEffectBrush m_blurVerticalBrush{ nullptr };
 		float m_BlurRadius{ 12.0f };
 		float m_RefractionStrength{ 24.0f };
 		float m_DispersionStrength{ 1.2f };
