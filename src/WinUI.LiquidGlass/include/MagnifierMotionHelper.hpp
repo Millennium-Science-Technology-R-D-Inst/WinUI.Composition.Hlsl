@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "ChildSurfaceInteraction.hpp"
 #include "MotionAnimation.hpp"
 #include "PressOpticsHelper.hpp"
 
@@ -14,9 +15,10 @@ namespace winrt::WinUI::LiquidGlass::detail
         MagnifierMotionHelper()
         {
             auto self = static_cast<Self*>(this);
-            self->Loaded([this](auto const&, auto const&)
+            self->Loaded([this](auto const& sender, auto const&)
             {
                 m_loaded = true;
+                RefreshSurface(sender);
                 RestorePendingOptics();
             });
             self->Unloaded([this](auto const&, auto const&) { ClearForTeardown(); });
@@ -77,6 +79,8 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kMaximumDeformation = 0.11;
         static constexpr double kDeformationHalfSpeed = 2800.0;
         static constexpr double kCrossAxisCompression = 0.55;
+        static constexpr double kRestElevation = 8.0;
+        static constexpr double kActiveElevation = 16.0;
         static constexpr int64_t kOpticsDurationMs = 210;
         static constexpr int64_t kMagnificationDurationMs = 240;
 
@@ -143,6 +147,47 @@ namespace winrt::WinUI::LiquidGlass::detail
                 to);
         }
 
+        template<typename Sender>
+        void RefreshSurface(Sender const& sender)
+        {
+            auto root = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!root)
+            {
+                m_surface = nullptr;
+                return;
+            }
+
+            m_surface = FindNamedDescendant(root, L"MagnifierSurface")
+                .try_as<Microsoft::UI::Xaml::Controls::Border>();
+            if (m_surface) SetSurfaceElevation(kRestElevation, false);
+        }
+
+        void SetSurfaceElevation(double elevation, bool animate)
+        {
+            if (!m_surface) return;
+            auto self = static_cast<Self*>(this);
+            auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!owner) return;
+
+            Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(m_surface, true);
+            if (!m_surface.Shadow())
+                m_surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
+            auto translation = m_surface.Translation();
+            translation.z = static_cast<float>(elevation);
+            if (animate)
+            {
+                AnimateElementTranslation(
+                    owner,
+                    m_surface,
+                    translation,
+                    implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+            }
+            else
+            {
+                SetElementTranslation(m_surface, translation);
+            }
+        }
+
         void RestorePendingOptics()
         {
             if (!m_dragOptics.active) return;
@@ -188,6 +233,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_pointerId = point.PointerId();
             m_dragging = true;
             m_consumedInteraction = true;
+            SetSurfaceElevation(kActiveElevation, true);
 
             if (auto brush = self->GlassBrush())
             {
@@ -351,6 +397,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                     SetElementScale(frameworkElement, scale, scale);
                 }
             }
+            SetSurfaceElevation(kRestElevation, animate);
 
             m_coordinateRoot = nullptr;
             m_pointerId = 0;
@@ -366,6 +413,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             // brush state once the composition surface is valid again.
             m_loaded = false;
             m_coordinateRoot = nullptr;
+            m_surface = nullptr;
             m_pointerId = 0;
             m_filteredVelocityX = 0.0;
             m_filteredVelocityY = 0.0;
@@ -375,6 +423,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
         Microsoft::UI::Xaml::UIElement m_coordinateRoot{ nullptr };
+        Microsoft::UI::Xaml::Controls::Border m_surface{ nullptr };
         Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerMovedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
