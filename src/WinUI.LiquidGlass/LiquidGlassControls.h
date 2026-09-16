@@ -16,6 +16,7 @@
 #include "include/SwitchTrackVisualHelper.hpp"
 #include "include/ControlVisualMotion.hpp"
 #include "include/ChoiceGlyphMotionHelper.hpp"
+#include "include/CompactControlMotionDefaults.hpp"
 #include "include/SliderDragMotionHelper.hpp"
 #include "include/MagnifierMotionHelper.hpp"
 
@@ -59,7 +60,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::PointerLightHelper<LiquidGlassButton>,
         detail::PointerFieldHelper<LiquidGlassButton>,
         detail::PointerMotionHelper<LiquidGlassButton>,
-        detail::PressOpticsHelper<LiquidGlassButton, detail::PersistentOpticsKind::None>
+        detail::PressOpticsHelper<LiquidGlassButton, detail::PersistentOpticsKind::None>,
+        detail::CompactControlMotionDefaults<LiquidGlassButton, detail::CompactControlMotionProfile::Button>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassButton();
@@ -72,7 +74,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::PointerLightHelper<LiquidGlassToggleButton>,
         detail::PointerFieldHelper<LiquidGlassToggleButton>,
         detail::PointerMotionHelper<LiquidGlassToggleButton>,
-        detail::PressOpticsHelper<LiquidGlassToggleButton, detail::PersistentOpticsKind::Toggle>
+        detail::PressOpticsHelper<LiquidGlassToggleButton, detail::PersistentOpticsKind::Toggle>,
+        detail::CompactControlMotionDefaults<LiquidGlassToggleButton, detail::CompactControlMotionProfile::Button>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassToggleButton();
@@ -85,7 +88,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::PointerLightHelper<LiquidGlassHyperlinkButton>,
         detail::PointerFieldHelper<LiquidGlassHyperlinkButton>,
         detail::PointerMotionHelper<LiquidGlassHyperlinkButton>,
-        detail::PressOpticsHelper<LiquidGlassHyperlinkButton, detail::PersistentOpticsKind::None>
+        detail::PressOpticsHelper<LiquidGlassHyperlinkButton, detail::PersistentOpticsKind::None>,
+        detail::CompactControlMotionDefaults<LiquidGlassHyperlinkButton, detail::CompactControlMotionProfile::Button>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassHyperlinkButton();
@@ -102,20 +106,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassMagnifier();
-
-    private:
-        Microsoft::UI::Xaml::Media::CompositeTransform m_dragTransform{ nullptr };
-        Microsoft::UI::Xaml::UIElement m_dragCoordinateRoot{ nullptr };
-        Windows::Foundation::Point m_dragStartPointer{};
-        Windows::Foundation::Point m_lastPointer{};
-        std::chrono::steady_clock::time_point m_lastPointerTime{};
-        detail::OpticsSnapshot m_dragOptics;
-        double m_dragStartTranslateX{};
-        double m_dragStartTranslateY{};
-        double m_dragMagnification{};
-        double m_smoothedVelocityX{};
-        uint32_t m_activePointerId{};
-        bool m_dragging{};
     };
 
     struct LiquidGlassCheckBox :
@@ -124,7 +114,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassCheckBox>,
         detail::PointerLightHelper<LiquidGlassCheckBox>,
         detail::ChoiceGlyphMotionHelper<LiquidGlassCheckBox>,
-        detail::PressOpticsHelper<LiquidGlassCheckBox, detail::PersistentOpticsKind::Toggle>
+        detail::PressOpticsHelper<LiquidGlassCheckBox, detail::PersistentOpticsKind::Toggle>,
+        detail::CompactControlMotionDefaults<LiquidGlassCheckBox, detail::CompactControlMotionProfile::Choice>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassCheckBox();
@@ -136,7 +127,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassRadioButton>,
         detail::PointerLightHelper<LiquidGlassRadioButton>,
         detail::ChoiceGlyphMotionHelper<LiquidGlassRadioButton>,
-        detail::PressOpticsHelper<LiquidGlassRadioButton, detail::PersistentOpticsKind::Toggle>
+        detail::PressOpticsHelper<LiquidGlassRadioButton, detail::PersistentOpticsKind::Toggle>,
+        detail::CompactControlMotionDefaults<LiquidGlassRadioButton, detail::CompactControlMotionProfile::Choice>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassRadioButton();
@@ -161,13 +153,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
             detail::SliderSurfaceVisualHelper<LiquidGlassSlider>::RefreshVisual();
             detail::SliderDragMotionHelper<LiquidGlassSlider>::RefreshInteractionTarget();
         }
-
-    private:
-        Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
-        detail::OpticsSnapshot m_dragOptics;
-        // Legacy constructor wiring remains compiled for ABI/source stability, but the new
-        // SliderDragMotionHelper is the sole runtime owner of drag scale and optics.
-        bool m_interactionsWired{ true };
     };
 
     struct LiquidGlassTextBox :
@@ -238,7 +223,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
     private:
         Windows::Foundation::IInspectable m_header{ nullptr };
-        bool m_interactionsWired{};
     };
 
     struct LiquidGlassTabBarItem :
