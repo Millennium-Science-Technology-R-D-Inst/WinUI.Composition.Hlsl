@@ -48,6 +48,40 @@ namespace winrt::WinUI::LiquidGlass::detail
             1.0f });
     }
 
+    inline void AnimateElementScaleSpring(
+        Microsoft::UI::Xaml::DependencyObject const& owner,
+        Microsoft::UI::Xaml::FrameworkElement const& element,
+        double x,
+        double y,
+        double dampingRatio,
+        double periodMs)
+    {
+        if (!owner || !element) return;
+
+        x = std::clamp(x, .25, 4.0);
+        y = std::clamp(y, .25, 4.0);
+        if (!MotionAnimationsEnabled(owner))
+        {
+            SetElementScale(element, x, y);
+            return;
+        }
+
+        auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(element);
+        visual.CenterPoint({
+            static_cast<float>(element.ActualWidth() * .5),
+            static_cast<float>(element.ActualHeight() * .5),
+            0.0f });
+        auto animation = visual.Compositor().CreateSpringVector3Animation();
+        auto const finalValue = Windows::Foundation::Numerics::float3{
+            static_cast<float>(x), static_cast<float>(y), 1.0f };
+        animation.FinalValue(box_value(finalValue).as<
+            Windows::Foundation::IReference<Windows::Foundation::Numerics::float3>>());
+        animation.DampingRatio(static_cast<float>(std::clamp(dampingRatio, .05, 3.0)));
+        animation.Period(std::chrono::milliseconds{
+            static_cast<int64_t>(std::lround(std::clamp(periodMs, 16.0, 2000.0))) });
+        visual.StartAnimation(L"Scale", animation);
+    }
+
     inline void AnimateElementScale(
         Microsoft::UI::Xaml::DependencyObject const& owner,
         Microsoft::UI::Xaml::FrameworkElement const& element,
@@ -76,17 +110,16 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         if (implementation::LiquidGlassInteraction::GetUseSpringMotion(owner))
         {
-            auto animation = visual.Compositor().CreateSpringVector3Animation();
-            auto const finalValue = Windows::Foundation::Numerics::float3{
-                static_cast<float>(x), static_cast<float>(y), 1.0f };
-            animation.FinalValue(box_value(finalValue).as<
-                Windows::Foundation::IReference<Windows::Foundation::Numerics::float3>>());
-            animation.DampingRatio(static_cast<float>(std::clamp(
-                implementation::LiquidGlassInteraction::GetSpringDampingRatio(owner), .05, 3.0)));
-            animation.Period(std::chrono::milliseconds{
-                static_cast<int64_t>(std::lround(std::clamp(
-                    implementation::LiquidGlassInteraction::GetSpringPeriod(owner), 16.0, 2000.0))) });
-            visual.StartAnimation(L"Scale", animation);
+            // Spring shape belongs to the visual being animated. Attached-property lookup
+            // walks up the tree, so a child surface can override the owner's spring while
+            // retaining the control-level defaults when no local value is present.
+            AnimateElementScaleSpring(
+                owner,
+                element,
+                x,
+                y,
+                implementation::LiquidGlassInteraction::GetSpringDampingRatio(element),
+                implementation::LiquidGlassInteraction::GetSpringPeriod(element));
             return;
         }
 
