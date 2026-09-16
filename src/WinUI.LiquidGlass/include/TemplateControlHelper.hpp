@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ResourceDictionaryLoader.hpp"
+
 namespace winrt::WinUI::LiquidGlass::detail
 {
     template<typename Self, bool UseXamlResource = true>
@@ -22,23 +24,12 @@ namespace winrt::WinUI::LiquidGlass::detail
                 {
                     // Older WinUI projections may not expose DefaultStyleResourceUri.
                     // Metadata/type activation can happen before Application::Current(), so
-                    // do not permanently cache a failed first attempt in a static lambda.
+                    // cache only a successful merge and retry a previous miss later.
                     static bool resourceLoaded{};
-                    if (resourceLoaded)
+                    if (!resourceLoaded)
                     {
-                        return;
+                        resourceLoaded = EnsureMergedResourceDictionary(Self::ResourceUri);
                     }
-
-                    auto app = winrt::Microsoft::UI::Xaml::Application::Current();
-                    if (!app)
-                    {
-                        return;
-                    }
-
-                    winrt::Microsoft::UI::Xaml::ResourceDictionary dictionary;
-                    dictionary.Source(winrt::Windows::Foundation::Uri{ Self::ResourceUri });
-                    app.Resources().MergedDictionaries().Append(dictionary);
-                    resourceLoaded = true;
                 }
             }
             else

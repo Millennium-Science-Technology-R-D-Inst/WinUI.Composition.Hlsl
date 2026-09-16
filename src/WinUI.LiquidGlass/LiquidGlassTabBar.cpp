@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "winrt_module_imports.h"
 #include "LiquidGlassControls.h"
+#include "include/ResourceDictionaryLoader.hpp"
 
 #if __has_include("LiquidGlassTabBarItem.g.cpp")
 #include "LiquidGlassTabBarItem.g.cpp"
@@ -17,25 +18,14 @@ namespace winrt::WinUI::LiquidGlass::implementation
         void EnsureTabBarResources()
         {
             // A first construction attempt can happen before Application::Current() is
-            // available (for example during metadata/type activation). Do not permanently
-            // cache that miss; retry when a real XAML application constructs the control.
+            // available (for example during metadata/type activation). Cache only success;
+            // the shared loader also detects an already merged dictionary before appending.
             static bool loaded{};
-            if (loaded)
+            if (!loaded)
             {
-                return;
+                loaded = detail::EnsureMergedResourceDictionary(
+                    L"ms-appx:///WinUI.LiquidGlass/Themes/TabBar.xaml");
             }
-
-            auto app = Xaml::Application::Current();
-            if (!app)
-            {
-                return;
-            }
-
-            Xaml::ResourceDictionary dictionary;
-            dictionary.Source(Windows::Foundation::Uri{
-                L"ms-appx:///WinUI.LiquidGlass/Themes/TabBar.xaml" });
-            app.Resources().MergedDictionaries().Append(dictionary);
-            loaded = true;
         }
     }
 

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "winrt_module_imports.h"
 #include "LiquidGlassSpecializedControls.h"
+#include "include/ResourceDictionaryLoader.hpp"
 
 #if __has_include("LiquidGlassFloatingPanel.g.cpp")
 #include "LiquidGlassFloatingPanel.g.cpp"
@@ -25,13 +26,11 @@ namespace winrt::WinUI::LiquidGlass::implementation
         void EnsureSpecializedResources()
         {
             static bool loaded{};
-            if (loaded) return;
-            auto app = Xaml::Application::Current();
-            if (!app) return;
-            Xaml::ResourceDictionary dictionary;
-            dictionary.Source(Windows::Foundation::Uri{ L"ms-appx:///WinUI.LiquidGlass/Themes/Specialized.xaml" });
-            app.Resources().MergedDictionaries().Append(dictionary);
-            loaded = true;
+            if (!loaded)
+            {
+                loaded = detail::EnsureMergedResourceDictionary(
+                    L"ms-appx:///WinUI.LiquidGlass/Themes/Specialized.xaml");
+            }
         }
 
         Xaml::Style SpecializedStyle(wchar_t const* key)

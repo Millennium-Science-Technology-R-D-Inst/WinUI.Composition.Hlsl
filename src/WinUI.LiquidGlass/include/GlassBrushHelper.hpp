@@ -1,38 +1,28 @@
 #pragma once
 
 #include "EnsureDependencyProperty.hpp"
+#include "ResourceDictionaryLoader.hpp"
 
 namespace winrt::WinUI::LiquidGlass::detail
 {
     inline void EnsureLiquidGlassInputResources()
     {
-        // Do not use a function-local `static bool = [] { ... }()` here. If a control is
-        // constructed before Application::Current() is available, that pattern permanently
-        // caches `false` and the input templates can never be loaded later in the process.
-        // XAML controls are UI-thread-affine, so this small one-time guard needs no locking.
-        static bool loaded{};
-        if (loaded)
-        {
-            return;
-        }
+        // Keep the sealed native input templates available before a wrapper creates its
+        // child control. Each resource tracks success independently so a later dictionary
+        // failure cannot cause an already merged dictionary to be appended twice on retry.
+        static bool nativeInputsLoaded{};
+        static bool passwordInputLoaded{};
 
-        namespace Xaml = Microsoft::UI::Xaml;
-        auto app = Xaml::Application::Current();
-        if (!app)
+        if (!nativeInputsLoaded)
         {
-            return;
+            nativeInputsLoaded = EnsureMergedResourceDictionary(
+                L"ms-appx:///WinUI.LiquidGlass/Themes/NativeInputs.xaml");
         }
-
-        auto dictionaries = app.Resources().MergedDictionaries();
-        for (auto const* uri : {
-            L"ms-appx:///WinUI.LiquidGlass/Themes/NativeInputs.xaml",
-            L"ms-appx:///WinUI.LiquidGlass/Themes/PasswordInput.xaml" })
+        if (!passwordInputLoaded)
         {
-            Xaml::ResourceDictionary dictionary;
-            dictionary.Source(Windows::Foundation::Uri{ uri });
-            dictionaries.Append(dictionary);
+            passwordInputLoaded = EnsureMergedResourceDictionary(
+                L"ms-appx:///WinUI.LiquidGlass/Themes/PasswordInput.xaml");
         }
-        loaded = true;
     }
 
     template<typename Derived>
