@@ -206,6 +206,26 @@ namespace winrt::WinUI::LiquidGlass::detail
     private:
         static constexpr double kHoverRangeDips = 28.0;
 
+        static void DeactivateEffect(
+            WinUI::Composition::Hlsl::HlslEffectBrush const& effect)
+        {
+            if (!effect) return;
+
+            try
+            {
+                effect.SetFloat(L"PointerActive", 0.0f);
+                effect.SetFloat(L"PointerVelocityX", 0.0f);
+                effect.SetFloat(L"PointerVelocityY", 0.0f);
+            }
+            catch (winrt::hresult_error const& error)
+            {
+                // Window teardown can close the underlying CompositionEffectBrush before
+                // XAML raises Unloaded. Resetting pointer properties is only cleanup at that
+                // point, so RO_E_CLOSED is benign; all other failures remain visible.
+                if (error.code() != winrt::hresult{ RO_E_CLOSED }) throw;
+            }
+        }
+
         void Attach()
         {
             if (m_router) return;
@@ -256,13 +276,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (m_trackingMaterial &&
                 (!material || get_abi(m_trackingMaterial) != get_abi(material)))
             {
-                auto effect = m_trackingMaterial.EffectBrush();
-                if (effect)
-                {
-                    effect.SetFloat(L"PointerActive", 0.0f);
-                    effect.SetFloat(L"PointerVelocityX", 0.0f);
-                    effect.SetFloat(L"PointerVelocityY", 0.0f);
-                }
+                DeactivateEffect(m_trackingMaterial.EffectBrush());
             }
 
             if (!material)
@@ -391,11 +405,9 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void SetInactive(WinUI::Composition::Hlsl::HlslEffectBrush const& effect)
         {
-            if (m_active && effect)
+            if (m_active)
             {
-                effect.SetFloat(L"PointerActive", 0.0f);
-                effect.SetFloat(L"PointerVelocityX", 0.0f);
-                effect.SetFloat(L"PointerVelocityY", 0.0f);
+                DeactivateEffect(effect);
             }
             m_active = false;
             m_lastPointValid = false;
@@ -405,13 +417,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             if (m_trackingMaterial)
             {
-                auto effect = m_trackingMaterial.EffectBrush();
-                if (effect)
-                {
-                    effect.SetFloat(L"PointerActive", 0.0f);
-                    effect.SetFloat(L"PointerVelocityX", 0.0f);
-                    effect.SetFloat(L"PointerVelocityY", 0.0f);
-                }
+                DeactivateEffect(m_trackingMaterial.EffectBrush());
             }
             m_trackingMaterial = nullptr;
             m_active = false;
