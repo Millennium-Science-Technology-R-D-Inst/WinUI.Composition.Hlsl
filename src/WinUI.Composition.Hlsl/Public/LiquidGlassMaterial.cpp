@@ -5,19 +5,108 @@
 #include "LiquidGlassMaterial.g.cpp"
 #include "HlslEffectFactory.h"
 #include "CustomLiquidGlassEffect.h"
+#include "CustomKawaseBlurEffect.h"
 
 import winrt.Microsoft.UI.Composition;
 import winrt.Windows.Graphics.Effects;
-import WinUI.Composition.Hlsl.GaussianBlurEffect;
+import WinUI.Composition.Hlsl.ScaleEffect;
 import WinUI.Composition.Hlsl.Validation;
 
 namespace winrt::WinUI::Composition::Hlsl::implementation
 {
 	namespace
 	{
-		constexpr float RadiusToStandardDeviation(float radius) noexcept
+		constexpr uint32_t kKawaseLevelCount = 4;
+		wchar_t const* const kDownEffectNames[kKawaseLevelCount]{
+			CustomKawaseBlurEffect::Down0EffectName,
+			CustomKawaseBlurEffect::Down1EffectName,
+			CustomKawaseBlurEffect::Down2EffectName,
+			CustomKawaseBlurEffect::Down3EffectName,
+		};
+		wchar_t const* const kUpEffectNames[kKawaseLevelCount]{
+			CustomKawaseBlurEffect::Up0EffectName,
+			CustomKawaseBlurEffect::Up1EffectName,
+			CustomKawaseBlurEffect::Up2EffectName,
+			CustomKawaseBlurEffect::Up3EffectName,
+		};
+		wchar_t const* const kDownScaleNames[kKawaseLevelCount]{
+			L"KawaseDownScale0", L"KawaseDownScale1", L"KawaseDownScale2", L"KawaseDownScale3",
+		};
+		wchar_t const* const kUpScaleNames[kKawaseLevelCount]{
+			L"KawaseUpScale0", L"KawaseUpScale1", L"KawaseUpScale2", L"KawaseUpScale3",
+		};
+		wchar_t const* const kSpreadPropertyPaths[kKawaseLevelCount * 2]{
+			CustomKawaseBlurEffect::Down0SpreadPropertyPath,
+			CustomKawaseBlurEffect::Down1SpreadPropertyPath,
+			CustomKawaseBlurEffect::Down2SpreadPropertyPath,
+			CustomKawaseBlurEffect::Down3SpreadPropertyPath,
+			CustomKawaseBlurEffect::Up0SpreadPropertyPath,
+			CustomKawaseBlurEffect::Up1SpreadPropertyPath,
+			CustomKawaseBlurEffect::Up2SpreadPropertyPath,
+			CustomKawaseBlurEffect::Up3SpreadPropertyPath,
+		};
+
+		struct KawaseBlurParameters
 		{
-			return radius / 3.0f;
+			float spread;
+			float mix;
+		};
+
+		KawaseBlurParameters ComputeKawaseBlurParameters(float radius) noexcept
+		{
+			if (radius <= 0.0f) return { 0.25f, 0.0f };
+
+			// Four 1/2-resolution levels accumulate a wide blur with a small fixed tap
+			// count per pass. Roughly map the public radius to the accumulated pyramid
+			// support instead of treating it as Gaussian sigma. The low-radius mix keeps
+			// 0 exact and avoids a visible jump into the fixed down/up resampling chain.
+			auto const spread = std::clamp(radius / 18.0f, 0.25f, 3.5f);
+			auto const mix = std::clamp(radius / 4.0f, 0.0f, 1.0f);
+			return { spread, mix };
+		}
+
+		Windows::Graphics::Effects::IGraphicsEffectSource BuildKawaseBlurGraph(
+			Microsoft::UI::Composition::CompositionEffectSourceParameter const& backdrop)
+		{
+			auto const rawSource = backdrop.as<Windows::Graphics::Effects::IGraphicsEffectSource>();
+			Windows::Graphics::Effects::IGraphicsEffectSource current = rawSource;
+
+			// Composition owns render targets, so native Scale nodes establish the
+			// pyramid resolutions while each isolated custom sampler contributes the
+			// Kawase tap kernel. The custom runtime materializes every pass boundary.
+			for (uint32_t level = 0; level < kKawaseLevelCount; ++level)
+			{
+				auto scaled = ScaleEffect::CreateEffect(kDownScaleNames[level], current, 0.5f, 0.5f);
+				auto down = CustomKawaseBlurEffect::CreateDownEffect(
+					kDownEffectNames[level],
+					scaled.as<Windows::Graphics::Effects::IGraphicsEffectSource>());
+				current = down.as<Windows::Graphics::Effects::IGraphicsEffectSource>();
+			}
+
+			for (int32_t level = static_cast<int32_t>(kKawaseLevelCount) - 1; level >= 0; --level)
+			{
+				auto scaled = ScaleEffect::CreateEffect(kUpScaleNames[level], current, 2.0f, 2.0f);
+				auto up = CustomKawaseBlurEffect::CreateUpEffect(
+					kUpEffectNames[level],
+					scaled.as<Windows::Graphics::Effects::IGraphicsEffectSource>());
+				current = up.as<Windows::Graphics::Effects::IGraphicsEffectSource>();
+			}
+
+			// A fixed pyramid always resamples, even with zero spread. Resolve against
+			// the untouched backdrop so BlurRadius=0 remains an exact no-blur path.
+			auto resolved = CustomKawaseBlurEffect::CreateResolveEffect(rawSource, current);
+			return resolved.as<Windows::Graphics::Effects::IGraphicsEffectSource>();
+		}
+
+		void SetKawaseBlurProperties(
+			Microsoft::UI::Composition::CompositionEffectBrush const& effect,
+			float radius)
+		{
+			auto const parameters = ComputeKawaseBlurParameters(radius);
+			auto properties = effect.Properties();
+			for (auto const path : kSpreadPropertyPaths)
+				properties.InsertScalar(path, parameters.spread);
+			properties.InsertScalar(CustomKawaseBlurEffect::ResolveMixPropertyPath, parameters.mix);
 		}
 
 		void ValidateRange(float value, float minimum, float maximum, wchar_t const* message)
@@ -133,14 +222,13 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	{
 		if (!compositor) throw hresult_invalid_argument();
 
-		auto blurEffect = GaussianBlurEffect::CreateEffect(
-			GaussianBlurEffect::LiquidGlassBlurEffectName,
-			Microsoft::UI::Composition::CompositionEffectSourceParameter(L"Backdrop"),
-			RadiusToStandardDeviation(m_BlurRadius));
-		auto graph = CustomLiquidGlassEffect::CreateEffect(blurEffect);
+		auto backdrop = Microsoft::UI::Composition::CompositionEffectSourceParameter(L"Backdrop");
+		auto blurredSource = BuildKawaseBlurGraph(backdrop);
+		auto graph = CustomLiquidGlassEffect::CreateEffect(blurredSource);
 
 		auto animatableProperties = single_threaded_vector<hstring>();
-		animatableProperties.Append(GaussianBlurEffect::LiquidGlassBlurAmountPropertyPath);
+		for (auto const path : kSpreadPropertyPaths) animatableProperties.Append(path);
+		animatableProperties.Append(CustomKawaseBlurEffect::ResolveMixPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::RefractionStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::CornerRadiusPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::BorderThicknessPropertyPath);
@@ -184,6 +272,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect = factory.CreateBrush();
 		m_compositionEffect = m_effect.Brush().as<Microsoft::UI::Composition::CompositionEffectBrush>();
 		m_effect.SetSource(L"Backdrop", compositor.CreateBackdropBrush());
+		SetKawaseBlurProperties(m_compositionEffect, m_BlurRadius);
 		m_effect.SetFloat(L"RefractionStrength", m_RefractionStrength);
 		m_effect.SetFloat(L"DispersionStrength", m_DispersionStrength);
 		m_effect.SetFloat(L"CornerRadius", m_CornerRadius);
@@ -237,9 +326,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	void LiquidGlassMaterial::BlurRadius(float value)
 	{
 		ValidateBlurRadius(value);
-		m_compositionEffect.Properties().InsertScalar(
-			GaussianBlurEffect::LiquidGlassBlurAmountPropertyPath,
-			RadiusToStandardDeviation(value));
+		SetKawaseBlurProperties(m_compositionEffect, value);
 		m_BlurRadius = value;
 	}
 
