@@ -20,7 +20,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassSearchBox>,
         detail::PointerLightHelper<LiquidGlassSearchBox>,
         detail::PointerFieldHelper<LiquidGlassSearchBox>,
-        detail::FocusOpticsHelper<LiquidGlassSearchBox>
+        detail::KubeSearchInteractionHelper<LiquidGlassSearchBox>,
+        detail::KubeMotionDefaults<LiquidGlassSearchBox, detail::KubeMotionProfile::Search>
     {
         LiquidGlassSearchBox();
 

@@ -12,6 +12,7 @@
 #include "include/ChildSurfaceInteraction.hpp"
 #include "include/PressOpticsHelper.hpp"
 #include "include/FocusOpticsHelper.hpp"
+#include "include/KubeControlHelpers.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -91,7 +92,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassMagnifier>,
         detail::TemplateControlHelper<LiquidGlassMagnifier>,
         detail::PointerLightHelper<LiquidGlassMagnifier>,
-        detail::PointerFieldHelper<LiquidGlassMagnifier>
+        detail::PointerFieldHelper<LiquidGlassMagnifier>,
+        detail::KubeMotionDefaults<LiquidGlassMagnifier, detail::KubeMotionProfile::Magnifier>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassMagnifier();
@@ -140,7 +142,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassSlider>,
         detail::TemplateControlHelper<LiquidGlassSlider>,
         detail::PointerLightHelper<LiquidGlassSlider>,
-        detail::SliderPointerFieldHelper<LiquidGlassSlider>
+        detail::SliderPointerFieldHelper<LiquidGlassSlider>,
+        detail::KubeSliderVisualHelper<LiquidGlassSlider>,
+        detail::KubeMotionDefaults<LiquidGlassSlider, detail::KubeMotionProfile::Slider>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassSlider();
@@ -152,6 +156,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         {
             base_type::OnApplyTemplate();
             detail::SliderPointerFieldHelper<LiquidGlassSlider>::RefreshPointerFieldTarget();
+            detail::KubeSliderVisualHelper<LiquidGlassSlider>::RefreshVisual();
         }
 
     private:
@@ -207,7 +212,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
         detail::PointerLightHelper<LiquidGlassToggleSwitch>,
         detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>,
-        detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>
+        detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>,
+        detail::KubeMotionDefaults<LiquidGlassToggleSwitch, detail::KubeMotionProfile::Switch>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassToggleSwitch();

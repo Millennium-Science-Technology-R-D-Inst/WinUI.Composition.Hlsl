@@ -108,11 +108,16 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         GlassBrush(WinUI::LiquidGlass::LiquidGlassPresets::CreateBrush(
             WinUI::LiquidGlass::LiquidGlassPreset::SearchBox));
-        SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.99));
+
+        // Kube Searchbox: 0.8 idle -> 1.0 focused, pointer-down multiplies the
+        // current scale by 0.99. The specialized interaction helper combines focus
+        // and press from one baseline so their optical alpha never accumulates by event order.
+        SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.8));
         SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.10));
-        SetValue(LiquidGlassInteraction::FocusedContrastMultiplierProperty(), box_value(1.04));
-        SetValue(LiquidGlassInteraction::FocusedRefractionMultiplierProperty(), box_value(1.06));
+        SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.15)); // .05 -> .20
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(.25)); // .05 -> .30
+        SetValue(LiquidGlassInteraction::FocusedContrastMultiplierProperty(), box_value(1.0));
+        SetValue(LiquidGlassInteraction::FocusedRefractionMultiplierProperty(), box_value(1.0));
         SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(140.0));
     }
 
