@@ -103,102 +103,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
             }
             return b;
         }
-
-        DependencyObject NamedDescendant(DependencyObject const& root, std::wstring_view name)
-        {
-            if (!root) return nullptr;
-            if (auto e = root.try_as<FrameworkElement>(); e && e.Name() == name) return root;
-            auto const count = Media::VisualTreeHelper::GetChildrenCount(root);
-            for (int32_t i = 0; i < count; ++i)
-                if (auto r = NamedDescendant(Media::VisualTreeHelper::GetChild(root, i), name)) return r;
-            return nullptr;
-        }
-
-        template<typename T>
-        T Descendant(DependencyObject const& root)
-        {
-            if (!root) return nullptr;
-            auto const count = Media::VisualTreeHelper::GetChildrenCount(root);
-            for (int32_t i = 0; i < count; ++i)
-            {
-                auto child = Media::VisualTreeHelper::GetChild(root, i);
-                if (auto r = child.try_as<T>()) return r;
-                if (auto r = Descendant<T>(child)) return r;
-            }
-            return nullptr;
-        }
-
-        DependencyObject BrushSurface(DependencyObject const& root)
-        {
-            if (!root) return nullptr;
-            auto const count = Media::VisualTreeHelper::GetChildrenCount(root);
-            for (int32_t i = 0; i < count; ++i)
-                if (auto r = BrushSurface(Media::VisualTreeHelper::GetChild(root, i))) return r;
-            if (root.try_as<Shapes::Shape>() || root.try_as<Controls::Border>() ||
-                root.try_as<Primitives::Thumb>() || root.try_as<Controls::Control>()) return root;
-            return nullptr;
-        }
-
-        void SetSurface(DependencyObject const& target, Media::Brush const& brush)
-        {
-            if (auto s = target.try_as<Shapes::Shape>()) s.Fill(brush);
-            else if (auto b = target.try_as<Controls::Border>()) b.Background(brush);
-            else if (auto c = target.try_as<Controls::Control>()) c.Background(brush);
-        }
-
-        void SetElementScale(FrameworkElement const& target, double x, double y)
-        {
-            detail::SetElementScale(target, x, y);
-        }
-
-        void AnimateScale(FrameworkElement const& target, double x, double y, double durationMs)
-        {
-            if (!target) return;
-            auto owner = target.try_as<DependencyObject>();
-            if (!owner) return;
-            detail::AnimateElementScale(owner, target, x, y, durationMs);
-        }
-
-        void AnimateScale(FrameworkElement const& target, double value, double durationMs)
-        {
-            AnimateScale(target, value, value, durationMs);
-        }
-
-        void AnimateMagnification(
-            DependencyObject const& owner,
-            Brush const& brush,
-            double from,
-            double to)
-        {
-            if (!owner || !brush || std::abs(from - to) <= 1e-5 || !detail::MotionAnimationsEnabled(owner)) return;
-            auto material = brush.Material();
-            if (!material) return;
-            auto effect = material.EffectBrush();
-            if (!effect) return;
-            auto compositionBrush = effect.EffectBrush();
-            if (!compositionBrush) return;
-            auto compositor = compositionBrush.Compositor();
-            auto easing = compositor.CreateCubicBezierEasingFunction(
-                { 0.20f, 0.0f }, { 0.0f, 1.0f });
-            auto const durationMs = std::clamp(
-                LiquidGlassInteraction::GetOpticsTransitionDuration(owner), 0.0, 2000.0);
-            detail::AnimateOpticsScalar(
-                effect,
-                compositionBrush,
-                easing,
-                std::chrono::milliseconds{ static_cast<int64_t>(std::lround(durationMs)) },
-                L"MagnificationStrength",
-                from,
-                to);
-        }
-
-        Primitives::Thumb SliderThumb(Controls::Slider const& slider)
-        {
-            auto name = slider.Orientation() == Controls::Orientation::Horizontal
-                ? L"HorizontalThumb" : L"VerticalThumb";
-            auto thumb = NamedDescendant(slider, name).try_as<Primitives::Thumb>();
-            return thumb ? thumb : Descendant<Primitives::Thumb>(slider);
-        }
     }
 
     LiquidGlassCard::LiquidGlassCard()
@@ -297,140 +201,13 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.07));
         SetValue(LiquidGlassInteraction::ActiveMagnificationMultiplierProperty(), box_value(2.0));
-
-        RenderTransformOrigin({ .5f, .5f });
-        m_dragTransform = Media::CompositeTransform{};
-        RenderTransform(m_dragTransform);
-        Loaded([](auto const& sender, auto const&) {
-            auto owner = sender.template try_as<DependencyObject>();
-            auto element = sender.template try_as<FrameworkElement>();
-            if (!owner || !element) return;
-            auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
-            SetElementScale(element, scale, scale);
-        });
-
-        auto weak = get_weak();
-        PointerPressed([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
-            auto self = weak.get();
-            auto owner = sender.template try_as<DependencyObject>();
-            auto element = sender.template try_as<Xaml::UIElement>();
-            auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !owner || !element || !frameworkElement) return;
-
-            auto xamlRoot = frameworkElement.XamlRoot();
-            auto coordinateRoot = xamlRoot ? xamlRoot.Content() : Xaml::UIElement{ nullptr };
-            if (!coordinateRoot) coordinateRoot = element;
-            auto const point = e.GetCurrentPoint(coordinateRoot);
-            self->m_activePointerId = point.PointerId();
-            self->m_dragCoordinateRoot = coordinateRoot;
-            self->m_dragStartPointer = point.Position();
-            self->m_lastPointer = point.Position();
-            self->m_lastPointerTime = std::chrono::steady_clock::now();
-            self->m_dragStartTranslateX = self->m_dragTransform.TranslateX();
-            self->m_dragStartTranslateY = self->m_dragTransform.TranslateY();
-            self->m_smoothedVelocityX = 0.0;
-            self->m_dragging = element.CapturePointer(e.Pointer());
-            if (!self->m_dragging)
-            {
-                self->m_dragCoordinateRoot = nullptr;
-                return;
-            }
-
-            if (auto b = self->GlassBrush())
-            {
-                self->m_dragMagnification = b.MagnificationStrength();
-                detail::EnterPressedOptics(owner, b, self->m_dragOptics);
-                auto const targetMagnification = std::clamp(
-                    self->m_dragMagnification * LiquidGlassInteraction::GetActiveMagnificationMultiplier(owner), 0.0, 128.0);
-                b.MagnificationStrength(targetMagnification);
-                AnimateMagnification(owner, b, self->m_dragMagnification, targetMagnification);
-            }
-            auto const scale = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
-            AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
-            e.Handled(true);
-        });
-
-        PointerMoved([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
-            auto self = weak.get();
-            auto owner = sender.template try_as<DependencyObject>();
-            auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !self->m_dragging || !owner || !frameworkElement || !self->m_dragCoordinateRoot) return;
-            auto const point = e.GetCurrentPoint(self->m_dragCoordinateRoot);
-            if (point.PointerId() != self->m_activePointerId) return;
-
-            auto const position = point.Position();
-            self->m_dragTransform.TranslateX(self->m_dragStartTranslateX + position.X - self->m_dragStartPointer.X);
-            self->m_dragTransform.TranslateY(self->m_dragStartTranslateY + position.Y - self->m_dragStartPointer.Y);
-
-            auto const now = std::chrono::steady_clock::now();
-            auto const seconds = std::chrono::duration<double>(now - self->m_lastPointerTime).count();
-            if (seconds > 1e-4)
-            {
-                auto const instantaneousVelocityX = (position.X - self->m_lastPointer.X) / seconds;
-                self->m_smoothedVelocityX += (instantaneousVelocityX - self->m_smoothedVelocityX) * 0.12;
-            }
-
-            auto const base = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
-            auto const compression = std::clamp(std::abs(self->m_smoothedVelocityX) / 6500.0, 0.0, 0.22);
-            auto const scaleY = base * (1.0 - compression);
-            auto const scaleX = base + (base - scaleY);
-            SetElementScale(frameworkElement, scaleX, scaleY);
-            self->m_lastPointer = position;
-            self->m_lastPointerTime = now;
-            e.Handled(true);
-        });
-
-        PointerReleased([weak](auto const& sender, Xaml::Input::PointerRoutedEventArgs const& e) {
-            auto self = weak.get();
-            auto owner = sender.template try_as<DependencyObject>();
-            auto element = sender.template try_as<Xaml::UIElement>();
-            auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !self->m_dragging || !owner || !element || !frameworkElement) return;
-            self->m_dragging = false;
-            self->m_activePointerId = 0;
-            self->m_dragCoordinateRoot = nullptr;
-            self->m_smoothedVelocityX = 0.0;
-            element.ReleasePointerCapture(e.Pointer());
-            if (self->m_dragOptics.brush)
-            {
-                auto brush = self->m_dragOptics.brush;
-                auto const fromMagnification = brush.MagnificationStrength();
-                brush.MagnificationStrength(self->m_dragMagnification);
-                AnimateMagnification(owner, brush, fromMagnification, self->m_dragMagnification);
-            }
-            detail::LeavePressedOptics(owner, self->m_dragOptics);
-            auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
-            AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
-            e.Handled(true);
-        });
-
-        PointerCaptureLost([weak](auto const& sender, auto const&) {
-            auto self = weak.get();
-            auto owner = sender.template try_as<DependencyObject>();
-            auto frameworkElement = sender.template try_as<FrameworkElement>();
-            if (!self || !self->m_dragging || !owner || !frameworkElement) return;
-            self->m_dragging = false;
-            self->m_activePointerId = 0;
-            self->m_dragCoordinateRoot = nullptr;
-            self->m_smoothedVelocityX = 0.0;
-            if (self->m_dragOptics.brush)
-            {
-                auto brush = self->m_dragOptics.brush;
-                auto const fromMagnification = brush.MagnificationStrength();
-                brush.MagnificationStrength(self->m_dragMagnification);
-                AnimateMagnification(owner, brush, fromMagnification, self->m_dragMagnification);
-            }
-            detail::LeavePressedOptics(owner, self->m_dragOptics);
-            auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
-            AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
-        });
     }
 
     void LiquidGlassSlider::ApplyGlassBrush(Brush const& value)
     {
         m_glassBrush = value;
-        if (m_thumb)
-            if (auto surface = BrushSurface(m_thumb)) SetSurface(surface, AsBrush(value));
+        detail::SliderSurfaceVisualHelper<LiquidGlassSlider>::RefreshVisual();
+        detail::SliderDragMotionHelper<LiquidGlassSlider>::RefreshInteractionTarget();
     }
 
     LiquidGlassSlider::LiquidGlassSlider()
@@ -446,54 +223,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(0.0));
-
-        auto weak = get_weak();
-        Loaded([weak](auto const& sender, auto const&) {
-            auto self = weak.get(); if (!self || self->m_interactionsWired) return;
-            auto slider = sender.template try_as<Controls::Slider>(); if (!slider) return;
-            auto owner = slider.template try_as<DependencyObject>();
-            auto thumb = SliderThumb(slider); if (!owner || !thumb) return;
-            self->m_thumb = thumb;
-
-            if (slider.Orientation() == Controls::Orientation::Horizontal)
-            {
-                thumb.Width(90.0);
-                thumb.Height(60.0);
-            }
-            else
-            {
-                thumb.Width(60.0);
-                thumb.Height(90.0);
-            }
-
-            if (auto b = self->GlassBrush())
-            {
-                b.CornerRadius(30.0);
-                b.BezelWidth(16.0);
-                if (auto surface = BrushSurface(thumb)) SetSurface(surface, AsBrush(b));
-            }
-            auto const restScale = std::clamp(LiquidGlassInteraction::GetRestScale(thumb), .25, 4.0);
-            SetElementScale(thumb, restScale, restScale);
-            thumb.DragStarted([weak](auto const& s, auto const&) {
-                auto thumbObject = s.template try_as<DependencyObject>();
-                auto thumbElement = s.template try_as<FrameworkElement>();
-                auto self = weak.get();
-                if (!self || !thumbObject || !thumbElement) return;
-                auto const scale = std::clamp(LiquidGlassInteraction::GetPressedScale(thumbObject), .25, 4.0);
-                AnimateScale(thumbElement, scale, LiquidGlassInteraction::GetMotionDuration(thumbObject));
-                detail::EnterPressedOptics(thumbObject, self->GlassBrush(), self->m_dragOptics);
-            });
-            thumb.DragCompleted([weak](auto const& s, auto const&) {
-                auto thumbObject = s.template try_as<DependencyObject>();
-                auto thumbElement = s.template try_as<FrameworkElement>();
-                auto self = weak.get();
-                if (!self || !thumbObject || !thumbElement) return;
-                auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(thumbObject), .25, 4.0);
-                AnimateScale(thumbElement, scale, LiquidGlassInteraction::GetMotionDuration(thumbObject));
-                detail::LeavePressedOptics(self->m_dragOptics);
-            });
-            self->m_interactionsWired = true;
-        });
     }
 
     LiquidGlassToggleSwitch::LiquidGlassToggleSwitch()
@@ -509,8 +238,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.25));
-        // Knob translation/scale and track color are exclusively managed by the dedicated
-        // Composition helpers. Do not attach a second pointer animation path here.
     }
 
     Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const { return m_header; }
