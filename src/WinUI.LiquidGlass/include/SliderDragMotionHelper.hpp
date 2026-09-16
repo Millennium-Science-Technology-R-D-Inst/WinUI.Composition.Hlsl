@@ -13,13 +13,26 @@ namespace winrt::WinUI::LiquidGlass::detail
         SliderDragMotionHelper()
         {
             auto self = static_cast<Self*>(this);
-            self->Loaded([this](auto const&, auto const&) { RefreshInteractionTarget(); });
+            self->Loaded([this](auto const&, auto const&)
+            {
+                m_loaded = true;
+                RestorePendingOptics();
+                RefreshInteractionTarget();
+            });
             self->Unloaded([this](auto const&, auto const&) { ClearForTeardown(); });
             self->RegisterPropertyChangedCallback(
                 Microsoft::UI::Xaml::Controls::Slider::OrientationProperty(),
                 [this](auto const&, auto const&) { RefreshInteractionTarget(); });
             self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
             {
+                if (!m_loaded)
+                {
+                    // A detached brush replacement retires the old material. Do not write
+                    // the saved baseline back into a brush whose compositor may be closed.
+                    m_pressOptics = {};
+                    return;
+                }
+
                 if (m_pressOptics.active) RestoreOptics(m_pressOptics);
                 m_pressOptics = {};
                 RefreshInteractionTarget();
@@ -101,15 +114,27 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
     private:
+        void RestorePendingOptics()
+        {
+            if (!m_pressOptics.active) return;
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            if (brush && m_pressOptics.brush && get_abi(brush) == get_abi(m_pressOptics.brush))
+                RestoreOptics(m_pressOptics);
+            else
+                m_pressOptics = {};
+        }
+
         void BeginPress()
         {
-            if (m_pressed) return;
+            if (!m_loaded || m_pressed) return;
             m_pressed = true;
             ApplyPressedState(true);
         }
 
         void BeginDrag()
         {
+            if (!m_loaded) return;
             m_dragging = true;
             if (!m_pressed)
             {
@@ -120,6 +145,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void ApplyPressedState(bool animate)
         {
+            if (!m_loaded) return;
             auto self = static_cast<Self*>(this);
             auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!owner) return;
@@ -148,6 +174,12 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void EndPress(bool animate)
         {
+            if (!m_loaded)
+            {
+                m_pressed = false;
+                m_dragging = false;
+                return;
+            }
             if (!m_pressed && !m_dragging && !m_pressOptics.active) return;
             auto self = static_cast<Self*>(this);
             auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
@@ -194,11 +226,11 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void ClearForTeardown()
         {
-            // XAML teardown is intentionally no-write. The compositor/effect may already be
-            // closed, so simply drop transient state instead of restoring visual properties.
+            // XAML teardown is intentionally no-write. Preserve the numeric optics baseline
+            // so Loaded can restore it after Composition becomes usable again.
+            m_loaded = false;
             DetachThumbHandlers();
             m_surface = nullptr;
-            m_pressOptics = {};
             m_pressed = false;
             m_dragging = false;
         }
@@ -212,6 +244,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         event_token m_dragStartedToken{};
         event_token m_dragCompletedToken{};
         OpticsSnapshot m_pressOptics;
+        bool m_loaded{};
         bool m_pressed{};
         bool m_dragging{};
     };
