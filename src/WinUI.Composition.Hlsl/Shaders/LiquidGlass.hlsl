@@ -226,11 +226,27 @@ float ReferenceSpecularCoefficient(
     float highlightSharpness)
 {
     const float width = max(specularWidth, 0.25f);
-    const float edgeT = saturate(distanceFromEdge / width);
-    const float arc = sqrt(saturate(1.0f - (1.0f - edgeT) * (1.0f - edgeT)));
-    const float band = 1.0f - smoothstep(width, width + max(feather, 0.5f), distanceFromEdge);
-    const float orientation = pow(saturate(abs(dot(normal, lightDirection))), max(highlightSharpness, 0.25f));
-    return saturate(orientation * arc * band);
+    const float normalizedDistance = max(distanceFromEdge, 0.0f) / width;
+
+    // Match kube's generated specular map directly. Its edge term is a semicircle
+    // sqrt(1 - (1 - d / width)^2): zero at the silhouette, peaks one width inward,
+    // and naturally falls back to zero at two widths. This avoids the old flat-topped
+    // highlight band, which was especially visible as angular corner wedges on large glass.
+    const float arcTerm = 1.0f -
+        (1.0f - normalizedDistance) * (1.0f - normalizedDistance);
+    const float arc = sqrt(saturate(arcTerm));
+    const float orientation = pow(
+        saturate(abs(dot(normal, lightDirection))),
+        max(highlightSharpness, 0.25f));
+
+    // Keep the analytical support but let the geometry AA own the outer silhouette.
+    // feather is intentionally retained in the signature because callers use the same
+    // edge-width contract for authored and pointer-driven specular.
+    const float support = 1.0f - smoothstep(
+        2.0f,
+        2.0f + max(feather / width, 0.25f),
+        normalizedDistance);
+    return saturate(orientation * arc * support);
 }
 
 float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
@@ -274,7 +290,17 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float2 contentUvSize = hasContentRect ? contentUvSizeRaw : 1.0f.xx;
     const float2 localUv = hasContentRect ? ((uv - contentMin) / contentUvSize) : uv;
 
-    const float2 localUvPixelStep = max(abs(ddx(localUv)) + abs(ddy(localUv)), 1e-6f.xx);
+    // Reconstruct local X/Y extents using the Euclidean screen-space gradient of
+    // each local coordinate. The previous L1 derivative (abs(ddx)+abs(ddy)) shrank
+    // the inferred rectangle by up to sqrt(2) under rotation/non-axis-aligned scale,
+    // which distorted CornerRadius and made otherwise round corners look faceted.
+    const float2 localUvDx = ddx(localUv);
+    const float2 localUvDy = ddy(localUv);
+    const float2 localUvPixelStep = max(
+        float2(
+            length(float2(localUvDx.x, localUvDy.x)),
+            length(float2(localUvDx.y, localUvDy.y))),
+        1e-6f.xx);
     const float2 rectSize = max(1.0f.xx / localUvPixelStep, 1.0f.xx);
     const float maximumExtent = max(max(rectSize.x, rectSize.y), 1.0f);
     const float2 texelSize = max(samplerDataExt.zw, 1e-6f.xx);
@@ -289,11 +315,14 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, halfRect, radius);
 
-    // Keep silhouette anti-aliasing tied to the actual SDF footprint, not to the
-    // materialized blur radius. fwidth gives a stable ~pixel-wide lower bound while
-    // EdgeSoftness remains the explicit user control for a wider edge transition.
-    const float sdfFootprint = max(abs(ddx(sdf)) + abs(ddy(sdf)), 0.5f);
-    const float feather = max(edgeSoftness, sdfFootprint * 0.5f);
+    // Isotropic screen-space AA keeps the coverage transition stable when the visual is
+    // scaled or rotated. EdgeSoftness stays an independent, authored silhouette control;
+    // Gaussian BlurRadius only changes backdrop sampling and can no longer widen or facet
+    // the geometry edge as it grows.
+    const float sdfPixelFootprint = max(
+        length(float2(ddx(sdf), ddy(sdf))),
+        0.5f);
+    const float feather = max(edgeSoftness, sdfPixelFootprint * 0.5f);
     const float coverage = 1.0f - smoothstep(-feather, feather, sdf);
     const float alpha = coverage * saturate(materialOpacity);
 
