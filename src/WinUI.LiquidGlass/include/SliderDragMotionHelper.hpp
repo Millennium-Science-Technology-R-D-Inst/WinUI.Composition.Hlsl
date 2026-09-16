@@ -72,6 +72,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshInteractionTarget()
         {
+            if (!m_loaded) return;
             auto self = static_cast<Self*>(this);
             auto root = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!root) return;
@@ -103,17 +104,26 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
 
             m_surface = surface;
-            if (!m_pressed)
-            {
-                auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
-                if (!owner) return;
-                auto const scale = std::clamp(
-                    implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
-                SetElementScale(m_surface, scale, scale);
-            }
+            Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(m_surface, true);
+            if (!m_surface.Shadow())
+                m_surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
+
+            auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!owner) return;
+            auto const scale = std::clamp(
+                m_pressed
+                    ? implementation::LiquidGlassInteraction::GetPressedScale(owner)
+                    : implementation::LiquidGlassInteraction::GetRestScale(owner),
+                .25,
+                4.0);
+            SetElementScale(m_surface, scale, scale);
+            SetSurfaceElevation(m_pressed ? kPressedElevation : kRestElevation, false);
         }
 
     private:
+        static constexpr double kRestElevation = 6.0;
+        static constexpr double kPressedElevation = 10.0;
+
         void RestorePendingOptics()
         {
             if (!m_pressOptics.active) return;
@@ -123,6 +133,29 @@ namespace winrt::WinUI::LiquidGlass::detail
                 RestoreOptics(m_pressOptics);
             else
                 m_pressOptics = {};
+        }
+
+        void SetSurfaceElevation(double elevation, bool animate)
+        {
+            if (!m_surface) return;
+            auto self = static_cast<Self*>(this);
+            auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!owner) return;
+
+            auto translation = m_surface.Translation();
+            translation.z = static_cast<float>(elevation);
+            if (animate)
+            {
+                AnimateElementTranslation(
+                    owner,
+                    m_surface,
+                    translation,
+                    implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+            }
+            else
+            {
+                SetElementTranslation(m_surface, translation);
+            }
         }
 
         void BeginPress()
@@ -167,6 +200,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 SetElementScale(m_surface, scale, scale);
             }
+            SetSurfaceElevation(kPressedElevation, animate);
 
             if (!m_pressOptics.active)
                 EnterPressedOptics(owner, self->GlassBrush(), m_pressOptics);
@@ -208,6 +242,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 {
                     SetElementScale(m_surface, scale, scale);
                 }
+                SetSurfaceElevation(kRestElevation, animate);
             }
             LeavePressedOptics(owner, m_pressOptics);
         }
