@@ -14,6 +14,7 @@
 #include "include/FocusOpticsHelper.hpp"
 #include "include/ControlInteractionProfiles.hpp"
 #include "include/SwitchTrackVisualHelper.hpp"
+#include "include/ControlVisualMotion.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -142,8 +143,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassSlider>,
         detail::TemplateControlHelper<LiquidGlassSlider>,
         detail::PointerLightHelper<LiquidGlassSlider>,
-        detail::SliderPointerFieldHelper<LiquidGlassSlider>,
-        detail::SliderVisualHelper<LiquidGlassSlider>,
+        detail::SliderSurfaceVisualHelper<LiquidGlassSlider>,
         detail::MotionDefaults<LiquidGlassSlider, detail::MotionProfile::Slider>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
@@ -153,8 +153,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         void OnApplyTemplate()
         {
             base_type::OnApplyTemplate();
-            detail::SliderPointerFieldHelper<LiquidGlassSlider>::RefreshPointerFieldTarget();
-            detail::SliderVisualHelper<LiquidGlassSlider>::RefreshVisual();
+            detail::SliderSurfaceVisualHelper<LiquidGlassSlider>::RefreshVisual();
         }
 
     private:
@@ -206,8 +205,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassToggleSwitch>,
         detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
         detail::PointerLightHelper<LiquidGlassToggleSwitch>,
-        detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>,
-        detail::SwitchTrackVisualHelper<LiquidGlassToggleSwitch>,
+        detail::ToggleSwitchVisualModel<LiquidGlassToggleSwitch>,
         detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>,
         detail::MotionDefaults<LiquidGlassToggleSwitch, detail::MotionProfile::Switch>
     {
@@ -221,13 +219,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
         void OnApplyTemplate()
         {
             base_type::OnApplyTemplate();
-            detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>::RefreshInteractionTarget();
-            detail::SwitchTrackVisualHelper<LiquidGlassToggleSwitch>::RefreshTrackTarget();
+            detail::ToggleSwitchVisualModel<LiquidGlassToggleSwitch>::RefreshVisualModel();
         }
 
         void OnToggle()
         {
-            if (!detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>::TryHandleToggle())
+            if (!detail::ToggleSwitchVisualModel<LiquidGlassToggleSwitch>::TryHandleToggle())
                 base_type::OnToggle();
         }
 
