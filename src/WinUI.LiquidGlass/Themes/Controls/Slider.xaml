@@ -1,0 +1,11 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:WinUI.LiquidGlass">
+
+    <Style TargetType="local:LiquidGlassSlider" BasedOn="{StaticResource DefaultSliderStyle}">
+        <Setter Property="MinHeight" Value="60" />
+    </Style>
+
+    <Style x:Key="LiquidGlassSliderStyle" TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}" />
+</ResourceDictionary>

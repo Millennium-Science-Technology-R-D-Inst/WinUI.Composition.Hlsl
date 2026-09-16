@@ -25,7 +25,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         namespace Xaml = Microsoft::UI::Xaml;
         namespace Controls = Xaml::Controls;
         namespace Primitives = Controls::Primitives;
-        namespace Hosting = Xaml::Hosting;
         namespace Media = Xaml::Media;
         namespace Shapes = Xaml::Shapes;
 
@@ -165,6 +164,34 @@ namespace winrt::WinUI::LiquidGlass::implementation
             AnimateScale(target, value, value, durationMs);
         }
 
+        void AnimateMagnification(
+            DependencyObject const& owner,
+            Brush const& brush,
+            double from,
+            double to)
+        {
+            if (!owner || !brush || std::abs(from - to) <= 1e-5 || !detail::MotionAnimationsEnabled(owner)) return;
+            auto material = brush.Material();
+            if (!material) return;
+            auto effect = material.EffectBrush();
+            if (!effect) return;
+            auto compositionBrush = effect.EffectBrush();
+            if (!compositionBrush) return;
+            auto compositor = compositionBrush.Compositor();
+            auto easing = compositor.CreateCubicBezierEasingFunction(
+                { 0.20f, 0.0f }, { 0.0f, 1.0f });
+            auto const durationMs = std::clamp(
+                LiquidGlassInteraction::GetOpticsTransitionDuration(owner), 0.0, 2000.0);
+            detail::AnimateOpticsScalar(
+                effect,
+                compositionBrush,
+                easing,
+                std::chrono::milliseconds{ static_cast<int64_t>(std::lround(durationMs)) },
+                L"MagnificationStrength",
+                from,
+                to);
+        }
+
         Primitives::Thumb SliderThumb(Controls::Slider const& slider)
         {
             auto name = slider.Orientation() == Controls::Orientation::Horizontal
@@ -202,8 +229,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
     {
         DefaultStyleKey(box_value(xaml_typename<class_type>()));
         auto brush = CreateBrush(Preset::Choice);
-        // Choice is circular for RadioButton. CheckBox keeps WinUI's rounded-square
-        // 20x20 geometry, so keep the shader SDF on the same r=5 silhouette.
         brush.CornerRadius(5.0);
         GlassBrush(brush);
     }
@@ -225,8 +250,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
     LiquidGlassTextBox::LiquidGlassTextBox()
     {
         DefaultStyleKey(box_value(xaml_typename<class_type>()));
-        // TextBox is an input surface, not the 56-DIP search capsule. Using the Search
-        // preset gave the shader r=28 while the native input outline was r=8.
         GlassBrush(CreateBrush(Preset::Input));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.98));
         SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.0));
@@ -264,8 +287,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(CreateBrush(Preset::Magnifier));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.8));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(130.0));
-        SetValue(LiquidGlassInteraction::ElasticityProperty(), box_value(.85));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(175.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(170.0));
+        SetValue(LiquidGlassInteraction::ElasticityProperty(), box_value(.70));
         SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.25));
         SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
         SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(0.0));
@@ -296,7 +320,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto xamlRoot = frameworkElement.XamlRoot();
             auto coordinateRoot = xamlRoot ? xamlRoot.Content() : Xaml::UIElement{ nullptr };
             if (!coordinateRoot) coordinateRoot = element;
-
             auto const point = e.GetCurrentPoint(coordinateRoot);
             self->m_activePointerId = point.PointerId();
             self->m_dragCoordinateRoot = coordinateRoot;
@@ -317,8 +340,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
             {
                 self->m_dragMagnification = b.MagnificationStrength();
                 detail::EnterPressedOptics(owner, b, self->m_dragOptics);
-                b.MagnificationStrength(std::clamp(
-                    self->m_dragMagnification * LiquidGlassInteraction::GetActiveMagnificationMultiplier(owner), 0.0, 128.0));
+                auto const targetMagnification = std::clamp(
+                    self->m_dragMagnification * LiquidGlassInteraction::GetActiveMagnificationMultiplier(owner), 0.0, 128.0);
+                b.MagnificationStrength(targetMagnification);
+                AnimateMagnification(owner, b, self->m_dragMagnification, targetMagnification);
             }
             auto const scale = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
             AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
@@ -330,34 +355,26 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto owner = sender.template try_as<DependencyObject>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
             if (!self || !self->m_dragging || !owner || !frameworkElement || !self->m_dragCoordinateRoot) return;
-
             auto const point = e.GetCurrentPoint(self->m_dragCoordinateRoot);
             if (point.PointerId() != self->m_activePointerId) return;
 
             auto const position = point.Position();
-            self->m_dragTransform.TranslateX(
-                self->m_dragStartTranslateX + position.X - self->m_dragStartPointer.X);
-            self->m_dragTransform.TranslateY(
-                self->m_dragStartTranslateY + position.Y - self->m_dragStartPointer.Y);
+            self->m_dragTransform.TranslateX(self->m_dragStartTranslateX + position.X - self->m_dragStartPointer.X);
+            self->m_dragTransform.TranslateY(self->m_dragStartTranslateY + position.Y - self->m_dragStartPointer.Y);
 
             auto const now = std::chrono::steady_clock::now();
             auto const seconds = std::chrono::duration<double>(now - self->m_lastPointerTime).count();
             if (seconds > 1e-4)
             {
                 auto const instantaneousVelocityX = (position.X - self->m_lastPointer.X) / seconds;
-                self->m_smoothedVelocityX += (instantaneousVelocityX - self->m_smoothedVelocityX) * 0.22;
+                self->m_smoothedVelocityX += (instantaneousVelocityX - self->m_smoothedVelocityX) * 0.12;
             }
 
-            // Match kube's lens deformation model: horizontal drag velocity compresses Y
-            // (down to 70%) and expands X by the same amount. The drag position itself is
-            // calculated in the stable XamlRoot coordinate space above and is unaffected by
-            // this visual deformation.
             auto const base = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
-            auto const compression = std::clamp(std::abs(self->m_smoothedVelocityX) / 5000.0, 0.0, 0.30);
+            auto const compression = std::clamp(std::abs(self->m_smoothedVelocityX) / 6500.0, 0.0, 0.22);
             auto const scaleY = base * (1.0 - compression);
             auto const scaleX = base + (base - scaleY);
             SetElementScale(frameworkElement, scaleX, scaleY);
-
             self->m_lastPointer = position;
             self->m_lastPointerTime = now;
             e.Handled(true);
@@ -369,14 +386,19 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto element = sender.template try_as<Xaml::UIElement>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
             if (!self || !self->m_dragging || !owner || !element || !frameworkElement) return;
-
             self->m_dragging = false;
             self->m_activePointerId = 0;
             self->m_dragCoordinateRoot = nullptr;
             self->m_smoothedVelocityX = 0.0;
             element.ReleasePointerCapture(e.Pointer());
-            if (self->m_dragOptics.brush) self->m_dragOptics.brush.MagnificationStrength(self->m_dragMagnification);
-            detail::LeavePressedOptics(self->m_dragOptics);
+            if (self->m_dragOptics.brush)
+            {
+                auto brush = self->m_dragOptics.brush;
+                auto const fromMagnification = brush.MagnificationStrength();
+                brush.MagnificationStrength(self->m_dragMagnification);
+                AnimateMagnification(owner, brush, fromMagnification, self->m_dragMagnification);
+            }
+            detail::LeavePressedOptics(owner, self->m_dragOptics);
             auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
             AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
             e.Handled(true);
@@ -387,13 +409,18 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto owner = sender.template try_as<DependencyObject>();
             auto frameworkElement = sender.template try_as<FrameworkElement>();
             if (!self || !self->m_dragging || !owner || !frameworkElement) return;
-
             self->m_dragging = false;
             self->m_activePointerId = 0;
             self->m_dragCoordinateRoot = nullptr;
             self->m_smoothedVelocityX = 0.0;
-            if (self->m_dragOptics.brush) self->m_dragOptics.brush.MagnificationStrength(self->m_dragMagnification);
-            detail::LeavePressedOptics(self->m_dragOptics);
+            if (self->m_dragOptics.brush)
+            {
+                auto brush = self->m_dragOptics.brush;
+                auto const fromMagnification = brush.MagnificationStrength();
+                brush.MagnificationStrength(self->m_dragMagnification);
+                AnimateMagnification(owner, brush, fromMagnification, self->m_dragMagnification);
+            }
+            detail::LeavePressedOptics(owner, self->m_dragOptics);
             auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
             AnimateScale(frameworkElement, scale, LiquidGlassInteraction::GetMotionDuration(owner));
         });
@@ -402,8 +429,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
     void LiquidGlassSlider::ApplyGlassBrush(Brush const& value)
     {
         m_glassBrush = value;
-        // Slider.Background belongs to the native track. The liquid-glass material is
-        // exclusively the optical Thumb surface, matching kube's separate track/lens model.
         if (m_thumb)
             if (auto surface = BrushSurface(m_thumb)) SetSurface(surface, AsBrush(value));
     }
@@ -430,9 +455,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
             auto thumb = SliderThumb(slider); if (!owner || !thumb) return;
             self->m_thumb = thumb;
 
-            // kube's optical thumb is 90x60 (r=30). The old implementation inherited
-            // WinUI's ~18px Thumb and then recomputed CornerRadius from that tiny template
-            // part, unintentionally collapsing the r=30 preset to roughly r=9.
             if (slider.Orientation() == Controls::Orientation::Horizontal)
             {
                 thumb.Width(90.0);
@@ -487,35 +509,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.25));
-
-        auto weak = get_weak();
-        Loaded([weak](auto const& sender, auto const&) {
-            auto self = weak.get(); if (!self || self->m_interactionsWired) return;
-            auto owner = sender.template try_as<DependencyObject>(); if (!owner) return;
-            if (auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>())
-            {
-                auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
-                SetElementScale(knob, scale, scale);
-            }
-            self->m_interactionsWired = true;
-        });
-        PointerPressed([weak](auto const& sender, auto const&) {
-            if (auto self = weak.get()) {
-                auto owner = sender.template try_as<DependencyObject>(); if (!owner) return;
-                auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>();
-                auto const scale = std::clamp(LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
-                AnimateScale(knob, scale, LiquidGlassInteraction::GetMotionDuration(owner));
-            }
-        });
-        auto release = [weak](auto const& sender, auto const&) {
-            if (auto self = weak.get()) {
-                auto owner = sender.template try_as<DependencyObject>(); if (!owner) return;
-                auto knob = NamedDescendant(owner, L"SwitchKnob").try_as<FrameworkElement>();
-                auto const scale = std::clamp(LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
-                AnimateScale(knob, scale, LiquidGlassInteraction::GetMotionDuration(owner));
-            }
-        };
-        PointerReleased(release); PointerCaptureLost(release); PointerCanceled(release);
+        // Knob translation/scale and track color are exclusively managed by the dedicated
+        // Composition helpers. Do not attach a second pointer animation path here.
     }
 
     Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const { return m_header; }

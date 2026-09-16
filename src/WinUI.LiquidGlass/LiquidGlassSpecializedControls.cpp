@@ -24,24 +24,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
         void EnsureSpecializedResources()
         {
-            // A metadata/type-activation path may construct a runtimeclass before a XAML
-            // Application exists. Retry on the next real control construction instead of
-            // caching that first miss forever.
             static bool loaded{};
-            if (loaded)
-            {
-                return;
-            }
-
+            if (loaded) return;
             auto app = Xaml::Application::Current();
-            if (!app)
-            {
-                return;
-            }
-
+            if (!app) return;
             Xaml::ResourceDictionary dictionary;
-            dictionary.Source(Windows::Foundation::Uri{
-                L"ms-appx:///WinUI.LiquidGlass/Themes/Specialized.xaml" });
+            dictionary.Source(Windows::Foundation::Uri{ L"ms-appx:///WinUI.LiquidGlass/Themes/Specialized.xaml" });
             app.Resources().MergedDictionaries().Append(dictionary);
             loaded = true;
         }
@@ -49,11 +37,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         Xaml::Style SpecializedStyle(wchar_t const* key)
         {
             auto app = Xaml::Application::Current();
-            if (!app)
-            {
-                return nullptr;
-            }
-
+            if (!app) return nullptr;
             auto resources = app.Resources();
             auto boxedKey = box_value(hstring{ key });
             return resources.HasKey(boxedKey)
@@ -73,10 +57,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
     void LiquidGlassSearchBox::ApplyGlassBrush(Brush const& value)
     {
         m_glassBrush = value;
-
-        // The wrapper owns the glass surface. Keeping the sealed AutoSuggestBox itself
-        // transparent prevents its stock rectangular background from covering the rounded
-        // liquid-glass geometry while retaining native text editing, suggestions and UIA.
         Background(AsMediaBrush(value));
         if (m_autoSuggestBox)
         {
@@ -98,9 +78,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         m_autoSuggestBox.BorderBrush(Media::Brush{ nullptr });
         m_autoSuggestBox.BorderThickness({ 0.0, 0.0, 0.0, 0.0 });
         if (auto textBoxStyle = SpecializedStyle(L"LiquidGlassAutoSuggestBoxTextBoxStyle"))
-        {
             m_autoSuggestBox.TextBoxStyle(textBoxStyle);
-        }
         HorizontalContentAlignment(Xaml::HorizontalAlignment::Stretch);
         VerticalContentAlignment(Xaml::VerticalAlignment::Center);
         IsTabStop(false);
@@ -109,16 +87,17 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(WinUI::LiquidGlass::LiquidGlassPresets::CreateBrush(
             WinUI::LiquidGlass::LiquidGlassPreset::SearchBox));
 
-        // Kube Searchbox: 0.8 idle -> 1.0 focused, pointer-down multiplies the
-        // current scale by 0.99. The specialized interaction helper combines focus
-        // and press from one baseline so their optical alpha never accumulates by event order.
+        // 0.8 idle -> 1.0 focused; pointer-down multiplies the current scale by 0.99.
+        // Native focus feedback is intentionally faster than the browser demo so text input
+        // never feels delayed behind keyboard focus acquisition.
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.8));
         SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.15)); // .05 -> .20
-        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(.25)); // .05 -> .30
+        SetValue(LiquidGlassInteraction::FocusedTintBoostProperty(), box_value(.15));
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(.25));
         SetValue(LiquidGlassInteraction::FocusedContrastMultiplierProperty(), box_value(1.0));
         SetValue(LiquidGlassInteraction::FocusedRefractionMultiplierProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(140.0));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(100.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(90.0));
     }
 
     hstring LiquidGlassSearchBox::Text() const { return m_autoSuggestBox ? m_autoSuggestBox.Text() : hstring{}; }
@@ -150,31 +129,19 @@ namespace winrt::WinUI::LiquidGlass::implementation
     {
         return m_autoSuggestBox.SuggestionChosen(handler);
     }
-
-    void LiquidGlassSearchBox::SuggestionChosen(event_token const& token) noexcept
-    {
-        if (m_autoSuggestBox) m_autoSuggestBox.SuggestionChosen(token);
-    }
+    void LiquidGlassSearchBox::SuggestionChosen(event_token const& token) noexcept { if (m_autoSuggestBox) m_autoSuggestBox.SuggestionChosen(token); }
 
     event_token LiquidGlassSearchBox::TextChanged(
         Windows::Foundation::TypedEventHandler<Controls::AutoSuggestBox, Controls::AutoSuggestBoxTextChangedEventArgs> const& handler)
     {
         return m_autoSuggestBox.TextChanged(handler);
     }
-
-    void LiquidGlassSearchBox::TextChanged(event_token const& token) noexcept
-    {
-        if (m_autoSuggestBox) m_autoSuggestBox.TextChanged(token);
-    }
+    void LiquidGlassSearchBox::TextChanged(event_token const& token) noexcept { if (m_autoSuggestBox) m_autoSuggestBox.TextChanged(token); }
 
     event_token LiquidGlassSearchBox::QuerySubmitted(
         Windows::Foundation::TypedEventHandler<Controls::AutoSuggestBox, Controls::AutoSuggestBoxQuerySubmittedEventArgs> const& handler)
     {
         return m_autoSuggestBox.QuerySubmitted(handler);
     }
-
-    void LiquidGlassSearchBox::QuerySubmitted(event_token const& token) noexcept
-    {
-        if (m_autoSuggestBox) m_autoSuggestBox.QuerySubmitted(token);
-    }
+    void LiquidGlassSearchBox::QuerySubmitted(event_token const& token) noexcept { if (m_autoSuggestBox) m_autoSuggestBox.QuerySubmitted(token); }
 }

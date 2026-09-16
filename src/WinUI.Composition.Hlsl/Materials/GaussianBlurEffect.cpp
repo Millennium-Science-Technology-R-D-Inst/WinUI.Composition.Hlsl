@@ -33,23 +33,12 @@ namespace
 		{
 		}
 
-		hstring Name() const
-		{
-			return m_name;
-		}
-
-		void Name(hstring const& value)
-		{
-			m_name = value;
-		}
+		hstring Name() const { return m_name; }
+		void Name(hstring const& value) { m_name = value; }
 
 		HRESULT __stdcall GetEffectId(GUID* effectId) noexcept final
 		{
-			if (!effectId)
-			{
-				return E_POINTER;
-			}
-
+			if (!effectId) return E_POINTER;
 			*effectId = kGaussianBlurEffectId;
 			return S_OK;
 		}
@@ -59,39 +48,22 @@ namespace
 			UINT* index,
 			ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING* mapping) noexcept final
 		{
-			if (!name || !index || !mapping)
-			{
-				return E_POINTER;
-			}
-
+			if (!name || !index || !mapping) return E_POINTER;
 			if (wcscmp(name, L"BlurAmount") == 0)
-			{
 				*index = D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION;
-			}
 			else if (wcscmp(name, L"Optimization") == 0)
-			{
 				*index = D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION;
-			}
 			else if (wcscmp(name, L"BorderMode") == 0)
-			{
 				*index = D2D1_GAUSSIANBLUR_PROP_BORDER_MODE;
-			}
 			else
-			{
 				return E_INVALIDARG;
-			}
-
 			*mapping = ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT;
 			return S_OK;
 		}
 
 		HRESULT __stdcall GetPropertyCount(UINT* count) noexcept final
 		{
-			if (!count)
-			{
-				return E_POINTER;
-			}
-
+			if (!count) return E_POINTER;
 			*count = 3;
 			return S_OK;
 		}
@@ -100,34 +72,32 @@ namespace
 			UINT index,
 			ABI::Windows::Foundation::IPropertyValue** value) noexcept final
 		{
-			if (!value)
-			{
-				return E_POINTER;
-			}
-
+			if (!value) return E_POINTER;
 			*value = nullptr;
 			try
 			{
 				IPropertyValue propertyValue{ nullptr };
 				switch (index)
 				{
-					case D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION:
-						propertyValue = PropertyValue::CreateSingle(m_blurAmount).as<IPropertyValue>();
-						break;
-					case D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION:
-						propertyValue = PropertyValue::CreateUInt32(
-							static_cast<uint32_t>(D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED)).as<IPropertyValue>();
-						break;
-					case D2D1_GAUSSIANBLUR_PROP_BORDER_MODE:
-						propertyValue = PropertyValue::CreateUInt32(
-							static_cast<uint32_t>(D2D1_BORDER_MODE_HARD)).as<IPropertyValue>();
-						break;
-					default:
-						return E_INVALIDARG;
+				case D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION:
+					propertyValue = PropertyValue::CreateSingle(m_blurAmount).as<IPropertyValue>();
+					break;
+				case D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION:
+					// QUALITY avoids the low-radius optimization crossover that makes small
+					// authored blur changes look discontinuous and exposes raster-like edges.
+					propertyValue = PropertyValue::CreateUInt32(
+						static_cast<uint32_t>(D2D1_GAUSSIANBLUR_OPTIMIZATION_QUALITY)).as<IPropertyValue>();
+					break;
+				case D2D1_GAUSSIANBLUR_PROP_BORDER_MODE:
+					// SOFT lets D2D materialize the blur outside the logical input bounds. The
+					// custom sampler then has real padded pixels available for edge refraction.
+					propertyValue = PropertyValue::CreateUInt32(
+						static_cast<uint32_t>(D2D1_BORDER_MODE_SOFT)).as<IPropertyValue>();
+					break;
+				default:
+					return E_INVALIDARG;
 				}
-
-				*value = reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(
-					detach_abi(propertyValue));
+				*value = reinterpret_cast<ABI::Windows::Foundation::IPropertyValue*>(detach_abi(propertyValue));
 				return S_OK;
 			}
 			catch (...)
@@ -140,17 +110,9 @@ namespace
 			UINT index,
 			ABI::Windows::Graphics::Effects::IGraphicsEffectSource** source) noexcept final
 		{
-			if (!source)
-			{
-				return E_POINTER;
-			}
-
+			if (!source) return E_POINTER;
 			*source = nullptr;
-			if (index != 0)
-			{
-				return E_INVALIDARG;
-			}
-
+			if (index != 0) return E_INVALIDARG;
 			try
 			{
 				*source = reinterpret_cast<ABI::Windows::Graphics::Effects::IGraphicsEffectSource*>(
@@ -165,11 +127,7 @@ namespace
 
 		HRESULT __stdcall GetSourceCount(UINT* count) noexcept final
 		{
-			if (!count)
-			{
-				return E_POINTER;
-			}
-
+			if (!count) return E_POINTER;
 			*count = 1;
 			return S_OK;
 		}
@@ -195,11 +153,7 @@ namespace GaussianBlurEffect
 		winrt::Windows::Graphics::Effects::IGraphicsEffectSource const& source,
 		float standardDeviation)
 	{
-		if (!effectName || !source)
-		{
-			throw hresult_invalid_argument();
-		}
+		if (!effectName || !source) throw hresult_invalid_argument();
 		return make<Effect>(effectName, source, standardDeviation);
 	}
 }
-

@@ -12,8 +12,8 @@
 #include "include/ChildSurfaceInteraction.hpp"
 #include "include/PressOpticsHelper.hpp"
 #include "include/FocusOpticsHelper.hpp"
-#include "include/KubeControlHelpers.hpp"
-#include "include/KubeSwitchTrackHelper.hpp"
+#include "include/ControlInteractionProfiles.hpp"
+#include "include/SwitchTrackVisualHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -32,8 +32,7 @@
 
 namespace winrt::WinUI::LiquidGlass::detail
 {
-    inline constexpr wchar_t ThemeResourceUri[] =
-        L"ms-appx:///WinUI.LiquidGlass/Themes/Generic.xaml";
+    inline constexpr wchar_t ThemeResourceUri[] = L"ms-appx:///WinUI.LiquidGlass/Themes/Generic.xaml";
 }
 
 namespace winrt::WinUI::LiquidGlass::implementation
@@ -94,7 +93,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassMagnifier>,
         detail::PointerLightHelper<LiquidGlassMagnifier>,
         detail::PointerFieldHelper<LiquidGlassMagnifier>,
-        detail::KubeMotionDefaults<LiquidGlassMagnifier, detail::KubeMotionProfile::Magnifier>
+        detail::MotionDefaults<LiquidGlassMagnifier, detail::MotionProfile::Magnifier>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassMagnifier();
@@ -144,20 +143,18 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassSlider>,
         detail::PointerLightHelper<LiquidGlassSlider>,
         detail::SliderPointerFieldHelper<LiquidGlassSlider>,
-        detail::KubeSliderVisualHelper<LiquidGlassSlider>,
-        detail::KubeMotionDefaults<LiquidGlassSlider, detail::KubeMotionProfile::Slider>
+        detail::SliderVisualHelper<LiquidGlassSlider>,
+        detail::MotionDefaults<LiquidGlassSlider, detail::MotionProfile::Slider>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassSlider();
-
-        // C++ implementation hook used by GlassBrushHelper; it is not projected by the IDL.
         void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
 
         void OnApplyTemplate()
         {
             base_type::OnApplyTemplate();
             detail::SliderPointerFieldHelper<LiquidGlassSlider>::RefreshPointerFieldTarget();
-            detail::KubeSliderVisualHelper<LiquidGlassSlider>::RefreshVisual();
+            detail::SliderVisualHelper<LiquidGlassSlider>::RefreshVisual();
         }
 
     private:
@@ -184,13 +181,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::FocusOpticsHelper<LiquidGlassPasswordBox>
     {
         LiquidGlassPasswordBox();
-
         hstring PlaceholderText() const;
         void PlaceholderText(hstring const& value);
         hstring Password() const;
         void Password(hstring const& value);
-
-        // C++ implementation hook used by GlassBrushHelper; it is not projected by the IDL.
         void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
 
     private:
@@ -213,13 +207,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
         detail::PointerLightHelper<LiquidGlassToggleSwitch>,
         detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>,
-        detail::KubeSwitchTrackHelper<LiquidGlassToggleSwitch>,
+        detail::SwitchTrackVisualHelper<LiquidGlassToggleSwitch>,
         detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>,
-        detail::KubeMotionDefaults<LiquidGlassToggleSwitch, detail::KubeMotionProfile::Switch>
+        detail::MotionDefaults<LiquidGlassToggleSwitch, detail::MotionProfile::Switch>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
         LiquidGlassToggleSwitch();
-
         Windows::Foundation::IInspectable Header() const;
         void Header(Windows::Foundation::IInspectable const& value);
         bool IsOn() const;
@@ -229,15 +222,13 @@ namespace winrt::WinUI::LiquidGlass::implementation
         {
             base_type::OnApplyTemplate();
             detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>::RefreshInteractionTarget();
-            detail::KubeSwitchTrackHelper<LiquidGlassToggleSwitch>::RefreshTrackTarget();
+            detail::SwitchTrackVisualHelper<LiquidGlassToggleSwitch>::RefreshTrackTarget();
         }
 
         void OnToggle()
         {
             if (!detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>::TryHandleToggle())
-            {
                 base_type::OnToggle();
-            }
         }
 
     private:
@@ -265,7 +256,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::PointerFieldHelper<LiquidGlassTabBar>
     {
         LiquidGlassTabBar();
-
         Microsoft::UI::Xaml::DependencyObject GetContainerForItemOverride();
         bool IsItemItsOwnContainerOverride(Windows::Foundation::IInspectable const& item);
     };

@@ -20,7 +20,7 @@ cbuffer LiquidGlassConstants : register(b0)
     // xy = normalized pointer velocity/second, z = normalized outside hover range, w = pointer active
     float4 MaterialParams7;
     // x = pointer refraction strength, y = pointer highlight strength, z = motion refraction strength,
-    // w = Kube displacement-map normalization for the current optical surface
+    // w = displacement-map normalization for the current optical surface
     float4 MaterialParams8;
 };
 
@@ -62,7 +62,6 @@ float SurfaceHeight(float t, float profile)
 {
     t = saturate(t);
     float result = 0.0f;
-
     if (profile < 0.5f)
     {
         result = ConvexSquircle(t);
@@ -77,22 +76,18 @@ float SurfaceHeight(float t, float profile)
     }
     else
     {
-        // Keep x * 2 unsaturated here. kube's Lip deliberately lets the squircle arc
-        // travel through the second half of its domain before smootherstep blends it
-        // into the concave surface.
+        // Lip intentionally lets the convex arc travel through the second half of its
+        // domain before smootherstep blends it into the concave surface.
         float convex = ConvexSquircleRaw(t * 2.0f);
         float concave = ConcaveCircle(t) + 0.1f;
         result = lerp(convex, concave, SmootherStep01(t));
     }
-
     return result;
 }
 
 float SurfaceDerivative(float t, float profile)
 {
-    // Match kube's precomputed 128-sample displacement generator. The generator probes
-    // each surface sample with dx=0.0001; using a wider derivative here changes Snell
-    // normals enough to break the CPU-computed normalization near steep bezel regions.
+    // Match the 128-sample reference displacement generator.
     const float delta = 0.0001f;
     const float step = t < 1.0f - delta ? delta : -delta;
     const float y = SurfaceHeight(t, profile);
@@ -106,8 +101,6 @@ float CalculateReferenceRefractionDistance(
     float glassThickness,
     float refractiveIndex)
 {
-    // kube's reduced 2-D Snell model: incoming ray is [0, 1], ambient IOR is 1,
-    // and the ray refracts once through the curved top surface.
     const float inverseLength = rsqrt(max(derivative * derivative + 1.0f, 1e-6f));
     const float2 surfaceNormal = float2(-derivative * inverseLength, -inverseLength);
     const float eta = 1.0f / max(refractiveIndex, 1.0001f);
@@ -121,44 +114,35 @@ float CalculateReferenceRefractionDistance(
         const float2 refracted = float2(
             -q * surfaceNormal.x,
             eta - q * surfaceNormal.y);
-
         if (abs(refracted.y) > 1e-5f)
         {
             const float remainingHeight = height * bezelWidth + max(glassThickness, 0.0f);
             result = refracted.x * (remainingHeight / refracted.y);
         }
     }
-
     return result;
 }
 
 float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float centerSdf)
 {
-    // Use the analytic rounded-rectangle SDF gradient instead of a finite difference.
-    // A fixed half-pixel probe produces visible directional facets at large blur/radius
-    // values because the specular/refraction normal changes in discrete corner bands.
     const float2 signs = float2(local.x < 0.0f ? -1.0f : 1.0f, local.y < 0.0f ? -1.0f : 1.0f);
     const float2 q = abs(local) - (halfRect - radius.xx);
     const float2 outside = max(q, 0.0f.xx);
     const float outsideLength = length(outside);
     float2 result = float2(0.0f, -1.0f);
 
-    // FXC's Debug data-flow pass is conservative around multiple return paths in
-    // library functions. Keep a definitely initialized result and return once.
     if (outsideLength > 1e-5f)
     {
         result = (outside / outsideLength) * signs;
     }
     else if (q.x > q.y)
     {
-        // Inside the corner arc the SDF is linear along the dominant axis.
         result = float2(signs.x, 0.0f);
     }
     else
     {
         result = float2(0.0f, signs.y);
     }
-
     return result;
 }
 
@@ -170,22 +154,15 @@ float CalculatePointerInteraction(
     float hoverRange,
     float interactionRadius)
 {
-    // Pointer and pixel positions are now in exactly the same shader-local space.
-    // Negative SDF is inside the glass; positive SDF is distance outside the shape.
     const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
     float shapeActivation = pointerSdf <= 0.0f ? 1.0f : 0.0f;
     if (pointerSdf > 0.0f && hoverRange > 1e-4f)
-    {
         shapeActivation = 1.0f - smoothstep(0.0f, hoverRange, pointerSdf);
-    }
 
     const float pointerDistance = length(pixelPosition - pointerPosition);
     float localInfluence = 0.0f;
     if (interactionRadius > 1e-4f)
-    {
         localInfluence = 1.0f - smoothstep(0.0f, interactionRadius, pointerDistance);
-    }
-
     return saturate(shapeActivation * localInfluence);
 }
 
@@ -197,28 +174,44 @@ float3 ApplySaturation(float3 color, float saturation)
 
 float3 ApplyExposureContrast(float3 color, float exposure, float contrast)
 {
-    // Exposure is expressed in photographic stops. Contrast is centered around
-    // middle gray so 1.0 is neutral and 0.0 collapses to 50% gray.
     color *= exp2(exposure);
     return (color - 0.5f.xxx) * max(contrast, 0.0f) + 0.5f.xxx;
 }
 
-float2 ClampSampleUv(float2 uv, float2 texelSize)
+float2 ClampSampleUv(
+    float2 uv,
+    float2 texelSize,
+    float2 contentMin,
+    float2 contentMax,
+    bool hasContentRect)
 {
-    // samplerData describes the *unpadded* content rectangle inside a materialized
-    // upstream surface. Geometry uses that rectangle, but sampling must retain the
-    // Gaussian blur/refraction padding around it. Clamping back to contentMin/contentMax
-    // repeats a rectangular edge texel and creates bright/smeared bands at rounded
-    // corners. Clamp only to the real texture boundary (half a texel inset).
     const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
-    const float2 minimumUv = min(halfTexel, 1.0f.xx - halfTexel);
-    const float2 maximumUv = max(halfTexel, 1.0f.xx - halfTexel);
-    return clamp(uv, minimumUv, maximumUv);
+    const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
+    const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
+    if (!hasContentRect)
+        return clamp(uv, textureMin, textureMax);
+
+    // Materialized Gaussian blur supplies padding around samplerData's logical content
+    // rectangle. Keep most of that padding available to refraction, but do not sample the
+    // outer transparent fringe. Concave/Lip fields can otherwise expose a large black band
+    // when their steep edge vectors reach the materialized surface boundary.
+    const float2 paddingBefore = max(contentMin - textureMin, 0.0f.xx);
+    const float2 paddingAfter = max(textureMax - contentMax, 0.0f.xx);
+    const float2 safeMin = max(textureMin, contentMin - paddingBefore * 0.75f);
+    const float2 safeMax = min(textureMax, contentMax + paddingAfter * 0.75f);
+    return clamp(uv, safeMin, safeMax);
 }
 
-float4 SampleTransmission(float2 uv, float2 texelSize)
+float4 SampleTransmission(
+    float2 uv,
+    float2 texelSize,
+    float2 contentMin,
+    float2 contentMax,
+    bool hasContentRect)
 {
-    return texture0.Sample(sampler0, ClampSampleUv(uv, texelSize));
+    return texture0.Sample(
+        sampler0,
+        ClampSampleUv(uv, texelSize, contentMin, contentMax, hasContentRect));
 }
 
 float ReferenceSpecularCoefficient(
@@ -231,21 +224,12 @@ float ReferenceSpecularCoefficient(
 {
     const float width = max(specularWidth, 0.25f);
     const float normalizedDistance = max(distanceFromEdge, 0.0f) / width;
-
-    // Match kube's generated specular map directly. Its edge term is a semicircle
-    // sqrt(1 - (1 - d / width)^2): zero at the silhouette, peaks one width inward,
-    // and naturally falls back to zero at two widths. This avoids the old flat-topped
-    // highlight band, which was especially visible as angular corner wedges on large glass.
     const float arcTerm = 1.0f -
         (1.0f - normalizedDistance) * (1.0f - normalizedDistance);
     const float arc = sqrt(saturate(arcTerm));
     const float orientation = pow(
         saturate(abs(dot(normal, lightDirection))),
         max(highlightSharpness, 0.25f));
-
-    // Keep the analytical support but let the geometry AA own the outer silhouette.
-    // feather is intentionally retained in the signature because callers use the same
-    // edge-width contract for authored and pointer-driven specular.
     const float support = 1.0f - smoothstep(
         2.0f,
         2.0f + max(feather / width, 0.25f),
@@ -295,10 +279,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float2 contentUvSize = hasContentRect ? contentUvSizeRaw : 1.0f.xx;
     const float2 localUv = hasContentRect ? ((uv - contentMin) / contentUvSize) : uv;
 
-    // Reconstruct local X/Y extents using the Euclidean screen-space gradient of
-    // each local coordinate. The previous L1 derivative (abs(ddx)+abs(ddy)) shrank
-    // the inferred rectangle by up to sqrt(2) under rotation/non-axis-aligned scale,
-    // which distorted CornerRadius and made otherwise round corners look faceted.
     const float2 localUvDx = ddx(localUv);
     const float2 localUvDy = ddy(localUv);
     const float2 localUvPixelStep = max(
@@ -320,10 +300,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, halfRect, radius);
 
-    // Isotropic screen-space AA keeps the coverage transition stable when the visual is
-    // scaled or rotated. EdgeSoftness stays an independent, authored silhouette control;
-    // Gaussian BlurRadius only changes backdrop sampling and can no longer widen or facet
-    // the geometry edge as it grows.
     const float sdfPixelFootprint = max(
         length(float2(ddx(sdf), ddy(sdf))),
         0.5f);
@@ -335,22 +311,27 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     if (alpha > 0.0f)
     {
         const float distanceFromEdge = max(-sdf, 0.0f);
-        // Border radius only changes the SDF geometry. The optical bezel is an independent
-        // physical width exactly like kube's distanceFromSide / bezelWidth model.
         const float maximumBezel = max(halfMinSize - 0.5f, 1.0f);
         const float bezel = clamp(bezelWidth, 1.0f, maximumBezel);
         const float bezelT = saturate(distanceFromEdge / bezel);
         const float height = SurfaceHeight(bezelT, surfaceProfile);
         const float derivative = SurfaceDerivative(bezelT, surfaceProfile);
         const float referenceDisplacement = CalculateReferenceRefractionDistance(
-            height,
-            derivative,
-            bezel,
-            glassThickness,
-            refractiveIndex);
+            height, derivative, bezel, glassThickness, refractiveIndex);
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
-        const float displacementPixels =
+
+        // Coverage is allowed to span the silhouette for antialiasing, but the optical field
+        // itself is neutral outside the physical glass. Blend the analytical displacement in
+        // over roughly one raster pixel so rounded corners look optically continuous instead
+        // of like a displaced image clipped by a later alpha mask.
+        const float opticalInterior = smoothstep(0.0f, max(sdfPixelFootprint, 0.75f), -sdf);
+        const float rawDisplacementPixels =
             referenceDisplacement * artisticScale * refractionNormalization;
+        const float displacementLimit = max(maximumExtent * 0.48f, 1.0f);
+        const float displacementPixels = clamp(
+            rawDisplacementPixels,
+            -displacementLimit,
+            displacementLimit) * opticalInterior;
 
         const float pointerInteraction = CalculatePointerInteraction(
             localPosition,
@@ -363,52 +344,41 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         float2 pointerDirection = 0.0f.xx;
         const float pointerDistance = length(localPosition - pointerPosition);
         if (pointerDistance > 1e-4f)
-        {
             pointerDirection = (localPosition - pointerPosition) / pointerDistance;
-        }
 
         float2 motionDirection = 0.0f.xx;
         const float pointerSpeed = length(pointerVelocity);
         if (pointerSpeed > 1e-4f)
-        {
             motionDirection = -pointerVelocity / pointerSpeed;
-        }
 
         const float pointerSpeedWeight = saturate(pointerSpeed / max(maximumExtent * 7.0f, 1.0f));
         const float2 pointerRefractionOffset =
-            pointerDirection * pointerInteraction * pointerRefractionStrength;
+            pointerDirection * pointerInteraction * pointerRefractionStrength * opticalInterior;
         const float2 pointerMotionOffset =
-            motionDirection * pointerSpeedWeight * pointerInteraction * pointerMotionRefractionStrength;
+            motionDirection * pointerSpeedWeight * pointerInteraction * pointerMotionRefractionStrength * opticalInterior;
 
         const float2 normal = RoundedRectNormal(local, halfRect, radius, sdf);
         const float2 refractionPixelOffset =
             -normal * displacementPixels + pointerRefractionOffset + pointerMotionOffset;
         const float2 refractedUv = uv + refractionPixelOffset * texelSize;
 
-        // kube's magnifier is a first displacement pass whose output is then sampled by the
-        // refraction pass. Because its field is linear/radial, evaluating the magnification
-        // at the already-refracted coordinate reproduces that two-stage composition:
-        // Source(x + R(x) + M(x + R(x))). The generated displacement texture stores
-        // 128 - normalized * 127, while feDisplacementMap reads channel/255 - 0.5, so its
-        // authored scale is multiplied by 127/255. Ignore only the half-code neutral bias,
-        // which is a texture quantization artifact rather than intended optical motion.
         const float maximumHalfExtent = max(max(halfRect.x, halfRect.y), 1.0f);
         const float2 refractedLocal = local + refractionPixelOffset;
         const float2 normalizedMagnification = refractedLocal / maximumHalfExtent;
         const float magnificationEncodingScale = 127.0f / 255.0f;
         const float2 magnificationOffset =
-            -normalizedMagnification * texelSize * magnificationStrength * magnificationEncodingScale;
+            -normalizedMagnification * texelSize * magnificationStrength * magnificationEncodingScale * opticalInterior;
         const float2 sampleUv = refractedUv + magnificationOffset;
 
         const float bezelWeight = 1.0f - smoothstep(0.18f, 1.0f, bezelT);
         const float dispersionPixels = dispersionStrength * bezelWeight *
-            (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f));
+            (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) * opticalInterior;
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
         float3 color = float3(
-            SampleTransmission(sampleUv - dispersionOffset, texelSize).r,
-            SampleTransmission(sampleUv, texelSize).g,
-            SampleTransmission(sampleUv + dispersionOffset, texelSize).b);
+            SampleTransmission(sampleUv - dispersionOffset, texelSize, contentMin, contentMax, hasContentRect).r,
+            SampleTransmission(sampleUv, texelSize, contentMin, contentMax, hasContentRect).g,
+            SampleTransmission(sampleUv + dispersionOffset, texelSize, contentMin, contentMax, hasContentRect).b);
         color = ApplySaturation(color, saturation);
         color = ApplyExposureContrast(color, exposure, contrast);
         color = lerp(color, tintColor, tintOpacity);
@@ -429,7 +399,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             feather,
             normal,
             lightDirection,
-            highlightSharpness);
+            highlightSharpness) * opticalInterior;
 
         float pointerSpecular = 0.0f;
         const float pointerLightDistance = length(pointerPosition - localPosition);
@@ -442,25 +412,16 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
                 feather,
                 normal,
                 pointerLightDirection,
-                highlightSharpness) * pointerInteraction * pointerHighlightStrength;
+                highlightSharpness) * pointerInteraction * pointerHighlightStrength * opticalInterior;
         }
 
-        // Reproduce kube's SVG graph rather than approximating the final highlight as
-        // additive white. The specular asset stores coefficient in RGB and coefficient^2
-        // in alpha. First blend the saturated refraction through that alpha, then apply the
-        // faded grayscale specular layer with normal source-over compositing.
         const float specularMask = specularCoefficient * specularCoefficient;
         const float3 saturatedSpecularColor = ApplySaturation(color, specularSaturation);
         color = lerp(color, saturatedSpecularColor, specularMask);
         const float specularAlpha = saturate(specularMask * highlightStrength);
         color = lerp(color, specularCoefficient.xxx, specularAlpha);
-
-        // Pointer lighting is an interaction extension, not part of kube's static SVG
-        // filter. Treat it as another bounded source-over highlight so fast pointer motion
-        // cannot create HDR-like additive white seams at the rounded silhouette.
         color = lerp(color, 1.0f.xxx, saturate(pointerSpecular));
         color = saturate(color);
-
         result = float4(color * alpha, alpha);
     }
 

@@ -79,8 +79,11 @@
     <ClInclude Include="include\PointerLightHelper.hpp" />
     <ClInclude Include="include\PointerFieldHelper.hpp" />
     <ClInclude Include="include\PointerMotionHelper.hpp" />
+    <ClInclude Include="include\ChildSurfaceInteraction.hpp" />
     <ClInclude Include="include\PressOpticsHelper.hpp" />
     <ClInclude Include="include\FocusOpticsHelper.hpp" />
+    <ClInclude Include="include\ControlInteractionProfiles.hpp" />
+    <ClInclude Include="include\SwitchTrackVisualHelper.hpp" />
     <ClInclude Include="LiquidGlassControls.h" />
     <ClInclude Include="LiquidGlassSpecializedControls.h" />
     <ClInclude Include="LiquidGlassCard.h" />
@@ -111,6 +114,12 @@
     </ClCompile>
 
     <Page Include="Themes\Generic.xaml" />
+    <Page Include="Themes\Controls\Surfaces.xaml" />
+    <Page Include="Themes\Controls\Buttons.xaml" />
+    <Page Include="Themes\Controls\Selectors.xaml" />
+    <Page Include="Themes\Controls\Slider.xaml" />
+    <Page Include="Themes\Controls\ToggleSwitch.xaml" />
+    <Page Include="Themes\Controls\Compatibility.xaml" />
     <Page Include="Themes\TabBar.xaml" />
     <Page Include="Themes\Specialized.xaml" />
     <Page Include="Themes\NativeInputs.xaml" />

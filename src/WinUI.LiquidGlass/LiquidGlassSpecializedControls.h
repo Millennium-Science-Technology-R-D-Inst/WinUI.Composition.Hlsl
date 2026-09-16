@@ -20,8 +20,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassSearchBox>,
         detail::PointerLightHelper<LiquidGlassSearchBox>,
         detail::PointerFieldHelper<LiquidGlassSearchBox>,
-        detail::KubeSearchInteractionHelper<LiquidGlassSearchBox>,
-        detail::KubeMotionDefaults<LiquidGlassSearchBox, detail::KubeMotionProfile::Search>
+        detail::SearchInteractionHelper<LiquidGlassSearchBox>,
+        detail::MotionDefaults<LiquidGlassSearchBox, detail::MotionProfile::Search>
     {
         LiquidGlassSearchBox();
 
@@ -65,7 +65,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
                 Microsoft::UI::Xaml::Controls::AutoSuggestBoxQuerySubmittedEventArgs> const& handler);
         void QuerySubmitted(event_token const& token) noexcept;
 
-        // C++ implementation hook used by GlassBrushHelper; it is not projected by the IDL.
         void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
 
     private:
