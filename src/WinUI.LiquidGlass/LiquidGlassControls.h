@@ -242,7 +242,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassTabBar>,
         detail::TemplateControlHelper<LiquidGlassTabBar, false>,
         detail::PointerLightHelper<LiquidGlassTabBar>,
-        detail::PointerFieldHelper<LiquidGlassTabBar>
+        detail::PointerFieldHelper<LiquidGlassTabBar>,
+        detail::CompactControlMotionDefaults<LiquidGlassTabBar, detail::CompactControlMotionProfile::Selector>
     {
         LiquidGlassTabBar();
         Microsoft::UI::Xaml::DependencyObject GetContainerForItemOverride();
