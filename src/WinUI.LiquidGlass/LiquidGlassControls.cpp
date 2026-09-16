@@ -237,7 +237,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.9));
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
-        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.25));
+        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.07));
     }
 
     Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const { return m_header; }
