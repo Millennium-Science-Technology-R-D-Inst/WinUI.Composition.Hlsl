@@ -14,7 +14,22 @@ namespace winrt::WinUI::LiquidGlass::detail
         MagnifierMotionHelper()
         {
             auto self = static_cast<Self*>(this);
+            self->Loaded([this](auto const&, auto const&)
+            {
+                m_loaded = true;
+                RestorePendingOptics();
+            });
             self->Unloaded([this](auto const&, auto const&) { ClearForTeardown(); });
+            self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
+            {
+                if (!m_loaded)
+                {
+                    // Detached brush replacement retires the old material. Never write the
+                    // saved active state into a brush whose compositor may already be closed.
+                    m_dragOptics = {};
+                    m_restMagnification = 0.0;
+                }
+            });
 
             auto bind = [self](auto routedEvent, Windows::Foundation::IInspectable& storage, auto&& callback)
             {
@@ -128,12 +143,25 @@ namespace winrt::WinUI::LiquidGlass::detail
                 to);
         }
 
+        void RestorePendingOptics()
+        {
+            if (!m_dragOptics.active) return;
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            if (brush && m_dragOptics.brush && get_abi(brush) == get_abi(m_dragOptics.brush))
+            {
+                ApplySnapshot(m_dragOptics);
+                brush.MagnificationStrength(m_restMagnification);
+            }
+            m_dragOptics = {};
+        }
+
         template<typename Sender>
         void BeginInteraction(
             Sender const& sender,
             Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
-            if (m_dragging) return;
+            if (!m_loaded || m_dragging) return;
             auto self = static_cast<Self*>(this);
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
@@ -197,7 +225,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             Sender const& sender,
             Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
-            if (!m_dragging || !m_coordinateRoot) return;
+            if (!m_loaded || !m_dragging || !m_coordinateRoot) return;
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto frameworkElement = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !frameworkElement) return;
@@ -261,7 +289,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             Sender const& sender,
             Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
-            if (!m_dragging) return;
+            if (!m_loaded || !m_dragging) return;
             auto element = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
             m_dragging = false;
             if (element) element.ReleasePointerCapture(args.Pointer());
@@ -272,7 +300,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void EndInteraction(Sender const& sender, bool animate)
         {
-            if (!m_dragging) return;
+            if (!m_loaded || !m_dragging) return;
             m_dragging = false;
             FinishVisualState(sender, animate);
         }
@@ -334,8 +362,10 @@ namespace winrt::WinUI::LiquidGlass::detail
         void ClearForTeardown()
         {
             // No effect/visual restoration here: Unloaded can race compositor shutdown.
+            // Keep the optics and magnification baselines so Loaded can restore the logical
+            // brush state once the composition surface is valid again.
+            m_loaded = false;
             m_coordinateRoot = nullptr;
-            m_dragOptics = {};
             m_pointerId = 0;
             m_filteredVelocityX = 0.0;
             m_filteredVelocityY = 0.0;
@@ -362,6 +392,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         double m_axisX{ 1.0 };
         double m_axisY{};
         std::uint32_t m_pointerId{};
+        bool m_loaded{};
         bool m_dragging{};
         bool m_consumedInteraction{};
     };
