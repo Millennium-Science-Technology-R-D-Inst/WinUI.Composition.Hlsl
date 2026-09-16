@@ -15,8 +15,13 @@ using namespace Windows::Graphics::Effects;
 
 namespace
 {
-	constexpr GUID kScaleEffectId{
-		0x9daf9369, 0x3846, 0x4d0e, { 0xa4, 0x4e, 0x0c, 0x60, 0x79, 0x34, 0xa5, 0xd7 }
+	// D2D Scale is a valid Direct2D effect, but it is not one of the effect types
+	// accepted by Microsoft.UI.Composition::Compositor::CreateEffectFactory.
+	// Composition does support the 2D affine-transform effect, and its output bounds
+	// follow the transform matrix, so use that supported primitive to establish the
+	// Dual Kawase pyramid levels.
+	constexpr GUID kAffineTransform2DEffectId{
+		0x6aa97485, 0x6354, 0x4cfc, { 0x90, 0x8c, 0xe4, 0xa7, 0x4f, 0x62, 0xc9, 0x6c }
 	};
 
 	struct Effect :
@@ -30,7 +35,8 @@ namespace
 			m_name(effectName),
 			m_source(source),
 			m_scaleX(scaleX),
-			m_scaleY(scaleY)
+			m_scaleY(scaleY),
+			m_borderMode(scaleX <= 1.0f && scaleY <= 1.0f ? D2D1_BORDER_MODE_HARD : D2D1_BORDER_MODE_SOFT)
 		{
 		}
 
@@ -40,7 +46,7 @@ namespace
 		HRESULT __stdcall GetEffectId(GUID* effectId) noexcept final
 		{
 			if (!effectId) return E_POINTER;
-			*effectId = kScaleEffectId;
+			*effectId = kAffineTransform2DEffectId;
 			return S_OK;
 		}
 
@@ -50,16 +56,14 @@ namespace
 			ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING* mapping) noexcept final
 		{
 			if (!name || !index || !mapping) return E_POINTER;
-			if (wcscmp(name, L"Scale") == 0)
-				*index = D2D1_SCALE_PROP_SCALE;
-			else if (wcscmp(name, L"CenterPoint") == 0)
-				*index = D2D1_SCALE_PROP_CENTER_POINT;
-			else if (wcscmp(name, L"InterpolationMode") == 0)
-				*index = D2D1_SCALE_PROP_INTERPOLATION_MODE;
+			if (wcscmp(name, L"InterpolationMode") == 0)
+				*index = D2D1_2DAFFINETRANSFORM_PROP_INTERPOLATION_MODE;
 			else if (wcscmp(name, L"BorderMode") == 0)
-				*index = D2D1_SCALE_PROP_BORDER_MODE;
+				*index = D2D1_2DAFFINETRANSFORM_PROP_BORDER_MODE;
+			else if (wcscmp(name, L"TransformMatrix") == 0)
+				*index = D2D1_2DAFFINETRANSFORM_PROP_TRANSFORM_MATRIX;
 			else if (wcscmp(name, L"Sharpness") == 0)
-				*index = D2D1_SCALE_PROP_SHARPNESS;
+				*index = D2D1_2DAFFINETRANSFORM_PROP_SHARPNESS;
 			else
 				return E_INVALIDARG;
 			*mapping = ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT;
@@ -69,7 +73,7 @@ namespace
 		HRESULT __stdcall GetPropertyCount(UINT* count) noexcept final
 		{
 			if (!count) return E_POINTER;
-			*count = 5;
+			*count = 4;
 			return S_OK;
 		}
 
@@ -84,30 +88,23 @@ namespace
 				IPropertyValue propertyValue{ nullptr };
 				switch (index)
 				{
-				case D2D1_SCALE_PROP_SCALE:
+				case D2D1_2DAFFINETRANSFORM_PROP_INTERPOLATION_MODE:
+					propertyValue = PropertyValue::CreateUInt32(
+						static_cast<uint32_t>(D2D1_2DAFFINETRANSFORM_INTERPOLATION_MODE_LINEAR)).as<IPropertyValue>();
+					break;
+				case D2D1_2DAFFINETRANSFORM_PROP_BORDER_MODE:
+					propertyValue = PropertyValue::CreateUInt32(
+						static_cast<uint32_t>(m_borderMode)).as<IPropertyValue>();
+					break;
+				case D2D1_2DAFFINETRANSFORM_PROP_TRANSFORM_MATRIX:
 				{
-					float values[]{ m_scaleX, m_scaleY };
+					// D2D1_MATRIX_3X2_F in row-major field order:
+					// _11, _12, _21, _22, _31, _32.
+					float values[]{ m_scaleX, 0.0f, 0.0f, m_scaleY, 0.0f, 0.0f };
 					propertyValue = PropertyValue::CreateSingleArray(values).as<IPropertyValue>();
 					break;
 				}
-				case D2D1_SCALE_PROP_CENTER_POINT:
-				{
-					float values[]{ 0.0f, 0.0f };
-					propertyValue = PropertyValue::CreateSingleArray(values).as<IPropertyValue>();
-					break;
-				}
-				case D2D1_SCALE_PROP_INTERPOLATION_MODE:
-					propertyValue = PropertyValue::CreateUInt32(
-						static_cast<uint32_t>(D2D1_SCALE_INTERPOLATION_MODE_LINEAR)).as<IPropertyValue>();
-					break;
-				case D2D1_SCALE_PROP_BORDER_MODE:
-					// HARD gives the resampler a mirror edge instead of transparent black.
-					// The Kawase shader performs its own content-rect mirroring as well, so
-					// neither stage can manufacture a black halo at a finite backdrop edge.
-					propertyValue = PropertyValue::CreateUInt32(
-						static_cast<uint32_t>(D2D1_BORDER_MODE_HARD)).as<IPropertyValue>();
-					break;
-				case D2D1_SCALE_PROP_SHARPNESS:
+				case D2D1_2DAFFINETRANSFORM_PROP_SHARPNESS:
 					propertyValue = PropertyValue::CreateSingle(0.0f).as<IPropertyValue>();
 					break;
 				default:
@@ -153,6 +150,7 @@ namespace
 		IGraphicsEffectSource m_source{ nullptr };
 		float m_scaleX{ 1.0f };
 		float m_scaleY{ 1.0f };
+		D2D1_BORDER_MODE m_borderMode{ D2D1_BORDER_MODE_SOFT };
 	};
 }
 
