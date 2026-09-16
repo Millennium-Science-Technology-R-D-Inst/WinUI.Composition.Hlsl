@@ -21,6 +21,14 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
     }
 
+    inline Microsoft::UI::Composition::CubicBezierEasingFunction CreateMotionEasing(
+        Microsoft::UI::Composition::Compositor const& compositor)
+    {
+        return compositor.CreateCubicBezierEasingFunction(
+            Windows::Foundation::Numerics::float2{ .20f, 0.0f },
+            Windows::Foundation::Numerics::float2{ 0.0f, 1.0f });
+    }
+
     inline void SetElementScale(
         Microsoft::UI::Xaml::FrameworkElement const& element,
         double x,
@@ -58,7 +66,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             static_cast<float>(element.ActualHeight() * .5),
             0.0f });
 
-        if (!MotionAnimationsEnabled(owner))
+        auto const duration = std::clamp(durationMs, 0.0, 2000.0);
+        if (!MotionAnimationsEnabled(owner) || duration <= 0.0)
         {
             visual.StopAnimation(L"Scale");
             visual.Scale({ static_cast<float>(x), static_cast<float>(y), 1.0f });
@@ -85,9 +94,9 @@ namespace winrt::WinUI::LiquidGlass::detail
         animation.InsertKeyFrame(1.0f, {
             static_cast<float>(x),
             static_cast<float>(y),
-            1.0f });
+            1.0f }, CreateMotionEasing(visual.Compositor()));
         animation.Duration(std::chrono::milliseconds{
-            static_cast<int64_t>(std::lround(std::clamp(durationMs, 0.0, 2000.0))) });
+            static_cast<int64_t>(std::lround(duration)) });
         visual.StartAnimation(L"Scale", animation);
     }
 
@@ -124,8 +133,9 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(element, true);
         auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(element);
+        auto const duration = std::clamp(durationMs, 0.0, 2000.0);
 
-        if (!MotionAnimationsEnabled(owner))
+        if (!MotionAnimationsEnabled(owner) || duration <= 0.0)
         {
             visual.StopAnimation(L"Translation");
             element.Translation(value);
@@ -147,9 +157,9 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
         auto animation = visual.Compositor().CreateVector3KeyFrameAnimation();
-        animation.InsertKeyFrame(1.0f, value);
+        animation.InsertKeyFrame(1.0f, value, CreateMotionEasing(visual.Compositor()));
         animation.Duration(std::chrono::milliseconds{
-            static_cast<int64_t>(std::lround(std::clamp(durationMs, 0.0, 2000.0))) });
+            static_cast<int64_t>(std::lround(duration)) });
         visual.StartAnimation(L"Translation", animation);
     }
 }

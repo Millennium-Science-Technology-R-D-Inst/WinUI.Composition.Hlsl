@@ -15,6 +15,7 @@
 #include "include/ControlInteractionProfiles.hpp"
 #include "include/SwitchTrackVisualHelper.hpp"
 #include "include/ControlVisualMotion.hpp"
+#include "include/ChoiceGlyphMotionHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -119,7 +120,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassCheckBox>,
         detail::TemplateControlHelper<LiquidGlassCheckBox>,
         detail::PointerLightHelper<LiquidGlassCheckBox>,
-        detail::PointerMotionHelper<LiquidGlassCheckBox>,
+        detail::ChoiceGlyphMotionHelper<LiquidGlassCheckBox>,
         detail::PressOpticsHelper<LiquidGlassCheckBox, detail::PersistentOpticsKind::Toggle>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
@@ -131,7 +132,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassRadioButton>,
         detail::TemplateControlHelper<LiquidGlassRadioButton>,
         detail::PointerLightHelper<LiquidGlassRadioButton>,
-        detail::PointerMotionHelper<LiquidGlassRadioButton>,
+        detail::ChoiceGlyphMotionHelper<LiquidGlassRadioButton>,
         detail::PressOpticsHelper<LiquidGlassRadioButton, detail::PersistentOpticsKind::Toggle>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
