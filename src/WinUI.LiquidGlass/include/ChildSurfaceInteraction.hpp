@@ -12,19 +12,14 @@ namespace winrt::WinUI::LiquidGlass::detail
         if (!root) return nullptr;
         if (auto element = root.try_as<Microsoft::UI::Xaml::FrameworkElement>();
             element && element.Name() == name)
-        {
             return root;
-        }
 
         auto const count = Microsoft::UI::Xaml::Media::VisualTreeHelper::GetChildrenCount(root);
         for (int32_t index = 0; index < count; ++index)
         {
             if (auto result = FindNamedDescendant(
-                Microsoft::UI::Xaml::Media::VisualTreeHelper::GetChild(root, index),
-                name))
-            {
+                Microsoft::UI::Xaml::Media::VisualTreeHelper::GetChild(root, index), name))
                 return result;
-            }
         }
         return nullptr;
     }
@@ -43,9 +38,6 @@ namespace winrt::WinUI::LiquidGlass::detail
         return nullptr;
     }
 
-    // A pointer field whose coordinate space is an arbitrary child FrameworkElement rather
-    // than the owner control. Slider thumbs and switch knobs need this because their glass
-    // material is rendered on a moving/scaled template child, not on the semantic control.
     class PointerFieldSurface
     {
     public:
@@ -56,11 +48,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerFieldSurface() = default;
         PointerFieldSurface(PointerFieldSurface const&) = delete;
         PointerFieldSurface& operator=(PointerFieldSurface const&) = delete;
-
-        ~PointerFieldSurface()
-        {
-            Detach();
-        }
+        ~PointerFieldSurface() { Detach(); }
 
         void Attach(
             Microsoft::UI::Xaml::XamlRoot const& xamlRoot,
@@ -86,11 +74,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_xamlRoot = xamlRoot;
             m_target = target;
             m_brushGetter = std::move(brushGetter);
-            m_sizeChangedToken = m_target.SizeChanged(
-                [this](auto const&, auto const&)
-                {
-                    m_configurationDirty = true;
-                });
+            m_sizeChangedToken = m_target.SizeChanged([this](auto const&, auto const&)
+            {
+                m_configurationDirty = true;
+            });
 
             m_router = PointerFieldRouter::For(xamlRoot);
             if (!m_router)
@@ -104,30 +91,16 @@ namespace winrt::WinUI::LiquidGlass::detail
                 {
                     Update(args, now);
                 },
-                [this]
-                {
-                    DeactivateTrackedMaterial();
-                });
-
-            if (!m_registrationId)
-            {
-                Detach();
-            }
+                [this] { DeactivateTrackedMaterial(); });
+            if (!m_registrationId) Detach();
         }
 
         void Detach()
         {
-            if (m_router && m_registrationId)
-            {
-                m_router->Unregister(m_registrationId);
-            }
+            if (m_router && m_registrationId) m_router->Unregister(m_registrationId);
             m_registrationId = 0;
             m_router.reset();
-
-            if (m_target && m_sizeChangedToken.value)
-            {
-                m_target.SizeChanged(m_sizeChangedToken);
-            }
+            if (m_target && m_sizeChangedToken.value) m_target.SizeChanged(m_sizeChangedToken);
             m_sizeChangedToken = {};
             m_target = nullptr;
             m_xamlRoot = nullptr;
@@ -146,8 +119,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void TrackMaterial(WinUI::Composition::Hlsl::LiquidGlassMaterial const& material)
         {
-            if (m_trackingMaterial &&
-                (!material || get_abi(m_trackingMaterial) != get_abi(material)))
+            if (m_trackingMaterial && (!material || get_abi(m_trackingMaterial) != get_abi(material)))
             {
                 auto effect = m_trackingMaterial.EffectBrush();
                 if (effect)
@@ -157,14 +129,12 @@ namespace winrt::WinUI::LiquidGlass::detail
                     effect.SetFloat(L"PointerVelocityY", 0.0f);
                 }
             }
-
             if (!material)
             {
                 m_trackingMaterial = nullptr;
                 m_lastPointValid = false;
                 return;
             }
-
             if (!m_trackingMaterial || get_abi(m_trackingMaterial) != get_abi(material))
             {
                 m_trackingMaterial = material;
@@ -180,25 +150,14 @@ namespace winrt::WinUI::LiquidGlass::detail
             double height)
         {
             if (!brush || !effect) return;
-
             auto const maxExtent = std::max(width, height);
             if (maxExtent <= 1e-4) return;
-
             auto const interactionRadiusDips = std::clamp(maxExtent * 0.65, 56.0, 180.0);
-            auto const refraction = static_cast<float>(std::clamp(
-                brush.RefractionStrength() * 0.24,
-                2.0,
-                8.0));
-            auto const highlight = static_cast<float>(std::clamp(
-                brush.HighlightStrength() * 0.55,
-                0.12,
-                0.40));
-
-            effect.SetFloat(L"PointerInteractionRadius",
-                static_cast<float>(interactionRadiusDips / maxExtent));
+            auto const refraction = static_cast<float>(std::clamp(brush.RefractionStrength() * 0.24, 2.0, 8.0));
+            auto const highlight = static_cast<float>(std::clamp(brush.HighlightStrength() * 0.55, 0.12, 0.40));
+            effect.SetFloat(L"PointerInteractionRadius", static_cast<float>(interactionRadiusDips / maxExtent));
             effect.SetFloat(L"PointerInteractionStrength", 1.0f);
-            effect.SetFloat(L"PointerHoverRange",
-                static_cast<float>(kHoverRangeDips / maxExtent));
+            effect.SetFloat(L"PointerHoverRange", static_cast<float>(kHoverRangeDips / maxExtent));
             effect.SetFloat(L"PointerRefractionStrength", refraction);
             effect.SetFloat(L"PointerHighlightStrength", highlight);
             effect.SetFloat(L"PointerMotionRefractionStrength", 5.0f);
@@ -210,14 +169,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             Clock::time_point now)
         {
             if (!m_target || !m_brushGetter) return;
-
             auto brush = m_brushGetter();
-            auto material = brush
-                ? brush.Material()
-                : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
+            auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
             TrackMaterial(material);
             if (!brush || !material) return;
-
             auto effect = material.EffectBrush();
             if (!effect) return;
 
@@ -238,11 +193,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 SetInactive(effect);
                 return;
             }
-
-            if (m_configurationDirty)
-            {
-                Configure(brush, effect, width, height);
-            }
+            if (m_configurationDirty) Configure(brush, effect, width, height);
 
             float velocityX = 0.0f;
             float velocityY = 0.0f;
@@ -251,14 +202,8 @@ namespace winrt::WinUI::LiquidGlass::detail
                 auto const elapsed = std::chrono::duration<double>(now - m_lastTime).count();
                 if (elapsed > 1e-4 && elapsed < 0.25)
                 {
-                    velocityX = static_cast<float>(std::clamp(
-                        ((point.X - m_lastPoint.X) / width) / elapsed,
-                        -100.0,
-                        100.0));
-                    velocityY = static_cast<float>(std::clamp(
-                        ((point.Y - m_lastPoint.Y) / height) / elapsed,
-                        -100.0,
-                        100.0));
+                    velocityX = static_cast<float>(std::clamp(((point.X - m_lastPoint.X) / width) / elapsed, -100.0, 100.0));
+                    velocityY = static_cast<float>(std::clamp(((point.Y - m_lastPoint.Y) / height) / elapsed, -100.0, 100.0));
                 }
             }
 
@@ -267,7 +212,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             effect.SetFloat(L"PointerVelocityX", velocityX);
             effect.SetFloat(L"PointerVelocityY", velocityY);
             effect.SetFloat(L"PointerActive", 1.0f);
-
             m_lastPoint = point;
             m_lastTime = now;
             m_lastPointValid = true;
@@ -298,7 +242,6 @@ namespace winrt::WinUI::LiquidGlass::detail
                     effect.SetFloat(L"PointerVelocityY", 0.0f);
                 }
             }
-
             m_trackingMaterial = nullptr;
             m_active = false;
             m_lastPointValid = false;
@@ -327,12 +270,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const&, auto const&) { RefreshPointerFieldTarget(); });
             self->Unloaded([this](auto const&, auto const&) { m_pointerField.Detach(); });
-            self->RegisterPropertyChangedCallback(
-                Self::GlassBrushProperty(),
-                [this](auto const&, auto const&) { m_pointerField.InvalidateBrush(); });
-            self->RegisterPropertyChangedCallback(
-                Microsoft::UI::Xaml::Controls::Slider::OrientationProperty(),
-                [this](auto const&, auto const&) { RefreshPointerFieldTarget(); });
+            self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&) { m_pointerField.InvalidateBrush(); });
+            self->RegisterPropertyChangedCallback(Microsoft::UI::Xaml::Controls::Slider::OrientationProperty(), [this](auto const&, auto const&) { RefreshPointerFieldTarget(); });
         }
 
         void RefreshPointerFieldTarget()
@@ -347,15 +286,9 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
 
             auto const name = self->Orientation() == Microsoft::UI::Xaml::Controls::Orientation::Horizontal
-                ? L"HorizontalThumb"
-                : L"VerticalThumb";
-            auto thumb = FindNamedDescendant(root, name)
-                .try_as<Microsoft::UI::Xaml::Controls::Primitives::Thumb>();
-            if (!thumb)
-            {
-                thumb = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Primitives::Thumb>(root);
-            }
-
+                ? L"HorizontalThumb" : L"VerticalThumb";
+            auto thumb = FindNamedDescendant(root, name).try_as<Microsoft::UI::Xaml::Controls::Primitives::Thumb>();
+            if (!thumb) thumb = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Primitives::Thumb>(root);
             auto target = thumb.try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!target)
             {
@@ -364,12 +297,11 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
 
             auto weak = self->get_weak();
-            m_pointerField.Attach(xamlRoot, target,
-                [weak]() -> WinUI::Composition::Hlsl::LiquidGlassBrush
-                {
-                    if (auto owner = weak.get()) return owner->GlassBrush();
-                    return nullptr;
-                });
+            m_pointerField.Attach(xamlRoot, target, [weak]() -> WinUI::Composition::Hlsl::LiquidGlassBrush
+            {
+                if (auto owner = weak.get()) return owner->GlassBrush();
+                return nullptr;
+            });
         }
 
     private:
@@ -390,69 +322,29 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_pointerField.Detach();
                 m_knob = nullptr;
             });
-            self->RegisterPropertyChangedCallback(
-                Self::GlassBrushProperty(),
-                [this](auto const&, auto const&) { m_pointerField.InvalidateBrush(); });
+            self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&) { m_pointerField.InvalidateBrush(); });
             self->RegisterPropertyChangedCallback(
                 Microsoft::UI::Xaml::Controls::Primitives::ToggleButton::IsCheckedProperty(),
-                [this](auto const&, auto const&)
-                {
-                    if (!m_dragging) SyncSemanticPosition(true);
-                });
+                [this](auto const&, auto const&) { if (!m_dragging) SyncSemanticPosition(true); });
 
-            auto bindPointerHandler = [self](
-                auto routedEvent,
-                Windows::Foundation::IInspectable& storage,
-                auto&& callback)
+            auto bind = [self](auto routedEvent, Windows::Foundation::IInspectable& storage, auto&& callback)
             {
                 using Handler = Microsoft::UI::Xaml::Input::PointerEventHandler;
                 storage = winrt::box_value<Handler>({ std::forward<decltype(callback)>(callback) });
                 self->AddHandler(routedEvent, storage, true);
             };
+            bind(Microsoft::UI::Xaml::UIElement::PointerPressedEvent(), m_pointerPressedHandler,
+                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args) { BeginDrag(args); });
+            bind(Microsoft::UI::Xaml::UIElement::PointerMovedEvent(), m_pointerMovedHandler,
+                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args) { UpdateDrag(args); });
+            bind(Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(), m_pointerReleasedHandler,
+                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args) { EndDragFromRelease(args); });
+            bind(Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(), m_pointerCaptureLostHandler,
+                [this](auto const&, auto const&) { EndDrag(true, true); });
+            bind(Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(), m_pointerCanceledHandler,
+                [this](auto const&, auto const&) { EndDrag(true, true); });
 
-            bindPointerHandler(
-                Microsoft::UI::Xaml::UIElement::PointerPressedEvent(),
-                m_pointerPressedHandler,
-                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
-                {
-                    BeginDrag(args);
-                });
-            bindPointerHandler(
-                Microsoft::UI::Xaml::UIElement::PointerMovedEvent(),
-                m_pointerMovedHandler,
-                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
-                {
-                    UpdateDrag(args);
-                });
-            bindPointerHandler(
-                Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(),
-                m_pointerReleasedHandler,
-                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
-                {
-                    EndDragFromRelease(args);
-                });
-            bindPointerHandler(
-                Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(),
-                m_pointerCaptureLostHandler,
-                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
-                {
-                    EndDrag(true, true);
-                });
-            bindPointerHandler(
-                Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(),
-                m_pointerCanceledHandler,
-                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
-                {
-                    EndDrag(true, true);
-                });
-
-            self->Click([this](auto const&, auto const&)
-            {
-                // ToggleButton invokes OnToggle before Click. At this point a normal pointer
-                // release has already committed the semantic value, so no drag override may
-                // leak into a later keyboard/programmatic toggle.
-                m_dragOverrideArmed = false;
-            });
+            self->Click([this](auto const&, auto const&) { m_dragOverrideArmed = false; });
         }
 
         void RefreshInteractionTarget()
@@ -467,53 +359,39 @@ namespace winrt::WinUI::LiquidGlass::detail
                 return;
             }
 
-            m_knob = FindNamedDescendant(root, L"SwitchKnob")
-                .try_as<Microsoft::UI::Xaml::FrameworkElement>();
+            m_knob = FindNamedDescendant(root, L"SwitchKnob").try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!m_knob)
             {
                 m_pointerField.Detach();
                 return;
             }
 
-            // The old template keeps KnobTranslate for compatibility with the existing
-            // VisualState names. Detach that transform from the rendered knob so semantic,
-            // pointer-drag and rebound position have one visual source of truth: the XAML
-            // Translation facade backed by Composition.
-            m_knob.RenderTransform(nullptr);
             Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(m_knob, true);
             if (!m_dragging)
             {
                 SetElementTranslation(m_knob, TranslationForRatio(SemanticRatio(self->IsChecked())));
-                auto const scale = std::clamp(
-                    implementation::LiquidGlassInteraction::GetRestScale(root), .25, 4.0);
+                auto const scale = std::clamp(implementation::LiquidGlassInteraction::GetRestScale(root), .25, 4.0);
                 SetElementScale(m_knob, scale, scale);
             }
 
             auto weak = self->get_weak();
-            m_pointerField.Attach(xamlRoot, m_knob,
-                [weak]() -> WinUI::Composition::Hlsl::LiquidGlassBrush
-                {
-                    if (auto owner = weak.get()) return owner->GlassBrush();
-                    return nullptr;
-                });
+            m_pointerField.Attach(xamlRoot, m_knob, [weak]() -> WinUI::Composition::Hlsl::LiquidGlassBrush
+            {
+                if (auto owner = weak.get()) return owner->GlassBrush();
+                return nullptr;
+            });
         }
 
         bool TryHandleToggle()
         {
             if (!m_dragOverrideArmed) return false;
-
             auto self = static_cast<Self*>(this);
             auto const targetChecked = std::clamp(m_visualRatio, 0.0, 1.0) >= 0.5;
             auto current = self->IsChecked();
-
-            // Clear first: IsChecked synchronously raises its state/event machinery. Any
-            // callback observing the new semantic state must not see a stale drag override.
             m_dragOverrideArmed = false;
             m_visualRatio = targetChecked ? 1.0 : 0.0;
             if (!current || current.Value() != targetChecked)
-            {
                 self->IsChecked(box_value(targetChecked).as<Windows::Foundation::IReference<bool>>());
-            }
             return true;
         }
 
@@ -530,10 +408,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         static Windows::Foundation::Numerics::float3 TranslationForRatio(double ratio)
         {
-            return {
-                static_cast<float>(ratio * kTravelDips),
-                0.0f,
-                0.0f };
+            return { static_cast<float>(ratio * kTravelDips), 0.0f, 0.0f };
         }
 
         void SyncSemanticPosition(bool animate)
@@ -542,39 +417,27 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto self = static_cast<Self*>(this);
             auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!owner) return;
-
             auto const target = TranslationForRatio(SemanticRatio(self->IsChecked()));
             if (animate)
-            {
-                AnimateElementTranslation(
-                    owner,
-                    m_knob,
-                    target,
-                    implementation::LiquidGlassInteraction::GetMotionDuration(owner));
-            }
+                AnimateElementTranslation(owner, m_knob, target, implementation::LiquidGlassInteraction::GetMotionDuration(owner));
             else
-            {
                 SetElementTranslation(m_knob, target);
-            }
         }
 
         void BeginDrag(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
             if (m_dragging) return;
-
             auto self = static_cast<Self*>(this);
             auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>();
             auto frameworkElement = self->template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element || !frameworkElement) return;
-
             if (!m_knob) RefreshInteractionTarget();
             if (!m_knob) return;
 
             auto xamlRoot = frameworkElement.XamlRoot();
             m_coordinateRoot = xamlRoot ? xamlRoot.Content() : Microsoft::UI::Xaml::UIElement{ nullptr };
             if (!m_coordinateRoot) m_coordinateRoot = element;
-
             auto const point = args.GetCurrentPoint(m_coordinateRoot);
             m_pointerId = point.PointerId();
             m_dragStart = point.Position();
@@ -582,59 +445,44 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_visualRatio = m_baseRatio;
             m_dragOverrideArmed = false;
             m_dragging = true;
+            element.CapturePointer(args.Pointer());
             SetElementTranslation(m_knob, TranslationForRatio(m_baseRatio));
 
             auto const pressedScale = std::clamp(
                 implementation::LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
-            AnimateElementScale(
-                owner,
-                m_knob,
-                pressedScale,
-                implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+            AnimateElementScale(owner, m_knob, pressedScale, implementation::LiquidGlassInteraction::GetMotionDuration(owner));
         }
 
         void UpdateDrag(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
             if (!m_dragging || !m_coordinateRoot || !m_knob) return;
-
             auto const point = args.GetCurrentPoint(m_coordinateRoot);
             if (point.PointerId() != m_pointerId) return;
-
             auto self = static_cast<Self*>(this);
-            auto const direction = self->FlowDirection() == Microsoft::UI::Xaml::FlowDirection::RightToLeft
-                ? -1.0
-                : 1.0;
+            auto const direction = self->FlowDirection() == Microsoft::UI::Xaml::FlowDirection::RightToLeft ? -1.0 : 1.0;
             auto const delta = static_cast<double>(point.Position().X - m_dragStart.X) * direction;
-            if (std::abs(delta) >= kDragThresholdDips)
-            {
-                m_dragOverrideArmed = true;
-            }
+            if (std::abs(delta) >= kDragThresholdDips) m_dragOverrideArmed = true;
 
             auto ratio = m_baseRatio + delta / kTravelDips;
-            if (ratio < 0.0)
-            {
-                ratio /= kOverscrollDamping;
-            }
-            else if (ratio > 1.0)
-            {
-                ratio = 1.0 + (ratio - 1.0) / kOverscrollDamping;
-            }
-
+            if (ratio < 0.0) ratio /= kOverscrollDamping;
+            else if (ratio > 1.0) ratio = 1.0 + (ratio - 1.0) / kOverscrollDamping;
             m_visualRatio = ratio;
             SetElementTranslation(m_knob, TranslationForRatio(ratio));
         }
 
-        void EndDragFromRelease(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        void EndDragFromRelease(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
         {
-            auto self = static_cast<Self*>(this);
-            auto element = self->template try_as<Microsoft::UI::Xaml::FrameworkElement>();
-            if (element && m_dragOverrideArmed)
+            // If ButtonBase already invoked OnToggle, TryHandleToggle has committed and
+            // cleared the override. A captured release outside the control may not produce a
+            // native click, so commit the same ratio here when the override is still armed.
+            if (m_dragging && m_dragOverrideArmed)
             {
-                auto const point = args.GetCurrentPoint(element).Position();
-                auto const inside =
-                    point.X >= 0.0f && point.X <= element.ActualWidth() &&
-                    point.Y >= 0.0f && point.Y <= element.ActualHeight();
-                if (!inside) m_dragOverrideArmed = false;
+                auto self = static_cast<Self*>(this);
+                auto const targetChecked = std::clamp(m_visualRatio, 0.0, 1.0) >= 0.5;
+                auto current = self->IsChecked();
+                m_dragOverrideArmed = false;
+                if (!current || current.Value() != targetChecked)
+                    self->IsChecked(box_value(targetChecked).as<Windows::Foundation::IReference<bool>>());
             }
             EndDrag(true, false);
         }
@@ -663,30 +511,19 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 auto const target = TranslationForRatio(targetRatio);
                 if (animate && owner)
-                {
-                    AnimateElementTranslation(
-                        owner,
-                        m_knob,
-                        target,
-                        implementation::LiquidGlassInteraction::GetMotionDuration(owner));
-                }
+                    AnimateElementTranslation(owner, m_knob, target, implementation::LiquidGlassInteraction::GetMotionDuration(owner));
                 else
-                {
                     SetElementTranslation(m_knob, target);
-                }
 
                 if (owner)
                 {
-                    auto const restScale = std::clamp(
-                        implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
-                    AnimateElementScale(
-                        owner,
-                        m_knob,
-                        restScale,
-                        implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+                    auto const restScale = std::clamp(implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+                    AnimateElementScale(owner, m_knob, restScale, implementation::LiquidGlassInteraction::GetMotionDuration(owner));
                 }
             }
 
+            if (auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>())
+                element.ReleasePointerCaptures();
             m_coordinateRoot = nullptr;
             m_pointerId = 0;
             m_dragging = false;
