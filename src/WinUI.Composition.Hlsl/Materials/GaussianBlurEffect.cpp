@@ -26,10 +26,11 @@ namespace
 		IGraphicsEffectSource,
 		ABI::Windows::Graphics::Effects::IGraphicsEffectD2D1Interop>
 	{
-		Effect(wchar_t const* effectName, IGraphicsEffectSource const& source, float blurAmount) :
+		Effect(wchar_t const* effectName, IGraphicsEffectSource const& source, float blurAmount, D2D1_BORDER_MODE borderMode) :
 			m_name(effectName),
 			m_source(source),
-			m_blurAmount(blurAmount)
+			m_blurAmount(blurAmount),
+			m_borderMode(borderMode)
 		{
 		}
 
@@ -89,10 +90,8 @@ namespace
 						static_cast<uint32_t>(D2D1_GAUSSIANBLUR_OPTIMIZATION_QUALITY)).as<IPropertyValue>();
 					break;
 				case D2D1_GAUSSIANBLUR_PROP_BORDER_MODE:
-					// SOFT lets D2D materialize the blur outside the logical input bounds. The
-					// custom sampler then has real padded pixels available for edge refraction.
 					propertyValue = PropertyValue::CreateUInt32(
-						static_cast<uint32_t>(D2D1_BORDER_MODE_SOFT)).as<IPropertyValue>();
+						static_cast<uint32_t>(m_borderMode)).as<IPropertyValue>();
 					break;
 				default:
 					return E_INVALIDARG;
@@ -136,6 +135,7 @@ namespace
 		hstring m_name;
 		IGraphicsEffectSource m_source{ nullptr };
 		float m_blurAmount{};
+		D2D1_BORDER_MODE m_borderMode{ D2D1_BORDER_MODE_SOFT };
 	};
 }
 
@@ -145,7 +145,11 @@ namespace GaussianBlurEffect
 		wchar_t const* sourceName,
 		float blurAmount)
 	{
-		return make<Effect>(L"GaussianBlurEffect", CompositionEffectSourceParameter(sourceName), blurAmount);
+		return make<Effect>(
+			L"GaussianBlurEffect",
+			CompositionEffectSourceParameter(sourceName),
+			blurAmount,
+			D2D1_BORDER_MODE_SOFT);
 	}
 
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(
@@ -154,6 +158,18 @@ namespace GaussianBlurEffect
 		float standardDeviation)
 	{
 		if (!effectName || !source) throw hresult_invalid_argument();
-		return make<Effect>(effectName, source, standardDeviation);
+
+		// A materialized LiquidGlass input is a finite intermediate texture even when
+		// its logical source is the live backdrop. SOFT border mode manufactures
+		// transparent-black pixels around that texture. Concave refraction is the most
+		// aggressive surface profile and can legitimately sample those pixels, which
+		// turns the lower/right bezel black as soon as blur is enabled. HARD border mode
+		// keeps the materialized transmission opaque at its finite boundary; the custom
+		// sampler still constrains optical displacement before sampling, so this is an
+		// edge fallback rather than the primary refraction behavior.
+		auto const borderMode = wcscmp(effectName, LiquidGlassBlurEffectName) == 0
+			? D2D1_BORDER_MODE_HARD
+			: D2D1_BORDER_MODE_SOFT;
+		return make<Effect>(effectName, source, standardDeviation, borderMode);
 	}
 }
