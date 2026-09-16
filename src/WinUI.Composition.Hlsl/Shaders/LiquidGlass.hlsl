@@ -188,18 +188,24 @@ float2 ClampSampleUv(
     const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
     const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
     const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
-    if (!hasContentRect)
-        return clamp(uv, textureMin, textureMax);
+    float2 result = clamp(uv, textureMin, textureMax);
 
-    // Materialized Gaussian blur supplies padding around samplerData's logical content
-    // rectangle. Keep most of that padding available to refraction, but do not sample the
-    // outer transparent fringe. Concave/Lip fields can otherwise expose a large black band
-    // when their steep edge vectors reach the materialized surface boundary.
-    const float2 paddingBefore = max(contentMin - textureMin, 0.0f.xx);
-    const float2 paddingAfter = max(textureMax - contentMax, 0.0f.xx);
-    const float2 safeMin = max(textureMin, contentMin - paddingBefore * 0.75f);
-    const float2 safeMax = min(textureMax, contentMax + paddingAfter * 0.75f);
-    return clamp(uv, safeMin, safeMax);
+    if (hasContentRect)
+    {
+        // Materialized Gaussian blur supplies padding around samplerData's logical content
+        // rectangle. Keep most of that padding available to refraction, but do not sample the
+        // outer transparent fringe. Concave/Lip fields can otherwise expose a large black band
+        // when their steep edge vectors reach the materialized surface boundary.
+        const float2 paddingBefore = max(contentMin - textureMin, 0.0f.xx);
+        const float2 paddingAfter = max(textureMax - contentMax, 0.0f.xx);
+        const float2 safeMin = max(textureMin, contentMin - paddingBefore * 0.75f);
+        const float2 safeMax = min(textureMax, contentMax + paddingAfter * 0.75f);
+        result = clamp(uv, safeMin, safeMax);
+    }
+
+    // FXC Debug's data-flow pass can report a helper with multiple conditional return paths
+    // as potentially uninitialized. Keep one definitely initialized result and return once.
+    return result;
 }
 
 float4 SampleTransmission(
