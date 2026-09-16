@@ -48,7 +48,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerFieldSurface() = default;
         PointerFieldSurface(PointerFieldSurface const&) = delete;
         PointerFieldSurface& operator=(PointerFieldSurface const&) = delete;
-        ~PointerFieldSurface() { Detach(); }
+        ~PointerFieldSurface() { Detach(false); }
 
         void Attach(
             Microsoft::UI::Xaml::XamlRoot const& xamlRoot,
@@ -95,7 +95,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!m_registrationId) Detach();
         }
 
-        void Detach()
+        void Detach(bool deactivate = true)
         {
             if (m_router && m_registrationId) m_router->Unregister(m_registrationId);
             m_registrationId = 0;
@@ -105,7 +105,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_target = nullptr;
             m_xamlRoot = nullptr;
             m_brushGetter = {};
-            DeactivateTrackedMaterial();
+            if (deactivate)
+                DeactivateTrackedMaterial();
+            else
+                ClearTrackedMaterial();
         }
 
         void InvalidateBrush()
@@ -117,22 +120,37 @@ namespace winrt::WinUI::LiquidGlass::detail
     private:
         static constexpr double kHoverRangeDips = 28.0;
 
+        static void DeactivateEffect(WinUI::Composition::Hlsl::HlslEffectBrush const& effect)
+        {
+            if (!effect) return;
+            try
+            {
+                effect.SetFloat(L"PointerActive", 0.0f);
+                effect.SetFloat(L"PointerVelocityX", 0.0f);
+                effect.SetFloat(L"PointerVelocityY", 0.0f);
+            }
+            catch (winrt::hresult_error const& error)
+            {
+                if (error.code() != winrt::hresult{ RO_E_CLOSED }) throw;
+            }
+        }
+
+        void ClearTrackedMaterial() noexcept
+        {
+            m_trackingMaterial = nullptr;
+            m_active = false;
+            m_lastPointValid = false;
+        }
+
         void TrackMaterial(WinUI::Composition::Hlsl::LiquidGlassMaterial const& material)
         {
             if (m_trackingMaterial && (!material || get_abi(m_trackingMaterial) != get_abi(material)))
             {
-                auto effect = m_trackingMaterial.EffectBrush();
-                if (effect)
-                {
-                    effect.SetFloat(L"PointerActive", 0.0f);
-                    effect.SetFloat(L"PointerVelocityX", 0.0f);
-                    effect.SetFloat(L"PointerVelocityY", 0.0f);
-                }
+                DeactivateEffect(m_trackingMaterial.EffectBrush());
             }
             if (!material)
             {
-                m_trackingMaterial = nullptr;
-                m_lastPointValid = false;
+                ClearTrackedMaterial();
                 return;
             }
             if (!m_trackingMaterial || get_abi(m_trackingMaterial) != get_abi(material))
@@ -220,31 +238,15 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void SetInactive(WinUI::Composition::Hlsl::HlslEffectBrush const& effect)
         {
-            if (m_active && effect)
-            {
-                effect.SetFloat(L"PointerActive", 0.0f);
-                effect.SetFloat(L"PointerVelocityX", 0.0f);
-                effect.SetFloat(L"PointerVelocityY", 0.0f);
-            }
+            if (m_active) DeactivateEffect(effect);
             m_active = false;
             m_lastPointValid = false;
         }
 
         void DeactivateTrackedMaterial()
         {
-            if (m_trackingMaterial)
-            {
-                auto effect = m_trackingMaterial.EffectBrush();
-                if (effect)
-                {
-                    effect.SetFloat(L"PointerActive", 0.0f);
-                    effect.SetFloat(L"PointerVelocityX", 0.0f);
-                    effect.SetFloat(L"PointerVelocityY", 0.0f);
-                }
-            }
-            m_trackingMaterial = nullptr;
-            m_active = false;
-            m_lastPointValid = false;
+            if (m_trackingMaterial) DeactivateEffect(m_trackingMaterial.EffectBrush());
+            ClearTrackedMaterial();
         }
 
         std::shared_ptr<PointerFieldRouter> m_router;
@@ -269,7 +271,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const&, auto const&) { RefreshPointerFieldTarget(); });
-            self->Unloaded([this](auto const&, auto const&) { m_pointerField.Detach(); });
+            self->Unloaded([this](auto const&, auto const&) { m_pointerField.Detach(false); });
             self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&) { m_pointerField.InvalidateBrush(); });
             self->RegisterPropertyChangedCallback(Microsoft::UI::Xaml::Controls::Slider::OrientationProperty(), [this](auto const&, auto const&) { RefreshPointerFieldTarget(); });
         }
@@ -319,7 +321,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->Unloaded([this](auto const&, auto const&)
             {
                 EndDrag(false, true);
-                m_pointerField.Detach();
+                m_pointerField.Detach(false);
                 m_knob = nullptr;
             });
             self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&) { m_pointerField.InvalidateBrush(); });
