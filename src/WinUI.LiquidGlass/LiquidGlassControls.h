@@ -13,6 +13,7 @@
 #include "include/PressOpticsHelper.hpp"
 #include "include/FocusOpticsHelper.hpp"
 #include "include/KubeControlHelpers.hpp"
+#include "include/KubeSwitchTrackHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -212,6 +213,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
         detail::PointerLightHelper<LiquidGlassToggleSwitch>,
         detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>,
+        detail::KubeSwitchTrackHelper<LiquidGlassToggleSwitch>,
         detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>,
         detail::KubeMotionDefaults<LiquidGlassToggleSwitch, detail::KubeMotionProfile::Switch>
     {
@@ -227,6 +229,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         {
             base_type::OnApplyTemplate();
             detail::ToggleSwitchInteractionHelper<LiquidGlassToggleSwitch>::RefreshInteractionTarget();
+            detail::KubeSwitchTrackHelper<LiquidGlassToggleSwitch>::RefreshTrackTarget();
         }
 
         void OnToggle()

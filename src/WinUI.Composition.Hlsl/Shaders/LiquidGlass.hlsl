@@ -381,12 +381,17 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 
         // kube's magnifier is a first displacement pass whose output is then sampled by the
         // refraction pass. Because its field is linear/radial, evaluating the magnification
-        // at the already-refracted coordinate reproduces that two-stage composition exactly:
-        // Source(x + R(x) + M(x + R(x))).
+        // at the already-refracted coordinate reproduces that two-stage composition:
+        // Source(x + R(x) + M(x + R(x))). The generated displacement texture stores
+        // 128 - normalized * 127, while feDisplacementMap reads channel/255 - 0.5, so its
+        // authored scale is multiplied by 127/255. Ignore only the half-code neutral bias,
+        // which is a texture quantization artifact rather than intended optical motion.
         const float maximumHalfExtent = max(max(halfRect.x, halfRect.y), 1.0f);
         const float2 refractedLocal = local + refractionPixelOffset;
         const float2 normalizedMagnification = refractedLocal / maximumHalfExtent;
-        const float2 magnificationOffset = -normalizedMagnification * texelSize * magnificationStrength;
+        const float magnificationEncodingScale = 127.0f / 255.0f;
+        const float2 magnificationOffset =
+            -normalizedMagnification * texelSize * magnificationStrength * magnificationEncodingScale;
         const float2 sampleUv = refractedUv + magnificationOffset;
 
         const float bezelWeight = 1.0f - smoothstep(0.18f, 1.0f, bezelT);
