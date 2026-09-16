@@ -299,7 +299,17 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const& sender, auto const&)
             {
+                m_loaded = true;
                 InitializePersistentState(sender);
+            });
+            self->Unloaded([this](auto const&, auto const&)
+            {
+                // Teardown is deliberately no-write: retain an active numeric baseline so a
+                // later Loaded can restore/reapply it, but never touch a possibly closed
+                // CompositionEffectBrush while the XAML tree is being dismantled.
+                m_loaded = false;
+                m_pointerOver = false;
+                m_pressed = false;
             });
 
             auto bindPointerHandler = [self](
@@ -369,6 +379,13 @@ namespace winrt::WinUI::LiquidGlass::detail
                 [this](Microsoft::UI::Xaml::DependencyObject const& sender,
                        Microsoft::UI::Xaml::DependencyProperty const&)
                 {
+                    if (!m_loaded)
+                    {
+                        // If the brush is replaced while detached, the old visual is no
+                        // longer a runtime owner. Drop its baseline rather than writing to it.
+                        m_baseline = {};
+                        return;
+                    }
                     Recompute(sender);
                 });
 
@@ -421,12 +438,13 @@ namespace winrt::WinUI::LiquidGlass::detail
         void SetActivated(Sender const& sender, bool value)
         {
             m_activated = value;
-            Recompute(sender);
+            if (m_loaded) Recompute(sender);
         }
 
         template<typename Sender>
         void Recompute(Sender const& sender)
         {
+            if (!m_loaded) return;
             auto object = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!object) return;
 
@@ -476,6 +494,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
+        bool m_loaded{};
         bool m_activated{};
         bool m_pointerOver{};
         bool m_pressed{};
