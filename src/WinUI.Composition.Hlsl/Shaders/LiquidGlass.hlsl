@@ -215,9 +215,16 @@ float4 SampleTransmission(
     float2 contentMax,
     bool hasContentRect)
 {
-    return texture0.Sample(
-        sampler0,
-        ClampSampleUv(uv, texelSize, contentMin, contentMax, hasContentRect));
+    const float2 sampleUv = ClampSampleUv(uv, texelSize, contentMin, contentMax, hasContentRect);
+    float4 result = texture0.Sample(sampler0, sampleUv);
+
+    // D2D's SOFT Gaussian-blur border is materialized as premultiplied transparent padding.
+    // Refraction/dispersion need the transmitted color, not that padding alpha folded into RGB;
+    // otherwise steep Concave/Lip offsets darken into a black band before they reach the clamp.
+    if (result.a > 1e-5f)
+        result.rgb /= result.a;
+
+    return result;
 }
 
 float ReferenceSpecularCoefficient(
@@ -326,11 +333,12 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             height, derivative, bezel, glassThickness, refractiveIndex);
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
 
-        // Coverage is allowed to span the silhouette for antialiasing, but the optical field
-        // itself is neutral outside the physical glass. Blend the analytical displacement in
-        // over roughly one raster pixel so rounded corners look optically continuous instead
-        // of like a displaced image clipped by a later alpha mask.
-        const float opticalInterior = smoothstep(0.0f, max(sdfPixelFootprint, 0.75f), -sdf);
+        // Keep optics and final coverage as separate fields, but let the optical surface cross
+        // the same subpixel SDF neighborhood instead of forcing displacement to zero exactly at
+        // the silhouette. This removes the visibly clipped rounded-corner transition while the
+        // independent coverage field still owns final alpha.
+        const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
+        const float opticalInterior = smoothstep(-opticalFeather, opticalFeather, -sdf);
         const float rawDisplacementPixels =
             referenceDisplacement * artisticScale * refractionNormalization;
         const float displacementLimit = max(maximumExtent * 0.48f, 1.0f);
