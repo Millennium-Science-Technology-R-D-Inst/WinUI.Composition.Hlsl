@@ -11,12 +11,20 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerMotionHelper()
         {
             auto self = static_cast<Self*>(this);
-            self->Loaded([this](auto const& sender, auto const&) { ApplyRest(sender); });
+            self->Loaded([this](auto const& sender, auto const&)
+            {
+                m_loaded = true;
+                m_pointerOver = false;
+                m_pressed = false;
+                EndDrag();
+                ApplyRest(sender);
+            });
             self->Unloaded([this](auto const&, auto const&)
             {
                 // Pointer-up can be swallowed by navigation/window teardown. Drop transient
                 // interaction state without touching Composition; Loaded restores the stable
                 // translation/scale once the visual is valid again.
+                m_loaded = false;
                 m_pointerOver = false;
                 m_pressed = false;
                 EndDrag();
@@ -123,7 +131,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void CaptureTranslation(Sender const& sender)
         {
-            if (m_translationCaptured) return;
+            if (!m_loaded || m_translationCaptured) return;
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!element) return;
 
@@ -135,7 +143,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void RestoreTranslation(Sender const& sender)
         {
-            if (!m_translationCaptured) return;
+            if (!m_loaded || !m_translationCaptured) return;
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
@@ -150,6 +158,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void BeginDrag(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
+            if (!m_loaded) return;
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             auto uiElement = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
             if (!element || !uiElement) return;
@@ -172,6 +181,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void ApplyRest(Sender const& sender)
         {
+            if (!m_loaded) return;
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
@@ -185,6 +195,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void AnimateState(Sender const& sender)
         {
+            if (!m_loaded) return;
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!owner || !element) return;
@@ -204,7 +215,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void ApplyPointerResponse(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
-            if (!m_pointerOver) return;
+            if (!m_loaded || !m_pointerOver) return;
             ApplyElasticity(sender, args);
             ApplyPointerDisplacement(sender, args);
         }
@@ -212,6 +223,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void ApplyElasticity(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
+            if (!m_loaded) return;
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             auto relativeTo = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
@@ -244,7 +256,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void ApplyDragResponse(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
-            if (!m_dragCoordinateRoot || m_activePointerId == 0) return;
+            if (!m_loaded || !m_dragCoordinateRoot || m_activePointerId == 0) return;
 
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
@@ -299,6 +311,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void ApplyPointerDisplacement(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
+            if (!m_loaded) return;
             auto owner = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             auto relativeTo = sender.template try_as<Microsoft::UI::Xaml::UIElement>();
@@ -343,6 +356,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
         Windows::Foundation::Point m_dragStart{};
         uint32_t m_activePointerId{};
+        bool m_loaded{};
         bool m_translationCaptured{};
         bool m_pointerOver{};
         bool m_pressed{};
