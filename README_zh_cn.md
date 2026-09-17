@@ -4,18 +4,19 @@
 
 <h1 align="center">WinUI.Composition.Hlsl</h1>
 
-<p align="center">让自定义 HLSL 作为 WinUI 3 Composition 原生 effect node 工作，并最终回到 XAML Brush。</p>
+<p align="center">让自定义 HLSL 作为 WinUI 3 Composition 原生 effect node 工作，并提供 XAML Brush 与原生液态玻璃控件。</p>
 <p align="center"><a href="README.md">English</a> · <a href="README_zh_cn.md">简体中文</a></p>
 
 <p align="center">
   <a href="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml/badge.svg?branch=master"></a>
-  <a href="https://www.nuget.org/packages/WinUI.Composition.Hlsl"><img alt="NuGet" src="https://img.shields.io/nuget/v/WinUI.Composition.Hlsl?logo=nuget"></a>
+  <a href="https://www.nuget.org/packages/WinUI.Composition.Hlsl"><img alt="WinUI.Composition.Hlsl NuGet" src="https://img.shields.io/nuget/v/WinUI.Composition.Hlsl?logo=nuget"></a>
+  <a href="https://www.nuget.org/packages/WinUI.LiquidGlass"><img alt="WinUI.LiquidGlass NuGet" src="https://img.shields.io/nuget/v/WinUI.LiquidGlass?logo=nuget"></a>
   <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="C++23" src="https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus">
   <img alt="WinUI 3" src="https://img.shields.io/badge/WinUI-3-0078D4">
 </p>
 
-## 这个包解决什么问题
+## 这个仓库解决什么问题
 
 `WinUI.Composition.Hlsl` 把应用自己的 HLSL 接入现有 Windows Graphics Effects / `Microsoft.UI.Composition` / WinUI 3 XAML 渲染链：
 
@@ -30,11 +31,29 @@ HLSL / FXC linkable library
 
 它不是应用自管的 D3D renderer，不需要 `SwapChainPanel`、自己的 present loop、额外 HWND overlay 或第二套 visual tree。公共 API 是 WinRT，可同时供 C++/WinRT 和 C# 使用。
 
+仓库还包含 `WinUI.LiquidGlass`：建立在 core material 之上的原生 C++/WinRT WinUI 3 控件库。它保留 WinUI 原生输入、布局和 UI Automation 语义，同时提供液态玻璃材质、光学交互、spring 动效与控件预设。
+
+## NuGet 包
+
+| 包 | 用途 |
+| --- | --- |
+| `WinUI.Composition.Hlsl` | HLSL/Composition 核心运行时、effect graph API、`LiquidGlassMaterial`、`LiquidGlassBrush`。 |
+| `WinUI.LiquidGlass` | 原生 WinUI 3 液态玻璃控件与模板；依赖相同版本的 core 包。 |
+
+使用控件库时建议两个包保持相同版本：
+
+```xml
+<ItemGroup>
+  <PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.*" />
+  <PackageReference Include="WinUI.LiquidGlass" Version="1.0.*" />
+</ItemGroup>
+```
+
 ## 版本与兼容性
 
 NuGet 包最低依赖 **Windows App SDK 1.6**，并提供 **x86、x64、ARM64** 三种 native runtime asset。
 
-每次通过验证的 `master` push 都会自动发布正式 NuGet 包，版本格式为 `1.0.<CI run number>`；例如 CI #80 对应 `1.0.80`。
+每次通过验证的 `master` push 都会自动发布正式 NuGet 包，版本格式为 `1.0.<CI run number>`。
 
 Custom shader backend 依赖未公开的 Composition 私有实现 ABI。遇到无法安全识别的布局时会 fail closed，而不是继续向未知私有结构写入猜测数据。实现细节、支持边界和运行时安全约束见 [整体架构](docs/architecture.md) 与 [Runtime safety](docs/design/runtime-safety.md)。
 
@@ -49,13 +68,15 @@ Custom shader backend 依赖未公开的 Composition 私有实现 ABI。遇到�
 - `HlslCompiler` 提供真正需要动态源码时的异步编译；
 - `HlslShaderLibrary` 可缓存、持久化、重新加载；
 - Composition property path/setter 与 Composition animation；
-- `LiquidGlassMaterial` / `LiquidGlassBrush`。
+- `LiquidGlassMaterial` / `LiquidGlassBrush`；
+- `WinUI.LiquidGlass` 原生控件：Card、Magnifier、Button、Choice、Slider、输入控件、ToggleSwitch、TabBar 等；
+- separable Gaussian backdrop blur、SDF coverage、折射/放大、色散、pointer specular、按控件区分的 motion/elevation。
 
 当前还没有把 multi-source `MaterializedSampler`、任意多个 custom node 的 graph lowering、custom materialized pass 后任意 native node 宣布为公开稳定能力。这些会通过正式 graph/pass planner 继续推进，而不是简单删掉安全判断。
 
 ## 最短上手
 
-项目中加入包和 shader：
+项目中加入 core 包和 shader：
 
 ```xml
 <ItemGroup>
@@ -132,7 +153,7 @@ Sampler 所需的 private `PSBody*` edge-mode wrapper 以及 `textureN` / `sampl
 - render 时不会反复做 DXBC reflection；
 - `GetRuntimeCapabilities()` 无副作用，不会为了查询 capability 去扫描/patch 私有 runtime。
 
-只有运行时才能知道的问题，例如 source brush 对象、source 数量和 compositor 归属，才保留在 API 边界检查。能在编译/构建阶段确定的错误尽量在那里解决。
+控件 hot path 同样遵守这个原则：高频 Value/pointer 更新应该只改已有 Composition 状态，不能每一帧重新遍历 XAML template、分配 brush 或重写 resource。Slider 的实现约束见 [WinUI.LiquidGlass 控件](docs/liquid-glass-controls.md)。
 
 ## 文档
 
@@ -141,8 +162,9 @@ README 只负责项目入口，完整文档从这里开始：
 1. [上手指南](docs/get-started.md)
 2. [基础概念](docs/concepts.md)
 3. [整体架构](docs/architecture.md)
-4. [API Reference](docs/api/index.md)
-5. [设计文档索引](docs/index.md#design-reference)
+4. [WinUI.LiquidGlass 控件](docs/liquid-glass-controls.md)
+5. [API Reference](docs/api/index.md)
+6. [设计文档索引](docs/index.md#design-reference)
 
 常用参考：
 
@@ -152,6 +174,9 @@ README 只负责项目入口，完整文档从这里开始：
 - [HlslShaderLibrary](docs/api/hlsl-shader-library.md)
 - [HlslProperty](docs/api/hlsl-property.md)
 - [HlslRuntimeCapabilities](docs/api/hlsl-runtime-capabilities.md)
+- [LiquidGlassBrush](docs/api/liquid-glass-brush.md)
+- [LiquidGlassMaterial](docs/api/liquid-glass-material.md)
+- [WinUI.LiquidGlass 控件](docs/liquid-glass-controls.md)
 - [Sampler 资源绑定 ABI](docs/design/resource-binding-contract.md)
 - [Materialized graph runtime](docs/design/materialized-graph-runtime.md)
 
@@ -166,7 +191,7 @@ README 只负责项目入口，完整文档从这里开始：
 .\tests\build.ps1 -Language CSharp
 ```
 
-CI 会构建 x64/Win32/ARM64 native asset、CsWinRT projection、generated shader fixture、NuGet 包，并使用生成的 NuGet 再构建下游 C++/C# consumer。`master` push 全部验证通过后，会直接由 `ci.yml` 通过 OIDC trusted publishing 发布该包到 NuGet.org。
+CI 会构建 x64/Win32/ARM64 native asset、CsWinRT projection、generated shader fixture、两个 NuGet 包，并使用生成的 NuGet 再构建下游 C++/C# consumer。`master` push 全部验证通过后，会直接由 `ci.yml` 通过 OIDC trusted publishing 发布经过验证的包。
 
 ## License
 
