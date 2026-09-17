@@ -30,7 +30,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto bind = [self](auto routedEvent, Windows::Foundation::IInspectable& storage, auto&& callback)
             {
                 using Handler = Microsoft::UI::Xaml::Input::PointerEventHandler;
-                storage = winrt::box_value<Handler>({ std::forward<decltype(callback)>(callback) });
+                storage = winrt::box_value(Handler{ std::forward<decltype(callback)>(callback) });
                 self->AddHandler(routedEvent, storage, true);
             };
 
@@ -75,6 +75,9 @@ namespace winrt::WinUI::LiquidGlass::detail
         void RefreshElevationSurface()
         {
             if (!m_loaded) return;
+            // OnApplyTemplate may replace the Border while this helper is still loaded.
+            // Drop the old reference before resolving the new template part.
+            m_surface = nullptr;
             RefreshSurface();
             ApplyElevation();
         }
