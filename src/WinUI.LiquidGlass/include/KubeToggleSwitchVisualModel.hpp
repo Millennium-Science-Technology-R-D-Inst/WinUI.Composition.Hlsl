@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 #include "ChildSurfaceInteraction.hpp"
@@ -30,7 +31,11 @@ namespace winrt::WinUI::LiquidGlass::detail
                 Microsoft::UI::Xaml::Controls::Primitives::ToggleButton::IsCheckedProperty(),
                 [this](auto const&, auto const&)
                 {
-                    if (m_loaded && !m_dragging) SyncSemanticState(true);
+                    // ToggleButton may commit IsChecked from its class handler before our
+                    // routed PointerReleased handler runs. Always observe the semantic state
+                    // change, even while a pointer gesture is still active, otherwise the
+                    // visual ratio remains one click behind and teleports on the next press.
+                    if (m_loaded) SyncSemanticState(true);
                 });
 
             auto bind = [self](auto routedEvent, Windows::Foundation::IInspectable& storage, auto&& callback)
@@ -83,6 +88,15 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         bool TryHandleToggle()
         {
+            // If native ToggleButton tries to toggle while a real drag is in progress,
+            // suppress that click. The drag release will commit the semantic state from
+            // the visual ratio. This handles either class-handler ordering (before or
+            // after our PointerReleased handler) without a second toggle or a teleport.
+            if (m_dragging && m_dragOverrideArmed)
+            {
+                m_nativeToggleConsumedThisGesture = true;
+                return true;
+            }
             if (!m_consumeNextToggle) return false;
             m_consumeNextToggle = false;
             return true;
@@ -196,7 +210,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             scalarSpring.Period(std::chrono::milliseconds{ static_cast<int64_t>(std::lround(kPositionPeriodMs)) });
             m_ratio.StartAnimation(L"Value", scalarSpring);
 
-            Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(m_knob, true);
             auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(m_knob);
             auto vectorSpring = visual.Compositor().CreateSpringVector3Animation();
             vectorSpring.FinalValue(box_value(TranslationForRatio(ratio)).as<
@@ -242,20 +255,19 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_coordinateRoot = xamlRoot ? xamlRoot.Content() : Microsoft::UI::Xaml::UIElement{ nullptr };
             if (!m_coordinateRoot) m_coordinateRoot = element;
             auto const point = args.GetCurrentPoint(m_coordinateRoot);
-            if (!element.CapturePointer(args.Pointer()))
-            {
-                m_coordinateRoot = nullptr;
-                return;
-            }
 
+            // ButtonBase commonly owns the pointer capture already. A second CapturePointer
+            // may return false even though routed move/release events continue to arrive.
+            // Do not make visual press/drag activation depend on owning that capture.
+            m_ownsCapture = element.CapturePointer(args.Pointer());
             m_pointerId = point.PointerId();
             m_dragStart = point.Position();
             m_baseRatio = SemanticRatio(self->IsChecked());
             m_visualRatio = m_baseRatio;
             m_dragOverrideArmed = false;
+            m_nativeToggleConsumedThisGesture = false;
             m_consumeNextToggle = false;
             m_dragging = true;
-            SetVisualRatio(m_baseRatio, false);
             AnimateKnobScale(true);
         }
 
@@ -292,18 +304,30 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 auto const targetChecked = std::clamp(m_visualRatio, 0.0, 1.0) >= .5;
                 auto current = self->IsChecked();
-                if (!current || current.Value() != targetChecked)
-                    self->IsChecked(box_value(targetChecked).as<Windows::Foundation::IReference<bool>>());
-                m_consumeNextToggle = releaseInside;
+                bool const changed = !current || current.Value() != targetChecked;
                 m_dragOverrideArmed = false;
-                FinishPointer(true, true);
+                m_consumeNextToggle = releaseInside && !m_nativeToggleConsumedThisGesture;
+
+                if (changed)
+                {
+                    // The IsChecked callback owns the settle animation when semantic state changes.
+                    self->IsChecked(box_value(targetChecked).as<Windows::Foundation::IReference<bool>>());
+                }
+                else
+                {
+                    // No semantic callback will fire; settle the overscrolled ratio explicitly.
+                    SetVisualRatio(targetChecked ? 1.0 : 0.0, true);
+                }
+                FinishPointer(true, false);
                 return;
             }
 
             m_dragOverrideArmed = false;
-            // A normal click is committed by ToggleButton::OnToggle after release. Do not
-            // spring toward the old semantic state first; that old-state settle caused the
-            // visible ON -> OFF teleport/restart.
+            m_nativeToggleConsumedThisGesture = false;
+            // For a normal click, ToggleButton may toggle before or after this handler.
+            // Never settle toward the old state while the release is inside; IsChecked is
+            // the sole owner of the position transition. Outside release gets no click, so
+            // it must settle back to the existing semantic state here.
             FinishPointer(true, !releaseInside);
         }
 
@@ -312,10 +336,13 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!m_loaded || !m_dragging)
             {
                 m_dragOverrideArmed = false;
+                m_nativeToggleConsumedThisGesture = false;
                 return;
             }
             m_dragOverrideArmed = false;
+            m_nativeToggleConsumedThisGesture = false;
             m_consumeNextToggle = false;
+            m_ownsCapture = false; // capture is already gone on this path
             FinishPointer(animate, true);
         }
 
@@ -325,7 +352,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto self = static_cast<Self*>(this);
             auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>();
 
-            // Mark inactive before releasing capture. CaptureLost can fire synchronously.
             m_dragging = false;
             m_coordinateRoot = nullptr;
             m_pointerId = 0;
@@ -335,7 +361,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (animate) AnimateKnobScale(false);
             else if (m_knob) SetElementScale(m_knob, kRestScale, kRestScale);
 
-            if (element) element.ReleasePointerCaptures();
+            if (element && m_ownsCapture) element.ReleasePointerCaptures();
+            m_ownsCapture = false;
         }
 
         void RefreshPointerField()
@@ -361,10 +388,15 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_loaded = false;
             m_dragging = false;
             m_dragOverrideArmed = false;
+            m_nativeToggleConsumedThisGesture = false;
             m_consumeNextToggle = false;
             auto self = static_cast<Self*>(this);
-            if (auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>())
-                element.ReleasePointerCaptures();
+            if (m_ownsCapture)
+            {
+                if (auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>())
+                    element.ReleasePointerCaptures();
+            }
+            m_ownsCapture = false;
             m_pointerField.Detach(false);
             m_coordinateRoot = nullptr;
             m_pointerId = 0;
@@ -394,6 +426,8 @@ namespace winrt::WinUI::LiquidGlass::detail
         bool m_loaded{};
         bool m_dragging{};
         bool m_dragOverrideArmed{};
+        bool m_nativeToggleConsumedThisGesture{};
         bool m_consumeNextToggle{};
+        bool m_ownsCapture{};
     };
 }

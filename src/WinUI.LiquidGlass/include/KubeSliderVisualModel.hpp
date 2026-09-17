@@ -60,7 +60,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->LayoutUpdated([this](auto const&, auto const&)
             {
                 if (!m_loaded) return;
-                ResolveTemplateParts();
+                if (!m_thumb || !m_track) ResolveTemplateParts();
                 UpdateValueVisuals();
             });
 
@@ -257,6 +257,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (width <= 0.0 || height <= 0.0) return;
 
             m_progressVisual.Size({ static_cast<float>(width), static_cast<float>(height) });
+            m_progressVisual.Opacity(ratio > 1e-6 ? 1.0f : 0.0f);
             if (horizontal)
             {
                 auto const progressWidth = width * ratio;
@@ -281,12 +282,41 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void UpdateLensPosition(double displayRatio)
         {
-            if (!m_surface) return;
-            auto const restVisualExtent = kVisualWidth * kRestScale;
-            auto const correction = (0.5 - displayRatio) * (restVisualExtent - kSemanticThumbExtent);
-            auto translation = m_surface.Translation();
+            if (!m_surface || !m_thumb || !m_track) return;
+
             auto self = static_cast<Self*>(this);
-            if (self->Orientation() == Microsoft::UI::Xaml::Controls::Orientation::Horizontal)
+            auto const horizontal = self->Orientation() == Microsoft::UI::Xaml::Controls::Orientation::Horizontal;
+            auto const visualExtent = (horizontal ? kVisualWidth : kVisualHeight) * kRestScale;
+            auto const trackExtent = horizontal ? m_track.ActualWidth() : m_track.ActualHeight();
+            if (trackExtent <= 0.0) return;
+
+            // Compute the native Thumb center in the *actual track coordinate system*.
+            // The stock WinUI Slider template has pre/post content margins and other layout
+            // details, so assuming the semantic 18-DIP thumb begins exactly at track x=0
+            // produces the visible 0% left-edge mismatch. Kube instead positions the lens
+            // from its rendered 54-DIP rest footprint; reproduce that in real coordinates.
+            double nativeCenter = kSemanticThumbExtent * .5;
+            try
+            {
+                auto transform = m_thumb.TransformToVisual(m_track);
+                auto center = transform.TransformPoint({
+                    static_cast<float>(m_thumb.ActualWidth() * .5),
+                    static_cast<float>(m_thumb.ActualHeight() * .5) });
+                nativeCenter = horizontal ? center.X : center.Y;
+            }
+            catch (...)
+            {
+                // During a transient template/layout pass, keep the semantic fallback and
+                // let the next LayoutUpdated iteration resolve the exact coordinate.
+            }
+
+            auto const halfVisual = visualExtent * .5;
+            auto const usable = std::max(0.0, trackExtent - visualExtent);
+            auto const desiredCenter = halfVisual + std::clamp(displayRatio, 0.0, 1.0) * usable;
+            auto const correction = desiredCenter - nativeCenter;
+
+            auto translation = m_surface.Translation();
+            if (horizontal)
             {
                 translation.x = static_cast<float>(correction);
                 translation.y = 0.0f;
