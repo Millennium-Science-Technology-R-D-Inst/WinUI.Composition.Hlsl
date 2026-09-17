@@ -66,7 +66,7 @@ float SurfaceDerivative(float t, float profile)
     const float delta = 0.0001f;
     const float step = t < 1.0f - delta ? delta : -delta;
     const float y = SurfaceHeight(t, profile);
-    return (SurfaceHeight(t + step, profile) - y) / step;
+    return (SurfaceHeight(t + step) - y) / step;
 }
 
 float CalculateReferenceRefractionDistance(
@@ -211,6 +211,22 @@ float4 SampleTransmission(float2 uv, float2 texelSize)
     return texture0.Sample(sampler0, clamp(uv, textureMin, textureMax));
 }
 
+float SpecularEdgeProfile(
+    float distanceFromEdge,
+    float specularWidth,
+    float feather)
+{
+    const float width = max(specularWidth, 0.25f);
+    const float normalizedDistance = max(distanceFromEdge, 0.0f) / width;
+    const float arcTerm = 1.0f - (1.0f - normalizedDistance) * (1.0f - normalizedDistance);
+    const float arc = sqrt(saturate(arcTerm));
+    const float support = 1.0f - smoothstep(
+        2.0f,
+        2.0f + max(feather / width, 0.25f),
+        normalizedDistance);
+    return saturate(arc * support);
+}
+
 float ReferenceSpecularCoefficient(
     float distanceFromEdge,
     float specularWidth,
@@ -219,13 +235,41 @@ float ReferenceSpecularCoefficient(
     float2 lightDirection,
     float highlightSharpness)
 {
-    const float width = max(specularWidth, 0.25f);
-    const float normalizedDistance = max(distanceFromEdge, 0.0f) / width;
-    const float arcTerm = 1.0f - (1.0f - normalizedDistance) * (1.0f - normalizedDistance);
-    const float arc = sqrt(saturate(arcTerm));
-    const float orientation = pow(saturate(abs(dot(normal, lightDirection))), max(highlightSharpness, 0.25f));
-    const float support = 1.0f - smoothstep(2.0f, 2.0f + max(feather / width, 0.25f), normalizedDistance);
-    return saturate(orientation * arc * support);
+    const float edgeProfile = SpecularEdgeProfile(distanceFromEdge, specularWidth, feather);
+    const float orientation = pow(
+        saturate(abs(dot(normal, lightDirection))),
+        max(highlightSharpness, 0.25f));
+    return saturate(edgeProfile * orientation);
+}
+
+float PointerSpecularCoefficient(
+    float distanceFromEdge,
+    float specularWidth,
+    float feather,
+    float2 normal,
+    float2 pointerLightDirection,
+    bool pointerInside,
+    float pointerInteraction,
+    float highlightSharpness)
+{
+    const float edgeProfile = SpecularEdgeProfile(distanceFromEdge, specularWidth, feather);
+
+    // Treat the pointer as a local light source. When it is inside the glass the
+    // inward-facing rim should light; when it is outside, the outward-facing rim
+    // should light. Keep a faint angular floor so the radial field reads as one
+    // coherent reveal instead of disappearing abruptly around rounded corners.
+    const float signedFacing = dot(normal, pointerLightDirection);
+    const float facing = pointerInside ? saturate(-signedFacing) : saturate(signedFacing);
+    const float angular = pow(
+        saturate(0.15f + 0.85f * facing),
+        max(highlightSharpness * 0.85f, 0.5f));
+
+    // PointerInteraction already contains the rounded-rect hover gate and radial
+    // distance falloff. Reshape it into a bright core with a soft reveal shoulder.
+    const float radialCore = SmootherStep01(saturate(pointerInteraction));
+    const float radialShoulder = sqrt(radialCore);
+    const float radialField = lerp(radialCore, radialShoulder, 0.28f);
+    return saturate(edgeProfile * angular * radialField);
 }
 
 float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
@@ -405,13 +449,19 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         if (pointerLightDistance > 1e-4f && pointerInteraction > 0.0f)
         {
             const float2 pointerLightDirection = (pointerPosition - localPosition) / pointerLightDistance;
-            pointerSpecular = ReferenceSpecularCoefficient(
+            const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
+            pointerSpecular = PointerSpecularCoefficient(
                 distanceFromEdge,
                 specularWidth,
                 feather,
                 normal,
                 pointerLightDirection,
-                highlightSharpness) * pointerInteraction * pointerHighlightStrength * opticalInterior;
+                pointerSdf <= 0.0f,
+                pointerInteraction,
+                highlightSharpness) *
+                pointerHighlightStrength *
+                (1.0f + pointerSpeedWeight * 0.18f) *
+                opticalInterior;
         }
 
         const float specularMask = specularCoefficient * specularCoefficient;
