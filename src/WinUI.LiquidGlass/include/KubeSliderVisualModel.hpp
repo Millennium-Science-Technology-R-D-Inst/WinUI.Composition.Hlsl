@@ -41,8 +41,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
             {
                 if (!m_loaded) return;
-                // If the brush is replaced while pressed, never carry the old brush's
-                // active baseline into the new instance.
                 auto self = static_cast<Self*>(this);
                 auto current = self->GlassBrush();
                 if (m_pressOptics.active &&
@@ -65,9 +63,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto updateValue = [this](auto const&, auto const&)
             {
                 if (!m_loaded) return;
-                // Value changes can occur at pointer frequency. Keep this path strictly
-                // Composition-only; native Slider layout will move the semantic Thumb and
-                // LayoutUpdated performs the cheap post-layout lens correction.
                 UpdateProgressVisual();
             };
             self->RegisterPropertyChangedCallback(
@@ -84,11 +79,6 @@ namespace winrt::WinUI::LiquidGlass::detail
                 UpdateLensPosition(DisplayRatio(NormalizedValue()));
             });
 
-            // WinUI updates the native Thumb position during layout. We still need one
-            // post-layout coordinate correction because the 90x60 glass lens deliberately
-            // has a different footprint from the 18x18 semantic Thumb. This handler must
-            // stay lightweight: no tree walking, resource creation, brush allocation, or
-            // template mutation is allowed here.
             self->LayoutUpdated([this](auto const&, auto const&)
             {
                 if (!m_loaded || !m_thumb || !m_surface || !m_track) return;
@@ -141,6 +131,99 @@ namespace winrt::WinUI::LiquidGlass::detail
             Microsoft::UI::Xaml::Media::SolidColorBrush brush;
             brush.Color({ alpha, red, green, blue });
             return brush;
+        }
+
+        static void AnimateSliderOpticsTransition(
+            Microsoft::UI::Xaml::DependencyObject const& owner,
+            WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
+            OpticsSnapshot const& from)
+        {
+            if (!owner || !brush || !from.active || !MotionAnimationsEnabled(owner)) return;
+
+            auto const durationMs = std::clamp(
+                implementation::LiquidGlassInteraction::GetOpticsTransitionDuration(owner), 0.0, 2000.0);
+            if (durationMs <= 0.0) return;
+
+            auto material = brush.Material();
+            if (!material) return;
+            auto effect = material.EffectBrush();
+            if (!effect) return;
+            auto compositionBrush = effect.EffectBrush();
+            if (!compositionBrush) return;
+
+            auto easing = compositionBrush.Compositor().CreateCubicBezierEasingFunction(
+                { .20f, 0.0f }, { 0.0f, 1.0f });
+            auto const duration = std::chrono::milliseconds{
+                static_cast<int64_t>(std::lround(durationMs)) };
+
+            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+                L"RefractionStrength", from.refraction, brush.RefractionStrength());
+            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+                L"TintOpacity", from.tintOpacity, brush.TintOpacity());
+            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+                L"HighlightStrength", from.highlight, brush.HighlightStrength());
+            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+                L"InnerShadowStrength", from.innerShadow, brush.InnerShadowStrength());
+        }
+
+        static void RestoreSliderOptics(OpticsSnapshot& state)
+        {
+            if (!state.active || !state.brush) return;
+            state.brush.RefractionStrength(state.refraction);
+            state.brush.TintOpacity(state.tintOpacity);
+            state.brush.HighlightStrength(state.highlight);
+            state.brush.InnerShadowStrength(state.innerShadow);
+            state.brush = nullptr;
+            state.owner = nullptr;
+            state.active = false;
+        }
+
+        static void EnterSliderPressedOptics(
+            Microsoft::UI::Xaml::DependencyObject const& owner,
+            WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
+            OpticsSnapshot& state)
+        {
+            if (state.active || !owner || !brush) return;
+            CaptureOptics(brush, state);
+            state.owner = owner;
+            auto const from = state;
+
+            brush.RefractionStrength(std::clamp(
+                state.refraction * std::clamp(
+                    implementation::LiquidGlassInteraction::GetPressedRefractionMultiplier(owner), 0.0, 4.0) +
+                std::clamp(implementation::LiquidGlassInteraction::GetPressedRefractionBoost(owner), -128.0, 128.0),
+                0.0,
+                128.0));
+            brush.TintOpacity(std::clamp(
+                state.tintOpacity + std::clamp(
+                    implementation::LiquidGlassInteraction::GetPressedTintBoost(owner), -1.0, 1.0),
+                0.0,
+                1.0));
+            brush.HighlightStrength(std::clamp(
+                state.highlight * std::clamp(
+                    implementation::LiquidGlassInteraction::GetPressedHighlightMultiplier(owner), 0.0, 4.0) +
+                std::clamp(implementation::LiquidGlassInteraction::GetPressedHighlightBoost(owner), -4.0, 4.0),
+                0.0,
+                4.0));
+            brush.InnerShadowStrength(std::clamp(
+                state.innerShadow + std::clamp(
+                    implementation::LiquidGlassInteraction::GetPressedInnerShadowBoost(owner), -1.0, 1.0),
+                0.0,
+                1.0));
+
+            AnimateSliderOpticsTransition(owner, brush, from);
+        }
+
+        static void LeaveSliderPressedOptics(
+            Microsoft::UI::Xaml::DependencyObject const& owner,
+            OpticsSnapshot& state)
+        {
+            if (!state.active || !state.brush) return;
+            auto brush = state.brush;
+            OpticsSnapshot from;
+            CaptureOptics(brush, from);
+            RestoreSliderOptics(state);
+            AnimateSliderOpticsTransition(owner, brush, from);
         }
 
         void ConfigureResources()
@@ -398,7 +481,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto self = static_cast<Self*>(this);
             auto brush = self->GlassBrush();
             if (brush && m_pressOptics.brush && get_abi(brush) == get_abi(m_pressOptics.brush))
-                RestoreOptics(m_pressOptics);
+                RestoreSliderOptics(m_pressOptics);
             else
                 m_pressOptics = {};
         }
@@ -449,11 +532,11 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (m_pressed)
             {
                 if (!m_pressOptics.active)
-                    EnterPressedOptics(owner, self->GlassBrush(), m_pressOptics);
+                    EnterSliderPressedOptics(owner, self->GlassBrush(), m_pressOptics);
             }
             else
             {
-                LeavePressedOptics(owner, m_pressOptics);
+                LeaveSliderPressedOptics(owner, m_pressOptics);
             }
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
