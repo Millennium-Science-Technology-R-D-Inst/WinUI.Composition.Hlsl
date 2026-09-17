@@ -149,16 +149,19 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(CreateBrush(Preset::SliderThumb));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.6));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(85.0));
-        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(85.0));
-        SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.08));
-        SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.12));
-        SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(.01));
-        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.45));
-        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(.35));
-        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(.02));
-        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.18));
-        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.025));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(70.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(65.0));
+        SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.12));
+        SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.15));
+        SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(0.0));
+        // Kube's slider drives the refraction scale from 0.4 at rest to 0.9 while active.
+        // Preserve that 2.25x relation instead of the older, much weaker 1.45x response.
+        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
+        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
+        // The active lens should reveal the refracted backdrop, not become more opaque.
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.05));
+        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
+        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.03));
     }
 
