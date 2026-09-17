@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "XamlWorkaround.h"
 #include "MainWindow.xaml.h"
 
 using namespace winrt;
