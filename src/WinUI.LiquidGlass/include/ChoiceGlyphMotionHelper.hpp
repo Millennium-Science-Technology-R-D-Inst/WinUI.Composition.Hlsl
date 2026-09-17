@@ -14,11 +14,15 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto self = static_cast<Self*>(this);
             self->Loaded([this](auto const&, auto const&)
             {
+                m_loaded = true;
+                m_pointerOver = false;
+                m_pressed = false;
                 RefreshTarget();
                 ApplyState(false);
             });
             self->Unloaded([this](auto const&, auto const&)
             {
+                m_loaded = false;
                 m_target = nullptr;
                 m_pointerOver = false;
                 m_pressed = false;
@@ -31,21 +35,22 @@ namespace winrt::WinUI::LiquidGlass::detail
                 self->AddHandler(routedEvent, storage, true);
             };
             bind(Microsoft::UI::Xaml::UIElement::PointerEnteredEvent(), m_pointerEnteredHandler,
-                [this](auto const&, auto const&) { m_pointerOver = true; ApplyState(true); });
+                [this](auto const&, auto const&) { if (!m_loaded) return; m_pointerOver = true; ApplyState(true); });
             bind(Microsoft::UI::Xaml::UIElement::PointerExitedEvent(), m_pointerExitedHandler,
-                [this](auto const&, auto const&) { m_pointerOver = false; if (!m_pressed) ApplyState(true); });
+                [this](auto const&, auto const&) { if (!m_loaded) return; m_pointerOver = false; if (!m_pressed) ApplyState(true); });
             bind(Microsoft::UI::Xaml::UIElement::PointerPressedEvent(), m_pointerPressedHandler,
-                [this](auto const&, auto const&) { m_pressed = true; ApplyState(true); });
+                [this](auto const&, auto const&) { if (!m_loaded) return; m_pressed = true; ApplyState(true); });
             bind(Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(), m_pointerReleasedHandler,
-                [this](auto const&, auto const&) { m_pressed = false; ApplyState(true); });
+                [this](auto const&, auto const&) { if (!m_loaded) return; m_pressed = false; ApplyState(true); });
             bind(Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(), m_pointerCaptureLostHandler,
-                [this](auto const&, auto const&) { m_pressed = false; ApplyState(true); });
+                [this](auto const&, auto const&) { if (!m_loaded) return; m_pressed = false; ApplyState(true); });
             bind(Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(), m_pointerCanceledHandler,
-                [this](auto const&, auto const&) { m_pressed = false; ApplyState(true); });
+                [this](auto const&, auto const&) { if (!m_loaded) return; m_pressed = false; ApplyState(true); });
         }
 
         void RefreshTarget()
         {
+            if (!m_loaded) return;
             auto self = static_cast<Self*>(this);
             auto root = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!root) return;
@@ -55,6 +60,7 @@ namespace winrt::WinUI::LiquidGlass::detail
     private:
         void ApplyState(bool animate)
         {
+            if (!m_loaded) return;
             if (!m_target) RefreshTarget();
             if (!m_target) return;
             auto self = static_cast<Self*>(this);
@@ -79,6 +85,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
+        bool m_loaded{};
         bool m_pointerOver{};
         bool m_pressed{};
     };
