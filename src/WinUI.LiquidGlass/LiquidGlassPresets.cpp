@@ -52,18 +52,18 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.SpecularWidth(1); b.TintOpacity(.10); b.InnerShadowStrength(.05);
             b.FallbackColor({ 0x36, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::SliderThumb:
-            b.CornerRadius(30); b.BlurRadius(0); b.RefractionStrength(9.6);
-            b.DispersionStrength(.45); b.BezelWidth(16); b.GlassThickness(80);
-            b.RefractiveIndex(1.45); b.HighlightStrength(.4); b.HighlightSharpness(1.7);
-            b.SpecularSaturation(7); b.SpecularWidth(1); b.TintOpacity(1);
-            b.InnerShadowStrength(.05); b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
+            b.CornerRadius(30); b.BlurRadius(0); b.RefractionStrength(13.2);
+            b.DispersionStrength(.5); b.BezelWidth(16); b.GlassThickness(80);
+            b.RefractiveIndex(1.45); b.HighlightStrength(.48); b.HighlightSharpness(1.7);
+            b.SpecularSaturation(7); b.SpecularWidth(1); b.TintOpacity(.07);
+            b.InnerShadowStrength(.07); b.FallbackColor({ 0x38, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::ToggleSwitchKnob:
             b.SurfaceProfile(Profile::Lip); b.CornerRadius(46); b.BlurRadius(.2);
-            b.RefractionStrength(9.6); b.DispersionStrength(.45); b.BezelWidth(19);
-            b.GlassThickness(47); b.RefractiveIndex(1.5); b.HighlightStrength(.5);
+            b.RefractionStrength(10.8); b.DispersionStrength(.5); b.BezelWidth(19);
+            b.GlassThickness(47); b.RefractiveIndex(1.5); b.HighlightStrength(.52);
             b.HighlightSharpness(1.6); b.SpecularSaturation(6); b.SpecularWidth(1);
-            b.TintOpacity(1); b.InnerShadowStrength(.02);
-            b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
+            b.TintOpacity(.07); b.InnerShadowStrength(.04);
+            b.FallbackColor({ 0x38, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::Magnifier:
             b.CornerRadius(75); b.BlurRadius(0); b.RefractionStrength(19.2);
             b.DispersionStrength(.55); b.BezelWidth(25); b.GlassThickness(110);

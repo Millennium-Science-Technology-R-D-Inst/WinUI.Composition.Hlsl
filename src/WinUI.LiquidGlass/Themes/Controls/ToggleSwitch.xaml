@@ -13,33 +13,42 @@
             <Setter.Value>
                 <ControlTemplate TargetType="local:LiquidGlassToggleSwitch">
                     <StackPanel x:Name="Root" Orientation="Horizontal" Spacing="10">
-                        <Grid x:Name="SwitchGlyph" Width="160" Height="67" Control.IsTemplateFocusTarget="True">
-                            <!-- Composition owns the rendered track color. This Border is its XAML host. -->
-                            <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" />
-                            <!--
-                              Position/track use the switch's k=1000,d=80-equivalent spring.
-                              The knob scale uses a local k=2000,d=80-equivalent spring.
-
-                              Keep motion ownership on this host. The nested glass surface owns
-                              only the ThemeShadow; dynamic XYZ motion/elevation is Composition-owned
-                              and must not be driven by VisualState Setter property paths.
-                            -->
-                            <Grid x:Name="SwitchKnob"
-                                  Width="146" Height="92"
-                                  Margin="-21.95,0,0,0"
-                                  HorizontalAlignment="Left"
+                        <!--
+                          The authored knob is 146x92 while the semantic track is 160x67.
+                          Keep the public/layout footprint at 160x67, but give Composition
+                          22 DIPs of horizontal and 12.5 DIPs of vertical overscan so the
+                          .9 pressed scale, rim/refraction and ThemeShadow are never clipped.
+                        -->
+                        <Grid Width="204" Height="92" Margin="-22,-12.5,-22,-12.5">
+                            <Grid x:Name="SwitchGlyph"
+                                  Width="160" Height="67"
+                                  HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  local:LiquidGlassInteraction.SpringDampingRatio="0.8944271909999159"
-                                  local:LiquidGlassInteraction.SpringPeriod="140.49629462081452">
-                                <Border x:Name="SwitchKnobSurface"
-                                        Background="{TemplateBinding Background}"
-                                        BorderBrush="#33FFFFFF"
-                                        BorderThickness="1"
-                                        CornerRadius="46">
-                                    <Border.Shadow>
-                                        <ThemeShadow />
-                                    </Border.Shadow>
-                                </Border>
+                                  Control.IsTemplateFocusTarget="True">
+                                <!-- Composition owns the rendered track color. This Border is its XAML host. -->
+                                <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" />
+                                <!--
+                                  Position/track use the switch's control-level spring. The knob
+                                  scale may use its local spring tuning. The nested glass surface
+                                  owns only ThemeShadow/Z elevation; X/Y and scale stay on SwitchKnob.
+                                -->
+                                <Grid x:Name="SwitchKnob"
+                                      Width="146" Height="92"
+                                      Margin="-21.95,0,0,0"
+                                      HorizontalAlignment="Left"
+                                      VerticalAlignment="Center"
+                                      local:LiquidGlassInteraction.SpringDampingRatio="0.86"
+                                      local:LiquidGlassInteraction.SpringPeriod="120">
+                                    <Border x:Name="SwitchKnobSurface"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="#33FFFFFF"
+                                            BorderThickness="1"
+                                            CornerRadius="46">
+                                        <Border.Shadow>
+                                            <ThemeShadow />
+                                        </Border.Shadow>
+                                    </Border>
+                                </Grid>
                             </Grid>
                         </Grid>
                         <ContentPresenter Content="{TemplateBinding Content}"

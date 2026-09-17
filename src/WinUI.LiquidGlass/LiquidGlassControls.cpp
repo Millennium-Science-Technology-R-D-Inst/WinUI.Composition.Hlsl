@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "winrt_module_imports.h"
 #include "LiquidGlassControls.h"
+#include "include/MagnifierSurfaceDynamicsHelper.hpp"
 
 #if __has_include("LiquidGlassCard.g.cpp")
 #include "LiquidGlassCard.g.cpp"
@@ -125,16 +126,19 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(CreateBrush(Preset::Magnifier));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.8));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(175.0));
-        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(170.0));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(105.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(105.0));
+        SetValue(LiquidGlassInteraction::SpringDampingRatioProperty(), box_value(.58));
+        SetValue(LiquidGlassInteraction::SpringPeriodProperty(), box_value(195.0));
         SetValue(LiquidGlassInteraction::ElasticityProperty(), box_value(.70));
         SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.25));
         SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
         SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(0.0));
-        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.08));
+        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.02));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.07));
         SetValue(LiquidGlassInteraction::ActiveMagnificationMultiplierProperty(), box_value(2.0));
+        detail::InstallMagnifierSurfaceDynamics(this);
     }
 
     void LiquidGlassSlider::ApplyGlassBrush(Brush const& value)
@@ -150,13 +154,19 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(CreateBrush(Preset::SliderThumb));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.6));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(120.0));
-        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
-        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
-        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.9));
-        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
-        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(0.0));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(85.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(85.0));
+        SetValue(LiquidGlassInteraction::SpringDampingRatioProperty(), box_value(.82));
+        SetValue(LiquidGlassInteraction::SpringPeriodProperty(), box_value(105.0));
+        SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.08));
+        SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.12));
+        SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(.01));
+        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.45));
+        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(.35));
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(.02));
+        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.18));
+        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.025));
+        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.03));
     }
 
     LiquidGlassToggleSwitch::LiquidGlassToggleSwitch()
@@ -165,13 +175,19 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(CreateBrush(Preset::ToggleSwitchKnob));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.65));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(.9));
-        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(130.0));
-        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
-        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
-        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.9));
-        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
-        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.07));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(90.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(85.0));
+        SetValue(LiquidGlassInteraction::SpringDampingRatioProperty(), box_value(.86));
+        SetValue(LiquidGlassInteraction::SpringPeriodProperty(), box_value(120.0));
+        SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.08));
+        SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.12));
+        SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(.01));
+        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.35));
+        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(.25));
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(.02));
+        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.18));
+        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.025));
+        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.08));
     }
 
     Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const { return m_header; }
