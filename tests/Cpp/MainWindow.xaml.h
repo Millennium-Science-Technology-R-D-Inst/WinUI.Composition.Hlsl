@@ -60,6 +60,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		winrt::Microsoft::UI::Input::InputCursor m_arrowCursor{ nullptr };
 		winrt::Microsoft::UI::Input::InputCursor m_moveCursor{ nullptr };
 		winrt::Microsoft::UI::Input::InputCursor m_resizeCursor{ nullptr };
+		winrt::Microsoft::UI::Xaml::Controls::ContentControl m_regressionStressMount{ nullptr };
 		BackdropEffectKind m_backdropEffect{ BackdropEffectKind::Solid };
 		BackdropInteraction m_backdropInteraction{ BackdropInteraction::None };
 		float m_borderWidth{ 2.0f };
@@ -70,6 +71,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		float m_startWidth{};
 		float m_startHeight{};
 		bool m_advancedLiquidGlassWired{};
+		bool m_regressionLabBuilt{};
 
 		void StartDynamicScene();
 		void InitializeBackdropBrush();
@@ -80,6 +82,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		void ClearBackgroundImage();
 		void ApplyLiquidGlassProperties();
 		void ApplyAdvancedLiquidGlassProperties();
+		void BuildRegressionLab();
 		void UpdateLiquidGlassControlsState();
 		void UpdateLiquidGlassPointerLighting(winrt::Windows::Foundation::Point const& position);
 		void AnimateBackdropScale(float targetScale, int durationMilliseconds);
