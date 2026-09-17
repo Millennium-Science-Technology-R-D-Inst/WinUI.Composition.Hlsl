@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef WINRT_IMPORT_MODULE
 #define WINRT_IMPORT_MODULE
 #endif
@@ -10,6 +10,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	struct LiquidGlassBrush : LiquidGlassBrushT<LiquidGlassBrush>
 	{
 		LiquidGlassBrush();
+		Hlsl::LiquidGlassMaterial Material() const { return m_material; }
 		void OnConnected();
 		void OnDisconnected();
 		bool IsEnabled() const;
@@ -33,17 +34,74 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		double HighlightStrength() const;
 		void HighlightStrength(double value);
 		static Microsoft::UI::Xaml::DependencyProperty HighlightStrengthProperty();
+		double EdgeSoftness() const;
+		void EdgeSoftness(double value);
+		static Microsoft::UI::Xaml::DependencyProperty EdgeSoftnessProperty();
+		double MaterialOpacity() const;
+		void MaterialOpacity(double value);
+		static Microsoft::UI::Xaml::DependencyProperty MaterialOpacityProperty();
+		double BezelWidth() const;
+		void BezelWidth(double value);
+		static Microsoft::UI::Xaml::DependencyProperty BezelWidthProperty();
+		double GlassThickness() const;
+		void GlassThickness(double value);
+		static Microsoft::UI::Xaml::DependencyProperty GlassThicknessProperty();
+		double RefractiveIndex() const;
+		void RefractiveIndex(double value);
+		static Microsoft::UI::Xaml::DependencyProperty RefractiveIndexProperty();
+		double TintOpacity() const;
+		void TintOpacity(double value);
+		static Microsoft::UI::Xaml::DependencyProperty TintOpacityProperty();
+		double Saturation() const;
+		void Saturation(double value);
+		static Microsoft::UI::Xaml::DependencyProperty SaturationProperty();
+		double LightAngle() const;
+		void LightAngle(double value);
+		static Microsoft::UI::Xaml::DependencyProperty LightAngleProperty();
+		Hlsl::LiquidGlassSurfaceProfile SurfaceProfile() const;
+		void SurfaceProfile(Hlsl::LiquidGlassSurfaceProfile value);
+		static Microsoft::UI::Xaml::DependencyProperty SurfaceProfileProperty();
+		double MagnificationStrength() const;
+		void MagnificationStrength(double value);
+		static Microsoft::UI::Xaml::DependencyProperty MagnificationStrengthProperty();
+		double HighlightSharpness() const;
+		void HighlightSharpness(double value);
+		static Microsoft::UI::Xaml::DependencyProperty HighlightSharpnessProperty();
+		double TintRed() const;
+		void TintRed(double value);
+		static Microsoft::UI::Xaml::DependencyProperty TintRedProperty();
+		double TintGreen() const;
+		void TintGreen(double value);
+		static Microsoft::UI::Xaml::DependencyProperty TintGreenProperty();
+		double TintBlue() const;
+		void TintBlue(double value);
+		static Microsoft::UI::Xaml::DependencyProperty TintBlueProperty();
+		double InnerShadowStrength() const;
+		void InnerShadowStrength(double value);
+		static Microsoft::UI::Xaml::DependencyProperty InnerShadowStrengthProperty();
+		double SpecularSaturation() const;
+		void SpecularSaturation(double value);
+		static Microsoft::UI::Xaml::DependencyProperty SpecularSaturationProperty();
+		double SpecularWidth() const;
+		void SpecularWidth(double value);
+		static Microsoft::UI::Xaml::DependencyProperty SpecularWidthProperty();
+		double Contrast() const;
+		void Contrast(double value);
+		static Microsoft::UI::Xaml::DependencyProperty ContrastProperty();
+		double Exposure() const;
+		void Exposure(double value);
+		static Microsoft::UI::Xaml::DependencyProperty ExposureProperty();
+
 	private:
 		void Update();
 		friend class hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush>;
 		Microsoft::UI::Composition::CompositionBrush BuildPipeline(Microsoft::UI::Composition::Compositor const&);
-		void ReleasePipeline() noexcept
-		{
-			m_material = nullptr;
-		}
+		void ReleasePipeline() noexcept { m_material = nullptr; }
+		static Microsoft::UI::Xaml::DependencyProperty RegisterDoubleProperty(wchar_t const* name, double defaultValue);
+		double GetDoubleProperty(Microsoft::UI::Xaml::DependencyProperty const& property) const;
+		void SetDoubleProperty(Microsoft::UI::Xaml::DependencyProperty const& property, double value, double minimum, double maximum, wchar_t const* message);
 		hlsl::xaml::XamlHlslBrushBase<LiquidGlassBrush> m_lifecycle;
 		static void Changed(Microsoft::UI::Xaml::DependencyObject const& object, Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const&);
-
 		Hlsl::LiquidGlassMaterial m_material{ nullptr };
 	};
 }

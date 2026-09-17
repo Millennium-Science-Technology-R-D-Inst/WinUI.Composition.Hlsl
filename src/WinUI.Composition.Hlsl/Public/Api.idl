@@ -5,6 +5,7 @@ namespace WinUI.Composition.Hlsl
     enum HlslShaderProfile { Level91, Level93, Pixel40 };
     enum HlslNativeArchitecture { Unknown, X86, X64, Arm64 };
     enum HlslRuntimeSupportLevel { Unsupported, Experimental, Validated };
+    enum LiquidGlassSurfaceProfile { ConvexSquircle, ConvexCircle, Concave, Lip };
     [default_interface] runtimeclass HlslRuntimeCapabilities
     {
         HlslNativeArchitecture Architecture{ get; };
@@ -139,10 +140,30 @@ namespace WinUI.Composition.Hlsl
         Single CornerRadius;
         Single BorderThickness;
         Single HighlightStrength;
+        Single EdgeSoftness;
+        Single MaterialOpacity;
+        Single BezelWidth;
+        Single GlassThickness;
+        Single RefractiveIndex;
+        Single TintOpacity;
+        Single Saturation;
+        Single LightAngle;
+        LiquidGlassSurfaceProfile SurfaceProfile;
+        Single MagnificationStrength;
+        Single HighlightSharpness;
+        Single TintRed;
+        Single TintGreen;
+        Single TintBlue;
+        Single InnerShadowStrength;
+        Single SpecularSaturation;
+        Single SpecularWidth;
+        Single Contrast;
+        Single Exposure;
     }
     [default_interface] runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
     {
         LiquidGlassBrush();
+        LiquidGlassMaterial Material{ get; };
         Boolean IsEnabled;
         static Microsoft.UI.Xaml.DependencyProperty IsEnabledProperty{ get; };
         Double BlurRadius;
@@ -157,5 +178,43 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty BorderThicknessProperty{ get; };
         Double HighlightStrength;
         static Microsoft.UI.Xaml.DependencyProperty HighlightStrengthProperty{ get; };
+        Double EdgeSoftness;
+        static Microsoft.UI.Xaml.DependencyProperty EdgeSoftnessProperty{ get; };
+        Double MaterialOpacity;
+        static Microsoft.UI.Xaml.DependencyProperty MaterialOpacityProperty{ get; };
+        Double BezelWidth;
+        static Microsoft.UI.Xaml.DependencyProperty BezelWidthProperty{ get; };
+        Double GlassThickness;
+        static Microsoft.UI.Xaml.DependencyProperty GlassThicknessProperty{ get; };
+        Double RefractiveIndex;
+        static Microsoft.UI.Xaml.DependencyProperty RefractiveIndexProperty{ get; };
+        Double TintOpacity;
+        static Microsoft.UI.Xaml.DependencyProperty TintOpacityProperty{ get; };
+        Double Saturation;
+        static Microsoft.UI.Xaml.DependencyProperty SaturationProperty{ get; };
+        Double LightAngle;
+        static Microsoft.UI.Xaml.DependencyProperty LightAngleProperty{ get; };
+        LiquidGlassSurfaceProfile SurfaceProfile;
+        static Microsoft.UI.Xaml.DependencyProperty SurfaceProfileProperty{ get; };
+        Double MagnificationStrength;
+        static Microsoft.UI.Xaml.DependencyProperty MagnificationStrengthProperty{ get; };
+        Double HighlightSharpness;
+        static Microsoft.UI.Xaml.DependencyProperty HighlightSharpnessProperty{ get; };
+        Double TintRed;
+        static Microsoft.UI.Xaml.DependencyProperty TintRedProperty{ get; };
+        Double TintGreen;
+        static Microsoft.UI.Xaml.DependencyProperty TintGreenProperty{ get; };
+        Double TintBlue;
+        static Microsoft.UI.Xaml.DependencyProperty TintBlueProperty{ get; };
+        Double InnerShadowStrength;
+        static Microsoft.UI.Xaml.DependencyProperty InnerShadowStrengthProperty{ get; };
+        Double SpecularSaturation;
+        static Microsoft.UI.Xaml.DependencyProperty SpecularSaturationProperty{ get; };
+        Double SpecularWidth;
+        static Microsoft.UI.Xaml.DependencyProperty SpecularWidthProperty{ get; };
+        Double Contrast;
+        static Microsoft.UI.Xaml.DependencyProperty ContrastProperty{ get; };
+        Double Exposure;
+        static Microsoft.UI.Xaml.DependencyProperty ExposureProperty{ get; };
     }
 }

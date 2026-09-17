@@ -1,0 +1,12 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///WinUI.LiquidGlass/Themes/Controls/Surfaces.xaml" />
+        <ResourceDictionary Source="ms-appx:///WinUI.LiquidGlass/Themes/Controls/Buttons.xaml" />
+        <ResourceDictionary Source="ms-appx:///WinUI.LiquidGlass/Themes/Controls/Selectors.xaml" />
+        <ResourceDictionary Source="ms-appx:///WinUI.LiquidGlass/Themes/Controls/Slider.xaml" />
+        <ResourceDictionary Source="ms-appx:///WinUI.LiquidGlass/Themes/Controls/ToggleSwitch.xaml" />
+        <ResourceDictionary Source="ms-appx:///WinUI.LiquidGlass/Themes/Controls/Compatibility.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+</ResourceDictionary>

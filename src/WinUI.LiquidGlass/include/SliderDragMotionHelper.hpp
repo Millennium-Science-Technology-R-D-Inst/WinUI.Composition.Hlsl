@@ -1,0 +1,286 @@
+#pragma once
+
+#include "ChildSurfaceInteraction.hpp"
+#include "MotionAnimation.hpp"
+#include "PressOpticsHelper.hpp"
+
+namespace winrt::WinUI::LiquidGlass::detail
+{
+    template<typename Self>
+    class SliderDragMotionHelper
+    {
+    public:
+        SliderDragMotionHelper()
+        {
+            auto self = static_cast<Self*>(this);
+            self->Loaded([this](auto const&, auto const&)
+            {
+                m_loaded = true;
+                RestorePendingOptics();
+                RefreshInteractionTarget();
+            });
+            self->Unloaded([this](auto const&, auto const&) { ClearForTeardown(); });
+            self->RegisterPropertyChangedCallback(
+                Microsoft::UI::Xaml::Controls::Slider::OrientationProperty(),
+                [this](auto const&, auto const&) { RefreshInteractionTarget(); });
+            self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
+            {
+                if (!m_loaded)
+                {
+                    // A detached brush replacement retires the old material. Do not write
+                    // the saved baseline back into a brush whose compositor may be closed.
+                    m_pressOptics = {};
+                    return;
+                }
+
+                if (m_pressOptics.active) RestoreOptics(m_pressOptics);
+                m_pressOptics = {};
+                RefreshInteractionTarget();
+                if (m_pressed) ApplyPressedState(false);
+            });
+
+            auto bindPointerHandler = [self](
+                auto routedEvent,
+                Windows::Foundation::IInspectable& storage,
+                auto&& callback)
+            {
+                using Handler = Microsoft::UI::Xaml::Input::PointerEventHandler;
+                storage = winrt::box_value<Handler>({ std::forward<decltype(callback)>(callback) });
+                self->AddHandler(routedEvent, storage, true);
+            };
+
+            // Native Slider does not raise Thumb.DragStarted until the drag threshold has
+            // been crossed. Active glass feedback should acknowledge the initial press, even
+            // for a track click or a press that never becomes a drag.
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerPressedEvent(),
+                m_pointerPressedHandler,
+                [this](auto const&, auto const&) { BeginPress(); });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(),
+                m_pointerReleasedHandler,
+                [this](auto const&, auto const&) { EndPress(true); });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(),
+                m_pointerCaptureLostHandler,
+                [this](auto const&, auto const&) { EndPress(true); });
+            bindPointerHandler(
+                Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(),
+                m_pointerCanceledHandler,
+                [this](auto const&, auto const&) { EndPress(true); });
+        }
+
+        void RefreshInteractionTarget()
+        {
+            if (!m_loaded) return;
+            auto self = static_cast<Self*>(this);
+            auto root = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!root) return;
+
+            auto const horizontal = self->Orientation() == Microsoft::UI::Xaml::Controls::Orientation::Horizontal;
+            auto const thumbName = horizontal ? L"HorizontalThumb" : L"VerticalThumb";
+            auto thumb = FindNamedDescendant(root, thumbName).try_as<Microsoft::UI::Xaml::Controls::Primitives::Thumb>();
+            if (!thumb) thumb = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Primitives::Thumb>(root);
+            if (!thumb) return;
+
+            auto surface = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Border>(thumb);
+            if (!surface) return;
+
+            if (!m_thumb || get_abi(m_thumb) != get_abi(thumb))
+            {
+                DetachThumbHandlers();
+                m_thumb = thumb;
+                auto weak = self->get_weak();
+                m_dragStartedToken = m_thumb.DragStarted([weak](auto const&, auto const&)
+                {
+                    if (auto owner = weak.get())
+                        static_cast<SliderDragMotionHelper<Self>*>(owner.get())->BeginDrag();
+                });
+                m_dragCompletedToken = m_thumb.DragCompleted([weak](auto const&, auto const&)
+                {
+                    if (auto owner = weak.get())
+                        static_cast<SliderDragMotionHelper<Self>*>(owner.get())->EndPress(true);
+                });
+            }
+
+            m_surface = surface;
+            Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(m_surface, true);
+            if (!m_surface.Shadow())
+                m_surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
+
+            auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!owner) return;
+            auto const scale = std::clamp(
+                m_pressed
+                    ? implementation::LiquidGlassInteraction::GetPressedScale(owner)
+                    : implementation::LiquidGlassInteraction::GetRestScale(owner),
+                .25,
+                4.0);
+            SetElementScale(m_surface, scale, scale);
+            SetSurfaceElevation(m_pressed ? kPressedElevation : kRestElevation, false);
+        }
+
+    private:
+        static constexpr double kRestElevation = 6.0;
+        static constexpr double kPressedElevation = 10.0;
+
+        void RestorePendingOptics()
+        {
+            if (!m_pressOptics.active) return;
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            if (brush && m_pressOptics.brush && get_abi(brush) == get_abi(m_pressOptics.brush))
+                RestoreOptics(m_pressOptics);
+            else
+                m_pressOptics = {};
+        }
+
+        void SetSurfaceElevation(double elevation, bool animate)
+        {
+            if (!m_surface) return;
+            auto self = static_cast<Self*>(this);
+            auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!owner) return;
+
+            auto translation = m_surface.Translation();
+            translation.z = static_cast<float>(elevation);
+            if (animate)
+            {
+                AnimateElementTranslation(
+                    owner,
+                    m_surface,
+                    translation,
+                    implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+            }
+            else
+            {
+                SetElementTranslation(m_surface, translation);
+            }
+        }
+
+        void BeginPress()
+        {
+            if (!m_loaded || m_pressed) return;
+            m_pressed = true;
+            ApplyPressedState(true);
+        }
+
+        void BeginDrag()
+        {
+            if (!m_loaded) return;
+            m_dragging = true;
+            if (!m_pressed)
+            {
+                m_pressed = true;
+                ApplyPressedState(true);
+            }
+        }
+
+        void ApplyPressedState(bool animate)
+        {
+            if (!m_loaded) return;
+            auto self = static_cast<Self*>(this);
+            auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!owner) return;
+            if (!m_surface) RefreshInteractionTarget();
+            if (!m_surface) return;
+
+            auto const scale = std::clamp(
+                implementation::LiquidGlassInteraction::GetPressedScale(owner), .25, 4.0);
+            if (animate)
+            {
+                AnimateElementScale(
+                    owner,
+                    m_surface,
+                    scale,
+                    scale,
+                    implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+            }
+            else
+            {
+                SetElementScale(m_surface, scale, scale);
+            }
+            SetSurfaceElevation(kPressedElevation, animate);
+
+            if (!m_pressOptics.active)
+                EnterPressedOptics(owner, self->GlassBrush(), m_pressOptics);
+        }
+
+        void EndPress(bool animate)
+        {
+            if (!m_loaded)
+            {
+                m_pressed = false;
+                m_dragging = false;
+                return;
+            }
+            if (!m_pressed && !m_dragging && !m_pressOptics.active) return;
+            auto self = static_cast<Self*>(this);
+            auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            m_pressed = false;
+            m_dragging = false;
+            if (!owner)
+            {
+                m_pressOptics = {};
+                return;
+            }
+
+            if (m_surface)
+            {
+                auto const scale = std::clamp(
+                    implementation::LiquidGlassInteraction::GetRestScale(owner), .25, 4.0);
+                if (animate)
+                {
+                    AnimateElementScale(
+                        owner,
+                        m_surface,
+                        scale,
+                        scale,
+                        implementation::LiquidGlassInteraction::GetMotionDuration(owner));
+                }
+                else
+                {
+                    SetElementScale(m_surface, scale, scale);
+                }
+                SetSurfaceElevation(kRestElevation, animate);
+            }
+            LeavePressedOptics(owner, m_pressOptics);
+        }
+
+        void DetachThumbHandlers()
+        {
+            if (m_thumb)
+            {
+                if (m_dragStartedToken.value) m_thumb.DragStarted(m_dragStartedToken);
+                if (m_dragCompletedToken.value) m_thumb.DragCompleted(m_dragCompletedToken);
+            }
+            m_dragStartedToken = {};
+            m_dragCompletedToken = {};
+            m_thumb = nullptr;
+        }
+
+        void ClearForTeardown()
+        {
+            // XAML teardown is intentionally no-write. Preserve the numeric optics baseline
+            // so Loaded can restore it after Composition becomes usable again.
+            m_loaded = false;
+            DetachThumbHandlers();
+            m_surface = nullptr;
+            m_pressed = false;
+            m_dragging = false;
+        }
+
+        Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
+        Microsoft::UI::Xaml::Controls::Border m_surface{ nullptr };
+        Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
+        Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
+        event_token m_dragStartedToken{};
+        event_token m_dragCompletedToken{};
+        OpticsSnapshot m_pressOptics;
+        bool m_loaded{};
+        bool m_pressed{};
+        bool m_dragging{};
+    };
+}

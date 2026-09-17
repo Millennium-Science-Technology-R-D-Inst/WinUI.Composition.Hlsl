@@ -5,6 +5,13 @@ cbuffer LiquidGlassConstants : register(b0)
 {
     float4 MaterialParams0;
     float4 MaterialParams1;
+    float4 MaterialParams2;
+    float4 MaterialParams3;
+    float4 MaterialParams4;
+    float4 MaterialParams5;
+    float4 MaterialParams6;
+    float4 MaterialParams7;
+    float4 MaterialParams8;
 };
 
 float RoundedRectSdf(float2 p, float2 halfSize, float radius)
@@ -13,10 +20,256 @@ float RoundedRectSdf(float2 p, float2 halfSize, float radius)
     return length(max(q, 0.0f.xx)) + min(max(q.x, q.y), 0.0f) - radius;
 }
 
-float4 SampleTransmission(float2 uv)
+float ConvexSquircleRaw(float t)
 {
-    // The source is materialized by the upstream native GaussianBlur graph stage.
-    return texture0.Sample(sampler0, uv);
+    float s = 1.0f - clamp(t, 0.0f, 2.0f);
+    return pow(saturate(1.0f - s * s * s * s), 0.25f);
+}
+
+float ConvexSquircle(float t) { return ConvexSquircleRaw(saturate(t)); }
+
+float ConvexCircle(float t)
+{
+    float s = 1.0f - saturate(t);
+    return sqrt(saturate(1.0f - s * s));
+}
+
+float ConcaveCircle(float t) { return 1.0f - ConvexCircle(t); }
+
+float SmootherStep01(float t)
+{
+    t = saturate(t);
+    return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+}
+
+float SurfaceHeight(float t, float profile)
+{
+    t = saturate(t);
+    float result = 0.0f;
+    if (profile < 0.5f)
+        result = ConvexSquircle(t);
+    else if (profile < 1.5f)
+        result = ConvexCircle(t);
+    else if (profile < 2.5f)
+        result = ConcaveCircle(t);
+    else
+    {
+        float convex = ConvexSquircleRaw(t * 2.0f);
+        float concave = ConcaveCircle(t) + 0.1f;
+        result = lerp(convex, concave, SmootherStep01(t));
+    }
+    return result;
+}
+
+float SurfaceDerivative(float t, float profile)
+{
+    const float delta = 0.0001f;
+    const float step = t < 1.0f - delta ? delta : -delta;
+    const float y = SurfaceHeight(t, profile);
+    return (SurfaceHeight(t + step, profile) - y) / step;
+}
+
+float CalculateReferenceRefractionDistance(
+    float height,
+    float derivative,
+    float bezelWidth,
+    float glassThickness,
+    float refractiveIndex)
+{
+    const float inverseLength = rsqrt(max(derivative * derivative + 1.0f, 1e-6f));
+    const float2 surfaceNormal = float2(-derivative * inverseLength, -inverseLength);
+    const float eta = 1.0f / max(refractiveIndex, 1.0001f);
+    const float normalDotIncident = surfaceNormal.y;
+    const float k = 1.0f - eta * eta * (1.0f - normalDotIncident * normalDotIncident);
+    float result = 0.0f;
+
+    if (k > 0.0f)
+    {
+        const float q = eta * normalDotIncident + sqrt(k);
+        const float2 refracted = float2(-q * surfaceNormal.x, eta - q * surfaceNormal.y);
+        if (abs(refracted.y) > 1e-5f)
+        {
+            const float remainingHeight = height * bezelWidth + max(glassThickness, 0.0f);
+            result = refracted.x * (remainingHeight / refracted.y);
+        }
+    }
+    return result;
+}
+
+float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float centerSdf)
+{
+    const float2 signs = float2(local.x < 0.0f ? -1.0f : 1.0f, local.y < 0.0f ? -1.0f : 1.0f);
+    const float2 q = abs(local) - (halfRect - radius.xx);
+    const float2 outside = max(q, 0.0f.xx);
+    const float outsideLength = length(outside);
+    float2 result = float2(0.0f, -1.0f);
+
+    if (outsideLength > 1e-5f)
+        result = (outside / outsideLength) * signs;
+    else if (q.x > q.y)
+        result = float2(signs.x, 0.0f);
+    else
+        result = float2(0.0f, signs.y);
+    return result;
+}
+
+float CalculatePointerInteraction(
+    float2 pixelPosition,
+    float2 pointerPosition,
+    float2 halfRect,
+    float radius,
+    float hoverRange,
+    float interactionRadius)
+{
+    const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
+    float shapeActivation = pointerSdf <= 0.0f ? 1.0f : 0.0f;
+    if (pointerSdf > 0.0f && hoverRange > 1e-4f)
+        shapeActivation = 1.0f - smoothstep(0.0f, hoverRange, pointerSdf);
+
+    const float pointerDistance = length(pixelPosition - pointerPosition);
+    float localInfluence = 0.0f;
+    if (interactionRadius > 1e-4f)
+        localInfluence = 1.0f - smoothstep(0.0f, interactionRadius, pointerDistance);
+    return saturate(shapeActivation * localInfluence);
+}
+
+float3 ApplySaturation(float3 color, float saturation)
+{
+    const float luminance = dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+    return lerp(luminance.xxx, color, max(saturation, 0.0f));
+}
+
+float3 ApplyExposureContrast(float3 color, float exposure, float contrast)
+{
+    color *= exp2(exposure);
+    return (color - 0.5f.xxx) * max(contrast, 0.0f) + 0.5f.xxx;
+}
+
+float4 CalculateTransmissionBounds(
+    float2 texelSize,
+    float2 contentMin,
+    float2 contentMax,
+    bool hasContentRect)
+{
+    const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
+    const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
+    const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
+    float2 safeMin = textureMin;
+    float2 safeMax = textureMax;
+
+    // The separable blur chain materializes full-color intermediates and performs
+    // its own mirrored edge sampling. There is no D2D Gaussian transparent-padding
+    // region to estimate here: samplerData is the authoritative logical content rect.
+    if (hasContentRect)
+    {
+        safeMin = max(textureMin, contentMin);
+        safeMax = min(textureMax, contentMax);
+    }
+
+    const float2 center = (safeMin + safeMax) * 0.5f;
+    safeMin = min(safeMin, center);
+    safeMax = max(safeMax, center);
+    return float4(safeMin, safeMax);
+}
+
+float OffsetScaleToBounds(float2 origin, float2 offset, float2 safeMin, float2 safeMax)
+{
+    float result = 1.0f;
+    const float epsilon = 1e-7f;
+
+    if (offset.x > epsilon)
+        result = min(result, (safeMax.x - origin.x) / offset.x);
+    else if (offset.x < -epsilon)
+        result = min(result, (safeMin.x - origin.x) / offset.x);
+
+    if (offset.y > epsilon)
+        result = min(result, (safeMax.y - origin.y) / offset.y);
+    else if (offset.y < -epsilon)
+        result = min(result, (safeMin.y - origin.y) / offset.y);
+
+    return saturate(result);
+}
+
+float CalculateTransmissionOffsetScale(
+    float2 origin,
+    float2 baseOffset,
+    float2 dispersionOffset,
+    float2 safeMin,
+    float2 safeMax)
+{
+    const float redScale = OffsetScaleToBounds(origin, baseOffset - dispersionOffset, safeMin, safeMax);
+    const float greenScale = OffsetScaleToBounds(origin, baseOffset, safeMin, safeMax);
+    const float blueScale = OffsetScaleToBounds(origin, baseOffset + dispersionOffset, safeMin, safeMax);
+    return min(redScale, min(greenScale, blueScale));
+}
+
+float4 SampleTransmission(float2 uv, float2 texelSize)
+{
+    const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
+    const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
+    const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
+    return texture0.Sample(sampler0, clamp(uv, textureMin, textureMax));
+}
+
+float SpecularEdgeProfile(
+    float distanceFromEdge,
+    float specularWidth,
+    float feather)
+{
+    const float width = max(specularWidth, 0.25f);
+    const float normalizedDistance = max(distanceFromEdge, 0.0f) / width;
+    const float arcTerm = 1.0f - (1.0f - normalizedDistance) * (1.0f - normalizedDistance);
+    const float arc = sqrt(saturate(arcTerm));
+    const float support = 1.0f - smoothstep(
+        2.0f,
+        2.0f + max(feather / width, 0.25f),
+        normalizedDistance);
+    return saturate(arc * support);
+}
+
+float ReferenceSpecularCoefficient(
+    float distanceFromEdge,
+    float specularWidth,
+    float feather,
+    float2 normal,
+    float2 lightDirection,
+    float highlightSharpness)
+{
+    const float edgeProfile = SpecularEdgeProfile(distanceFromEdge, specularWidth, feather);
+    const float orientation = pow(
+        saturate(abs(dot(normal, lightDirection))),
+        max(highlightSharpness, 0.25f));
+    return saturate(edgeProfile * orientation);
+}
+
+float PointerSpecularCoefficient(
+    float distanceFromEdge,
+    float specularWidth,
+    float feather,
+    float2 normal,
+    float2 pointerLightDirection,
+    bool pointerInside,
+    float pointerInteraction,
+    float highlightSharpness)
+{
+    const float edgeProfile = SpecularEdgeProfile(distanceFromEdge, specularWidth, feather);
+
+    // Treat the pointer as a local light source. When it is inside the glass the
+    // inward-facing rim should light; when it is outside, the outward-facing rim
+    // should light. Keep a faint angular floor so the radial field reads as one
+    // coherent reveal instead of disappearing abruptly around rounded corners.
+    const float signedFacing = dot(normal, pointerLightDirection);
+    const float facing = pointerInside ? saturate(-signedFacing) : saturate(signedFacing);
+    const float angular = pow(
+        saturate(0.15f + 0.85f * facing),
+        max(highlightSharpness * 0.85f, 0.5f));
+
+    // PointerInteraction already contains the rounded-rect hover gate and radial
+    // distance falloff. Reshape it into a bright core with a soft reveal shoulder.
+    const float radialCore = SmootherStep01(saturate(pointerInteraction));
+    const float radialShoulder = sqrt(radialCore);
+    const float radialField = lerp(radialCore, radialShoulder, 0.28f);
+    return saturate(edgeProfile * angular * radialField);
 }
 
 float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
@@ -24,10 +277,35 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float borderThickness = MaterialParams0.x;
     const float cornerRadius = MaterialParams0.y;
     const float refractionStrength = MaterialParams0.z;
+    const float bezelWidth = MaterialParams0.w;
     const float highlightStrength = MaterialParams1.x;
     const float edgeSoftness = MaterialParams1.y;
     const float dispersionStrength = MaterialParams1.z;
     const float materialOpacity = MaterialParams1.w;
+    const float glassThickness = MaterialParams2.x;
+    const float refractiveIndex = max(MaterialParams2.y, 1.0001f);
+    const float tintOpacity = saturate(MaterialParams2.z);
+    const float saturation = max(MaterialParams2.w, 0.0f);
+    const float lightAngle = MaterialParams3.x;
+    const float surfaceProfile = clamp(MaterialParams3.y, 0.0f, 3.0f);
+    const float magnificationStrength = max(MaterialParams3.z, 0.0f);
+    const float highlightSharpness = max(MaterialParams3.w, 0.25f);
+    const float3 tintColor = saturate(MaterialParams4.xyz);
+    const float innerShadowStrength = saturate(MaterialParams4.w);
+    const float specularSaturation = max(MaterialParams5.x, 0.0f);
+    const float specularWidth = max(MaterialParams5.y, 0.25f);
+    const float contrast = max(MaterialParams5.z, 0.0f);
+    const float exposure = clamp(MaterialParams5.w, -4.0f, 4.0f);
+    const float2 pointerNormalized = MaterialParams6.xy;
+    const float pointerInteractionRadiusNormalized = max(MaterialParams6.z, 0.0f);
+    const float pointerInteractionStrength = max(MaterialParams6.w, 0.0f);
+    const float2 pointerVelocityNormalized = MaterialParams7.xy;
+    const float pointerHoverRangeNormalized = max(MaterialParams7.z, 0.0f);
+    const float pointerActive = saturate(MaterialParams7.w);
+    const float pointerRefractionStrength = max(MaterialParams8.x, 0.0f);
+    const float pointerHighlightStrength = max(MaterialParams8.y, 0.0f);
+    const float pointerMotionRefractionStrength = max(MaterialParams8.z, 0.0f);
+    const float refractionNormalization = max(MaterialParams8.w, 0.0f);
 
     const float2 contentMin = min(samplerData.xy, samplerData.zw);
     const float2 contentMax = max(samplerData.xy, samplerData.zw);
@@ -36,77 +314,171 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float2 contentUvSize = hasContentRect ? contentUvSizeRaw : 1.0f.xx;
     const float2 localUv = hasContentRect ? ((uv - contentMin) / contentUvSize) : uv;
 
-    const float2 localUvPixelStep = max(abs(ddx(localUv)) + abs(ddy(localUv)), 1e-6f.xx);
+    const float2 localUvDx = ddx(localUv);
+    const float2 localUvDy = ddy(localUv);
+    const float2 localUvPixelStep = max(
+        float2(length(float2(localUvDx.x, localUvDy.x)), length(float2(localUvDx.y, localUvDy.y))),
+        1e-6f.xx);
     const float2 rectSize = max(1.0f.xx / localUvPixelStep, 1.0f.xx);
-    const float2 texelSize = max(samplerDataExt.zw, 1e-6f.xx);
+    const float maximumExtent = max(max(rectSize.x, rectSize.y), 1.0f);
+    const float2 texelSize = max(abs(samplerDataExt.zw), 1e-6f.xx);
     const float2 localPosition = localUv * rectSize;
+    const float2 pointerPosition = pointerNormalized * rectSize;
+    const float2 pointerVelocity = pointerVelocityNormalized * rectSize;
+    const float pointerInteractionRadius = pointerInteractionRadiusNormalized * maximumExtent;
+    const float pointerHoverRange = pointerHoverRangeNormalized * maximumExtent;
     const float2 halfRect = rectSize * 0.5f;
     const float2 local = localPosition - halfRect;
-    const float clampedCornerRadius = min(cornerRadius, min(halfRect.x, halfRect.y));
-    const float radius = max(clampedCornerRadius, 0.0f);
+    const float halfMinSize = max(min(halfRect.x, halfRect.y), 1.0f);
+    const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, halfRect, radius);
-    const float feather = max(edgeSoftness, 1.0f);
-    const float alpha = saturate((feather - sdf) / feather) * materialOpacity;
 
-    // FXC's SM4 library compiler can emit a false-positive X4000 for helper
-    // functions with a mid-function return. Keep one initialized return value and
-    // one final return instead of weakening /WX for the whole shader build.
+    const float sdfPixelFootprint = max(length(float2(ddx(sdf), ddy(sdf))), 0.5f);
+    const float feather = max(edgeSoftness, sdfPixelFootprint * 0.5f);
+    const float coverage = 1.0f - smoothstep(-feather, feather, sdf);
+    const float alpha = coverage * saturate(materialOpacity);
+
     float4 result = 0.0f.xxxx;
     if (alpha > 0.0f)
     {
-        const float innerDistance = max(-sdf, 0.0f);
-        const float halfMinSize = max(min(halfRect.x, halfRect.y), 1.0f);
-        const float2 domeCoord = local / max(halfRect, 1.0f.xx);
-        const float domeRadius = saturate(length(domeCoord));
-        const float domeDepth = (1.0f - domeRadius) * halfMinSize;
-        const float2 domeNormal = normalize(domeCoord + 1e-5f.xx);
-        const float edgeFactor = 1.0f - saturate(innerDistance / max(radius, 1.0f));
-        const float interiorFactor = saturate(domeDepth / halfMinSize);
-        const float edgeDistance = max(borderThickness * 4.0f + feather * 2.0f, 1.0f);
-        const float rimDistance = max(borderThickness * 2.0f + 1.0f, 1.0f);
-        const float edgeIntensity = exp(-innerDistance / edgeDistance) * 0.85f;
-        const float rimIntensity = exp(-innerDistance / rimDistance) * 0.25f;
-        const float centerFade = 1.0f - smoothstep(
-            halfMinSize * 0.08f,
-            halfMinSize * 0.55f,
-            domeDepth);
-        const float refractionWeight = (edgeIntensity + rimIntensity) * centerFade;
-        const float dispersionWeight = edgeIntensity * centerFade;
+        const float distanceFromEdge = max(-sdf, 0.0f);
+        const float maximumBezel = max(halfMinSize - 0.5f, 1.0f);
+        const float bezel = clamp(bezelWidth, 1.0f, maximumBezel);
+        const float bezelT = saturate(distanceFromEdge / bezel);
+        const float height = SurfaceHeight(bezelT, surfaceProfile);
+        const float derivative = SurfaceDerivative(bezelT, surfaceProfile);
+        const float referenceDisplacement = CalculateReferenceRefractionDistance(
+            height, derivative, bezel, glassThickness, refractiveIndex);
+        const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
 
-        const float2 refractUv = uv - domeNormal * texelSize * refractionStrength * refractionWeight;
-        const float2 dispersionOffset = domeNormal * texelSize * dispersionStrength * dispersionWeight;
+        const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
+        const float opticalInterior = smoothstep(-opticalFeather, opticalFeather, -sdf);
+        const float rawDisplacementPixels = referenceDisplacement * artisticScale * refractionNormalization;
+        const float displacementLimit = max(maximumExtent * 0.48f, 1.0f);
+        const float displacementPixels = clamp(rawDisplacementPixels, -displacementLimit, displacementLimit) * opticalInterior;
+
+        const float pointerInteraction = CalculatePointerInteraction(
+            localPosition,
+            pointerPosition,
+            halfRect,
+            radius,
+            pointerHoverRange,
+            pointerInteractionRadius) * pointerInteractionStrength * pointerActive;
+
+        float2 pointerDirection = 0.0f.xx;
+        const float pointerDistance = length(localPosition - pointerPosition);
+        if (pointerDistance > 1e-4f)
+            pointerDirection = (localPosition - pointerPosition) / pointerDistance;
+
+        float2 motionDirection = 0.0f.xx;
+        const float pointerSpeed = length(pointerVelocity);
+        if (pointerSpeed > 1e-4f)
+            motionDirection = -pointerVelocity / pointerSpeed;
+
+        const float pointerSpeedWeight = saturate(pointerSpeed / max(maximumExtent * 7.0f, 1.0f));
+        const float2 pointerRefractionOffset =
+            pointerDirection * pointerInteraction * pointerRefractionStrength * opticalInterior;
+        const float2 pointerMotionOffset =
+            motionDirection * pointerSpeedWeight * pointerInteraction * pointerMotionRefractionStrength * opticalInterior;
+
+        const float2 normal = RoundedRectNormal(local, halfRect, radius, sdf);
+        const float2 refractionPixelOffset =
+            -normal * displacementPixels + pointerRefractionOffset + pointerMotionOffset;
+        const float2 refractedUv = uv + refractionPixelOffset * texelSize;
+
+        // Required ordering: Source(x + Refraction(x) + Magnification(x + Refraction(x))).
+        const float maximumHalfExtent = max(max(halfRect.x, halfRect.y), 1.0f);
+        const float2 refractedLocal = local + refractionPixelOffset;
+        const float2 normalizedMagnification = refractedLocal / maximumHalfExtent;
+        const float magnificationEncodingScale = 127.0f / 255.0f;
+        const float2 magnificationOffset =
+            -normalizedMagnification * texelSize * magnificationStrength * magnificationEncodingScale * opticalInterior;
+        const float2 sampleUv = refractedUv + magnificationOffset;
+
+        const float bezelWeight = 1.0f - smoothstep(0.18f, 1.0f, bezelT);
+        const float dispersionPixels = dispersionStrength * bezelWeight *
+            (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) * opticalInterior;
+        const float2 dispersionOffset = normal * texelSize * dispersionPixels;
+
+        // Keep all spectral channels on one coherent displacement scale. This avoids
+        // per-channel edge pinning while respecting samplerData's valid source rect.
+        const float4 transmissionBounds = CalculateTransmissionBounds(
+            texelSize, contentMin, contentMax, hasContentRect);
+        const float2 transmissionOrigin = clamp(uv, transmissionBounds.xy, transmissionBounds.zw);
+        const float2 baseSampleOffset = sampleUv - uv;
+        const float transmissionScale = CalculateTransmissionOffsetScale(
+            transmissionOrigin,
+            baseSampleOffset,
+            dispersionOffset,
+            transmissionBounds.xy,
+            transmissionBounds.zw);
+        const float2 redSampleUv = transmissionOrigin +
+            (baseSampleOffset - dispersionOffset) * transmissionScale;
+        const float2 greenSampleUv = transmissionOrigin + baseSampleOffset * transmissionScale;
+        const float2 blueSampleUv = transmissionOrigin +
+            (baseSampleOffset + dispersionOffset) * transmissionScale;
 
         float3 color = float3(
-            SampleTransmission(refractUv - dispersionOffset).r,
-            SampleTransmission(refractUv).g,
-            SampleTransmission(refractUv + dispersionOffset).b);
-        color = lerp(color, 1.0f.xxx, 0.08f + interiorFactor * 0.06f);
+            SampleTransmission(redSampleUv, texelSize).r,
+            SampleTransmission(greenSampleUv, texelSize).g,
+            SampleTransmission(blueSampleUv, texelSize).b);
+        color = ApplySaturation(color, saturation);
+        color = ApplyExposureContrast(color, exposure, contrast);
+        color = lerp(color, tintColor, tintOpacity);
 
-        const float borderMask = 1.0f - smoothstep(borderThickness, borderThickness + feather, innerDistance);
-        const float innerGlow = 1.0f - smoothstep(borderThickness * 2.0f, borderThickness * 6.0f + feather, innerDistance);
-        const float domeHeight = sqrt(saturate(1.0f - dot(domeCoord, domeCoord)));
-        const float3 surfaceNormal = normalize(float3(-domeCoord * 0.35f, 0.45f + domeHeight * 0.75f));
-        const float3 lightDir = normalize(float3(-0.35f, -0.45f, 0.82f));
-        const float specular = pow(saturate(dot(surfaceNormal, lightDir)), 18.0f) * (0.20f + edgeFactor * 0.50f);
-        const float topSweep = pow(saturate(1.0f - localPosition.y / rectSize.y), 2.5f) * (0.15f + edgeFactor * 0.20f);
+        const float innerShadow = 1.0f - smoothstep(0.0f, max(bezel * 0.65f, 1.0f), distanceFromEdge);
+        color *= 1.0f - innerShadow * innerShadowStrength;
 
-        color += (specular * 0.28f + topSweep * 0.12f + innerGlow * 0.10f) * highlightStrength;
-        color = lerp(color, 1.0f.xxx, borderMask * 0.22f * highlightStrength);
+        const float borderMask = 1.0f - smoothstep(
+            max(borderThickness, 0.0f),
+            max(borderThickness, 0.0f) + feather,
+            distanceFromEdge);
+        color = lerp(color, tintColor, borderMask * 0.20f * highlightStrength);
+
+        const float2 lightDirection = normalize(float2(cos(lightAngle), sin(lightAngle)));
+        const float specularCoefficient = ReferenceSpecularCoefficient(
+            distanceFromEdge,
+            specularWidth,
+            feather,
+            normal,
+            lightDirection,
+            highlightSharpness) * opticalInterior;
+
+        float pointerSpecular = 0.0f;
+        const float pointerLightDistance = length(pointerPosition - localPosition);
+        if (pointerLightDistance > 1e-4f && pointerInteraction > 0.0f)
+        {
+            const float2 pointerLightDirection = (pointerPosition - localPosition) / pointerLightDistance;
+            const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
+            pointerSpecular = PointerSpecularCoefficient(
+                distanceFromEdge,
+                specularWidth,
+                feather,
+                normal,
+                pointerLightDirection,
+                pointerSdf <= 0.0f,
+                pointerInteraction,
+                highlightSharpness) *
+                pointerHighlightStrength *
+                (1.0f + pointerSpeedWeight * 0.18f) *
+                opticalInterior;
+        }
+
+        const float specularMask = specularCoefficient * specularCoefficient;
+        const float3 saturatedSpecularColor = ApplySaturation(color, specularSaturation);
+        color = lerp(color, saturatedSpecularColor, specularMask);
+        const float specularAlpha = saturate(specularMask * highlightStrength);
+        color = lerp(color, specularCoefficient.xxx, specularAlpha);
+        color = lerp(color, 1.0f.xxx, saturate(pointerSpecular));
         color = saturate(color);
-
-        // Composition expects premultiplied-alpha output from this material.
         result = float4(color * alpha, alpha);
     }
 
     return result;
 }
 
-// MaterializedTexture lowering uses this color passthrough for the source and
-// final wrapper subgraphs. The custom sampler itself remains linked into the
-// final consumer fragment so its SDF is evaluated at destination resolution.
 export float4 MaterializeColor(float4 color) { return color; }
 
-// DWM appends sampler edge-mode suffixes for custom sampler bodies.
 export float4 PSBody(float2 uv, float4 samplerDataExt, float4 samplerData) { return LiquidGlassCore(uv, samplerDataExt, samplerData); }
 export float4 PSBodyCC(float2 uv, float4 samplerDataExt, float4 samplerData) { return LiquidGlassCore(uv, samplerDataExt, samplerData); }
 export float4 PSBodyCW(float2 uv, float4 samplerDataExt, float4 samplerData) { return LiquidGlassCore(uv, samplerDataExt, samplerData); }

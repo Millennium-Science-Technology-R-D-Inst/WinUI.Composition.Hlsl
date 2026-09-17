@@ -1,6 +1,6 @@
 # WinUI.Composition.Hlsl API reference
 
-The `WinUI.Composition.Hlsl` namespace exposes WinRT APIs for compiling HLSL, describing custom effects, creating Composition factories/brushes, updating typed properties, and bridging Composition brushes into XAML.
+The `WinUI.Composition.Hlsl` namespace exposes WinRT APIs for compiling HLSL, describing custom effects, creating Composition factories/brushes, updating typed properties, and bridging Composition brushes into XAML. The `WinUI.LiquidGlass` namespace adds native WinUI 3 controls built on the liquid-glass material.
 
 ## Namespace
 
@@ -29,6 +29,23 @@ The same WinRT surface is available to C++/WinRT and C# through the package's Cs
 | --- | --- |
 | [`LiquidGlassMaterial`](liquid-glass-material.md) | Composition-level reusable liquid-glass material. |
 | [`LiquidGlassBrush`](liquid-glass-brush.md) | XAML `XamlCompositionBrushBase` wrapper for the liquid-glass material. |
+
+## WinUI.LiquidGlass controls
+
+Namespace:
+
+```text
+WinUI.LiquidGlass
+```
+
+| API | Description |
+| --- | --- |
+| [`LiquidGlassCard` and control library](liquid-glass-controls.md) | Native Button, ToggleButton, CheckBox, RadioButton, Slider, input, TabBar, SearchBox, Magnifier, and panel controls. |
+| [`LiquidGlassInteraction`](liquid-glass-interaction.md) | Attached properties for deterministic motion and optical interaction states. |
+| `LiquidGlassPresets` | Creates independent `LiquidGlassBrush` instances configured for the built-in control geometries. |
+| `LiquidGlassPreset` | Identifies Panel, Button, Choice, SearchBox, Input, SliderThumb, ToggleSwitchKnob, Magnifier, FloatingPanel, TabBar, or TabBarItem. |
+
+The controls inherit their semantic behavior from WinUI controls whenever possible. The glass package changes visual surfaces and Composition interaction state; it does not replace WinUI click, selection, keyboard, focus, pointer-capture, command, or UI Automation contracts.
 
 ## Enumerations
 
@@ -82,6 +99,8 @@ A property must be updated with the setter that matches its `HlslPropertyType`. 
 
 `HlslCompiler` is asynchronous. Library reflection and effect validation are setup-time operations. Brush property updates and Composition rendering do not repeat HLSL compilation/reflection.
 
+Liquid-glass pointer position and velocity are transient Composition effect state rather than dependency properties. This keeps high-frequency spatial interaction out of XAML property invalidation while preserving ordinary WinUI semantic input handling on the CPU.
+
 ### Private runtime adapter
 
 Public APIs are WinRT, but custom shader execution uses an internal Composition adapter. The package supports x86, x64, and ARM64 and has a Windows App SDK minimum of 1.6. `GetRuntimeCapabilities()` does not scan or install the adapter merely to report static package capabilities.
@@ -91,3 +110,4 @@ Public APIs are WinRT, but custom shader execution uses an internal Composition 
 - [Get started](../get-started.md)
 - [Concepts](../concepts.md)
 - [Architecture](../architecture.md)
+- [WinUI.LiquidGlass controls](liquid-glass-controls.md)

@@ -1932,9 +1932,17 @@ namespace
 						targetData[input].data[1] = modes[input].data[1];
 					}
 				}
-				// A custom pass is materialized. This gives later custom or native
-				// nodes a real surface and avoids cross-profile fragment linking.
+
+				// Add back or you'll keep meeting the onecoreuap\windows\dwm\dwmcore\rendering\brushrenderingeffect.cpp(185)\dwmcorei.dll!00007FFD49D74323: (caller: 00007FFD49C895A4) ReturnHr(4088) tid(5c4c) 80004005 Unspecified error
+				// A custom pass is materialized. This gives later custom or native nodes a real surface and avoids cross-profile fragment linking.
 				target.flags = 0;
+
+				// AI piece of shit. WRONG!
+				// Preserve the shader template's output/materialization policy. A
+				// MaterializedTexture template marks its custom sampler as a fragment
+				// output so geometry is evaluated at destination resolution instead of
+				// inside an upstream effect's prescaled intermediate. LinkedColor
+				// templates already carry flags == 0 and remain materialized as before.
 				DestroyCompiledResult(shader);
 			}
 			return merged;

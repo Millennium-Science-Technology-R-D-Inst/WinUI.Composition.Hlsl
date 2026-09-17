@@ -50,7 +50,6 @@
     <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <GenerateManifest>false</GenerateManifest>
-    <!-- This runtime component has no XAML Page/PriResource inputs. -->
     <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
     <IncludeProjectPriFile>false</IncludeProjectPriFile>
     <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
@@ -117,10 +116,13 @@
     <ClCompile Include="Effects\EffectEngine.cpp" />
     <ClInclude Include="Effects\EffectEngine.h" />
     <ClCompile Include="Effects\ShaderSource.ixx" />
+    <ClCompile Include="Materials\CustomSeparableGaussianBlurEffect.cpp" />
+    <ClInclude Include="Materials\CustomSeparableGaussianBlurEffect.h" />
     <ClCompile Include="Materials\CustomLiquidGlassEffect.cpp" />
     <ClInclude Include="Materials\CustomLiquidGlassEffect.h" />
     <ClCompile Include="Materials\GaussianBlurEffect.cpp" />
     <ClCompile Include="Materials\GaussianBlurEffect.ixx" />
+    <ClCompile Include="Shaders\SeparableGaussianBlurShader.ixx" />
     <ClCompile Include="Shaders\LiquidGlassShader.ixx" />
     <ClCompile Include="Public\HlslComposition.cpp" />
     <ClInclude Include="Public\HlslComposition.h" />
@@ -140,25 +142,18 @@
     <ClInclude Include="Public\LiquidGlassBrush.h" />
     <ClCompile Include="Public\LiquidGlassMaterial.cpp" />
     <ClInclude Include="Public\LiquidGlassMaterial.h" />
-    <ClCompile Include="Runtime\CustomEffectRuntime.cpp">
-      <ExcludedFromBuild Condition="'$(Platform)'!='x64' and '$(Platform)'!='Win32' and '$(Platform)'!='ARM64'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="Runtime\CustomEffectRuntime.cpp" />
     <ClCompile Include="Runtime\CustomEffectRuntime.ixx" />
     <ClInclude Include="Runtime\NativeArchitecture.h" />
     <ClCompile Include="Internal/Validation.ixx" />
     <ClCompile Include="Internal/TypedPropertyAbi.ixx" />
     <Midl Include="Public/Api.idl" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
-    <ClCompile Include="Effects\EffectDefinition.ixx">
-      <FileType>Document</FileType>
-    </ClCompile>
+    <ClCompile Include="Effects\EffectDefinition.ixx" />
     <ClInclude Include="Public/HlslFloatProperty.h" />
     <ClCompile Include="Public/HlslFloatProperty.cpp" />
     <ClInclude Include="Public/HlslProperty.h" />
     <ClCompile Include="Public/HlslProperty.cpp" />
-    <ClCompile Include="Runtime/UnsupportedRuntime.cpp">
-      <ExcludedFromBuild Condition="'$(Platform)'=='x64' or '$(Platform)'=='Win32' or '$(Platform)'=='ARM64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClInclude Include="Internal/XamlHlslBrushBase.h" />
   </ItemGroup>
   <ItemGroup>
@@ -169,6 +164,17 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)/Microsoft.Cpp.targets" />
   <ItemGroup>
+    <FxCompile Include="Shaders\SeparableGaussianBlur.hlsl">
+      <EntryPointName />
+      <ShaderType>Library</ShaderType>
+      <ShaderModel>4.0</ShaderModel>
+      <HeaderFileOutput>$(IntDir)SeparableGaussianBlurShader.g.h</HeaderFileOutput>
+      <ObjectFileOutput>$(IntDir)SeparableGaussianBlurShader.dxbc</ObjectFileOutput>
+      <VariableName>g_SeparableGaussianBlurShader</VariableName>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalOptions>/Ges /O3 %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
     <FxCompile Include="Shaders\LiquidGlass.hlsl">
       <EntryPointName />
       <ShaderType>Library</ShaderType>

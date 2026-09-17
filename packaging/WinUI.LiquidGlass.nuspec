@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>WinUI.LiquidGlass</id>
+    <version>1.0.0</version>
+    <authors>Hoshiizumiya</authors>
+    <license type="file">LICENSE.txt</license>
+    <description>Native C++/WinRT Liquid Glass controls for WinUI 3, built on WinUI.Composition.Hlsl.</description>
+    <readme>README.md</readme>
+    <icon>assets\MainLogo.png</icon>
+    <dependencies><group targetFramework="native"><dependency id="WinUI.Composition.Hlsl" version="[$HlslVersion$]" /></group></dependencies>
+    <projectUrl>https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl</projectUrl>
+    <tags>winui3 c++ cppwinrt controls liquid glass composition xaml native</tags>
+    <repository type="git" url="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl"/>
+  </metadata>
+  <files>
+    <file src="assets\MainLogo.png" target="assets\"/>
+    <file src="packaging\README.LiquidGlass.md" target="README.md"/>
+    <file src="LICENSE.txt" target="LICENSE.txt"/>
+    <file src="src\WinUI.LiquidGlass\THIRD_PARTY_NOTICES.md" target="THIRD_PARTY_NOTICES.md"/>
+    <file src="artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.winmd" target="lib\native"/>
+    <file src="artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.pri" target="lib\native"/>
+    <file src="artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll" target="runtimes\win-x64\native"/>
+    <file src="artifacts\Win32\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll" target="runtimes\win-x86\native"/>
+    <file src="artifacts\ARM64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll" target="runtimes\win-arm64\native"/>
+    <file src="packaging\WinUI.LiquidGlass.Native.targets" target="build\native\WinUI.LiquidGlass.targets"/>
+  </files>
+</package>

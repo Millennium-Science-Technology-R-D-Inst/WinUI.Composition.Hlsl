@@ -97,7 +97,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			{
 				return std::nullopt;
 			}
-			for (UINT index = 0; index < desc.FunctionParameterCount; ++index)
+			for (INT index = 0; index < desc.FunctionParameterCount; ++index)
 			{
 				if (!IsFloatVector(function->GetFunctionParameter(index), 4))
 				{
@@ -170,7 +170,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 
 			auto const materialized = materializedSourceCount.has_value();
 			auto const sourceCount = materialized ? *materializedSourceCount : *samplerSourceCount;
-		for (auto const* exportName : RequiredSamplerExports)
+			for (auto const* exportName : RequiredSamplerExports)
 			{
 				auto const exportSourceCount = GetSamplerSourceCount(FindFunction(reflection, exportName), materialized);
 				if (!exportSourceCount || *exportSourceCount != sourceCount)
