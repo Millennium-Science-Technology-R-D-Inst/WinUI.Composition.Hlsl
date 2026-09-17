@@ -13,7 +13,6 @@
 #include "include/PressOpticsHelper.hpp"
 #include "include/FocusOpticsHelper.hpp"
 #include "include/ControlInteractionProfiles.hpp"
-#include "include/SwitchTrackVisualHelper.hpp"
 #include "include/ControlVisualMotion.hpp"
 #include "include/ChoiceGlyphMotionHelper.hpp"
 #include "include/CompactControlMotionDefaults.hpp"
