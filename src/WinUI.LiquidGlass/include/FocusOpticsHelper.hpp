@@ -17,12 +17,18 @@ namespace winrt::WinUI::LiquidGlass::detail
                 implementation::LiquidGlassInteraction::UseSpringMotionProperty(),
                 box_value(false));
 
-            self->Loaded([this](auto const& sender, auto const&) { ApplyRest(sender); });
+            self->Loaded([this](auto const& sender, auto const&)
+            {
+                m_loaded = true;
+                RestorePendingState();
+                ApplyRest(sender);
+            });
             self->Unloaded([this](auto const&, auto const&)
             {
-                // XAML teardown can run after the compositor has closed the material.
-                // Drop transient bookkeeping without writing the brush back.
-                m_state = {};
+                // Unloaded can precede XamlCompositionBrushBase::OnDisconnected. Keep the
+                // authored baseline for the next Loaded, but do not mutate a live/closing
+                // CompositionEffectBrush during teardown.
+                m_loaded = false;
                 m_focused = false;
             });
             self->GotFocus([this](auto const& sender, auto const&)
@@ -40,6 +46,13 @@ namespace winrt::WinUI::LiquidGlass::detail
                 [this](Microsoft::UI::Xaml::DependencyObject const& sender,
                        Microsoft::UI::Xaml::DependencyProperty const&)
                 {
+                    if (!m_loaded)
+                    {
+                        // A replacement while detached retires the old brush. Do not write
+                        // its saved baseline into a compositor that may already be closed.
+                        m_state = {};
+                        return;
+                    }
                     Recompute(sender);
                 });
         }
@@ -49,6 +62,17 @@ namespace winrt::WinUI::LiquidGlass::detail
         static Microsoft::UI::Xaml::DependencyObject Owner(Sender const& sender)
         {
             return sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
+        }
+
+        void RestorePendingState()
+        {
+            if (!m_state.active) return;
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            if (brush && m_state.brush && get_abi(brush) == get_abi(m_state.brush))
+                RestoreOptics(m_state);
+            else
+                m_state = {};
         }
 
         template<typename Sender>
@@ -84,18 +108,10 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void Recompute(Sender const& sender)
         {
+            if (!m_loaded) return;
             auto owner = Owner(sender);
             auto element = sender.template try_as<Microsoft::UI::Xaml::FrameworkElement>();
-            if (!owner || !element) return;
-
-            // Once detached from a XamlRoot, interaction state is no longer observable and
-            // the underlying CompositionEffectBrush may already be closed. Teardown is a
-            // reference cleanup operation, not a final material mutation.
-            if (!element.XamlRoot())
-            {
-                m_state = {};
-                return;
-            }
+            if (!owner || !element || !element.XamlRoot()) return;
 
             auto self = static_cast<Self*>(this);
             auto brush = self->GlassBrush();
@@ -153,6 +169,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
         OpticsSnapshot m_state;
+        bool m_loaded{};
         bool m_focused{};
     };
 }

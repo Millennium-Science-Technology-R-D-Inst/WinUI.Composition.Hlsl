@@ -9,6 +9,11 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerLightHelper()
         {
             auto self = static_cast<Self*>(this);
+            self->Loaded([this](auto const&, auto const&)
+            {
+                m_loaded = true;
+                RestoreAuthoredLightAngle();
+            });
             self->PointerEntered([this](auto const& sender, auto const&) { BeginTracking(sender); });
             self->PointerMoved([this](auto const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
@@ -17,7 +22,13 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->PointerExited([this](auto const&, auto const&) { EndTracking(); });
             self->PointerCanceled([this](auto const&, auto const&) { EndTracking(); });
             self->PointerCaptureLost([this](auto const&, auto const&) { EndTracking(); });
-            self->Unloaded([this](auto const&, auto const&) { EndTracking(); });
+            self->Unloaded([this](auto const&, auto const&)
+            {
+                // Unloaded can race XamlCompositionBrushBase::OnDisconnected. Do not write
+                // through LiquidGlassMaterial while its CompositionEffectBrush is closing.
+                m_loaded = false;
+                ClearForTeardown();
+            });
         }
 
     private:
@@ -32,8 +43,23 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
         }
 
+        void RestoreAuthoredLightAngle()
+        {
+            if (!m_loaded) return;
+            auto self = static_cast<Self*>(this);
+            if (auto brush = self->GlassBrush())
+            {
+                SetMaterialLightAngle(brush, brush.LightAngle());
+            }
+        }
+
         void TrackBrush(LightBrush const& brush)
         {
+            if (!m_loaded)
+            {
+                ClearForTeardown();
+                return;
+            }
             if (!brush)
             {
                 EndTracking();
@@ -52,6 +78,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void BeginTracking(Sender const& sender)
         {
+            if (!m_loaded) return;
             auto object = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!object || !implementation::LiquidGlassInteraction::GetPointerLightingEnabled(object)) return;
 
@@ -62,6 +89,12 @@ namespace winrt::WinUI::LiquidGlass::detail
         template<typename Sender>
         void UpdateLight(Sender const& sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
+            if (!m_loaded)
+            {
+                ClearForTeardown();
+                return;
+            }
+
             auto object = sender.template try_as<Microsoft::UI::Xaml::DependencyObject>();
             if (!object || !implementation::LiquidGlassInteraction::GetPointerLightingEnabled(object))
             {
@@ -110,7 +143,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void EndTracking()
         {
-            if (m_trackingBrush)
+            if (m_loaded && m_trackingBrush)
             {
                 // Pointer lighting is transient. Restore the authored DP value on
                 // the exact brush whose live material was modified, including when
@@ -121,7 +154,14 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_tracking = false;
         }
 
+        void ClearForTeardown() noexcept
+        {
+            m_trackingBrush = nullptr;
+            m_tracking = false;
+        }
+
         LightBrush m_trackingBrush{ nullptr };
+        bool m_loaded{};
         bool m_tracking{};
     };
 }
