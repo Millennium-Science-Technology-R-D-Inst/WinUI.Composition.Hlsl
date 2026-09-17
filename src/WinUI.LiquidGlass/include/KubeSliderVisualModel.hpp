@@ -38,30 +38,61 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_pressed = false;
             });
 
-            auto refresh = [this](auto const&, auto const&)
-            {
-                if (m_loaded) RefreshVisual();
-            };
-            self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), refresh);
-            self->RegisterPropertyChangedCallback(
-                Microsoft::UI::Xaml::Controls::Slider::OrientationProperty(), refresh);
-            self->RegisterPropertyChangedCallback(
-                Microsoft::UI::Xaml::Controls::Slider::IsDirectionReversedProperty(), refresh);
-            self->RegisterPropertyChangedCallback(
-                Microsoft::UI::Xaml::Controls::Primitives::RangeBase::ValueProperty(),
-                [this](auto const&, auto const&) { if (m_loaded) UpdateValueVisuals(); });
-            self->RegisterPropertyChangedCallback(
-                Microsoft::UI::Xaml::Controls::Primitives::RangeBase::MinimumProperty(),
-                [this](auto const&, auto const&) { if (m_loaded) UpdateValueVisuals(); });
-            self->RegisterPropertyChangedCallback(
-                Microsoft::UI::Xaml::Controls::Primitives::RangeBase::MaximumProperty(),
-                [this](auto const&, auto const&) { if (m_loaded) UpdateValueVisuals(); });
-
-            self->LayoutUpdated([this](auto const&, auto const&)
+            self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
             {
                 if (!m_loaded) return;
-                if (!m_thumb || !m_track) ResolveTemplateParts();
-                UpdateValueVisuals();
+                // If the brush is replaced while pressed, never carry the old brush's
+                // active baseline into the new instance.
+                auto self = static_cast<Self*>(this);
+                auto current = self->GlassBrush();
+                if (m_pressOptics.active &&
+                    (!current || !m_pressOptics.brush || get_abi(current) != get_abi(m_pressOptics.brush)))
+                {
+                    m_pressOptics = {};
+                    m_pressed = false;
+                }
+                ApplyBrush();
+                ApplyInteractionState(false);
+                RefreshPointerField();
+            });
+            self->RegisterPropertyChangedCallback(
+                Microsoft::UI::Xaml::Controls::Slider::OrientationProperty(),
+                [this](auto const&, auto const&) { if (m_loaded) RefreshVisual(); });
+            self->RegisterPropertyChangedCallback(
+                Microsoft::UI::Xaml::Controls::Slider::IsDirectionReversedProperty(),
+                [this](auto const&, auto const&) { if (m_loaded) RefreshVisual(); });
+
+            auto updateValue = [this](auto const&, auto const&)
+            {
+                if (!m_loaded) return;
+                // Value changes can occur at pointer frequency. Keep this path strictly
+                // Composition-only; native Slider layout will move the semantic Thumb and
+                // LayoutUpdated performs the cheap post-layout lens correction.
+                UpdateProgressVisual();
+            };
+            self->RegisterPropertyChangedCallback(
+                Microsoft::UI::Xaml::Controls::Primitives::RangeBase::ValueProperty(), updateValue);
+            self->RegisterPropertyChangedCallback(
+                Microsoft::UI::Xaml::Controls::Primitives::RangeBase::MinimumProperty(), updateValue);
+            self->RegisterPropertyChangedCallback(
+                Microsoft::UI::Xaml::Controls::Primitives::RangeBase::MaximumProperty(), updateValue);
+
+            self->SizeChanged([this](auto const&, auto const&)
+            {
+                if (!m_loaded) return;
+                UpdateProgressVisual();
+                UpdateLensPosition(DisplayRatio(NormalizedValue()));
+            });
+
+            // WinUI updates the native Thumb position during layout. We still need one
+            // post-layout coordinate correction because the 90x60 glass lens deliberately
+            // has a different footprint from the 18x18 semantic Thumb. This handler must
+            // stay lightweight: no tree walking, resource creation, brush allocation, or
+            // template mutation is allowed here.
+            self->LayoutUpdated([this](auto const&, auto const&)
+            {
+                if (!m_loaded || !m_thumb || !m_surface || !m_track) return;
+                UpdateLensPosition(DisplayRatio(NormalizedValue()));
             });
 
             auto bind = [self](auto routedEvent, Windows::Foundation::IInspectable& storage, auto&& callback)
@@ -85,7 +116,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!m_loaded) return;
             ResolveTemplateParts();
             ApplyBrush();
-            UpdateValueVisuals();
+            UpdateProgressVisual();
+            UpdateLensPosition(DisplayRatio(NormalizedValue()));
             ApplyInteractionState(false);
             RefreshPointerField();
         }
@@ -97,7 +129,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kRestScale = 0.6;
         static constexpr double kRestElevation = 6.0;
         static constexpr double kPressedElevation = 10.0;
-        static constexpr double kScaleDampingRatio = 0.8944271909999159;
+        static constexpr double kScaleDampingRatio = 0.8944271909999159; // k=2000,d=80
         static constexpr double kScalePeriodMs = 140.49629462081452;
 
         static Microsoft::UI::Xaml::Media::SolidColorBrush SolidBrush(
@@ -177,40 +209,55 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto decrease = FindNamedDescendant(root, decreaseName).try_as<Microsoft::UI::Xaml::Shapes::Rectangle>();
             if (!thumb || !track) return;
 
-            thumb.Width(kSemanticThumbExtent);
-            thumb.Height(kSemanticThumbExtent);
-            thumb.Margin({ 0.0, 0.0, 0.0, 0.0 });
-            m_thumb = thumb;
-
-            auto surface = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Border>(thumb);
-            m_surface = surface;
-            if (surface)
-            {
-                surface.Width(horizontal ? kVisualWidth : kVisualHeight);
-                surface.Height(horizontal ? kVisualHeight : kVisualWidth);
-                surface.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Center);
-                surface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Center);
-                surface.Margin({ 0.0, 0.0, 0.0, 0.0 });
-                surface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
-                surface.BorderBrush(SolidBrush(0x33, 0xff, 0xff, 0xff));
-                surface.BorderThickness({ 1.0, 1.0, 1.0, 1.0 });
-                Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(surface, true);
-                if (!surface.Shadow()) surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
-            }
-
-            if (auto inner = FindNamedDescendant(thumb, L"SliderInnerThumb")
-                .try_as<Microsoft::UI::Xaml::Shapes::Ellipse>())
-            {
-                inner.Visibility(Microsoft::UI::Xaml::Visibility::Collapsed);
-            }
-
-            track.Fill(SolidBrush(0x66, 0x89, 0x89, 0x8f));
-            if (decrease) decrease.Opacity(0.0);
-
+            bool const thumbChanged = !m_thumb || get_abi(m_thumb) != get_abi(thumb);
             bool const trackChanged = !m_track || get_abi(m_track) != get_abi(track);
+            m_thumb = thumb;
             m_track = track;
             m_decrease = decrease;
-            if (trackChanged) BuildProgressVisual();
+
+            if (thumbChanged)
+            {
+                thumb.Width(kSemanticThumbExtent);
+                thumb.Height(kSemanticThumbExtent);
+                thumb.Margin({ 0.0, 0.0, 0.0, 0.0 });
+
+                auto surface = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Border>(thumb);
+                m_surface = surface;
+                if (surface)
+                {
+                    surface.Width(horizontal ? kVisualWidth : kVisualHeight);
+                    surface.Height(horizontal ? kVisualHeight : kVisualWidth);
+                    surface.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Center);
+                    surface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Center);
+                    surface.Margin({ 0.0, 0.0, 0.0, 0.0 });
+                    surface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
+                    surface.BorderBrush(SolidBrush(0x33, 0xff, 0xff, 0xff));
+                    surface.BorderThickness({ 1.0, 1.0, 1.0, 1.0 });
+                    Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(surface, true);
+                    if (!surface.Shadow()) surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
+                }
+
+                if (auto inner = FindNamedDescendant(thumb, L"SliderInnerThumb")
+                    .try_as<Microsoft::UI::Xaml::Shapes::Ellipse>())
+                {
+                    inner.Visibility(Microsoft::UI::Xaml::Visibility::Collapsed);
+                }
+            }
+            else if (!m_surface)
+            {
+                m_surface = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Border>(thumb);
+            }
+
+            if (trackChanged)
+            {
+                track.Fill(SolidBrush(0x66, 0x89, 0x89, 0x8f));
+                if (decrease) decrease.Opacity(0.0);
+                BuildProgressVisual();
+            }
+            else if (decrease && decrease.Opacity() != 0.0)
+            {
+                decrease.Opacity(0.0);
+            }
         }
 
         void BuildProgressVisual()
@@ -244,14 +291,13 @@ namespace winrt::WinUI::LiquidGlass::detail
             return self->IsDirectionReversed() ? logicalRatio : 1.0 - logicalRatio;
         }
 
-        void UpdateValueVisuals()
+        void UpdateProgressVisual()
         {
             if (!m_track || !m_progressVisual || !m_progressGeometry || !m_progressShape) return;
 
             auto self = static_cast<Self*>(this);
             auto const horizontal = self->Orientation() == Microsoft::UI::Xaml::Controls::Orientation::Horizontal;
             auto const ratio = NormalizedValue();
-            auto const displayRatio = DisplayRatio(ratio);
             auto const width = std::max(0.0, m_track.ActualWidth());
             auto const height = std::max(0.0, m_track.ActualHeight());
             if (width <= 0.0 || height <= 0.0) return;
@@ -276,8 +322,6 @@ namespace winrt::WinUI::LiquidGlass::detail
                 auto const startY = self->IsDirectionReversed() ? 0.0 : height - progressHeight;
                 m_progressShape.Offset({ 0.0f, static_cast<float>(startY) });
             }
-
-            UpdateLensPosition(displayRatio);
         }
 
         void UpdateLensPosition(double displayRatio)
@@ -290,11 +334,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const trackExtent = horizontal ? m_track.ActualWidth() : m_track.ActualHeight();
             if (trackExtent <= 0.0) return;
 
-            // Compute the native Thumb center in the *actual track coordinate system*.
-            // The stock WinUI Slider template has pre/post content margins and other layout
-            // details, so assuming the semantic 18-DIP thumb begins exactly at track x=0
-            // produces the visible 0% left-edge mismatch. Kube instead positions the lens
-            // from its rendered 54-DIP rest footprint; reproduce that in real coordinates.
             double nativeCenter = kSemanticThumbExtent * .5;
             try
             {
@@ -306,8 +345,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
             catch (...)
             {
-                // During a transient template/layout pass, keep the semantic fallback and
-                // let the next LayoutUpdated iteration resolve the exact coordinate.
+                return;
             }
 
             auto const halfVisual = visualExtent * .5;
@@ -316,17 +354,18 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const correction = desiredCenter - nativeCenter;
 
             auto translation = m_surface.Translation();
-            if (horizontal)
+            auto const newX = horizontal ? correction : 0.0;
+            auto const newY = horizontal ? 0.0 : correction;
+            auto const newZ = m_pressed ? kPressedElevation : kRestElevation;
+            if (std::abs(static_cast<double>(translation.x) - newX) <= .01 &&
+                std::abs(static_cast<double>(translation.y) - newY) <= .01 &&
+                std::abs(static_cast<double>(translation.z) - newZ) <= .01)
             {
-                translation.x = static_cast<float>(correction);
-                translation.y = 0.0f;
+                return;
             }
-            else
-            {
-                translation.x = 0.0f;
-                translation.y = static_cast<float>(correction);
-            }
-            translation.z = static_cast<float>(m_pressed ? kPressedElevation : kRestElevation);
+            translation.x = static_cast<float>(newX);
+            translation.y = static_cast<float>(newY);
+            translation.z = static_cast<float>(newZ);
             m_surface.Translation(translation);
         }
 
@@ -341,9 +380,15 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
             if (m_surface)
             {
-                m_surface.Background(brush
+                auto desired = brush
                     ? brush.as<Microsoft::UI::Xaml::Media::Brush>()
-                    : Microsoft::UI::Xaml::Media::Brush{ nullptr });
+                    : Microsoft::UI::Xaml::Media::Brush{ nullptr };
+                auto current = m_surface.Background();
+                if ((!current && desired) || (current && !desired) ||
+                    (current && desired && get_abi(current) != get_abi(desired)))
+                {
+                    m_surface.Background(desired);
+                }
             }
         }
 
@@ -410,7 +455,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 LeavePressedOptics(owner, m_pressOptics);
             }
-            UpdateValueVisuals();
+            UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 
         void RefreshPointerField()
