@@ -4,18 +4,19 @@
 
 <h1 align="center">WinUI.Composition.Hlsl</h1>
 
-<p align="center">Native HLSL nodes for WinUI 3 Composition, plus XAML material brushes.</p>
+<p align="center">Native HLSL nodes for WinUI 3 Composition, plus XAML material brushes and native liquid-glass controls.</p>
 <p align="center"><a href="README.md">English</a> · <a href="README_zh_cn.md">简体中文</a></p>
 
 <p align="center">
   <a href="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml/badge.svg?branch=master"></a>
-  <a href="https://www.nuget.org/packages/WinUI.Composition.Hlsl"><img alt="NuGet" src="https://img.shields.io/nuget/v/WinUI.Composition.Hlsl?logo=nuget"></a>
+  <a href="https://www.nuget.org/packages/WinUI.Composition.Hlsl"><img alt="WinUI.Composition.Hlsl NuGet" src="https://img.shields.io/nuget/v/WinUI.Composition.Hlsl?logo=nuget"></a>
+  <a href="https://www.nuget.org/packages/WinUI.LiquidGlass"><img alt="WinUI.LiquidGlass NuGet" src="https://img.shields.io/nuget/v/WinUI.LiquidGlass?logo=nuget"></a>
   <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="C++23" src="https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus">
   <img alt="WinUI 3" src="https://img.shields.io/badge/WinUI-3-0078D4">
 </p>
 
-## What this package does
+## What this repository does
 
 `WinUI.Composition.Hlsl` lets application HLSL participate in the existing Windows Graphics Effects / `Microsoft.UI.Composition` / WinUI 3 XAML pipeline:
 
@@ -30,9 +31,27 @@ HLSL / FXC linkable library
 
 It is not an app-owned D3D renderer: no `SwapChainPanel`, custom presentation loop, overlay HWND, or second visual tree is required. The public API is WinRT and is consumable from C++/WinRT and C#.
 
+The repository also contains `WinUI.LiquidGlass`, a native C++/WinRT WinUI 3 control library built on top of the core material. It keeps native WinUI input/layout/UI Automation semantics while adding liquid-glass visuals, optical interaction, spring motion, and reusable control presets.
+
+## Packages
+
+| Package | Purpose |
+| --- | --- |
+| `WinUI.Composition.Hlsl` | Core HLSL/Composition runtime, effect graph API, `LiquidGlassMaterial`, and `LiquidGlassBrush`. |
+| `WinUI.LiquidGlass` | Native WinUI 3 liquid-glass controls and templates; depends on the matching core package. |
+
+For controls, reference both packages using matching versions:
+
+```xml
+<ItemGroup>
+  <PackageReference Include="WinUI.Composition.Hlsl" Version="1.0.*" />
+  <PackageReference Include="WinUI.LiquidGlass" Version="1.0.*" />
+</ItemGroup>
+```
+
 ## Requirements and compatibility
 
-The NuGet package requires **Windows App SDK 1.6 or later** and ships native runtime assets for **x86, x64, and ARM64**.
+The NuGet packages require **Windows App SDK 1.6 or later** and ship native runtime assets for **x86, x64, and ARM64**.
 
 Each validated `master` push is published automatically to NuGet.org as a stable `1.0.<CI run number>` package.
 
@@ -50,12 +69,14 @@ Custom shader execution relies on a private, undocumented Composition implementa
 - Immutable/cachable `HlslShaderLibrary` objects.
 - Composition property paths/setters and Composition-thread animation.
 - `LiquidGlassMaterial` and `LiquidGlassBrush`.
+- Native `WinUI.LiquidGlass` controls including card, magnifier, buttons, choice controls, Slider, input controls, ToggleSwitch, and TabBar.
+- Separable Gaussian backdrop blur, SDF coverage, refraction/magnification, chromatic dispersion, pointer specular lighting, and control-specific motion/elevation.
 
 The public contract does not yet claim multi-source `MaterializedSampler`, arbitrary multi-custom-node graph lowering, or arbitrary native nodes after a custom materialized pass. Those graph-planning features are being developed separately rather than being enabled by removing safety checks.
 
 ## Quick start
 
-Add the package and a shader item:
+Add the core package and a shader item:
 
 ```xml
 <ItemGroup>
@@ -132,7 +153,7 @@ Compilation and structural validation are setup operations, not rendering operat
 - rendering does not repeatedly reflect DXBC;
 - `GetRuntimeCapabilities()` is side-effect free and does not probe/patch the private runtime.
 
-The package keeps runtime checks for facts that are only known at runtime (for example source object/count validity), while deterministic shader-authoring errors are handled by the compiler/build pipeline whenever possible.
+Control hot paths follow the same principle. Value/pointer updates should modify existing Composition state, not walk XAML templates or allocate brushes every frame. See the Slider section in [WinUI.LiquidGlass controls](docs/liquid-glass-controls.md).
 
 ## Documentation
 
@@ -141,8 +162,9 @@ Start with the documentation set rather than treating the README as the API manu
 1. [Get started](docs/get-started.md)
 2. [Concepts](docs/concepts.md)
 3. [Architecture](docs/architecture.md)
-4. [API reference](docs/api/index.md)
-5. [Design notes](docs/index.md#design-reference)
+4. [WinUI.LiquidGlass controls](docs/liquid-glass-controls.md)
+5. [API reference](docs/api/index.md)
+6. [Design notes](docs/index.md#design-reference)
 
 Useful references:
 
@@ -152,6 +174,9 @@ Useful references:
 - [HlslShaderLibrary](docs/api/hlsl-shader-library.md)
 - [HlslProperty](docs/api/hlsl-property.md)
 - [HlslRuntimeCapabilities](docs/api/hlsl-runtime-capabilities.md)
+- [LiquidGlassBrush](docs/api/liquid-glass-brush.md)
+- [LiquidGlassMaterial](docs/api/liquid-glass-material.md)
+- [WinUI.LiquidGlass controls](docs/liquid-glass-controls.md)
 - [Sampler resource binding contract](docs/design/resource-binding-contract.md)
 - [Materialized graph compilation](docs/design/materialized-graph-runtime.md)
 
@@ -166,7 +191,7 @@ Useful references:
 .\tests\build.ps1 -Language CSharp
 ```
 
-CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, a NuGet package, and downstream C++/C# package consumers. Successful `master` push runs publish that validated package directly from `ci.yml` to NuGet.org through OIDC trusted publishing.
+CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, both NuGet packages, and downstream C++/C# package consumers. Successful `master` push runs publish the validated packages directly from `ci.yml` to NuGet.org through OIDC trusted publishing.
 
 ## License
 
