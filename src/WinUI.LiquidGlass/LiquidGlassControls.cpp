@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "winrt_module_imports.h"
 #include "LiquidGlassControls.h"
-#include "include/SliderProgressAlignmentHelper.hpp"
 
 #if __has_include("LiquidGlassCard.g.cpp")
 #include "LiquidGlassCard.g.cpp"
@@ -127,8 +126,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.8));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
         SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(105.0));
-        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(105.0));
-        SetValue(LiquidGlassInteraction::ElasticityProperty(), box_value(.70));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(180.0));
+        SetValue(LiquidGlassInteraction::ElasticityProperty(), box_value(.13));
         SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.25));
         SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
         SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(0.0));
@@ -141,8 +140,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
     void LiquidGlassSlider::ApplyGlassBrush(Brush const& value)
     {
         m_glassBrush = value;
-        detail::SliderSurfaceVisualHelper<LiquidGlassSlider>::RefreshVisual();
-        detail::SliderDragMotionHelper<LiquidGlassSlider>::RefreshInteractionTarget();
+        detail::KubeSliderVisualModel<LiquidGlassSlider>::RefreshVisual();
     }
 
     LiquidGlassSlider::LiquidGlassSlider()
@@ -162,7 +160,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.18));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.025));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.03));
-        detail::InstallSliderProgressAlignment(this);
     }
 
     LiquidGlassToggleSwitch::LiquidGlassToggleSwitch()

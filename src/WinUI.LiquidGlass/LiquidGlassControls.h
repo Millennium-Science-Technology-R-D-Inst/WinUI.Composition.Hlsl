@@ -16,8 +16,9 @@
 #include "include/ControlVisualMotion.hpp"
 #include "include/ChoiceGlyphMotionHelper.hpp"
 #include "include/CompactControlMotionDefaults.hpp"
-#include "include/SliderDragMotionHelper.hpp"
-#include "include/MagnifierMotionHelper.hpp"
+#include "include/KubeSliderVisualModel.hpp"
+#include "include/KubeMagnifierMotionHelper.hpp"
+#include "include/KubeToggleSwitchVisualModel.hpp"
 #include "include/SwitchElevationHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
@@ -101,7 +102,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassMagnifier>,
         detail::PointerLightHelper<LiquidGlassMagnifier>,
         detail::PointerFieldHelper<LiquidGlassMagnifier>,
-        detail::MagnifierMotionHelper<LiquidGlassMagnifier>,
+        detail::KubeMagnifierMotionHelper<LiquidGlassMagnifier>,
         detail::MotionDefaults<LiquidGlassMagnifier, detail::MotionProfile::Magnifier>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
@@ -139,8 +140,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassSlider>,
         detail::TemplateControlHelper<LiquidGlassSlider>,
         detail::PointerLightHelper<LiquidGlassSlider>,
-        detail::SliderSurfaceVisualHelper<LiquidGlassSlider>,
-        detail::SliderDragMotionHelper<LiquidGlassSlider>,
+        detail::KubeSliderVisualModel<LiquidGlassSlider>,
         detail::MotionDefaults<LiquidGlassSlider, detail::MotionProfile::Slider>
     {
         constexpr static auto ResourceUri = detail::ThemeResourceUri;
@@ -150,8 +150,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         void OnApplyTemplate()
         {
             base_type::OnApplyTemplate();
-            detail::SliderSurfaceVisualHelper<LiquidGlassSlider>::RefreshVisual();
-            detail::SliderDragMotionHelper<LiquidGlassSlider>::RefreshInteractionTarget();
+            detail::KubeSliderVisualModel<LiquidGlassSlider>::RefreshVisual();
         }
     };
 
@@ -198,7 +197,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::GlassBrushHelper<LiquidGlassToggleSwitch>,
         detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
         detail::PointerLightHelper<LiquidGlassToggleSwitch>,
-        detail::ToggleSwitchVisualModel<LiquidGlassToggleSwitch>,
+        detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>,
         detail::SwitchElevationHelper<LiquidGlassToggleSwitch>,
         detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>,
         detail::MotionDefaults<LiquidGlassToggleSwitch, detail::MotionProfile::Switch>
@@ -213,13 +212,13 @@ namespace winrt::WinUI::LiquidGlass::implementation
         void OnApplyTemplate()
         {
             base_type::OnApplyTemplate();
-            detail::ToggleSwitchVisualModel<LiquidGlassToggleSwitch>::RefreshVisualModel();
+            detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>::RefreshVisualModel();
             detail::SwitchElevationHelper<LiquidGlassToggleSwitch>::RefreshElevationSurface();
         }
 
         void OnToggle()
         {
-            if (!detail::ToggleSwitchVisualModel<LiquidGlassToggleSwitch>::TryHandleToggle())
+            if (!detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>::TryHandleToggle())
                 base_type::OnToggle();
         }
 
