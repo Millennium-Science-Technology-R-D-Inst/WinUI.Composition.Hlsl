@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <memory>
+#include <utility>
 
 #include "ChildSurfaceInteraction.hpp"
 #include "MotionAnimation.hpp"
@@ -240,40 +241,42 @@ namespace winrt::WinUI::LiquidGlass::detail
             state->ClearForTeardown();
         });
 
-        self->AddHandler(
+        auto addPointerHandler = [self](auto routedEvent, auto&& callback)
+        {
+            auto handler = winrt::box_value<Handler>({
+                std::forward<decltype(callback)>(callback) });
+            self->AddHandler(routedEvent, handler, true);
+        };
+
+        addPointerHandler(
             Microsoft::UI::Xaml::UIElement::PointerPressedEvent(),
-            Handler{ [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+            [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
                 if (auto owner = weak.get()) state->Begin(owner.get(), args);
-            } },
-            true);
-        self->AddHandler(
+            });
+        addPointerHandler(
             Microsoft::UI::Xaml::UIElement::PointerMovedEvent(),
-            Handler{ [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+            [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
             {
                 if (auto owner = weak.get()) state->Move(owner.get(), args);
-            } },
-            true);
-        self->AddHandler(
+            });
+        addPointerHandler(
             Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(),
-            Handler{ [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+            [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
             {
                 if (auto owner = weak.get()) state->End(owner.get(), true);
-            } },
-            true);
-        self->AddHandler(
+            });
+        addPointerHandler(
             Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(),
-            Handler{ [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+            [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
             {
                 if (auto owner = weak.get()) state->End(owner.get(), true);
-            } },
-            true);
-        self->AddHandler(
+            });
+        addPointerHandler(
             Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(),
-            Handler{ [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
+            [state, weak](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const&)
             {
                 if (auto owner = weak.get()) state->End(owner.get(), true);
-            } },
-            true);
+            });
     }
 }
