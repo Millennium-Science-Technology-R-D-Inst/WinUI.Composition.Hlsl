@@ -18,6 +18,7 @@
 #include "include/CompactControlMotionDefaults.hpp"
 #include "include/SliderDragMotionHelper.hpp"
 #include "include/MagnifierMotionHelper.hpp"
+#include "include/SwitchElevationHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -198,6 +199,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
         detail::PointerLightHelper<LiquidGlassToggleSwitch>,
         detail::ToggleSwitchVisualModel<LiquidGlassToggleSwitch>,
+        detail::SwitchElevationHelper<LiquidGlassToggleSwitch>,
         detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>,
         detail::MotionDefaults<LiquidGlassToggleSwitch, detail::MotionProfile::Switch>
     {
@@ -212,6 +214,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         {
             base_type::OnApplyTemplate();
             detail::ToggleSwitchVisualModel<LiquidGlassToggleSwitch>::RefreshVisualModel();
+            detail::SwitchElevationHelper<LiquidGlassToggleSwitch>::RefreshElevationSurface();
         }
 
         void OnToggle()
