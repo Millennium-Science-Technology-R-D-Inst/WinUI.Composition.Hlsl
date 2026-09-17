@@ -66,7 +66,7 @@ float SurfaceDerivative(float t, float profile)
     const float delta = 0.0001f;
     const float step = t < 1.0f - delta ? delta : -delta;
     const float y = SurfaceHeight(t, profile);
-    return (SurfaceHeight(t + step) - y) / step;
+    return (SurfaceHeight(t + step, profile) - y) / step;
 }
 
 float CalculateReferenceRefractionDistance(
