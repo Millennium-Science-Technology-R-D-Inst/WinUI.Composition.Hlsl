@@ -149,8 +149,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(CreateBrush(Preset::SliderThumb));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.6));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(1.0));
-        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(70.0));
-        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(65.0));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(60.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(55.0));
         SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.12));
         SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.15));
         SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(0.0));
@@ -158,8 +158,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
         // Preserve that 2.25x relation instead of the older, much weaker 1.45x response.
         SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
         SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
-        // The active lens should reveal the refracted backdrop, not become more opaque.
-        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.05));
+        // Kube's displacement map keeps strong colored/specular edges while the white
+        // body fades away. Our HLSL has an explicit RGB dispersion control, so raise it
+        // only for the active lens rather than baking excessive chroma into the rest state.
+        SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(1.55));
+        // The authored slider body is .55 tint; pressed should reveal the backdrop at ~.10.
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.45));
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.03));
@@ -172,14 +176,15 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.65));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(.9));
         SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(75.0));
-        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(70.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(60.0));
         SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.10));
         SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.14));
         SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(0.0));
         // Kube drives the optical scale from 0.4 at rest to 0.9 while active.
         SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
         SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
-        // The authored knob body is .42 tint; pressed should reveal the backdrop at ~.10.
+        SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(1.45));
+        // The authored knob body is .78 tint; pressed should reveal the backdrop at ~.10.
         SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.68));
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
