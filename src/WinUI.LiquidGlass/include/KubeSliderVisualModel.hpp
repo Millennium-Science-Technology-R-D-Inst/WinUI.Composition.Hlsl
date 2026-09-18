@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 #include "ChildSurfaceInteraction.hpp"
@@ -27,7 +28,16 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->Unloaded([this](auto const&, auto const&)
             {
                 m_loaded = false;
+                DetachInitialLayoutSync();
                 m_pointerField.Detach(false);
+                if (m_scaleTimer)
+                {
+                    m_scaleTimer.Stop();
+                    m_scaleTimer = nullptr;
+                }
+                m_currentScale = kRestScale;
+                m_targetScale = kRestScale;
+                m_scaleVelocity = 0.0;
                 m_thumb = nullptr;
                 m_surface = nullptr;
                 m_templateHost = nullptr;
@@ -114,11 +124,13 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kSemanticThumbExtent = 18.0;
         static constexpr double kVisualWidth = 90.0;
         static constexpr double kVisualHeight = 60.0;
+        using Clock = std::chrono::steady_clock;
         static constexpr double kRestScale = 0.6;
         static constexpr double kRestElevation = 6.0;
         static constexpr double kPressedElevation = 10.0;
-        static constexpr double kScaleDampingRatio = 0.8944271909999159; // k=2000,d=80
-        static constexpr double kScalePeriodMs = 140.49629462081452;
+        static constexpr double kScaleStiffness = 2000.0;
+        static constexpr double kScaleDamping = 80.0;
+        static constexpr auto kScaleInterval = std::chrono::milliseconds{ 16 };
 
         static Microsoft::UI::Xaml::Media::SolidColorBrush SolidBrush(
             uint8_t alpha,
@@ -157,6 +169,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
                 L"RefractionStrength", from.refraction, brush.RefractionStrength());
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+                L"DispersionStrength", from.dispersion, brush.DispersionStrength());
+            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
                 L"TintOpacity", from.tintOpacity, brush.TintOpacity());
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
                 L"HighlightStrength", from.highlight, brush.HighlightStrength());
@@ -168,6 +182,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             if (!state.active || !state.brush) return;
             state.brush.RefractionStrength(state.refraction);
+            state.brush.DispersionStrength(state.dispersion);
             state.brush.TintOpacity(state.tintOpacity);
             state.brush.HighlightStrength(state.highlight);
             state.brush.InnerShadowStrength(state.innerShadow);
@@ -192,6 +207,11 @@ namespace winrt::WinUI::LiquidGlass::detail
                 std::clamp(implementation::LiquidGlassInteraction::GetPressedRefractionBoost(owner), -128.0, 128.0),
                 0.0,
                 128.0));
+            brush.DispersionStrength(std::clamp(
+                state.dispersion * std::clamp(
+                    implementation::LiquidGlassInteraction::GetPressedDispersionMultiplier(owner), 0.0, 8.0),
+                0.0,
+                16.0));
             brush.TintOpacity(std::clamp(
                 state.tintOpacity + std::clamp(
                     implementation::LiquidGlassInteraction::GetPressedTintBoost(owner), -1.0, 1.0),
@@ -271,6 +291,119 @@ namespace winrt::WinUI::LiquidGlass::detail
             return reversed;
         }
 
+        static void StepSpring(
+            double target,
+            double stiffness,
+            double damping,
+            double dt,
+            double& value,
+            double& velocity)
+        {
+            auto const steps = std::max(1, static_cast<int>(std::ceil(dt / (1.0 / 120.0))));
+            auto const h = dt / static_cast<double>(steps);
+            for (int i = 0; i < steps; ++i)
+            {
+                auto const acceleration = stiffness * (target - value) - damping * velocity;
+                velocity += acceleration * h;
+                value += velocity * h;
+            }
+        }
+
+        void EnsureScaleTimer()
+        {
+            if (!m_loaded) return;
+            auto self = static_cast<Self*>(this);
+            if (!m_scaleTimer)
+            {
+                m_scaleTimer = self->DispatcherQueue().CreateTimer();
+                m_scaleTimer.Interval(kScaleInterval);
+                m_scaleTimer.IsRepeating(true);
+                m_scaleTimer.Tick([this](auto const&, auto const&) { TickScaleDynamics(); });
+            }
+            if (!m_scaleTimer.IsRunning())
+            {
+                m_lastScaleTick = Clock::now();
+                m_scaleTimer.Start();
+            }
+        }
+
+        void TickScaleDynamics()
+        {
+            if (!m_loaded || !m_surface)
+            {
+                if (m_scaleTimer) m_scaleTimer.Stop();
+                return;
+            }
+
+            auto const now = Clock::now();
+            auto dt = std::chrono::duration<double>(now - m_lastScaleTick).count();
+            m_lastScaleTick = now;
+            dt = std::clamp(dt, 1.0 / 240.0, 1.0 / 30.0);
+
+            StepSpring(
+                m_targetScale,
+                kScaleStiffness,
+                kScaleDamping,
+                dt,
+                m_currentScale,
+                m_scaleVelocity);
+            SetElementScale(m_surface, m_currentScale, m_currentScale);
+
+            auto const settled =
+                std::abs(m_currentScale - m_targetScale) < .0005 &&
+                std::abs(m_scaleVelocity) < .005;
+            if (settled)
+            {
+                m_currentScale = m_targetScale;
+                m_scaleVelocity = 0.0;
+                SetElementScale(m_surface, m_currentScale, m_currentScale);
+                if (m_scaleTimer) m_scaleTimer.Stop();
+            }
+        }
+
+        void SetScaleTarget(double scale, bool animate)
+        {
+            m_targetScale = scale;
+            auto self = static_cast<Self*>(this);
+            auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
+            if (!animate || !owner || !MotionAnimationsEnabled(owner))
+            {
+                m_currentScale = scale;
+                m_scaleVelocity = 0.0;
+                if (m_surface) SetElementScale(m_surface, scale, scale);
+                return;
+            }
+            EnsureScaleTimer();
+        }
+
+        void DetachInitialLayoutSync()
+        {
+            if (m_templateHost && m_initialLayoutHooked)
+                m_templateHost.LayoutUpdated(m_initialLayoutToken);
+            m_initialLayoutHooked = false;
+        }
+
+        void ArmInitialLayoutSync()
+        {
+            if (!m_templateHost || m_initialLayoutHooked) return;
+            m_initialLayoutHooked = true;
+            m_initialLayoutToken = m_templateHost.LayoutUpdated([this](auto const&, auto const&)
+            {
+                if (!m_loaded || !m_track || !m_surface || !m_templateHost) return;
+
+                auto self = static_cast<Self*>(this);
+                auto const horizontal = self->Orientation() == Microsoft::UI::Xaml::Controls::Orientation::Horizontal;
+                auto const extent = horizontal ? m_track.ActualWidth() : m_track.ActualHeight();
+                if (!(extent > 0.0)) return;
+
+                UpdateProgressVisual();
+                UpdateLensPosition(DisplayRatio(NormalizedValue()));
+                ApplyInteractionState(false);
+                RefreshPointerField();
+                DetachInitialLayoutSync();
+            });
+        }
+
         void ResolveTemplateParts()
         {
             auto self = static_cast<Self*>(this);
@@ -324,6 +457,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             // Instead add an independent, non-hit-test sibling to the stock Slider template.
             if (hostChanged || !m_surface)
             {
+                if (hostChanged) DetachInitialLayoutSync();
                 m_templateHost = templateHost;
                 Microsoft::UI::Xaml::Controls::Border surface;
                 surface.Width(horizontal ? kVisualWidth : kVisualHeight);
@@ -354,6 +488,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 decrease.Opacity(0.0);
             }
+
+            ArmInitialLayoutSync();
         }
 
         void BuildProgressVisual()
@@ -539,20 +675,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!owner) return;
 
             auto const targetScale = m_pressed ? 1.0 : kRestScale;
-            if (animate)
-            {
-                AnimateElementScaleSpring(
-                    owner,
-                    m_surface,
-                    targetScale,
-                    targetScale,
-                    kScaleDampingRatio,
-                    kScalePeriodMs);
-            }
-            else
-            {
-                SetElementScale(m_surface, targetScale, targetScale);
-            }
+            SetScaleTarget(targetScale, animate);
 
             if (m_pressed)
             {
@@ -593,11 +716,18 @@ namespace winrt::WinUI::LiquidGlass::detail
         Microsoft::UI::Composition::ShapeVisual m_progressVisual{ nullptr };
         Microsoft::UI::Composition::CompositionRoundedRectangleGeometry m_progressGeometry{ nullptr };
         Microsoft::UI::Composition::CompositionSpriteShape m_progressShape{ nullptr };
+        Microsoft::UI::Dispatching::DispatcherQueueTimer m_scaleTimer{ nullptr };
+        Clock::time_point m_lastScaleTick{};
+        Microsoft::UI::Xaml::event_token m_initialLayoutToken{};
+        double m_currentScale{ kRestScale };
+        double m_targetScale{ kRestScale };
+        double m_scaleVelocity{};
         Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
         OpticsSnapshot m_pressOptics;
+        bool m_initialLayoutHooked{};
         bool m_loaded{};
         bool m_pressed{};
     };
