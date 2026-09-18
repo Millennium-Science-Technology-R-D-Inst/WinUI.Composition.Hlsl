@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="assets/MainLogo.png" alt="WinUI.Composition.Hlsl logo" width="220" />
 </p>
 
@@ -197,6 +197,12 @@ CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shade
 
 [MIT License](LICENSE.txt).
 
-## Thanks
+## Thanks (in no particular order)
 
-Inspired by @apkipa's WUILiquidGlassDemo work.
+Inspired by @apkipa's WUILiquidGlassDemo work. 
+
+https://github.com/luckyelysia/LiquidGlassWinUI
+
+https://github.com/kube/kube.io
+
+More reference: [THIRD_PARTY_NOTICES](/src/WinUI.LiquidGlass/THIRD_PARTY_NOTICES.md)

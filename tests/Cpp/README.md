@@ -1,6 +1,6 @@
 ﻿# WinUI3 HLSL Composition API
 
-Windows App SDK 2.4.0 x64。保持 lifted Composition backdrop → custom HLSL → CompositionEffectBrush → XAML 管线。
+Lifted Composition backdrop → custom HLSL → CompositionEffectBrush → XAML 管线。
 
 ## 使用
 
@@ -56,5 +56,3 @@ VS内部构建或
 ~~~
 
 smoke 依次切换 invert、sampler blur、glass，更新参数并 resize，写入工作目录 smoke.log，完成后关闭。它检查创建/更新和持续运行，不替代像素正确性测试。
-
-原 WinUI3 保持旧版参考。本后端只验证 x64，ARM64/Win32 未验证。

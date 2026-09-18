@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+﻿<?xml version="1.0"?>
 <package>
   <metadata>
     <id>WinUI.LiquidGlass</id>
@@ -8,7 +8,11 @@
     <description>Native C++/WinRT Liquid Glass controls for WinUI 3, built on WinUI.Composition.Hlsl.</description>
     <readme>README.md</readme>
     <icon>assets\MainLogo.png</icon>
-    <dependencies><group targetFramework="native"><dependency id="WinUI.Composition.Hlsl" version="[$HlslVersion$]" /></group></dependencies>
+    <dependencies>
+      <group targetFramework="native">
+      	<dependency id="WinUI.Composition.Hlsl" version="[$HlslVersion$]" />
+      </group>
+    </dependencies>
     <projectUrl>https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl</projectUrl>
     <tags>winui3 c++ cppwinrt controls liquid glass composition xaml native</tags>
     <repository type="git" url="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl"/>
