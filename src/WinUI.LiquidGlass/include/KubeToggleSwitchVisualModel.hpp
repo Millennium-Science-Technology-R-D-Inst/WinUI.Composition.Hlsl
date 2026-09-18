@@ -417,7 +417,10 @@ namespace winrt::WinUI::LiquidGlass::detail
                 auto current = self->IsChecked();
                 bool const changed = !current || current.Value() != targetChecked;
                 m_dragOverrideArmed = false;
-                m_consumeNextToggle = releaseInside && !m_nativeToggleConsumedThisGesture;
+                // A completed drag owns the semantic result. Any native ToggleButton
+                // toggle that arrives afterward belongs to the same gesture and must be
+                // suppressed regardless of where the captured pointer was released.
+                m_consumeNextToggle = !m_nativeToggleConsumedThisGesture;
 
                 if (changed)
                 {
