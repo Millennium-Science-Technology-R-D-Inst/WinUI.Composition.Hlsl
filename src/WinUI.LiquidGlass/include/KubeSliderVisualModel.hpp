@@ -229,7 +229,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto self = static_cast<Self*>(this);
             auto const track = SolidBrush(0x66, 0x89, 0x89, 0x8f);
             auto const transparent = SolidBrush(0x00, 0x00, 0x00, 0x00);
-            auto const stroke = SolidBrush(0x33, 0xff, 0xff, 0xff);
 
             self->Background(track);
             self->Foreground(transparent);
@@ -245,7 +244,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             insert(L"SliderThumbBackgroundPressed", transparent);
             insert(L"SliderThumbBackgroundDisabled", transparent);
             insert(L"SliderOuterThumbBackground", transparent);
-            insert(L"SliderThumbBorderBrush", stroke);
+            insert(L"SliderThumbBorderBrush", transparent);
             insert(L"SliderTrackFill", track);
             insert(L"SliderTrackFillPointerOver", track);
             insert(L"SliderTrackFillPressed", track);
@@ -308,6 +307,10 @@ namespace winrt::WinUI::LiquidGlass::detail
                 thumb.Width(kSemanticThumbExtent);
                 thumb.Height(kSemanticThumbExtent);
                 thumb.Margin({ 0.0, 0.0, 0.0, 0.0 });
+                // The semantic Thumb must remain fully interactive, but none of the
+                // stock WinUI thumb visuals should render behind the sibling glass lens.
+                // Opacity does not disable hit testing or native Slider mechanics.
+                thumb.Opacity(0.0);
                 if (auto inner = FindNamedDescendant(thumb, L"SliderInnerThumb")
                     .try_as<Microsoft::UI::Xaml::Shapes::Ellipse>())
                 {
