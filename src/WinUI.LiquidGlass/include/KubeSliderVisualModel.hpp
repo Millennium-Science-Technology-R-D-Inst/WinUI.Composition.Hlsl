@@ -131,8 +131,6 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kVisualHeight = 60.0;
         using Clock = std::chrono::steady_clock;
         static constexpr double kRestScale = 0.6;
-        static constexpr double kRestElevation = 6.0;
-        static constexpr double kPressedElevation = 10.0;
         static constexpr double kScaleStiffness = 2000.0;
         static constexpr double kScaleDamping = 80.0;
         static constexpr auto kScaleInterval = std::chrono::milliseconds{ 16 };
@@ -488,7 +486,9 @@ namespace winrt::WinUI::LiquidGlass::detail
                     Microsoft::UI::Xaml::Controls::Grid::SetColumn(surface, 0);
                     Microsoft::UI::Xaml::Controls::Grid::SetColumnSpan(surface, 3);
                     Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(surface, true);
-                    surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
+                    // Kube uses one subtle CSS box-shadow. WinUI ThemeShadow is a
+                    // multi-lobe elevation shadow and reads as a second capsule when the
+                    // lens expands, so do not attach it to the optical surface.
                     templateHost.Children().Append(surface);
                 }
                 m_surface = surface;
@@ -615,7 +615,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto translation = m_surface.Translation();
             auto const newPrimary = static_cast<float>(primaryTranslation);
             auto const newCross = static_cast<float>(crossTranslation);
-            auto const newZ = static_cast<float>(m_pressed ? kPressedElevation : kRestElevation);
+            constexpr float newZ = 0.0f;
 
             if (horizontal)
             {

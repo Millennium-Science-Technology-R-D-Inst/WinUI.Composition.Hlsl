@@ -19,7 +19,6 @@
 #include "include/KubeSliderVisualModel.hpp"
 #include "include/KubeMagnifierMotionHelper.hpp"
 #include "include/KubeToggleSwitchVisualModel.hpp"
-#include "include/SwitchElevationHelper.hpp"
 
 #include "LiquidGlassCard.g.h"
 #include "LiquidGlassMagnifier.g.h"
@@ -198,7 +197,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
 		detail::PointerLightHelper<LiquidGlassToggleSwitch>,
 		detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>,
-		detail::SwitchElevationHelper<LiquidGlassToggleSwitch>,
 		// Kube's knob optics are independent of checked state; only pointer-down activates
 		// the 0.4 -> 0.9 refraction/body transition. Track color/position represent IsChecked.
 		detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::None>,
@@ -215,7 +213,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		{
 			base_type::OnApplyTemplate();
 			detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>::RefreshVisualModel();
-			detail::SwitchElevationHelper<LiquidGlassToggleSwitch>::RefreshElevationSurface();
 		}
 
 		void OnToggle()

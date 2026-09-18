@@ -32,11 +32,13 @@
                                     Composition owns the remaining 0..57.9 DIP drag translation.
                                 -->
                                 <Grid x:Name="SwitchKnob" Width="146" Height="92" HorizontalAlignment="Left" VerticalAlignment="Center" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
-                                    <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" CornerRadius="46">
-                                        <Border.Shadow>
-                                            <ThemeShadow />
-                                        </Border.Shadow>
-                                    </Border>
+                                    <!--
+                                        Kube uses one low-opacity 0 4px 22px outer shadow.
+                                        ThemeShadow is an elevation effect with multiple lobes,
+                                        which visually reads as another glass shell around this
+                                        already-refractive lip surface. Keep the optical body single.
+                                    -->
+                                    <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" CornerRadius="46" />
                                 </Grid>
                             </Grid>
                         </Grid>
