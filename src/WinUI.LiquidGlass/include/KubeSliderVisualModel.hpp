@@ -149,6 +149,33 @@ namespace winrt::WinUI::LiquidGlass::detail
             return brush;
         }
 
+        static void AnimateSliderScalar(
+            WinUI::Composition::Hlsl::HlslEffectBrush const& effect,
+            Microsoft::UI::Composition::CompositionEffectBrush const& compositionBrush,
+            Microsoft::UI::Composition::CompositionEasingFunction const& easing,
+            std::chrono::milliseconds duration,
+            wchar_t const* propertyName,
+            double from,
+            double to)
+        {
+            if (!effect || !compositionBrush || std::abs(from - to) <= 1e-5) return;
+
+            auto const path = effect.GetPropertyPath(hstring{ propertyName });
+            auto properties = compositionBrush.Properties();
+
+            // Effect parameters are owned by CompositionEffectBrush.Properties.
+            // LiquidGlassWinUI animates this property set directly; targeting the
+            // brush object can leave the DependencyProperty endpoint and the actual
+            // presentation value out of sync.
+            properties.StopAnimation(path);
+
+            auto animation = compositionBrush.Compositor().CreateScalarKeyFrameAnimation();
+            animation.InsertKeyFrame(0.0f, static_cast<float>(from));
+            animation.InsertKeyFrame(1.0f, static_cast<float>(to), easing);
+            animation.Duration(duration);
+            properties.StartAnimation(path, animation);
+        }
+
         static void AnimateSliderOpticsTransition(
             Microsoft::UI::Xaml::DependencyObject const& owner,
             WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
@@ -175,15 +202,15 @@ namespace winrt::WinUI::LiquidGlass::detail
             // Keep Slider optics on the same material transition path as the working
             // ToggleSwitch. Geometry scale is independent, but refraction itself belongs
             // to the fixed optical child and must not be rewritten every scale tick.
-            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            AnimateSliderScalar(effect, compositionBrush, easing, duration,
                 L"RefractionStrength", from.refraction, brush.RefractionStrength());
-            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            AnimateSliderScalar(effect, compositionBrush, easing, duration,
                 L"DispersionStrength", from.dispersion, brush.DispersionStrength());
-            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            AnimateSliderScalar(effect, compositionBrush, easing, duration,
                 L"TintOpacity", from.tintOpacity, brush.TintOpacity());
-            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            AnimateSliderScalar(effect, compositionBrush, easing, duration,
                 L"HighlightStrength", from.highlight, brush.HighlightStrength());
-            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+            AnimateSliderScalar(effect, compositionBrush, easing, duration,
                 L"InnerShadowStrength", from.innerShadow, brush.InnerShadowStrength());
         }
 
