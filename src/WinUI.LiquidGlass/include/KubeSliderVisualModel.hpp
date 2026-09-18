@@ -30,6 +30,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_pointerField.Detach(false);
                 m_thumb = nullptr;
                 m_surface = nullptr;
+                m_templateHost = nullptr;
                 m_track = nullptr;
                 m_decrease = nullptr;
                 m_progressVisual = nullptr;
@@ -64,6 +65,9 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 if (!m_loaded) return;
                 UpdateProgressVisual();
+                // The glass lens is a sibling overlay, so its position can follow Value
+                // immediately instead of waiting for the native Thumb's next layout pass.
+                UpdateLensPosition(DisplayRatio(NormalizedValue()));
             };
             self->RegisterPropertyChangedCallback(
                 Microsoft::UI::Xaml::Controls::Primitives::RangeBase::ValueProperty(), updateValue);
@@ -76,12 +80,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 if (!m_loaded) return;
                 UpdateProgressVisual();
-                UpdateLensPosition(DisplayRatio(NormalizedValue()));
-            });
-
-            self->LayoutUpdated([this](auto const&, auto const&)
-            {
-                if (!m_loaded || !m_thumb || !m_surface || !m_track) return;
                 UpdateLensPosition(DisplayRatio(NormalizedValue()));
             });
 
@@ -284,51 +282,63 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const thumbName = horizontal ? L"HorizontalThumb" : L"VerticalThumb";
             auto const trackName = horizontal ? L"HorizontalTrackRect" : L"VerticalTrackRect";
             auto const decreaseName = horizontal ? L"HorizontalDecreaseRect" : L"VerticalDecreaseRect";
+            auto const templateName = horizontal ? L"HorizontalTemplate" : L"VerticalTemplate";
 
             auto thumb = FindNamedDescendant(root, thumbName)
                 .try_as<Microsoft::UI::Xaml::Controls::Primitives::Thumb>();
             if (!thumb) thumb = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Primitives::Thumb>(root);
             auto track = FindNamedDescendant(root, trackName).try_as<Microsoft::UI::Xaml::Shapes::Rectangle>();
             auto decrease = FindNamedDescendant(root, decreaseName).try_as<Microsoft::UI::Xaml::Shapes::Rectangle>();
-            if (!thumb || !track) return;
+            auto templateHost = FindNamedDescendant(root, templateName)
+                .try_as<Microsoft::UI::Xaml::Controls::Grid>();
+            if (!thumb || !track || !templateHost) return;
 
             bool const thumbChanged = !m_thumb || get_abi(m_thumb) != get_abi(thumb);
             bool const trackChanged = !m_track || get_abi(m_track) != get_abi(track);
+            bool const hostChanged = !m_templateHost || get_abi(m_templateHost) != get_abi(templateHost);
+
             m_thumb = thumb;
             m_track = track;
             m_decrease = decrease;
 
             if (thumbChanged)
             {
+                // Keep the real WinUI Slider contract intact. The native Thumb remains
+                // exactly 18x18 and owns all value/layout/input/UIA mechanics.
                 thumb.Width(kSemanticThumbExtent);
                 thumb.Height(kSemanticThumbExtent);
                 thumb.Margin({ 0.0, 0.0, 0.0, 0.0 });
-
-                auto surface = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Border>(thumb);
-                m_surface = surface;
-                if (surface)
-                {
-                    surface.Width(horizontal ? kVisualWidth : kVisualHeight);
-                    surface.Height(horizontal ? kVisualHeight : kVisualWidth);
-                    surface.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Center);
-                    surface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Center);
-                    surface.Margin({ 0.0, 0.0, 0.0, 0.0 });
-                    surface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
-                    surface.BorderBrush(SolidBrush(0x33, 0xff, 0xff, 0xff));
-                    surface.BorderThickness({ 1.0, 1.0, 1.0, 1.0 });
-                    Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(surface, true);
-                    if (!surface.Shadow()) surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
-                }
-
                 if (auto inner = FindNamedDescendant(thumb, L"SliderInnerThumb")
                     .try_as<Microsoft::UI::Xaml::Shapes::Ellipse>())
                 {
                     inner.Visibility(Microsoft::UI::Xaml::Visibility::Collapsed);
                 }
             }
-            else if (!m_surface)
+
+            // Do not place the 90x60 glass inside the 18x18 Thumb subtree. The stock
+            // Thumb template can clip/measure descendants to the semantic footprint,
+            // which is exactly what reduced the lens to the tiny dark ring seen at runtime.
+            // Instead add an independent, non-hit-test sibling to the stock Slider template.
+            if (hostChanged || !m_surface)
             {
-                m_surface = FindFirstDescendant<Microsoft::UI::Xaml::Controls::Border>(thumb);
+                m_templateHost = templateHost;
+                Microsoft::UI::Xaml::Controls::Border surface;
+                surface.Width(horizontal ? kVisualWidth : kVisualHeight);
+                surface.Height(horizontal ? kVisualHeight : kVisualWidth);
+                surface.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Left);
+                surface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Top);
+                surface.IsHitTestVisible(false);
+                surface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
+                surface.BorderBrush(SolidBrush(0x33, 0xff, 0xff, 0xff));
+                surface.BorderThickness({ 1.0, 1.0, 1.0, 1.0 });
+                Microsoft::UI::Xaml::Controls::Grid::SetRow(surface, 0);
+                Microsoft::UI::Xaml::Controls::Grid::SetRowSpan(surface, 3);
+                Microsoft::UI::Xaml::Controls::Grid::SetColumn(surface, 0);
+                Microsoft::UI::Xaml::Controls::Grid::SetColumnSpan(surface, 3);
+                Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(surface, true);
+                surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
+                templateHost.Children().Append(surface);
+                m_surface = surface;
             }
 
             if (trackChanged)
@@ -409,46 +419,58 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void UpdateLensPosition(double displayRatio)
         {
-            if (!m_surface || !m_thumb || !m_track) return;
+            if (!m_surface || !m_track || !m_templateHost) return;
 
             auto self = static_cast<Self*>(this);
             auto const horizontal = self->Orientation() == Microsoft::UI::Xaml::Controls::Orientation::Horizontal;
-            auto const visualExtent = (horizontal ? kVisualWidth : kVisualHeight) * kRestScale;
+            auto const authoredPrimary = horizontal ? kVisualWidth : kVisualHeight;
+            auto const authoredCross = horizontal ? kVisualHeight : kVisualWidth;
+            auto const visualExtent = authoredPrimary * kRestScale;
             auto const trackExtent = horizontal ? m_track.ActualWidth() : m_track.ActualHeight();
             if (trackExtent <= 0.0) return;
 
-            double nativeCenter = kSemanticThumbExtent * .5;
+            double trackOriginPrimary = 0.0;
+            double trackCenterCross = authoredCross * .5;
             try
             {
-                auto transform = m_thumb.TransformToVisual(m_track);
-                auto center = transform.TransformPoint({
-                    static_cast<float>(m_thumb.ActualWidth() * .5),
-                    static_cast<float>(m_thumb.ActualHeight() * .5) });
-                nativeCenter = horizontal ? center.X : center.Y;
+                auto transform = m_track.TransformToVisual(m_templateHost);
+                auto origin = transform.TransformPoint({ 0.0f, 0.0f });
+                trackOriginPrimary = horizontal ? origin.X : origin.Y;
+                trackCenterCross = horizontal
+                    ? origin.Y + m_track.ActualHeight() * .5
+                    : origin.X + m_track.ActualWidth() * .5;
             }
             catch (...)
             {
-                return;
+                // The next SizeChanged/value update will retry after the template is arranged.
             }
 
+            // Kube constrains the lens center using its rendered rest footprint (54 DIPs),
+            // not the 18-DIP native input Thumb. Keep that visual mapping while the native
+            // Slider remains the sole semantic/value owner.
             auto const halfVisual = visualExtent * .5;
             auto const usable = std::max(0.0, trackExtent - visualExtent);
-            auto const desiredCenter = halfVisual + std::clamp(displayRatio, 0.0, 1.0) * usable;
-            auto const correction = desiredCenter - nativeCenter;
+            auto const desiredCenter = trackOriginPrimary +
+                halfVisual + std::clamp(displayRatio, 0.0, 1.0) * usable;
+            auto const primaryTranslation = desiredCenter - authoredPrimary * .5;
+            auto const crossTranslation = trackCenterCross - authoredCross * .5;
 
             auto translation = m_surface.Translation();
-            auto const newX = horizontal ? correction : 0.0;
-            auto const newY = horizontal ? 0.0 : correction;
-            auto const newZ = m_pressed ? kPressedElevation : kRestElevation;
-            if (std::abs(static_cast<double>(translation.x) - newX) <= .01 &&
-                std::abs(static_cast<double>(translation.y) - newY) <= .01 &&
-                std::abs(static_cast<double>(translation.z) - newZ) <= .01)
+            auto const newPrimary = static_cast<float>(primaryTranslation);
+            auto const newCross = static_cast<float>(crossTranslation);
+            auto const newZ = static_cast<float>(m_pressed ? kPressedElevation : kRestElevation);
+
+            if (horizontal)
             {
-                return;
+                translation.x = newPrimary;
+                translation.y = newCross;
             }
-            translation.x = static_cast<float>(newX);
-            translation.y = static_cast<float>(newY);
-            translation.z = static_cast<float>(newZ);
+            else
+            {
+                translation.x = newCross;
+                translation.y = newPrimary;
+            }
+            translation.z = newZ;
             m_surface.Translation(translation);
         }
 
@@ -562,6 +584,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerFieldSurface m_pointerField;
         Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
         Microsoft::UI::Xaml::Controls::Border m_surface{ nullptr };
+        Microsoft::UI::Xaml::Controls::Grid m_templateHost{ nullptr };
         Microsoft::UI::Xaml::Shapes::Rectangle m_track{ nullptr };
         Microsoft::UI::Xaml::Shapes::Rectangle m_decrease{ nullptr };
         Microsoft::UI::Composition::ShapeVisual m_progressVisual{ nullptr };
