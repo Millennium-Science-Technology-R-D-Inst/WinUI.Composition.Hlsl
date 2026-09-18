@@ -189,9 +189,17 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(.9));
 		SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(75.0));
 		SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(60.0));
-		SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.10));
-		SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.14));
+		// Kube does not change the material merely because the pointer is hovering.
+		// Keep the dedicated spatial PointerField highlight, but make the global optics
+		// hover layer neutral so checked/rest/pressed states do not stack extra capsules.
+		SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.0));
+		SetValue(LiquidGlassInteraction::PointerOverDispersionMultiplierProperty(), box_value(1.0));
+		SetValue(LiquidGlassInteraction::PointerOverSaturationMultiplierProperty(), box_value(1.0));
+		SetValue(LiquidGlassInteraction::PointerOverContrastMultiplierProperty(), box_value(1.0));
 		SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(0.0));
+		SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.0));
+		SetValue(LiquidGlassInteraction::PointerOverHighlightBoostProperty(), box_value(0.0));
+		SetValue(LiquidGlassInteraction::PointerOverInnerShadowBoostProperty(), box_value(0.0));
 		// Kube drives the optical scale from 0.4 at rest to 0.9 while active.
 		SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
 		SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));

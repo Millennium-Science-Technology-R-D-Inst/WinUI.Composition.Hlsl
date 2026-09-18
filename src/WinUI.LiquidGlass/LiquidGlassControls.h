@@ -199,7 +199,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		detail::PointerLightHelper<LiquidGlassToggleSwitch>,
 		detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>,
 		detail::SwitchElevationHelper<LiquidGlassToggleSwitch>,
-		detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::Toggle>,
+		// Kube's knob optics are independent of checked state; only pointer-down activates
+		// the 0.4 -> 0.9 refraction/body transition. Track color/position represent IsChecked.
+		detail::PressOpticsHelper<LiquidGlassToggleSwitch, detail::PersistentOpticsKind::None>,
 		detail::MotionDefaults<LiquidGlassToggleSwitch, detail::MotionProfile::Switch>
 	{
 		constexpr static auto ResourceUri = detail::ThemeResourceUri;
