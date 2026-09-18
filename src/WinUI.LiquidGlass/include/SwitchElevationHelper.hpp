@@ -22,54 +22,8 @@ namespace winrt::WinUI::LiquidGlass::detail
                 // XAML/compositor teardown is deliberately no-write. The next Loaded
                 // resolves the new template surface and restores authored elevation.
                 m_loaded = false;
-                m_pointerOver = false;
-                m_pressed = false;
                 m_surface = nullptr;
             });
-
-            auto bind = [self](auto routedEvent, Windows::Foundation::IInspectable& storage, auto&& callback)
-            {
-                using Handler = Microsoft::UI::Xaml::Input::PointerEventHandler;
-                storage = winrt::box_value(Handler{ std::forward<decltype(callback)>(callback) });
-                self->AddHandler(routedEvent, storage, true);
-            };
-
-            bind(Microsoft::UI::Xaml::UIElement::PointerEnteredEvent(), m_pointerEnteredHandler,
-                [this](auto const&, auto const&)
-                {
-                    m_pointerOver = true;
-                    ApplyElevation();
-                });
-            bind(Microsoft::UI::Xaml::UIElement::PointerExitedEvent(), m_pointerExitedHandler,
-                [this](auto const&, auto const&)
-                {
-                    m_pointerOver = false;
-                    ApplyElevation();
-                });
-            bind(Microsoft::UI::Xaml::UIElement::PointerPressedEvent(), m_pointerPressedHandler,
-                [this](auto const&, auto const&)
-                {
-                    m_pressed = true;
-                    ApplyElevation();
-                });
-            bind(Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(), m_pointerReleasedHandler,
-                [this](auto const&, auto const&)
-                {
-                    m_pressed = false;
-                    ApplyElevation();
-                });
-            bind(Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(), m_pointerCaptureLostHandler,
-                [this](auto const&, auto const&)
-                {
-                    m_pressed = false;
-                    ApplyElevation();
-                });
-            bind(Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(), m_pointerCanceledHandler,
-                [this](auto const&, auto const&)
-                {
-                    m_pressed = false;
-                    ApplyElevation();
-                });
         }
 
         void RefreshElevationSurface()
@@ -83,9 +37,10 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
     private:
-        static constexpr float kRestElevation = 8.0f;
-        static constexpr float kPointerOverElevation = 9.0f;
-        static constexpr float kPressedElevation = 12.0f;
+        // Kube keeps the outer "0 4px 22px rgba(0,0,0,.1)" shadow constant.
+        // Press feedback belongs to scale, body opacity/refraction, and the inset pair;
+        // changing ThemeShadow elevation creates a second moving outer layer.
+        static constexpr float kElevation = 8.0f;
 
         void RefreshSurface()
         {
@@ -114,23 +69,12 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!m_surface) RefreshSurface();
             if (!m_surface) return;
 
-            auto const z = m_pressed
-                ? kPressedElevation
-                : (m_pointerOver ? kPointerOverElevation : kRestElevation);
             auto current = m_surface.Translation();
-            current.z = z;
+            current.z = kElevation;
             m_surface.Translation(current);
         }
 
         Microsoft::UI::Xaml::FrameworkElement m_surface{ nullptr };
-        Windows::Foundation::IInspectable m_pointerEnteredHandler{ nullptr };
-        Windows::Foundation::IInspectable m_pointerExitedHandler{ nullptr };
-        Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
-        Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
-        Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
-        Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
         bool m_loaded{};
-        bool m_pointerOver{};
-        bool m_pressed{};
     };
 }

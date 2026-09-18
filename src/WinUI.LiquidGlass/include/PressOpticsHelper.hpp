@@ -379,14 +379,11 @@ namespace winrt::WinUI::LiquidGlass::detail
                 [this](Microsoft::UI::Xaml::DependencyObject const& sender,
                        Microsoft::UI::Xaml::DependencyProperty const&)
                 {
-                    if (!m_loaded)
-                    {
-                        // If the brush is replaced while detached, the old visual is no
-                        // longer a runtime owner. Drop its baseline rather than writing to it.
-                        m_baseline = {};
-                        return;
-                    }
-                    Recompute(sender);
+                    // A brush replacement is an ownership boundary. The previous brush
+                    // may already have disconnected/closed its CompositionEffectBrush, so
+                    // never restore the old baseline as part of this callback.
+                    m_baseline = {};
+                    if (m_loaded) Recompute(sender);
                 });
 
             if constexpr (PersistentKind == PersistentOpticsKind::Toggle)
@@ -441,6 +438,21 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (m_loaded) Recompute(sender);
         }
 
+        void RefreshPointerFieldConfiguration()
+        {
+            // Do not probe for this helper's own member name through Self. Because Self
+            // inherits PressOpticsHelper, such a requires-expression succeeds even when
+            // the derived control has no override, and the call resolves straight back
+            // to this function (infinite recursion / stack overflow).
+            //
+            // Use a deliberately distinct opt-in hook name that only controls with an
+            // additional pointer-field owner implement.
+            if constexpr (requires(Self* value) { value->RefreshPressOpticsPointerFieldConfiguration(); })
+            {
+                static_cast<Self*>(this)->RefreshPressOpticsPointerFieldConfiguration();
+            }
+        }
+
         template<typename Sender>
         void Recompute(Sender const& sender)
         {
@@ -452,9 +464,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto brush = owner->GlassBrush();
             if (m_baseline.active && (!brush || get_abi(m_baseline.brush) != get_abi(brush)))
             {
-                // A runtime GlassBrush replacement must restore the detached
-                // brush before the active state is recomputed on the new one.
-                RestoreOptics(m_baseline);
+                // The old brush is no longer owned by this control. Dropping the
+                // snapshot is both sufficient and teardown-safe; restoring it would
+                // write through a possibly closed CompositionEffectBrush.
+                m_baseline = {};
             }
             if (!brush) return;
 
@@ -466,6 +479,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 CaptureOptics(brush, from);
                 RestoreOptics(m_baseline);
                 AnimateOpticsTransition(object, brush, from);
+                RefreshPointerFieldConfiguration();
                 return;
             }
 
@@ -485,6 +499,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (m_pointerOver) ApplyPointerOverOptics(object, brush);
             if (m_pressed) ApplyPressedOptics(object, brush);
             AnimateOpticsTransition(object, brush, from);
+            RefreshPointerFieldConfiguration();
         }
 
         OpticsSnapshot m_baseline;

@@ -51,7 +51,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             bind(Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(), m_pointerReleasedHandler,
                 [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args) { EndDragFromRelease(args); });
             bind(Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(), m_pointerCaptureLostHandler,
-                [this](auto const&, auto const&) { CancelDrag(true); });
+                [this](auto const&, auto const&) { EndDragFromCaptureLoss(); });
             bind(Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(), m_pointerCanceledHandler,
                 [this](auto const&, auto const&) { CancelDrag(true); });
         }
@@ -66,11 +66,22 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_knob = FindNamedDescendant(root, L"SwitchKnob").try_as<Microsoft::UI::Xaml::FrameworkElement>();
             m_surface = FindNamedDescendant(root, L"SwitchKnobSurface").try_as<Microsoft::UI::Xaml::FrameworkElement>();
             auto track = FindNamedDescendant(root, L"Track").try_as<Microsoft::UI::Xaml::Controls::Border>();
-            if (!m_knob || !track)
+            if (!m_knob || !m_surface || !track)
             {
                 m_pointerField.Detach(false);
                 ClearTrackVisual(false);
                 return;
+            }
+
+            // Bind the authored material directly to the rendered knob surface. Do not
+            // rely on the ToggleButton Background -> TemplateBinding chain here: control
+            // state/template precedence can otherwise leave only the rim/shadow visible.
+            if (auto surfaceBorder = m_surface.try_as<Microsoft::UI::Xaml::Controls::Border>())
+            {
+                auto glass = self->GlassBrush();
+                surfaceBorder.Background(glass
+                    ? glass.as<Microsoft::UI::Xaml::Media::Brush>()
+                    : Microsoft::UI::Xaml::Media::Brush{ nullptr });
             }
 
             if (!m_trackHost || get_abi(m_trackHost) != get_abi(track))
@@ -79,11 +90,38 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_trackHost = track;
                 BuildTrackVisual();
             }
-            m_trackHost.Background(nullptr);
+            // Keep the XAML Track background at Transparent. The Composition child
+            // visual paints the actual track, but the transparent Border is still the
+            // hit-test surface for the ToggleButton. Clearing Background to null makes
+            // the entire glyph non-hit-testable because the optical Canvas is deliberately
+            // IsHitTestVisible=False, which breaks press/drag routing.
             Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(m_knob, true);
 
-            if (!m_dragging) SyncSemanticState(false);
+            if (!m_initialized)
+            {
+                m_currentRatio = SemanticRatio(self->IsChecked());
+                m_targetRatio = m_currentRatio;
+                m_visualRatio = m_currentRatio;
+                m_currentScale = kRestScale;
+                m_targetScale = kRestScale;
+                m_ratioVelocity = 0.0;
+                m_scaleVelocity = 0.0;
+                m_initialized = true;
+                ApplyDynamicVisual();
+            }
+            else if (!m_dragging)
+            {
+                SyncSemanticState(false);
+            }
             RefreshPointerField();
+        }
+
+        void RefreshPressOpticsPointerFieldConfiguration()
+        {
+            // Kube Switch has one global lip displacement map. Keep PointerField for
+            // local specular response only; a second pointer-driven refraction field
+            // produces the detached outer shell seen on press.
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
         bool TryHandleToggle()
@@ -109,12 +147,15 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kTravelDips = 57.9;
         static constexpr double kOverscrollDamping = 22.0;
         static constexpr double kDragThresholdDips = 4.0;
+        using Clock = std::chrono::steady_clock;
         static constexpr double kRestScale = .65;
         static constexpr double kPressedScale = .9;
-        static constexpr double kPositionDampingRatio = 1.2649110640673518; // k=1000,d=80
-        static constexpr double kPositionPeriodMs = 198.69176531592203;
-        static constexpr double kScaleDampingRatio = .8944271909999159; // k=2000,d=80
-        static constexpr double kScalePeriodMs = 140.49629462081452;
+        // Kube / Motion uses unit-mass springs with these literal coefficients.
+        static constexpr double kPositionStiffness = 1000.0;
+        static constexpr double kPositionDamping = 80.0;
+        static constexpr double kScaleStiffness = 2000.0;
+        static constexpr double kScaleDamping = 80.0;
+        static constexpr auto kDynamicsInterval = std::chrono::milliseconds{ 16 };
 
         static double SemanticRatio(Windows::Foundation::IReference<bool> const& value)
         {
@@ -135,19 +176,43 @@ namespace winrt::WinUI::LiquidGlass::detail
             return { static_cast<float>(PhysicalRatio(semanticRatio) * kTravelDips), 0.0f, 0.0f };
         }
 
-        static Microsoft::UI::Composition::ShapeVisual CreateTrackLayer(
-            Microsoft::UI::Composition::Compositor const& compositor,
-            Windows::UI::Color const& color)
+        static uint8_t LerpByte(uint8_t from, uint8_t to, double t)
         {
-            auto geometry = compositor.CreateRoundedRectangleGeometry();
-            geometry.Size({ static_cast<float>(kTrackWidth), static_cast<float>(kTrackHeight) });
-            geometry.CornerRadius({ static_cast<float>(kTrackRadius), static_cast<float>(kTrackRadius) });
-            auto shape = compositor.CreateSpriteShape(geometry);
-            shape.FillBrush(compositor.CreateColorBrush(color));
-            auto visual = compositor.CreateShapeVisual();
-            visual.Size({ static_cast<float>(kTrackWidth), static_cast<float>(kTrackHeight) });
-            visual.Shapes().Append(shape);
-            return visual;
+            return static_cast<uint8_t>(std::lround(
+                static_cast<double>(from) +
+                (static_cast<double>(to) - static_cast<double>(from)) * std::clamp(t, 0.0, 1.0)));
+        }
+
+        static Windows::UI::Color TrackColor(double ratio)
+        {
+            auto const t = std::clamp(ratio, 0.0, 1.0);
+            // CSS #94949F77 -> #3BBF4EEE from Kube Switch.tsx.
+            return {
+                LerpByte(0x77, 0xee, t),
+                LerpByte(0x94, 0x3b, t),
+                LerpByte(0x94, 0xbf, t),
+                LerpByte(0x9f, 0x4e, t)
+            };
+        }
+
+        static void StepSpring(
+            double target,
+            double stiffness,
+            double damping,
+            double dt,
+            double& value,
+            double& velocity)
+        {
+            // Preserve spring velocity across rapid target changes. Substep at 120 Hz
+            // so k=2000 remains stable even if the UI thread briefly misses a frame.
+            auto const steps = std::max(1, static_cast<int>(std::ceil(dt / (1.0 / 120.0))));
+            auto const h = dt / static_cast<double>(steps);
+            for (int i = 0; i < steps; ++i)
+            {
+                auto const acceleration = stiffness * (target - value) - damping * velocity;
+                velocity += acceleration * h;
+                value += velocity * h;
+            }
         }
 
         void BuildTrackVisual()
@@ -155,19 +220,19 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!m_trackHost) return;
             auto hostVisual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(m_trackHost);
             auto compositor = hostVisual.Compositor();
-            m_ratio = compositor.CreatePropertySet();
-            m_ratio.InsertScalar(L"Value", 0.0f);
-            m_rootVisual = compositor.CreateContainerVisual();
-            m_rootVisual.Size({ static_cast<float>(kTrackWidth), static_cast<float>(kTrackHeight) });
-            m_baseVisual = CreateTrackLayer(compositor, { 0x77, 0x94, 0x94, 0x9f });
-            m_checkedVisual = CreateTrackLayer(compositor, { 0xee, 0x3b, 0xbf, 0x4e });
-            m_rootVisual.Children().InsertAtBottom(m_baseVisual);
-            m_rootVisual.Children().InsertAtTop(m_checkedVisual);
 
-            auto checkedOpacity = compositor.CreateExpressionAnimation(L"ratio.Value");
-            checkedOpacity.SetReferenceParameter(L"ratio", m_ratio);
-            m_checkedVisual.StartAnimation(L"Opacity", checkedOpacity);
-            Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetElementChildVisual(m_trackHost, m_rootVisual);
+            auto geometry = compositor.CreateRoundedRectangleGeometry();
+            geometry.Size({ static_cast<float>(kTrackWidth), static_cast<float>(kTrackHeight) });
+            geometry.CornerRadius({ static_cast<float>(kTrackRadius), static_cast<float>(kTrackRadius) });
+
+            m_trackBrush = compositor.CreateColorBrush(TrackColor(m_currentRatio));
+            auto shape = compositor.CreateSpriteShape(geometry);
+            shape.FillBrush(m_trackBrush);
+
+            m_trackVisual = compositor.CreateShapeVisual();
+            m_trackVisual.Size({ static_cast<float>(kTrackWidth), static_cast<float>(kTrackHeight) });
+            m_trackVisual.Shapes().Append(shape);
+            Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetElementChildVisual(m_trackHost, m_trackVisual);
         }
 
         void ClearTrackVisual(bool detachHost)
@@ -175,70 +240,125 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (detachHost && m_trackHost)
                 Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetElementChildVisual(m_trackHost, nullptr);
             m_trackHost = nullptr;
-            m_ratio = nullptr;
-            m_rootVisual = nullptr;
-            m_baseVisual = nullptr;
-            m_checkedVisual = nullptr;
+            m_trackVisual = nullptr;
+            m_trackBrush = nullptr;
         }
 
-        void SetVisualRatio(double ratio, bool animate)
+        void ApplyDynamicVisual()
         {
-            if (!m_knob || !m_ratio) return;
+            if (m_knob)
+            {
+                SetElementTranslation(m_knob, TranslationForRatio(m_currentRatio));
+                SetElementScale(m_knob, m_currentScale, m_currentScale);
+            }
+            if (m_trackBrush)
+                m_trackBrush.Color(TrackColor(m_currentRatio));
+        }
+
+        void EnsureDynamicsTimer()
+        {
+            if (!m_loaded) return;
+            auto self = static_cast<Self*>(this);
+            if (!m_dynamicsTimer)
+            {
+                m_dynamicsTimer = self->DispatcherQueue().CreateTimer();
+                m_dynamicsTimer.Interval(kDynamicsInterval);
+                m_dynamicsTimer.IsRepeating(true);
+                m_dynamicsTimer.Tick([this](auto const&, auto const&) { TickDynamics(); });
+            }
+            if (!m_dynamicsTimer.IsRunning())
+            {
+                m_lastDynamicsTick = Clock::now();
+                m_dynamicsTimer.Start();
+            }
+        }
+
+        void TickDynamics()
+        {
+            if (!m_loaded)
+            {
+                if (m_dynamicsTimer) m_dynamicsTimer.Stop();
+                return;
+            }
+
+            auto const now = Clock::now();
+            auto dt = std::chrono::duration<double>(now - m_lastDynamicsTick).count();
+            m_lastDynamicsTick = now;
+            dt = std::clamp(dt, 1.0 / 240.0, 1.0 / 30.0);
+
+            StepSpring(
+                m_targetRatio,
+                kPositionStiffness,
+                kPositionDamping,
+                dt,
+                m_currentRatio,
+                m_ratioVelocity);
+            StepSpring(
+                m_targetScale,
+                kScaleStiffness,
+                kScaleDamping,
+                dt,
+                m_currentScale,
+                m_scaleVelocity);
+
+            ApplyDynamicVisual();
+
+            auto const settled =
+                std::abs(m_currentRatio - m_targetRatio) < .0005 &&
+                std::abs(m_ratioVelocity) < .005 &&
+                std::abs(m_currentScale - m_targetScale) < .0005 &&
+                std::abs(m_scaleVelocity) < .005;
+            if (settled)
+            {
+                m_currentRatio = m_targetRatio;
+                m_ratioVelocity = 0.0;
+                m_currentScale = m_targetScale;
+                m_scaleVelocity = 0.0;
+                ApplyDynamicVisual();
+                if (m_dynamicsTimer) m_dynamicsTimer.Stop();
+            }
+        }
+
+        void SetRatioTarget(double ratio, bool animate)
+        {
             m_visualRatio = ratio;
-            auto const trackRatio = static_cast<float>(std::clamp(ratio, 0.0, 1.0));
-            m_ratio.StopAnimation(L"Value");
-
-            if (!animate)
-            {
-                m_ratio.InsertScalar(L"Value", trackRatio);
-                SetElementTranslation(m_knob, TranslationForRatio(ratio));
-                return;
-            }
+            m_targetRatio = ratio;
 
             auto self = static_cast<Self*>(this);
             auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
-            if (!owner || !MotionAnimationsEnabled(owner))
+            if (!animate || !owner || !MotionAnimationsEnabled(owner))
             {
-                m_ratio.InsertScalar(L"Value", trackRatio);
-                SetElementTranslation(m_knob, TranslationForRatio(ratio));
+                m_currentRatio = ratio;
+                m_ratioVelocity = 0.0;
+                ApplyDynamicVisual();
                 return;
             }
-
-            auto scalarSpring = m_ratio.Compositor().CreateSpringScalarAnimation();
-            scalarSpring.FinalValue(box_value(trackRatio).as<Windows::Foundation::IReference<float>>());
-            scalarSpring.DampingRatio(static_cast<float>(kPositionDampingRatio));
-            scalarSpring.Period(std::chrono::milliseconds{ static_cast<int64_t>(std::lround(kPositionPeriodMs)) });
-            m_ratio.StartAnimation(L"Value", scalarSpring);
-
-            auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(m_knob);
-            auto vectorSpring = visual.Compositor().CreateSpringVector3Animation();
-            vectorSpring.FinalValue(box_value(TranslationForRatio(ratio)).as<
-                Windows::Foundation::IReference<Windows::Foundation::Numerics::float3>>());
-            vectorSpring.DampingRatio(static_cast<float>(kPositionDampingRatio));
-            vectorSpring.Period(std::chrono::milliseconds{ static_cast<int64_t>(std::lround(kPositionPeriodMs)) });
-            visual.StartAnimation(L"Translation", vectorSpring);
+            EnsureDynamicsTimer();
         }
 
-        void AnimateKnobScale(bool pressed)
+        void SetScaleTarget(double scale, bool animate)
         {
-            if (!m_knob) return;
+            m_targetScale = scale;
+
             auto self = static_cast<Self*>(this);
             auto owner = self->template try_as<Microsoft::UI::Xaml::DependencyObject>();
-            if (!owner) return;
-            auto const value = pressed ? kPressedScale : kRestScale;
-            AnimateElementScaleSpring(owner, m_knob, value, value, kScaleDampingRatio, kScalePeriodMs);
+            if (!animate || !owner || !MotionAnimationsEnabled(owner))
+            {
+                m_currentScale = scale;
+                m_scaleVelocity = 0.0;
+                ApplyDynamicVisual();
+                return;
+            }
+            EnsureDynamicsTimer();
         }
 
         void SyncSemanticState(bool animate)
         {
-            if (!m_knob || !m_ratio) return;
+            if (!m_knob || !m_trackBrush) return;
             auto self = static_cast<Self*>(this);
-            SetVisualRatio(SemanticRatio(self->IsChecked()), animate);
+            SetRatioTarget(SemanticRatio(self->IsChecked()), animate);
             if (!m_dragging)
-            {
-                if (animate) AnimateKnobScale(false);
-                else SetElementScale(m_knob, kRestScale, kRestScale);
-            }
+                SetScaleTarget(kRestScale, animate);
         }
 
         void BeginDrag(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
@@ -248,8 +368,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>();
             auto frameworkElement = self->template try_as<Microsoft::UI::Xaml::FrameworkElement>();
             if (!element || !frameworkElement) return;
-            if (!m_knob || !m_ratio) RefreshVisualModel();
-            if (!m_knob || !m_ratio) return;
+            if (!m_knob || !m_trackBrush) RefreshVisualModel();
+            if (!m_knob || !m_trackBrush) return;
 
             auto xamlRoot = frameworkElement.XamlRoot();
             m_coordinateRoot = xamlRoot ? xamlRoot.Content() : Microsoft::UI::Xaml::UIElement{ nullptr };
@@ -268,7 +388,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_nativeToggleConsumedThisGesture = false;
             m_consumeNextToggle = false;
             m_dragging = true;
-            AnimateKnobScale(true);
+            SetScaleTarget(kPressedScale, true);
+            // PointerFieldRouter is move-driven; seed the press position so touch and
+            // a stationary mouse both activate the local refraction/highlight field.
+            m_pointerField.UpdateFromPointer(args);
         }
 
         void UpdateDrag(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
@@ -281,10 +404,32 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const delta = static_cast<double>(point.Position().X - m_dragStart.X) * direction;
             if (std::abs(delta) >= kDragThresholdDips) m_dragOverrideArmed = true;
 
-            auto ratio = m_baseRatio + delta / kTravelDips;
+            // Pointer delta is measured in XamlRoot DIPs while the knob translation
+            // remains in Kube's authored 160x67 coordinate system. If Height scales the
+            // Viewbox, convert the authored 57.9-DIP travel into root-space before
+            // computing the drag ratio.
+            auto travel = kTravelDips;
+            try
+            {
+                if (m_trackHost && m_coordinateRoot)
+                {
+                    auto transform = m_trackHost.TransformToVisual(m_coordinateRoot);
+                    auto const p0 = transform.TransformPoint({ 0.0f, 0.0f });
+                    auto const p1 = transform.TransformPoint({ static_cast<float>(kTrackWidth), 0.0f });
+                    auto const renderedTrackWidth = std::abs(static_cast<double>(p1.X - p0.X));
+                    if (renderedTrackWidth > 1e-4)
+                        travel = kTravelDips * renderedTrackWidth / kTrackWidth;
+                }
+            }
+            catch (...)
+            {
+                // The unscaled authored travel remains correct while layout is settling.
+            }
+
+            auto ratio = m_baseRatio + delta / std::max(travel, 1e-4);
             if (ratio < 0.0) ratio /= kOverscrollDamping;
             else if (ratio > 1.0) ratio = 1.0 + (ratio - 1.0) / kOverscrollDamping;
-            SetVisualRatio(ratio, false);
+            SetRatioTarget(ratio, true);
         }
 
         void EndDragFromRelease(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
@@ -302,11 +447,17 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             if (m_dragOverrideArmed)
             {
+                // A real drag owns the release semantics. Prevent a later native click
+                // from toggling the state a second time.
+                args.Handled(true);
                 auto const targetChecked = std::clamp(m_visualRatio, 0.0, 1.0) >= .5;
                 auto current = self->IsChecked();
                 bool const changed = !current || current.Value() != targetChecked;
                 m_dragOverrideArmed = false;
-                m_consumeNextToggle = releaseInside && !m_nativeToggleConsumedThisGesture;
+                // A completed drag owns the semantic result. Any native ToggleButton
+                // toggle that arrives afterward belongs to the same gesture and must be
+                // suppressed regardless of where the captured pointer was released.
+                m_consumeNextToggle = !m_nativeToggleConsumedThisGesture;
 
                 if (changed)
                 {
@@ -316,7 +467,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 else
                 {
                     // No semantic callback will fire; settle the overscrolled ratio explicitly.
-                    SetVisualRatio(targetChecked ? 1.0 : 0.0, true);
+                    SetRatioTarget(targetChecked ? 1.0 : 0.0, true);
                 }
                 FinishPointer(true, false);
                 return;
@@ -329,6 +480,46 @@ namespace winrt::WinUI::LiquidGlass::detail
             // the sole owner of the position transition. Outside release gets no click, so
             // it must settle back to the existing semantic state here.
             FinishPointer(true, !releaseInside);
+        }
+
+        void EndDragFromCaptureLoss()
+        {
+            if (!m_loaded || !m_dragging)
+            {
+                m_dragOverrideArmed = false;
+                return;
+            }
+
+            // ButtonBase may release its capture before our routed PointerReleased
+            // handler is reached. If the pointer crossed the drag threshold, treat
+            // capture loss as the end of that drag rather than silently snapping back.
+            if (m_dragOverrideArmed)
+            {
+                auto self = static_cast<Self*>(this);
+                auto const targetChecked = std::clamp(m_visualRatio, 0.0, 1.0) >= .5;
+                auto current = self->IsChecked();
+                bool const changed = !current || current.Value() != targetChecked;
+
+                m_dragOverrideArmed = false;
+                m_nativeToggleConsumedThisGesture = true;
+                m_consumeNextToggle = true;
+                m_ownsCapture = false;
+
+                if (changed)
+                {
+                    self->IsChecked(box_value(targetChecked).as<
+                        Windows::Foundation::IReference<bool>>());
+                }
+                else
+                {
+                    SetRatioTarget(targetChecked ? 1.0 : 0.0, true);
+                }
+
+                FinishPointer(true, false);
+                return;
+            }
+
+            CancelDrag(true);
         }
 
         void CancelDrag(bool animate)
@@ -357,9 +548,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_pointerId = 0;
 
             if (settlePosition)
-                SetVisualRatio(SemanticRatio(self->IsChecked()), animate);
-            if (animate) AnimateKnobScale(false);
-            else if (m_knob) SetElementScale(m_knob, kRestScale, kRestScale);
+                SetRatioTarget(SemanticRatio(self->IsChecked()), animate);
+            SetScaleTarget(kRestScale, animate);
 
             if (element && m_ownsCapture) element.ReleasePointerCaptures();
             m_ownsCapture = false;
@@ -381,6 +571,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 if (auto owner = weak.get()) return owner->GlassBrush();
                 return nullptr;
             });
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
         void ClearForTeardown()
@@ -400,8 +591,14 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_pointerField.Detach(false);
             m_coordinateRoot = nullptr;
             m_pointerId = 0;
+            if (m_dynamicsTimer)
+            {
+                m_dynamicsTimer.Stop();
+                m_dynamicsTimer = nullptr;
+            }
             m_knob = nullptr;
             m_surface = nullptr;
+            m_initialized = false;
             ClearTrackVisual(false);
         }
 
@@ -410,19 +607,26 @@ namespace winrt::WinUI::LiquidGlass::detail
         Microsoft::UI::Xaml::FrameworkElement m_surface{ nullptr };
         Microsoft::UI::Xaml::Controls::Border m_trackHost{ nullptr };
         Microsoft::UI::Xaml::UIElement m_coordinateRoot{ nullptr };
-        Microsoft::UI::Composition::CompositionPropertySet m_ratio{ nullptr };
-        Microsoft::UI::Composition::ContainerVisual m_rootVisual{ nullptr };
-        Microsoft::UI::Composition::ShapeVisual m_baseVisual{ nullptr };
-        Microsoft::UI::Composition::ShapeVisual m_checkedVisual{ nullptr };
+        Microsoft::UI::Composition::ShapeVisual m_trackVisual{ nullptr };
+        Microsoft::UI::Composition::CompositionColorBrush m_trackBrush{ nullptr };
+        Microsoft::UI::Dispatching::DispatcherQueueTimer m_dynamicsTimer{ nullptr };
         Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerMovedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCanceledHandler{ nullptr };
         Windows::Foundation::Point m_dragStart{};
+        Clock::time_point m_lastDynamicsTick{};
         double m_baseRatio{};
         double m_visualRatio{};
+        double m_currentRatio{};
+        double m_targetRatio{};
+        double m_ratioVelocity{};
+        double m_currentScale{ kRestScale };
+        double m_targetScale{ kRestScale };
+        double m_scaleVelocity{};
         std::uint32_t m_pointerId{};
+        bool m_initialized{};
         bool m_loaded{};
         bool m_dragging{};
         bool m_dragOverrideArmed{};

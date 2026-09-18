@@ -29,6 +29,35 @@ namespace winrt::WinUI::LiquidGlass::detail
             Windows::Foundation::Numerics::float2{ 0.0f, 1.0f });
     }
 
+    inline Windows::Foundation::Numerics::float3 ResolveScaleCenter(
+        Microsoft::UI::Xaml::FrameworkElement const& element)
+    {
+        // Runtime-created visuals (for example the Slider's sibling glass lens) can be
+        // scaled before their first arrange pass. In that window ActualWidth/Height are
+        // still zero even when explicit Width/Height are already authored. Falling back
+        // to the authored dimensions keeps the initial scale centered instead of scaling
+        // around the top-left corner and visibly shifting the control.
+        auto width = element.ActualWidth();
+        auto height = element.ActualHeight();
+
+        if (!(width > 0.0))
+        {
+            auto const authoredWidth = element.Width();
+            if (authoredWidth > 0.0) width = authoredWidth;
+        }
+        if (!(height > 0.0))
+        {
+            auto const authoredHeight = element.Height();
+            if (authoredHeight > 0.0) height = authoredHeight;
+        }
+
+        return {
+            static_cast<float>(std::max(0.0, width) * .5),
+            static_cast<float>(std::max(0.0, height) * .5),
+            0.0f
+        };
+    }
+
     inline void SetElementScale(
         Microsoft::UI::Xaml::FrameworkElement const& element,
         double x,
@@ -37,10 +66,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         if (!element) return;
 
         auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(element);
-        visual.CenterPoint({
-            static_cast<float>(element.ActualWidth() * .5),
-            static_cast<float>(element.ActualHeight() * .5),
-            0.0f });
+        visual.CenterPoint(ResolveScaleCenter(element));
         visual.StopAnimation(L"Scale");
         visual.Scale({
             static_cast<float>(std::clamp(x, .25, 4.0)),
@@ -67,10 +93,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
         auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(element);
-        visual.CenterPoint({
-            static_cast<float>(element.ActualWidth() * .5),
-            static_cast<float>(element.ActualHeight() * .5),
-            0.0f });
+        visual.CenterPoint(ResolveScaleCenter(element));
         auto animation = visual.Compositor().CreateSpringVector3Animation();
         auto const finalValue = Windows::Foundation::Numerics::float3{
             static_cast<float>(x), static_cast<float>(y), 1.0f };
@@ -95,10 +118,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         y = std::clamp(y, .25, 4.0);
 
         auto visual = Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::GetElementVisual(element);
-        visual.CenterPoint({
-            static_cast<float>(element.ActualWidth() * .5),
-            static_cast<float>(element.ActualHeight() * .5),
-            0.0f });
+        visual.CenterPoint(ResolveScaleCenter(element));
 
         auto const duration = std::clamp(durationMs, 0.0, 2000.0);
         if (!MotionAnimationsEnabled(owner) || duration <= 0.0)

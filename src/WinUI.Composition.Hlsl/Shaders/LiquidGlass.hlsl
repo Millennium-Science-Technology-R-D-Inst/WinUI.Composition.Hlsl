@@ -116,12 +116,13 @@ float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float cent
 float CalculatePointerInteraction(
     float2 pixelPosition,
     float2 pointerPosition,
-    float2 halfRect,
+    float2 center,
+    float2 shapeHalfRect,
     float radius,
     float hoverRange,
     float interactionRadius)
 {
-    const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
+    const float pointerSdf = RoundedRectSdf(pointerPosition - center, shapeHalfRect, radius);
     float shapeActivation = pointerSdf <= 0.0f ? 1.0f : 0.0f;
     if (pointerSdf > 0.0f && hoverRange > 1e-4f)
         shapeActivation = 1.0f - smoothstep(0.0f, hoverRange, pointerSdf);
@@ -162,8 +163,12 @@ float4 CalculateTransmissionBounds(
     // region to estimate here: samplerData is the authoritative logical content rect.
     if (hasContentRect)
     {
-        safeMin = max(textureMin, contentMin);
-        safeMax = min(textureMax, contentMax);
+        // Stay half a texel inside the logical content rectangle. Custom-sampler
+        // materialization can place transparent allocation texels immediately
+        // outside samplerData's content rect; bilinear filtering exactly on that
+        // boundary otherwise mixes premultiplied black into strong refraction.
+        safeMin = max(textureMin, contentMin + halfTexel);
+        safeMax = min(textureMax, contentMax - halfTexel);
     }
 
     const float2 center = (safeMin + safeMax) * 0.5f;
@@ -190,25 +195,18 @@ float OffsetScaleToBounds(float2 origin, float2 offset, float2 safeMin, float2 s
     return saturate(result);
 }
 
-float CalculateTransmissionOffsetScale(
-    float2 origin,
-    float2 baseOffset,
-    float2 dispersionOffset,
-    float2 safeMin,
-    float2 safeMax)
+float4 SampleTransmission(float2 uv, float2 safeMin, float2 safeMax)
 {
-    const float redScale = OffsetScaleToBounds(origin, baseOffset - dispersionOffset, safeMin, safeMax);
-    const float greenScale = OffsetScaleToBounds(origin, baseOffset, safeMin, safeMax);
-    const float blueScale = OffsetScaleToBounds(origin, baseOffset + dispersionOffset, safeMin, safeMax);
-    return min(redScale, min(greenScale, blueScale));
-}
+    float4 result = texture0.Sample(sampler0, clamp(uv, safeMin, safeMax));
 
-float4 SampleTransmission(float2 uv, float2 texelSize)
-{
-    const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
-    const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
-    const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
-    return texture0.Sample(sampler0, clamp(uv, textureMin, textureMax));
+    // The materialized backdrop is premultiplied-alpha. Strong Concave/Lip
+    // refraction reaches the finite intermediate boundary first; if RGB is used
+    // directly there, its allocation alpha darkens the transmitted color into a
+    // black rim. Recover straight transmission color before applying glass alpha.
+    if (result.a > 1e-5f)
+        result.rgb /= result.a;
+
+    return result;
 }
 
 float SpecularEdgeProfile(
@@ -329,13 +327,33 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float pointerHoverRange = pointerHoverRangeNormalized * maximumExtent;
     const float2 halfRect = rectSize * 0.5f;
     const float2 local = localPosition - halfRect;
-    const float halfMinSize = max(min(halfRect.x, halfRect.y), 1.0f);
+
+    // Keep the SDF one raster pixel inside the brush bounds. LiquidGlassWinUI uses
+    // the same invariant: if the geometric edge lies exactly on the brush edge,
+    // antialiasing/refraction/specular coverage has nowhere to extend and rounded
+    // corners get visibly cut during resize or strong refraction.
+    // Kube's convex-squircle slider displacement/specular maps are authored exactly
+    // to the 90x60 object bounds. For that no-border profile, shrinking the SDF by one
+    // raster pixel changes radius 30 -> 29, moves the strongest refraction one pixel
+    // inward, and produces the visibly wrong corner/rim geometry. Keep the safety margin
+    // for generic bordered surfaces and the Concave/Lip paths that need materialized-edge
+    // protection, but let the borderless ConvexSquircle occupy its authored bounds.
+    const bool authoredBoundedConvex =
+        surfaceProfile < 0.5f && borderThickness <= 1e-4f;
+    const float shapeMargin = authoredBoundedConvex ? 0.0f : 1.0f;
+    const float2 shapeHalfRect = max(halfRect - shapeMargin.xx, 1.0f.xx);
+    const float halfMinSize = max(min(shapeHalfRect.x, shapeHalfRect.y), 1.0f);
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
-    const float sdf = RoundedRectSdf(local, halfRect, radius);
+    const float sdf = RoundedRectSdf(local, shapeHalfRect, radius);
 
     const float sdfPixelFootprint = max(length(float2(ddx(sdf), ddy(sdf))), 0.5f);
     const float feather = max(edgeSoftness, sdfPixelFootprint * 0.5f);
-    const float coverage = 1.0f - smoothstep(-feather, feather, sdf);
+
+    // One-sided AA: the entire geometric interior remains fully covered and only
+    // the outside feather fades to transparent. The previous symmetric smoothstep
+    // made the actual SDF edge 50% alpha, washing out and effectively clipping the
+    // Fresnel/specular rim at all four corners.
+    const float coverage = 1.0f - smoothstep(0.0f, feather, sdf);
     const float alpha = coverage * saturate(materialOpacity);
 
     float4 result = 0.0f.xxxx;
@@ -351,9 +369,24 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             height, derivative, bezel, glassThickness, refractiveIndex);
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
 
+        // Kube's standalone Concave profile produces a negative ray displacement:
+        // at the silhouette that means sampling outside the element. CSS backdrop
+        // filters can access surrounding backdrop pixels, but this WinUI custom
+        // sampler receives a finite materialized texture clipped to the brush.
+        //
+        // LiquidGlassStudio/LiquidGlassWinUI avoid that unavailable-source problem
+        // by always bending their edge field inward. Use that composition-safe
+        // direction for the *pure* Concave profile while retaining its Kube surface
+        // magnitude curve. Lip must stay signed: its convex outer lobe + concave
+        // interior are what make the Switch optics work.
+        const bool pureConcave = surfaceProfile >= 1.5f && surfaceProfile < 2.5f;
+        const float transmissionDisplacement =
+            pureConcave ? abs(referenceDisplacement) : referenceDisplacement;
+
         const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
-        const float opticalInterior = smoothstep(-opticalFeather, opticalFeather, -sdf);
-        const float rawDisplacementPixels = referenceDisplacement * artisticScale * refractionNormalization;
+        const float opticalInterior = 1.0f - smoothstep(0.0f, opticalFeather, sdf);
+        const float rawDisplacementPixels =
+            transmissionDisplacement * artisticScale * refractionNormalization;
         const float displacementLimit = max(maximumExtent * 0.48f, 1.0f);
         const float displacementPixels = clamp(rawDisplacementPixels, -displacementLimit, displacementLimit) * opticalInterior;
 
@@ -361,6 +394,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             localPosition,
             pointerPosition,
             halfRect,
+            shapeHalfRect,
             radius,
             pointerHoverRange,
             pointerInteractionRadius) * pointerInteractionStrength * pointerActive;
@@ -381,7 +415,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float2 pointerMotionOffset =
             motionDirection * pointerSpeedWeight * pointerInteraction * pointerMotionRefractionStrength * opticalInterior;
 
-        const float2 normal = RoundedRectNormal(local, halfRect, radius, sdf);
+        const float2 normal = RoundedRectNormal(local, shapeHalfRect, radius, sdf);
         const float2 refractionPixelOffset =
             -normal * displacementPixels + pointerRefractionOffset + pointerMotionOffset;
         const float2 refractedUv = uv + refractionPixelOffset * texelSize;
@@ -400,28 +434,42 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) * opticalInterior;
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
-        // Keep all spectral channels on one coherent displacement scale. This avoids
-        // per-channel edge pinning while respecting samplerData's valid source rect.
         const float4 transmissionBounds = CalculateTransmissionBounds(
             texelSize, contentMin, contentMax, hasContentRect);
         const float2 transmissionOrigin = clamp(uv, transmissionBounds.xy, transmissionBounds.zw);
         const float2 baseSampleOffset = sampleUv - uv;
-        const float transmissionScale = CalculateTransmissionOffsetScale(
-            transmissionOrigin,
-            baseSampleOffset,
-            dispersionOffset,
-            transmissionBounds.xy,
-            transmissionBounds.zw);
-        const float2 redSampleUv = transmissionOrigin +
-            (baseSampleOffset - dispersionOffset) * transmissionScale;
-        const float2 greenSampleUv = transmissionOrigin + baseSampleOffset * transmissionScale;
-        const float2 blueSampleUv = transmissionOrigin +
-            (baseSampleOffset + dispersionOffset) * transmissionScale;
 
-        float3 color = float3(
-            SampleTransmission(redSampleUv, texelSize).r,
-            SampleTransmission(greenSampleUv, texelSize).g,
-            SampleTransmission(blueSampleUv, texelSize).b);
+        // The source texture is finite even though a real backdrop is not. Constrain
+        // each wavelength independently before sampling instead of hard-clamping the
+        // completed UV (which pins a large Concave field to one border texel) or using
+        // one shared RGB scale (which lets one channel collapse all three).
+        const float2 redOffset = baseSampleOffset - dispersionOffset;
+        const float2 greenOffset = baseSampleOffset;
+        const float2 blueOffset = baseSampleOffset + dispersionOffset;
+        const float redScale = OffsetScaleToBounds(
+            transmissionOrigin, redOffset, transmissionBounds.xy, transmissionBounds.zw);
+        const float greenScale = OffsetScaleToBounds(
+            transmissionOrigin, greenOffset, transmissionBounds.xy, transmissionBounds.zw);
+        const float blueScale = OffsetScaleToBounds(
+            transmissionOrigin, blueOffset, transmissionBounds.xy, transmissionBounds.zw);
+
+        float4 baseSample = SampleTransmission(
+            transmissionOrigin, transmissionBounds.xy, transmissionBounds.zw);
+        float4 redSample = SampleTransmission(
+            transmissionOrigin + redOffset * redScale, transmissionBounds.xy, transmissionBounds.zw);
+        float4 greenSample = SampleTransmission(
+            transmissionOrigin + greenOffset * greenScale, transmissionBounds.xy, transmissionBounds.zw);
+        float4 blueSample = SampleTransmission(
+            transmissionOrigin + blueOffset * blueScale, transmissionBounds.xy, transmissionBounds.zw);
+
+        // A zero-alpha allocation texel contains no recoverable straight color.
+        // Fall back to the undisplaced backdrop at this output pixel rather than
+        // manufacturing black. This path only activates at the materialized edge.
+        if (redSample.a <= 1e-5f) redSample = baseSample;
+        if (greenSample.a <= 1e-5f) greenSample = baseSample;
+        if (blueSample.a <= 1e-5f) blueSample = baseSample;
+
+        float3 color = float3(redSample.r, greenSample.g, blueSample.b);
         color = ApplySaturation(color, saturation);
         color = ApplyExposureContrast(color, exposure, contrast);
         color = lerp(color, tintColor, tintOpacity);
@@ -429,10 +477,14 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float innerShadow = 1.0f - smoothstep(0.0f, max(bezel * 0.65f, 1.0f), distanceFromEdge);
         color *= 1.0f - innerShadow * innerShadowStrength;
 
-        const float borderMask = 1.0f - smoothstep(
-            max(borderThickness, 0.0f),
-            max(borderThickness, 0.0f) + feather,
-            distanceFromEdge);
+        float borderMask = 0.0f;
+        if (borderThickness > 1e-4f)
+        {
+            borderMask = 1.0f - smoothstep(
+                borderThickness,
+                borderThickness + feather,
+                distanceFromEdge);
+        }
         color = lerp(color, tintColor, borderMask * 0.20f * highlightStrength);
 
         const float2 lightDirection = normalize(float2(cos(lightAngle), sin(lightAngle)));
@@ -449,7 +501,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         if (pointerLightDistance > 1e-4f && pointerInteraction > 0.0f)
         {
             const float2 pointerLightDirection = (pointerPosition - localPosition) / pointerLightDistance;
-            const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
+            const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, shapeHalfRect, radius);
             pointerSpecular = PointerSpecularCoefficient(
                 distanceFromEdge,
                 specularWidth,

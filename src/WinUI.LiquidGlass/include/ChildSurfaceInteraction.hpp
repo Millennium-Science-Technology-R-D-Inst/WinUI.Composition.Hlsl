@@ -91,7 +91,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 {
                     Update(args, now);
                 },
-                [this] { DeactivateTrackedMaterial(); });
+                [this] { DeactivateIfAttached(); });
             if (!m_registrationId) Detach();
         }
 
@@ -113,8 +113,45 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void InvalidateBrush()
         {
-            DeactivateTrackedMaterial();
+            // GlassBrush replacement retires the old material. Do not write to the
+            // previously tracked effect here because XAML may already have disconnected
+            // and closed its CompositionEffectBrush before this callback is observed.
+            ClearTrackedMaterial();
             m_configurationDirty = true;
+        }
+
+        void SetConfigurationScales(
+            double refractionScale,
+            double highlightScale = 1.0,
+            double motionRefractionScale = 1.0)
+        {
+            m_refractionScale = std::clamp(refractionScale, 0.0, 4.0);
+            m_highlightScale = std::clamp(highlightScale, 0.0, 4.0);
+            m_motionRefractionScale = std::clamp(motionRefractionScale, 0.0, 4.0);
+            RefreshConfiguration();
+        }
+
+        void RefreshConfiguration()
+        {
+            m_configurationDirty = true;
+            if (!m_registrationId || !m_target || !m_target.IsLoaded() || !m_brushGetter) return;
+
+            auto brush = m_brushGetter();
+            auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
+            TrackMaterial(material);
+            if (!brush || !material) return;
+
+            auto effect = material.EffectBrush();
+            auto const width = m_target.ActualWidth();
+            auto const height = m_target.ActualHeight();
+            if (!effect || width <= 0.0 || height <= 0.0) return;
+            Configure(brush, effect, width, height);
+        }
+
+        void UpdateFromPointer(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        {
+            if (!m_registrationId) return;
+            Update(args, Clock::now());
         }
 
     private:
@@ -144,10 +181,6 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void TrackMaterial(WinUI::Composition::Hlsl::LiquidGlassMaterial const& material)
         {
-            if (m_trackingMaterial && (!material || get_abi(m_trackingMaterial) != get_abi(material)))
-            {
-                DeactivateEffect(m_trackingMaterial.EffectBrush());
-            }
             if (!material)
             {
                 ClearTrackedMaterial();
@@ -155,10 +188,24 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
             if (!m_trackingMaterial || get_abi(m_trackingMaterial) != get_abi(material))
             {
+                // The current brush owns this new material. The previous material may
+                // already be closed after brush replacement/retemplating, so simply
+                // release our stale reference instead of trying to deactivate it.
                 m_trackingMaterial = material;
                 m_configurationDirty = true;
+                m_active = false;
                 m_lastPointValid = false;
             }
+        }
+
+        void DeactivateIfAttached()
+        {
+            if (!m_registrationId || !m_target || !m_target.IsLoaded())
+            {
+                ClearTrackedMaterial();
+                return;
+            }
+            DeactivateTrackedMaterial();
         }
 
         void Configure(
@@ -171,14 +218,18 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const maxExtent = std::max(width, height);
             if (maxExtent <= 1e-4) return;
             auto const interactionRadiusDips = std::clamp(maxExtent * 0.65, 56.0, 180.0);
-            auto const refraction = static_cast<float>(std::clamp(brush.RefractionStrength() * 0.24, 2.0, 8.0));
-            auto const highlight = static_cast<float>(std::clamp(brush.HighlightStrength() * 0.55, 0.12, 0.40));
+            auto const refraction = static_cast<float>(std::clamp(
+                brush.RefractionStrength() * 0.24 * m_refractionScale, 0.0, 8.0));
+            auto const highlight = static_cast<float>(std::clamp(
+                brush.HighlightStrength() * 0.55 * m_highlightScale, 0.0, 0.40));
             effect.SetFloat(L"PointerInteractionRadius", static_cast<float>(interactionRadiusDips / maxExtent));
             effect.SetFloat(L"PointerInteractionStrength", 1.0f);
             effect.SetFloat(L"PointerHoverRange", static_cast<float>(kHoverRangeDips / maxExtent));
             effect.SetFloat(L"PointerRefractionStrength", refraction);
             effect.SetFloat(L"PointerHighlightStrength", highlight);
-            effect.SetFloat(L"PointerMotionRefractionStrength", 5.0f);
+            effect.SetFloat(
+                L"PointerMotionRefractionStrength",
+                static_cast<float>(5.0 * m_motionRefractionScale));
             m_configurationDirty = false;
         }
 
@@ -186,7 +237,12 @@ namespace winrt::WinUI::LiquidGlass::detail
             Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args,
             Clock::time_point now)
         {
-            if (!m_target || !m_brushGetter) return;
+            if (!m_registrationId || !m_target || !m_brushGetter) return;
+            if (!m_target.IsLoaded())
+            {
+                ClearTrackedMaterial();
+                return;
+            }
             auto brush = m_brushGetter();
             auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
             TrackMaterial(material);
@@ -258,6 +314,9 @@ namespace winrt::WinUI::LiquidGlass::detail
         Windows::Foundation::Point m_lastPoint{};
         Clock::time_point m_lastTime{};
         std::uint64_t m_registrationId{};
+        double m_refractionScale{ 1.0 };
+        double m_highlightScale{ 1.0 };
+        double m_motionRefractionScale{ 1.0 };
         bool m_configurationDirty{ true };
         bool m_lastPointValid{};
         bool m_active{};

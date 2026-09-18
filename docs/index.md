@@ -2,6 +2,8 @@
 
 `WinUI.Composition.Hlsl` adds custom HLSL nodes to the normal Windows Graphics Effects / `Microsoft.UI.Composition` / WinUI 3 XAML pipeline. It supports C++/WinRT and C#, build-time or runtime compilation, linked multi-source effects, typed animatable properties, and packaged material brushes.
 
+The repository also ships `WinUI.LiquidGlass`, a native C++/WinRT WinUI 3 control package built on the liquid-glass material. See [WinUI.LiquidGlass controls](liquid-glass-controls.md) for control architecture, interaction ownership, Slider/ToggleSwitch/Magnifier behavior, and teardown rules.
+
 ## Start here
 
 If this is your first time using the package, read these in order:
@@ -9,7 +11,8 @@ If this is your first time using the package, read these in order:
 1. [Get started](get-started.md) — install the package, compile a shader, and create a Composition brush.
 2. [Concepts](concepts.md) — HLSL vs DXBC vs `.g.h`, shader profiles, effect kinds, linked sources, materialization, and typed properties.
 3. [Architecture](architecture.md) — how the WinRT API, shader compiler, Graphics Effects graph, and private Composition adapter fit together.
-4. [API reference](api/index.md) — class-by-class public WinRT reference.
+4. [WinUI.LiquidGlass controls](liquid-glass-controls.md) — native glass controls, interaction ownership, and control-specific geometry.
+5. [API reference](api/index.md) — class-by-class public WinRT reference.
 
 ## Installation and compatibility
 
@@ -97,6 +100,7 @@ The package deliberately avoids moving errors that can be detected by FXC/MSBuil
 
 ## Design reference
 
+- [WinUI.LiquidGlass controls](liquid-glass-controls.md)
 - [Sampler resource binding contract](design/resource-binding-contract.md)
 - [Materialized graph compilation](design/materialized-graph-runtime.md)
 - [Precompiled and asynchronous shader libraries](design/precompiled-shaders.md)

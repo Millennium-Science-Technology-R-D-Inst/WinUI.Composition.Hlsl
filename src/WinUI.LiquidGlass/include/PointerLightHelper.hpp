@@ -22,6 +22,13 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->PointerExited([this](auto const&, auto const&) { EndTracking(); });
             self->PointerCanceled([this](auto const&, auto const&) { EndTracking(); });
             self->PointerCaptureLost([this](auto const&, auto const&) { EndTracking(); });
+            self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
+            {
+                // Brush replacement is an ownership boundary. The old material may
+                // already be disconnected, so drop the transient light owner without
+                // attempting to restore it.
+                ClearForTeardown();
+            });
             self->Unloaded([this](auto const&, auto const&)
             {
                 // Unloaded can race XamlCompositionBrushBase::OnDisconnected. Do not write
@@ -68,7 +75,10 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             if (m_trackingBrush && get_abi(m_trackingBrush) != get_abi(brush))
             {
-                SetMaterialLightAngle(m_trackingBrush, m_trackingBrush.LightAngle());
+                // The prior brush is no longer owned by this pointer-light session.
+                // Replacing it must not write into a potentially closed effect pipeline.
+                m_trackingBrush = nullptr;
+                m_tracking = false;
             }
 
             m_trackingBrush = brush;

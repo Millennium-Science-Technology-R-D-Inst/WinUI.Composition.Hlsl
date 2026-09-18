@@ -46,14 +46,11 @@ namespace winrt::WinUI::LiquidGlass::detail
                 [this](Microsoft::UI::Xaml::DependencyObject const& sender,
                        Microsoft::UI::Xaml::DependencyProperty const&)
                 {
-                    if (!m_loaded)
-                    {
-                        // A replacement while detached retires the old brush. Do not write
-                        // its saved baseline into a compositor that may already be closed.
-                        m_state = {};
-                        return;
-                    }
-                    Recompute(sender);
+                    // Replacing GlassBrush retires the old material before this helper
+                    // needs to recompute focus state. Drop the old snapshot without
+                    // restoring it: the previous CompositionEffectBrush may be closed.
+                    m_state = {};
+                    if (m_loaded) Recompute(sender);
                 });
         }
 
@@ -117,9 +114,9 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto brush = self->GlassBrush();
             if (m_state.active && (!brush || get_abi(m_state.brush) != get_abi(brush)))
             {
-                // Runtime brush replacement is still a live transition; restore the old
-                // brush before migrating the focused state to the replacement.
-                RestoreOptics(m_state);
+                // This control no longer owns the saved brush. Do not write a focus
+                // baseline through a material that may have been disconnected already.
+                m_state = {};
             }
 
             if (m_focused)
