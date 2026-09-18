@@ -138,7 +138,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		LiquidGlassSliderT<LiquidGlassSlider>,
 		detail::GlassBrushHelper<LiquidGlassSlider>,
 		detail::TemplateControlHelper<LiquidGlassSlider>,
-		detail::PointerLightHelper<LiquidGlassSlider>,
+		// Kube's specular map has a fixed light angle. The spatial PointerField already
+		// supplies the local pointer reveal; rotating LightAngle at the same time creates
+		// a second independent rim that reads as layered glass.
 		detail::KubeSliderVisualModel<LiquidGlassSlider>,
 		detail::MotionDefaults<LiquidGlassSlider, detail::MotionProfile::Slider>
 	{
@@ -195,7 +197,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		LiquidGlassToggleSwitchT<LiquidGlassToggleSwitch>,
 		detail::GlassBrushHelper<LiquidGlassToggleSwitch>,
 		detail::TemplateControlHelper<LiquidGlassToggleSwitch>,
-		detail::PointerLightHelper<LiquidGlassToggleSwitch>,
+		// Keep one Kube-style fixed-angle specular layer plus the local PointerField.
+		// PointerLightHelper would rotate the global rim underneath that field.
 		detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>,
 		// Kube's knob optics are independent of checked state; only pointer-down activates
 		// the 0.4 -> 0.9 refraction/body transition. Track color/position represent IsChecked.
