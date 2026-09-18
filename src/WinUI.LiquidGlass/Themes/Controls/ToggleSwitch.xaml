@@ -11,36 +11,28 @@
                 <ControlTemplate TargetType="local:LiquidGlassToggleSwitch">
                     <StackPanel x:Name="Root" Orientation="Horizontal" Spacing="10">
                         <!--
-                            The authored knob is 146x92 while the semantic track is 160x67.
-                            Keep the public/layout footprint at 160x67, but give Composition
-                            22 DIPs of horizontal and 12.5 DIPs of vertical overscan so the
-                            .9 pressed scale, rim/refraction and ThemeShadow are never clipped.
+                            Keep layout/hit-test semantics at Kube's real 160x67 track size.
+                            The 146x92 optical knob is an overflowing Canvas child, exactly like
+                            Kube's absolutely-positioned DOM element; Canvas does not use that
+                            overflow when measuring the control and does not clip it to the track.
                         -->
-                        <Grid Width="204" Height="92" Margin="-22,-12.5,-22,-12.5">
-                            <!--
-                                This is a real 204x92 render host whose negative margin makes its
-                                layout contribution exactly 160x67. Unlike the old 160x67 inner
-                                host, it does not clip the 146x92 knob when the .9 pressed scale
-                                extends beyond the track.
-                            -->
-                            <Grid x:Name="SwitchGlyph" Width="204" Height="92" HorizontalAlignment="Center" VerticalAlignment="Center" Control.IsTemplateFocusTarget="True">
-                                <!-- Composition owns the rendered track color. Center the 160x67 semantic track inside the overscan host. -->
-                                <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Grid x:Name="SwitchGlyph" Width="160" Height="67" HorizontalAlignment="Center" VerticalAlignment="Center" Control.IsTemplateFocusTarget="True">
+                            <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" />
+                            <Canvas Width="160" Height="67" IsHitTestVisible="False">
                                 <!--
-                                    Kube's -21.95 authored knob offset becomes approximately zero
-                                    here because the track starts 22 DIPs inside this render host.
-                                    Composition owns the remaining 0..57.9 DIP drag translation.
+                                    Kube:
+                                      marginLeft = -THUMB_REST_OFFSET
+                                                   + (trackHeight - knobHeight*restScale)/2
+                                                 = -21.95
+                                      top = trackHeight/2 with translateY(-50%) -> -12.5.
+                                    Composition adds only the authored 0..57.9 DIP X travel.
+                                    Because this is Canvas overflow rather than a 204x92 layout
+                                    host, the control itself no longer grows to accommodate it.
                                 -->
-                                <Grid x:Name="SwitchKnob" Width="146" Height="92" HorizontalAlignment="Left" VerticalAlignment="Center" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
-                                    <!--
-                                        Kube uses one low-opacity 0 4px 22px outer shadow.
-                                        ThemeShadow is an elevation effect with multiple lobes,
-                                        which visually reads as another glass shell around this
-                                        already-refractive lip surface. Keep the optical body single.
-                                    -->
+                                <Grid x:Name="SwitchKnob" Width="146" Height="92" Canvas.Left="-21.95" Canvas.Top="-12.5" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
                                     <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" CornerRadius="46" />
                                 </Grid>
-                            </Grid>
+                            </Canvas>
                         </Grid>
                         <ContentPresenter VerticalAlignment="Center" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" />
                         <VisualStateManager.VisualStateGroups>
