@@ -96,6 +96,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             self->SizeChanged([this](auto const&, auto const&)
             {
                 if (!m_loaded) return;
+                ApplyRasterizedOpticalGeometry();
                 UpdateProgressVisual();
                 UpdateLensPosition(DisplayRatio(NormalizedValue()));
             });
@@ -164,6 +165,44 @@ namespace winrt::WinUI::LiquidGlass::detail
             return brush;
         }
 
+        double CurrentRasterizationScale() const
+        {
+            auto self = static_cast<Self const*>(this);
+            auto root = self->XamlRoot();
+            return root ? std::max(root.RasterizationScale(), 0.01) : 1.0;
+        }
+
+        void ApplyRasterizedOpticalGeometry()
+        {
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
+            auto effect = material ? material.EffectBrush() : WinUI::Composition::Hlsl::HlslEffectBrush{ nullptr };
+            if (!effect) return;
+
+            // Custom sampler coordinates/derivatives are raster-pixel based, while the
+            // Kube query parameters are CSS/XAML DIPs. At 150% scaling a 90x60 DIP lens
+            // is ~135x90 shader pixels; feeding radius=30/bezel=16 directly therefore
+            // turns the intended capsule into radius~20 DIP and narrows every optical
+            // band. Keep the public brush DPs in authored DIPs, but scale only the live
+            // shader presentation geometry. RefractionNormalization intentionally stays
+            // in authored units, so scaling bezel/thickness here scales the final screen
+            // displacement exactly once (matching browser DPR behavior).
+            auto const scale = CurrentRasterizationScale();
+            try
+            {
+                effect.SetFloat(L"CornerRadius", static_cast<float>(30.0 * scale));
+                effect.SetFloat(L"BezelWidth", static_cast<float>(16.0 * scale));
+                effect.SetFloat(L"GlassThickness", static_cast<float>(80.0 * scale));
+                effect.SetFloat(L"SpecularWidth", static_cast<float>(1.0 * scale));
+                effect.SetFloat(L"EdgeSoftness", static_cast<float>(1.0 * scale));
+            }
+            catch (winrt::hresult_error const& error)
+            {
+                if (error.code() != winrt::hresult{ RO_E_CLOSED }) throw;
+            }
+        }
+
         void WriteDynamicOptics()
         {
             if (!m_loaded || !m_opticsInitialized) return;
@@ -200,6 +239,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_targetBodyOpacity = m_currentBodyOpacity;
             m_bodyOpacityVelocity = 0.0;
             m_opticsInitialized = true;
+            ApplyRasterizedOpticalGeometry();
             WriteDynamicOptics();
         }
 
@@ -248,6 +288,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             // rebuilds the intended optical state. The white body is a separate overlay,
             // matching Kube's CSS background compositing order.
             brush.RefractionStrength(m_targetRefraction);
+            ApplyRasterizedOpticalGeometry();
             WriteDynamicOptics();
         }
 
@@ -266,6 +307,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             brush.DispersionStrength(m_pressOptics.dispersion);
             brush.HighlightStrength(m_pressOptics.highlight);
             brush.InnerShadowStrength(m_pressOptics.innerShadow);
+            ApplyRasterizedOpticalGeometry();
             m_pressOptics.brush = nullptr;
             m_pressOptics.owner = nullptr;
             m_pressOptics.active = false;
@@ -745,6 +787,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 {
                     m_surface.Background(desired);
                 }
+                ApplyRasterizedOpticalGeometry();
             }
         }
 
