@@ -397,7 +397,29 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const delta = static_cast<double>(point.Position().X - m_dragStart.X) * direction;
             if (std::abs(delta) >= kDragThresholdDips) m_dragOverrideArmed = true;
 
-            auto ratio = m_baseRatio + delta / kTravelDips;
+            // Pointer delta is measured in XamlRoot DIPs while the knob translation
+            // remains in Kube's authored 160x67 coordinate system. If Height scales the
+            // Viewbox, convert the authored 57.9-DIP travel into root-space before
+            // computing the drag ratio.
+            auto travel = kTravelDips;
+            try
+            {
+                if (m_trackHost && m_coordinateRoot)
+                {
+                    auto transform = m_trackHost.TransformToVisual(m_coordinateRoot);
+                    auto const p0 = transform.TransformPoint({ 0.0f, 0.0f });
+                    auto const p1 = transform.TransformPoint({ static_cast<float>(kTrackWidth), 0.0f });
+                    auto const renderedTrackWidth = std::abs(static_cast<double>(p1.X - p0.X));
+                    if (renderedTrackWidth > 1e-4)
+                        travel = kTravelDips * renderedTrackWidth / kTrackWidth;
+                }
+            }
+            catch (...)
+            {
+                // The unscaled authored travel remains correct while layout is settling.
+            }
+
+            auto ratio = m_baseRatio + delta / std::max(travel, 1e-4);
             if (ratio < 0.0) ratio /= kOverscrollDamping;
             else if (ratio > 1.0) ratio = 1.0 + (ratio - 1.0) / kOverscrollDamping;
             SetRatioTarget(ratio, true);
