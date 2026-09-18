@@ -120,10 +120,14 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_configurationDirty = true;
         }
 
-        void SetConfigurationScales(double refractionScale, double highlightScale = 1.0)
+        void SetConfigurationScales(
+            double refractionScale,
+            double highlightScale = 1.0,
+            double motionRefractionScale = 1.0)
         {
             m_refractionScale = std::clamp(refractionScale, 0.0, 4.0);
             m_highlightScale = std::clamp(highlightScale, 0.0, 4.0);
+            m_motionRefractionScale = std::clamp(motionRefractionScale, 0.0, 4.0);
             RefreshConfiguration();
         }
 
@@ -223,7 +227,9 @@ namespace winrt::WinUI::LiquidGlass::detail
             effect.SetFloat(L"PointerHoverRange", static_cast<float>(kHoverRangeDips / maxExtent));
             effect.SetFloat(L"PointerRefractionStrength", refraction);
             effect.SetFloat(L"PointerHighlightStrength", highlight);
-            effect.SetFloat(L"PointerMotionRefractionStrength", 5.0f);
+            effect.SetFloat(
+                L"PointerMotionRefractionStrength",
+                static_cast<float>(5.0 * m_motionRefractionScale));
             m_configurationDirty = false;
         }
 
@@ -310,6 +316,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         std::uint64_t m_registrationId{};
         double m_refractionScale{ 1.0 };
         double m_highlightScale{ 1.0 };
+        double m_motionRefractionScale{ 1.0 };
         bool m_configurationDirty{ true };
         bool m_lastPointValid{};
         bool m_active{};

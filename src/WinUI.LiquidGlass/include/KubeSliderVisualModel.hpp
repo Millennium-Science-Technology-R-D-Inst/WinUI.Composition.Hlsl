@@ -131,7 +131,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         {
             // Slider uses Kube's authored global displacement field only. PointerField
             // remains a local specular reveal and does not add a second refractive field.
-            m_pointerField.SetConfigurationScales(0.0, 1.0);
+            m_pointerField.SetConfigurationScales(0.0, 0.0, 0.0);
         }
 
     private:
@@ -797,7 +797,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 WriteDynamicOptics();
             }
 
-            m_pointerField.SetConfigurationScales(0.0, 1.0);
+            m_pointerField.SetConfigurationScales(0.0, 0.0, 0.0);
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 
@@ -817,7 +817,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 if (auto owner = weak.get()) return owner->GlassBrush();
                 return nullptr;
             });
-            m_pointerField.SetConfigurationScales(0.0, 1.0);
+            m_pointerField.SetConfigurationScales(0.0, 0.0, 0.0);
         }
 
         PointerFieldSurface m_pointerField;
