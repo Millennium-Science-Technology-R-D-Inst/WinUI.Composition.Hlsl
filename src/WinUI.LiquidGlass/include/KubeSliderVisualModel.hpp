@@ -40,6 +40,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_scaleVelocity = 0.0;
                 m_thumb = nullptr;
                 m_surface = nullptr;
+                m_visualHost = nullptr;
                 m_templateHost = nullptr;
                 m_track = nullptr;
                 m_decrease = nullptr;
@@ -112,8 +113,16 @@ namespace winrt::WinUI::LiquidGlass::detail
         void RefreshVisual()
         {
             if (!m_loaded) return;
+            auto self = static_cast<Self*>(this);
             ResolveTemplateParts();
             ApplyBrush();
+            if (auto brush = self->GlassBrush(); brush && !m_pressOptics.active)
+            {
+                m_currentRefraction = brush.RefractionStrength();
+                m_targetRefraction = m_currentRefraction;
+                m_refractionVelocity = 0.0;
+                WriteRefraction(m_currentRefraction);
+            }
             UpdateProgressVisual();
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
             ApplyInteractionState(false);
@@ -122,9 +131,8 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshPointerFieldConfiguration()
         {
-            // Slider uses Kube's authored global displacement field only. The pointer
-            // field remains a local specular reveal; refraction is compensated below
-            // for the Composition visual scale instead of adding a second bend.
+            // Slider uses Kube's authored global displacement field only. PointerField
+            // remains a local specular reveal and does not add a second refractive field.
             m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
@@ -136,6 +144,10 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kRestScale = 0.6;
         static constexpr double kScaleStiffness = 2000.0;
         static constexpr double kScaleDamping = 80.0;
+        // Kube's scaleRatio uses Motion useSpring() with no explicit options.
+        // Motion 12.43.0 defaults are stiffness=100, damping=10, mass=1.
+        static constexpr double kRefractionStiffness = 100.0;
+        static constexpr double kRefractionDamping = 10.0;
         static constexpr auto kScaleInterval = std::chrono::milliseconds{ 16 };
 
         static Microsoft::UI::Xaml::Media::SolidColorBrush SolidBrush(
@@ -172,10 +184,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const duration = std::chrono::milliseconds{
                 static_cast<int64_t>(std::lround(durationMs)) };
 
-            // Refraction is written explicitly from the scale dynamics below. Animating
-            // this property independently makes the local shader displacement grow at
-            // the same time as the whole 90x60 visual, effectively multiplying the
-            // on-screen bend twice.
+            // Refraction follows Kube's independent Motion useSpring() and is stepped
+            // by the continuous dynamics timer, so it is intentionally not keyframed here.
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
                 L"DispersionStrength", from.dispersion, brush.DispersionStrength());
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
@@ -317,31 +327,17 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
         }
 
-        void ApplyScaleCompensatedRefraction()
+        void WriteRefraction(double value)
         {
-            if (!m_loaded) return;
             auto self = static_cast<Self*>(this);
             auto brush = self->GlassBrush();
             auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
             auto effect = material ? material.EffectBrush() : WinUI::Composition::Hlsl::HlslEffectBrush{ nullptr };
-            if (!brush || !effect) return;
+            if (!effect) return;
 
-            // The HLSL displacement is expressed in the lens' authored 90x60 local
-            // pixels, then Composition scales the complete visual. Without compensation
-            // the physical bend is multiplied by Scale as the thumb grows (.6 -> 1),
-            // which is exactly why the small pressed frame looked correct but the full
-            // size lens lost the intended glass appearance.
-            //
-            // Keep displacement stable in screen space:
-            //     localRefraction * visualScale = authoredRefraction * restScale.
-            auto const visualScale = std::max(m_currentScale, 0.25);
-            auto const value = std::clamp(
-                brush.RefractionStrength() * kRestScale / visualScale,
-                0.0,
-                128.0);
             try
             {
-                effect.SetFloat(L"RefractionStrength", static_cast<float>(value));
+                effect.SetFloat(L"RefractionStrength", static_cast<float>(std::clamp(value, 0.0, 128.0)));
             }
             catch (winrt::hresult_error const& error)
             {
@@ -369,7 +365,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void TickScaleDynamics()
         {
-            if (!m_loaded || !m_surface)
+            if (!m_loaded || !m_surface || !m_visualHost)
             {
                 if (m_scaleTimer) m_scaleTimer.Stop();
                 return;
@@ -387,18 +383,33 @@ namespace winrt::WinUI::LiquidGlass::detail
                 dt,
                 m_currentScale,
                 m_scaleVelocity);
-            SetElementScale(m_surface, m_currentScale, m_currentScale);
-            ApplyScaleCompensatedRefraction();
+            StepSpring(
+                m_targetRefraction,
+                kRefractionStiffness,
+                kRefractionDamping,
+                dt,
+                m_currentRefraction,
+                m_refractionVelocity);
 
-            auto const settled =
+            // Match the browser paint order explicitly: the fixed 90x60 optical
+            // surface renders first, then its parent wrapper is transformed.
+            SetElementScale(m_visualHost, m_currentScale, m_currentScale);
+            WriteRefraction(m_currentRefraction);
+
+            auto const scaleSettled =
                 std::abs(m_currentScale - m_targetScale) < .0005 &&
                 std::abs(m_scaleVelocity) < .005;
-            if (settled)
+            auto const refractionSettled =
+                std::abs(m_currentRefraction - m_targetRefraction) < .001 &&
+                std::abs(m_refractionVelocity) < .01;
+            if (scaleSettled && refractionSettled)
             {
                 m_currentScale = m_targetScale;
                 m_scaleVelocity = 0.0;
-                SetElementScale(m_surface, m_currentScale, m_currentScale);
-                ApplyScaleCompensatedRefraction();
+                m_currentRefraction = m_targetRefraction;
+                m_refractionVelocity = 0.0;
+                SetElementScale(m_visualHost, m_currentScale, m_currentScale);
+                WriteRefraction(m_currentRefraction);
                 if (m_scaleTimer) m_scaleTimer.Stop();
             }
         }
@@ -412,8 +423,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 m_currentScale = scale;
                 m_scaleVelocity = 0.0;
-                if (m_surface) SetElementScale(m_surface, scale, scale);
-                ApplyScaleCompensatedRefraction();
+                if (m_visualHost) SetElementScale(m_visualHost, scale, scale);
                 return;
             }
             EnsureScaleTimer();
@@ -494,19 +504,42 @@ namespace winrt::WinUI::LiquidGlass::detail
                 }
             }
 
-            // Do not place the 90x60 glass inside the 18x18 Thumb subtree. The stock
-            // Thumb template can clip/measure descendants to the semantic footprint,
-            // which is exactly what reduced the lens to the tiny dark ring seen at runtime.
-            // Instead add an independent, non-hit-test sibling to the stock Slider template.
-            if (hostChanged || !m_surface)
+            // Keep the semantic Thumb at 18x18, but mirror the successful Switch
+            // architecture for the visual lens:
+            //
+            //   transform host (scale/translation)
+            //       -> fixed 90x60 optical Border (LiquidGlassBrush)
+            //
+            // This ordering matters. Scaling the same XAML element that owns a
+            // XamlCompositionBrushBase changes the brush/backdrop materialization domain.
+            // Kube paints backdrop-filter first and applies CSS transform afterwards;
+            // the parent wrapper gives Composition the same explicit ordering.
+            if (hostChanged || !m_surface || !m_visualHost)
             {
                 if (hostChanged) DetachInitialLayoutSync();
                 m_templateHost = templateHost;
 
-                // Unloaded does not mutate the XAML tree during teardown. If the same
-                // template subtree is later reattached, reuse the sibling we already
-                // inserted instead of appending another glass lens on every Loaded cycle.
-                auto surface = FindNamedDescendant(templateHost, L"LiquidGlassSliderSurface")
+                auto visualHost = FindNamedDescendant(templateHost, L"LiquidGlassSliderVisualHost")
+                    .try_as<Microsoft::UI::Xaml::Controls::Grid>();
+                if (!visualHost)
+                {
+                    visualHost = Microsoft::UI::Xaml::Controls::Grid{};
+                    visualHost.Name(L"LiquidGlassSliderVisualHost");
+                    visualHost.Width(horizontal ? kVisualWidth : kVisualHeight);
+                    visualHost.Height(horizontal ? kVisualHeight : kVisualWidth);
+                    visualHost.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Left);
+                    visualHost.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Top);
+                    visualHost.IsHitTestVisible(false);
+                    visualHost.Opacity(0.0);
+                    Microsoft::UI::Xaml::Controls::Grid::SetRow(visualHost, 0);
+                    Microsoft::UI::Xaml::Controls::Grid::SetRowSpan(visualHost, 3);
+                    Microsoft::UI::Xaml::Controls::Grid::SetColumn(visualHost, 0);
+                    Microsoft::UI::Xaml::Controls::Grid::SetColumnSpan(visualHost, 3);
+                    Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(visualHost, true);
+                    templateHost.Children().Append(visualHost);
+                }
+
+                auto surface = FindNamedDescendant(visualHost, L"LiquidGlassSliderSurface")
                     .try_as<Microsoft::UI::Xaml::Controls::Border>();
                 if (!surface)
                 {
@@ -518,20 +551,12 @@ namespace winrt::WinUI::LiquidGlass::detail
                     surface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Top);
                     surface.IsHitTestVisible(false);
                     surface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
-                    // The shader owns Kube's saturated specular rim. A second XAML
-                    // border creates a detached outer capsule around the glass body.
-                    surface.Opacity(0.0);
-                    Microsoft::UI::Xaml::Controls::Grid::SetRow(surface, 0);
-                    Microsoft::UI::Xaml::Controls::Grid::SetRowSpan(surface, 3);
-                    Microsoft::UI::Xaml::Controls::Grid::SetColumn(surface, 0);
-                    Microsoft::UI::Xaml::Controls::Grid::SetColumnSpan(surface, 3);
-                    Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(surface, true);
-                    // Kube uses one subtle CSS box-shadow. WinUI ThemeShadow is a
-                    // multi-lobe elevation shadow and reads as a second capsule when the
-                    // lens expands, so do not attach it to the optical surface.
-                    templateHost.Children().Append(surface);
+                    visualHost.Children().Append(surface);
                 }
+
+                m_visualHost = visualHost;
                 m_surface = surface;
+                SetElementScale(m_visualHost, m_currentScale, m_currentScale);
             }
 
             if (trackChanged)
@@ -614,7 +639,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void UpdateLensPosition(double displayRatio)
         {
-            if (!m_surface || !m_track || !m_templateHost) return;
+            if (!m_surface || !m_visualHost || !m_track || !m_templateHost) return;
 
             auto self = static_cast<Self*>(this);
             auto const horizontal = self->Orientation() == Microsoft::UI::Xaml::Controls::Orientation::Horizontal;
@@ -652,7 +677,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const primaryTranslation = desiredCenter - authoredPrimary * .5;
             auto const crossTranslation = trackCenterCross - authoredCross * .5;
 
-            auto translation = m_surface.Translation();
+            auto translation = m_visualHost.Translation();
             auto const newPrimary = static_cast<float>(primaryTranslation);
             auto const newCross = static_cast<float>(crossTranslation);
             constexpr float newZ = 0.0f;
@@ -668,8 +693,8 @@ namespace winrt::WinUI::LiquidGlass::detail
                 translation.y = newPrimary;
             }
             translation.z = newZ;
-            m_surface.Translation(translation);
-            if (m_surface.Opacity() != 1.0) m_surface.Opacity(1.0);
+            m_visualHost.Translation(translation);
+            if (m_visualHost.Opacity() != 1.0) m_visualHost.Opacity(1.0);
         }
 
         void ApplyBrush()
@@ -749,11 +774,27 @@ namespace winrt::WinUI::LiquidGlass::detail
                 LeaveSliderPressedOptics(owner, m_pressOptics);
             }
 
-            // PointerField does not contribute displacement for Slider. Keep the
-            // Kube surface field and correct its screen-space strength for the current
-            // Composition scale instead.
             m_pointerField.SetConfigurationScales(0.0, 1.0);
-            ApplyScaleCompensatedRefraction();
+
+            auto brush = self->GlassBrush();
+            if (brush)
+            {
+                m_targetRefraction = brush.RefractionStrength();
+                if (!animate || !MotionAnimationsEnabled(owner))
+                {
+                    m_currentRefraction = m_targetRefraction;
+                    m_refractionVelocity = 0.0;
+                    WriteRefraction(m_currentRefraction);
+                }
+                else
+                {
+                    // LiquidGlassBrush setters synchronously update the material. Put the
+                    // current spring value back immediately so the effect does not jump to
+                    // the target for one frame before the first dynamics tick.
+                    WriteRefraction(m_currentRefraction);
+                    EnsureScaleTimer();
+                }
+            }
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 
@@ -779,6 +820,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerFieldSurface m_pointerField;
         Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
         Microsoft::UI::Xaml::Controls::Border m_surface{ nullptr };
+        Microsoft::UI::Xaml::Controls::Grid m_visualHost{ nullptr };
         Microsoft::UI::Xaml::Controls::Grid m_templateHost{ nullptr };
         Microsoft::UI::Xaml::Shapes::Rectangle m_track{ nullptr };
         Microsoft::UI::Xaml::Shapes::Rectangle m_decrease{ nullptr };
@@ -791,6 +833,9 @@ namespace winrt::WinUI::LiquidGlass::detail
         double m_currentScale{ kRestScale };
         double m_targetScale{ kRestScale };
         double m_scaleVelocity{};
+        double m_currentRefraction{ 9.6 };
+        double m_targetRefraction{ 9.6 };
+        double m_refractionVelocity{};
         Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
