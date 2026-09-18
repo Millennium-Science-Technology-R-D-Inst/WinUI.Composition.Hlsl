@@ -718,7 +718,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         Microsoft::UI::Composition::CompositionSpriteShape m_progressShape{ nullptr };
         Microsoft::UI::Dispatching::DispatcherQueueTimer m_scaleTimer{ nullptr };
         Clock::time_point m_lastScaleTick{};
-        Microsoft::UI::Xaml::event_token m_initialLayoutToken{};
+        winrt::event_token m_initialLayoutToken{};
         double m_currentScale{ kRestScale };
         double m_targetScale{ kRestScale };
         double m_scaleVelocity{};
