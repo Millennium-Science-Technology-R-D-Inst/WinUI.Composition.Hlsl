@@ -122,14 +122,10 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshPointerFieldConfiguration()
         {
-            // The global field keeps Kube's authored .4 -> .9 displacement. WinUI's
-            // materialized backdrop still needs the local pressed field that produced
-            // the approved detach/reattach appearance: it gives the active lens its
-            // spatial bend instead of reading as a uniformly enlarged translucent pill.
-            // Keep it press-only so rest state remains a single optical surface.
-            m_pointerField.SetConfigurationScales(
-                m_pressed ? kPressedPointerRefractionScale : 0.0,
-                1.0);
+            // Slider uses Kube's authored global displacement field only. The pointer
+            // field remains a local specular reveal; refraction is compensated below
+            // for the Composition visual scale instead of adding a second bend.
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
     private:
@@ -138,11 +134,6 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kVisualHeight = 60.0;
         using Clock = std::chrono::steady_clock;
         static constexpr double kRestScale = 0.6;
-        // The original runtime state that matched the Kube reference used a 13.2
-        // refraction baseline. The current global field is correctly normalized to
-        // Kube's 9.6 (= 24 * .4), so preserve that approved local-field amplitude as
-        // 13.2 / 9.6 rather than inflating the global displacement again.
-        static constexpr double kPressedPointerRefractionScale = 13.2 / 9.6;
         static constexpr double kScaleStiffness = 2000.0;
         static constexpr double kScaleDamping = 80.0;
         static constexpr auto kScaleInterval = std::chrono::milliseconds{ 16 };
@@ -181,8 +172,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const duration = std::chrono::milliseconds{
                 static_cast<int64_t>(std::lround(durationMs)) };
 
-            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
-                L"RefractionStrength", from.refraction, brush.RefractionStrength());
+            // Refraction is written explicitly from the scale dynamics below. Animating
+            // this property independently makes the local shader displacement grow at
+            // the same time as the whole 90x60 visual, effectively multiplying the
+            // on-screen bend twice.
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
                 L"DispersionStrength", from.dispersion, brush.DispersionStrength());
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
@@ -324,6 +317,38 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
         }
 
+        void ApplyScaleCompensatedRefraction()
+        {
+            if (!m_loaded) return;
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
+            auto effect = material ? material.EffectBrush() : WinUI::Composition::Hlsl::HlslEffectBrush{ nullptr };
+            if (!brush || !effect) return;
+
+            // The HLSL displacement is expressed in the lens' authored 90x60 local
+            // pixels, then Composition scales the complete visual. Without compensation
+            // the physical bend is multiplied by Scale as the thumb grows (.6 -> 1),
+            // which is exactly why the small pressed frame looked correct but the full
+            // size lens lost the intended glass appearance.
+            //
+            // Keep displacement stable in screen space:
+            //     localRefraction * visualScale = authoredRefraction * restScale.
+            auto const visualScale = std::max(m_currentScale, 0.25);
+            auto const value = std::clamp(
+                brush.RefractionStrength() * kRestScale / visualScale,
+                0.0,
+                128.0);
+            try
+            {
+                effect.SetFloat(L"RefractionStrength", static_cast<float>(value));
+            }
+            catch (winrt::hresult_error const& error)
+            {
+                if (error.code() != winrt::hresult{ RO_E_CLOSED }) throw;
+            }
+        }
+
         void EnsureScaleTimer()
         {
             if (!m_loaded) return;
@@ -363,6 +388,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_currentScale,
                 m_scaleVelocity);
             SetElementScale(m_surface, m_currentScale, m_currentScale);
+            ApplyScaleCompensatedRefraction();
 
             auto const settled =
                 std::abs(m_currentScale - m_targetScale) < .0005 &&
@@ -372,6 +398,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_currentScale = m_targetScale;
                 m_scaleVelocity = 0.0;
                 SetElementScale(m_surface, m_currentScale, m_currentScale);
+                ApplyScaleCompensatedRefraction();
                 if (m_scaleTimer) m_scaleTimer.Stop();
             }
         }
@@ -386,6 +413,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_currentScale = scale;
                 m_scaleVelocity = 0.0;
                 if (m_surface) SetElementScale(m_surface, scale, scale);
+                ApplyScaleCompensatedRefraction();
                 return;
             }
             EnsureScaleTimer();
@@ -721,12 +749,11 @@ namespace winrt::WinUI::LiquidGlass::detail
                 LeaveSliderPressedOptics(owner, m_pressOptics);
             }
 
-            // Keep Kube's global .4 -> .9 surface response, and add the local
-            // interaction field only while pressed. This is the state that survives a
-            // subtree reattach and visually reads as glass rather than scale-only motion.
-            m_pointerField.SetConfigurationScales(
-                m_pressed ? kPressedPointerRefractionScale : 0.0,
-                1.0);
+            // PointerField does not contribute displacement for Slider. Keep the
+            // Kube surface field and correct its screen-space strength for the current
+            // Composition scale instead.
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
+            ApplyScaleCompensatedRefraction();
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 
@@ -746,9 +773,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 if (auto owner = weak.get()) return owner->GlassBrush();
                 return nullptr;
             });
-            m_pointerField.SetConfigurationScales(
-                m_pressed ? kPressedPointerRefractionScale : 0.0,
-                1.0);
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
         PointerFieldSurface m_pointerField;
