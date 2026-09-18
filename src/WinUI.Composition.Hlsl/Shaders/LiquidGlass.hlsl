@@ -361,9 +361,24 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             height, derivative, bezel, glassThickness, refractiveIndex);
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
 
+        // Kube's standalone Concave profile produces a negative ray displacement:
+        // at the silhouette that means sampling outside the element. CSS backdrop
+        // filters can access surrounding backdrop pixels, but this WinUI custom
+        // sampler receives a finite materialized texture clipped to the brush.
+        //
+        // LiquidGlassStudio/LiquidGlassWinUI avoid that unavailable-source problem
+        // by always bending their edge field inward. Use that composition-safe
+        // direction for the *pure* Concave profile while retaining its Kube surface
+        // magnitude curve. Lip must stay signed: its convex outer lobe + concave
+        // interior are what make the Switch optics work.
+        const bool pureConcave = surfaceProfile >= 1.5f && surfaceProfile < 2.5f;
+        const float transmissionDisplacement =
+            pureConcave ? abs(referenceDisplacement) : referenceDisplacement;
+
         const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
         const float opticalInterior = 1.0f - smoothstep(0.0f, opticalFeather, sdf);
-        const float rawDisplacementPixels = referenceDisplacement * artisticScale * refractionNormalization;
+        const float rawDisplacementPixels =
+            transmissionDisplacement * artisticScale * refractionNormalization;
         const float displacementLimit = max(maximumExtent * 0.48f, 1.0f);
         const float displacementPixels = clamp(rawDisplacementPixels, -displacementLimit, displacementLimit) * opticalInterior;
 
