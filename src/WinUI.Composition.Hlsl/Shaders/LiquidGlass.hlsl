@@ -116,12 +116,13 @@ float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float cent
 float CalculatePointerInteraction(
     float2 pixelPosition,
     float2 pointerPosition,
-    float2 halfRect,
+    float2 center,
+    float2 shapeHalfRect,
     float radius,
     float hoverRange,
     float interactionRadius)
 {
-    const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
+    const float pointerSdf = RoundedRectSdf(pointerPosition - center, shapeHalfRect, radius);
     float shapeActivation = pointerSdf <= 0.0f ? 1.0f : 0.0f;
     if (pointerSdf > 0.0f && hoverRange > 1e-4f)
         shapeActivation = 1.0f - smoothstep(0.0f, hoverRange, pointerSdf);
@@ -329,13 +330,25 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float pointerHoverRange = pointerHoverRangeNormalized * maximumExtent;
     const float2 halfRect = rectSize * 0.5f;
     const float2 local = localPosition - halfRect;
-    const float halfMinSize = max(min(halfRect.x, halfRect.y), 1.0f);
+
+    // Keep the SDF one raster pixel inside the brush bounds. LiquidGlassWinUI uses
+    // the same invariant: if the geometric edge lies exactly on the brush edge,
+    // antialiasing/refraction/specular coverage has nowhere to extend and rounded
+    // corners get visibly cut during resize or strong refraction.
+    const float shapeMargin = 1.0f;
+    const float2 shapeHalfRect = max(halfRect - shapeMargin.xx, 1.0f.xx);
+    const float halfMinSize = max(min(shapeHalfRect.x, shapeHalfRect.y), 1.0f);
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
-    const float sdf = RoundedRectSdf(local, halfRect, radius);
+    const float sdf = RoundedRectSdf(local, shapeHalfRect, radius);
 
     const float sdfPixelFootprint = max(length(float2(ddx(sdf), ddy(sdf))), 0.5f);
     const float feather = max(edgeSoftness, sdfPixelFootprint * 0.5f);
-    const float coverage = 1.0f - smoothstep(-feather, feather, sdf);
+
+    // One-sided AA: the entire geometric interior remains fully covered and only
+    // the outside feather fades to transparent. The previous symmetric smoothstep
+    // made the actual SDF edge 50% alpha, washing out and effectively clipping the
+    // Fresnel/specular rim at all four corners.
+    const float coverage = 1.0f - smoothstep(0.0f, feather, sdf);
     const float alpha = coverage * saturate(materialOpacity);
 
     float4 result = 0.0f.xxxx;
@@ -352,7 +365,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
 
         const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
-        const float opticalInterior = smoothstep(-opticalFeather, opticalFeather, -sdf);
+        const float opticalInterior = 1.0f - smoothstep(0.0f, opticalFeather, sdf);
         const float rawDisplacementPixels = referenceDisplacement * artisticScale * refractionNormalization;
         const float displacementLimit = max(maximumExtent * 0.48f, 1.0f);
         const float displacementPixels = clamp(rawDisplacementPixels, -displacementLimit, displacementLimit) * opticalInterior;
@@ -361,6 +374,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             localPosition,
             pointerPosition,
             halfRect,
+            shapeHalfRect,
             radius,
             pointerHoverRange,
             pointerInteractionRadius) * pointerInteractionStrength * pointerActive;
@@ -381,7 +395,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float2 pointerMotionOffset =
             motionDirection * pointerSpeedWeight * pointerInteraction * pointerMotionRefractionStrength * opticalInterior;
 
-        const float2 normal = RoundedRectNormal(local, halfRect, radius, sdf);
+        const float2 normal = RoundedRectNormal(local, shapeHalfRect, radius, sdf);
         const float2 refractionPixelOffset =
             -normal * displacementPixels + pointerRefractionOffset + pointerMotionOffset;
         const float2 refractedUv = uv + refractionPixelOffset * texelSize;
@@ -449,7 +463,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         if (pointerLightDistance > 1e-4f && pointerInteraction > 0.0f)
         {
             const float2 pointerLightDirection = (pointerPosition - localPosition) / pointerLightDistance;
-            const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, halfRect, radius);
+            const float pointerSdf = RoundedRectSdf(pointerPosition - halfRect, shapeHalfRect, radius);
             pointerSpecular = PointerSpecularCoefficient(
                 distanceFromEdge,
                 specularWidth,
