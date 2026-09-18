@@ -173,43 +173,14 @@ float4 CalculateTransmissionBounds(
     return float4(safeMin, safeMax);
 }
 
-float OffsetScaleToBounds(float2 origin, float2 offset, float2 safeMin, float2 safeMax)
+float4 SampleTransmission(float2 uv, float2 safeMin, float2 safeMax)
 {
-    float result = 1.0f;
-    const float epsilon = 1e-7f;
-
-    if (offset.x > epsilon)
-        result = min(result, (safeMax.x - origin.x) / offset.x);
-    else if (offset.x < -epsilon)
-        result = min(result, (safeMin.x - origin.x) / offset.x);
-
-    if (offset.y > epsilon)
-        result = min(result, (safeMax.y - origin.y) / offset.y);
-    else if (offset.y < -epsilon)
-        result = min(result, (safeMin.y - origin.y) / offset.y);
-
-    return saturate(result);
-}
-
-float CalculateTransmissionOffsetScale(
-    float2 origin,
-    float2 baseOffset,
-    float2 dispersionOffset,
-    float2 safeMin,
-    float2 safeMax)
-{
-    const float redScale = OffsetScaleToBounds(origin, baseOffset - dispersionOffset, safeMin, safeMax);
-    const float greenScale = OffsetScaleToBounds(origin, baseOffset, safeMin, safeMax);
-    const float blueScale = OffsetScaleToBounds(origin, baseOffset + dispersionOffset, safeMin, safeMax);
-    return min(redScale, min(greenScale, blueScale));
-}
-
-float4 SampleTransmission(float2 uv, float2 texelSize)
-{
-    const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
-    const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
-    const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
-    return texture0.Sample(sampler0, clamp(uv, textureMin, textureMax));
+    // Clamp each spectral sample independently to the materialized content rect.
+    // A shared offset scale lets one outward dispersion channel collapse the green
+    // and opposite channel to the border too, producing the long top/left color
+    // streaks visible in RegressionLab. LiquidGlassWinUI uses per-sample clamping
+    // for the same reason.
+    return texture0.Sample(sampler0, clamp(uv, safeMin, safeMax));
 }
 
 float SpecularEdgeProfile(
@@ -414,28 +385,16 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) * opticalInterior;
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
-        // Keep all spectral channels on one coherent displacement scale. This avoids
-        // per-channel edge pinning while respecting samplerData's valid source rect.
         const float4 transmissionBounds = CalculateTransmissionBounds(
             texelSize, contentMin, contentMax, hasContentRect);
-        const float2 transmissionOrigin = clamp(uv, transmissionBounds.xy, transmissionBounds.zw);
-        const float2 baseSampleOffset = sampleUv - uv;
-        const float transmissionScale = CalculateTransmissionOffsetScale(
-            transmissionOrigin,
-            baseSampleOffset,
-            dispersionOffset,
-            transmissionBounds.xy,
-            transmissionBounds.zw);
-        const float2 redSampleUv = transmissionOrigin +
-            (baseSampleOffset - dispersionOffset) * transmissionScale;
-        const float2 greenSampleUv = transmissionOrigin + baseSampleOffset * transmissionScale;
-        const float2 blueSampleUv = transmissionOrigin +
-            (baseSampleOffset + dispersionOffset) * transmissionScale;
+        const float2 redSampleUv = sampleUv - dispersionOffset;
+        const float2 greenSampleUv = sampleUv;
+        const float2 blueSampleUv = sampleUv + dispersionOffset;
 
         float3 color = float3(
-            SampleTransmission(redSampleUv, texelSize).r,
-            SampleTransmission(greenSampleUv, texelSize).g,
-            SampleTransmission(blueSampleUv, texelSize).b);
+            SampleTransmission(redSampleUv, transmissionBounds.xy, transmissionBounds.zw).r,
+            SampleTransmission(greenSampleUv, transmissionBounds.xy, transmissionBounds.zw).g,
+            SampleTransmission(blueSampleUv, transmissionBounds.xy, transmissionBounds.zw).b);
         color = ApplySaturation(color, saturation);
         color = ApplyExposureContrast(color, exposure, contrast);
         color = lerp(color, tintColor, tintOpacity);
