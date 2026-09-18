@@ -60,7 +60,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.SpecularSaturation(7); b.SpecularWidth(1);
             // Kube's slider thumb is an opaque white body at rest. The track should
             // disappear completely underneath it and only become visible after press.
-            b.TintOpacity(1.0); b.InnerShadowStrength(.07);
+            // Kube's slider has only an outer box shadow; it does not add an inset rim.
+            b.TintOpacity(1.0); b.InnerShadowStrength(0.0);
             b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::ToggleSwitchKnob:
             b.SurfaceProfile(Profile::Lip); b.CornerRadius(46); b.BlurRadius(.2);
@@ -69,7 +70,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.GlassThickness(47); b.RefractiveIndex(1.5); b.HighlightStrength(.5);
             b.HighlightSharpness(1.6); b.SpecularSaturation(6); b.SpecularWidth(1);
             // Kube's white body is fully opaque at rest and fades to 0.1 while active.
-            b.TintOpacity(1.0); b.InnerShadowStrength(.04);
+            // Kube adds its inset black/white pair only while the switch is pressed.
+            b.TintOpacity(1.0); b.InnerShadowStrength(0.0);
             b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::Magnifier:
             b.CornerRadius(75); b.BlurRadius(0); b.RefractionStrength(19.2);

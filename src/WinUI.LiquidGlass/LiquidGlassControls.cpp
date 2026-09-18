@@ -178,7 +178,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
 		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
 		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
-		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.03));
+		// Kube Slider has no pressed inset shadow; the shader specular and ThemeShadow
+		// already provide the edge/outer depth without a second dark capsule.
+		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(0.0));
 	}
 
 	LiquidGlassToggleSwitch::LiquidGlassToggleSwitch()
@@ -208,7 +210,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
 		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
 		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
-		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.05));
+		// Kube Switch adds a ~.09 inset black/white pair only while active. Our single
+		// inner-shadow scalar supplies the dark half; the existing highlight supplies
+		// the opposing bright half, so keep the rest state at zero and add .09 on press.
+		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.09));
 	}
 
 	Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const
