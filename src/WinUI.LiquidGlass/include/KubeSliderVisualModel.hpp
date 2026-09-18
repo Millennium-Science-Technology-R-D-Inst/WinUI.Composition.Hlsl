@@ -113,16 +113,8 @@ namespace winrt::WinUI::LiquidGlass::detail
         void RefreshVisual()
         {
             if (!m_loaded) return;
-            auto self = static_cast<Self*>(this);
             ResolveTemplateParts();
             ApplyBrush();
-            if (auto brush = self->GlassBrush(); brush && !m_pressOptics.active)
-            {
-                m_currentRefraction = brush.RefractionStrength();
-                m_targetRefraction = m_currentRefraction;
-                m_refractionVelocity = 0.0;
-                WriteRefraction(m_currentRefraction);
-            }
             UpdateProgressVisual();
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
             ApplyInteractionState(false);
@@ -144,10 +136,6 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kRestScale = 0.6;
         static constexpr double kScaleStiffness = 2000.0;
         static constexpr double kScaleDamping = 80.0;
-        // Kube's scaleRatio uses Motion useSpring() with no explicit options.
-        // Motion 12.43.0 defaults are stiffness=100, damping=10, mass=1.
-        static constexpr double kRefractionStiffness = 100.0;
-        static constexpr double kRefractionDamping = 10.0;
         static constexpr auto kScaleInterval = std::chrono::milliseconds{ 16 };
 
         static Microsoft::UI::Xaml::Media::SolidColorBrush SolidBrush(
@@ -184,8 +172,11 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const duration = std::chrono::milliseconds{
                 static_cast<int64_t>(std::lround(durationMs)) };
 
-            // Refraction follows Kube's independent Motion useSpring() and is stepped
-            // by the continuous dynamics timer, so it is intentionally not keyframed here.
+            // Keep Slider optics on the same material transition path as the working
+            // ToggleSwitch. Geometry scale is independent, but refraction itself belongs
+            // to the fixed optical child and must not be rewritten every scale tick.
+            AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+                L"RefractionStrength", from.refraction, brush.RefractionStrength());
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
                 L"DispersionStrength", from.dispersion, brush.DispersionStrength());
             AnimateOpticsScalar(effect, compositionBrush, easing, duration,
@@ -327,24 +318,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
         }
 
-        void WriteRefraction(double value)
-        {
-            auto self = static_cast<Self*>(this);
-            auto brush = self->GlassBrush();
-            auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
-            auto effect = material ? material.EffectBrush() : WinUI::Composition::Hlsl::HlslEffectBrush{ nullptr };
-            if (!effect) return;
-
-            try
-            {
-                effect.SetFloat(L"RefractionStrength", static_cast<float>(std::clamp(value, 0.0, 128.0)));
-            }
-            catch (winrt::hresult_error const& error)
-            {
-                if (error.code() != winrt::hresult{ RO_E_CLOSED }) throw;
-            }
-        }
-
         void EnsureScaleTimer()
         {
             if (!m_loaded) return;
@@ -383,33 +356,19 @@ namespace winrt::WinUI::LiquidGlass::detail
                 dt,
                 m_currentScale,
                 m_scaleVelocity);
-            StepSpring(
-                m_targetRefraction,
-                kRefractionStiffness,
-                kRefractionDamping,
-                dt,
-                m_currentRefraction,
-                m_refractionVelocity);
 
-            // Match the browser paint order explicitly: the fixed 90x60 optical
-            // surface renders first, then its parent wrapper is transformed.
+            // The wrapper owns geometry motion; the fixed 90x60 child owns the glass
+            // material. This mirrors the now-correct Switch knob/surface split.
             SetElementScale(m_visualHost, m_currentScale, m_currentScale);
-            WriteRefraction(m_currentRefraction);
 
-            auto const scaleSettled =
+            auto const settled =
                 std::abs(m_currentScale - m_targetScale) < .0005 &&
                 std::abs(m_scaleVelocity) < .005;
-            auto const refractionSettled =
-                std::abs(m_currentRefraction - m_targetRefraction) < .001 &&
-                std::abs(m_refractionVelocity) < .01;
-            if (scaleSettled && refractionSettled)
+            if (settled)
             {
                 m_currentScale = m_targetScale;
                 m_scaleVelocity = 0.0;
-                m_currentRefraction = m_targetRefraction;
-                m_refractionVelocity = 0.0;
                 SetElementScale(m_visualHost, m_currentScale, m_currentScale);
-                WriteRefraction(m_currentRefraction);
                 if (m_scaleTimer) m_scaleTimer.Stop();
             }
         }
@@ -775,26 +734,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
 
             m_pointerField.SetConfigurationScales(0.0, 1.0);
-
-            auto brush = self->GlassBrush();
-            if (brush)
-            {
-                m_targetRefraction = brush.RefractionStrength();
-                if (!animate || !MotionAnimationsEnabled(owner))
-                {
-                    m_currentRefraction = m_targetRefraction;
-                    m_refractionVelocity = 0.0;
-                    WriteRefraction(m_currentRefraction);
-                }
-                else
-                {
-                    // LiquidGlassBrush setters synchronously update the material. Put the
-                    // current spring value back immediately so the effect does not jump to
-                    // the target for one frame before the first dynamics tick.
-                    WriteRefraction(m_currentRefraction);
-                    EnsureScaleTimer();
-                }
-            }
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 
@@ -833,9 +772,6 @@ namespace winrt::WinUI::LiquidGlass::detail
         double m_currentScale{ kRestScale };
         double m_targetScale{ kRestScale };
         double m_scaleVelocity{};
-        double m_currentRefraction{ 9.6 };
-        double m_targetRefraction{ 9.6 };
-        double m_refractionVelocity{};
         Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
