@@ -196,8 +196,8 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
 		SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
 		SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(1.45));
-		// The authored knob body is .78 tint; pressed should reveal the backdrop at ~.10.
-		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.68));
+		// Kube fades the white body from 1.0 to 0.1 while active.
+		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
 		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
 		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
 		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.05));

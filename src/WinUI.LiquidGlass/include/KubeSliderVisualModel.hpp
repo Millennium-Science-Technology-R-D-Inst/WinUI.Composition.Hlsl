@@ -475,8 +475,8 @@ namespace winrt::WinUI::LiquidGlass::detail
                     surface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Top);
                     surface.IsHitTestVisible(false);
                     surface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
-                    surface.BorderBrush(SolidBrush(0x33, 0xff, 0xff, 0xff));
-                    surface.BorderThickness({ 1.0, 1.0, 1.0, 1.0 });
+                    // The shader owns Kube's saturated specular rim. A second XAML
+                    // border creates a detached outer capsule around the glass body.
                     surface.Opacity(0.0);
                     Microsoft::UI::Xaml::Controls::Grid::SetRow(surface, 0);
                     Microsoft::UI::Xaml::Controls::Grid::SetRowSpan(surface, 3);

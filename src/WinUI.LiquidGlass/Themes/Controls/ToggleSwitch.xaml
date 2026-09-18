@@ -32,7 +32,7 @@
                                     Composition owns the remaining 0..57.9 DIP drag translation.
                                 -->
                                 <Grid x:Name="SwitchKnob" Width="146" Height="92" HorizontalAlignment="Left" VerticalAlignment="Center" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
-                                    <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="46">
+                                    <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" CornerRadius="46">
                                         <Border.Shadow>
                                             <ThemeShadow />
                                         </Border.Shadow>

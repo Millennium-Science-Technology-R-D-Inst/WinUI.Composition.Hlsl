@@ -52,9 +52,11 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.SpecularWidth(1); b.TintOpacity(.10); b.InnerShadowStrength(.05);
             b.FallbackColor({ 0x36, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::SliderThumb:
-            b.CornerRadius(30); b.BlurRadius(0); b.RefractionStrength(13.2);
+            b.CornerRadius(30); b.BlurRadius(0); // LiquidGlass.hlsl maps RefractionStrength / 24 to Kube's displacement scale.
+            // 9.6 therefore represents Kube's resting 0.4 exactly; pressed 2.25x reaches 0.9.
+            b.RefractionStrength(9.6);
             b.DispersionStrength(.85); b.BezelWidth(16); b.GlassThickness(80);
-            b.RefractiveIndex(1.45); b.HighlightStrength(.48); b.HighlightSharpness(1.7);
+            b.RefractiveIndex(1.45); b.HighlightStrength(.4); b.HighlightSharpness(1.7);
             b.SpecularSaturation(7); b.SpecularWidth(1);
             // Kube's slider thumb is an opaque white body at rest. The track should
             // disappear completely underneath it and only become visible after press.
@@ -62,14 +64,13 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::ToggleSwitchKnob:
             b.SurfaceProfile(Profile::Lip); b.CornerRadius(46); b.BlurRadius(.2);
-            b.RefractionStrength(10.8); b.DispersionStrength(.70); b.BezelWidth(19);
-            b.GlassThickness(47); b.RefractiveIndex(1.5); b.HighlightStrength(.52);
+            // Kube's lip bezel uses the same 0.4 -> 0.9 refraction scale as the slider.
+            b.RefractionStrength(9.6); b.DispersionStrength(.70); b.BezelWidth(19);
+            b.GlassThickness(47); b.RefractiveIndex(1.5); b.HighlightStrength(.5);
             b.HighlightSharpness(1.6); b.SpecularSaturation(6); b.SpecularWidth(1);
-            // Kube keeps a visible white glass body at rest and reveals substantially
-            // more of the refracted backdrop while pressed. A moderate authored tint
-            // preserves the material on WinUI without flattening it to an opaque pill.
-            b.TintOpacity(.78); b.InnerShadowStrength(.04);
-            b.FallbackColor({ 0xc0, 0xff, 0xff, 0xff }); break;
+            // Kube's white body is fully opaque at rest and fades to 0.1 while active.
+            b.TintOpacity(1.0); b.InnerShadowStrength(.04);
+            b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::Magnifier:
             b.CornerRadius(75); b.BlurRadius(0); b.RefractionStrength(19.2);
             b.DispersionStrength(.55); b.BezelWidth(25); b.GlassThickness(110);
