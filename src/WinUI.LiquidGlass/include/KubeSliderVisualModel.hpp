@@ -38,6 +38,9 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_currentScale = kRestScale;
                 m_targetScale = kRestScale;
                 m_scaleVelocity = 0.0;
+                m_opticsInitialized = false;
+                m_refractionVelocity = 0.0;
+                m_tintVelocity = 0.0;
                 m_thumb = nullptr;
                 m_surface = nullptr;
                 m_visualHost = nullptr;
@@ -61,7 +64,9 @@ namespace winrt::WinUI::LiquidGlass::detail
                     m_pressOptics = {};
                     m_pressed = false;
                 }
+                m_opticsInitialized = false;
                 ApplyBrush();
+                SyncDynamicOpticsFromBrush();
                 ApplyInteractionState(false);
                 RefreshPointerField();
             });
@@ -115,6 +120,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (!m_loaded) return;
             ResolveTemplateParts();
             ApplyBrush();
+            SyncDynamicOpticsFromBrush();
             UpdateProgressVisual();
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
             ApplyInteractionState(false);
@@ -136,6 +142,12 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kRestScale = 0.6;
         static constexpr double kScaleStiffness = 2000.0;
         static constexpr double kScaleDamping = 80.0;
+        // Kube Slider.tsx uses an explicit 2000/80 spring for geometry and white
+        // body opacity, but scaleRatio uses Motion's default spring (100/10).
+        static constexpr double kRefractionStiffness = 100.0;
+        static constexpr double kRefractionDamping = 10.0;
+        static constexpr double kBodyOpacityStiffness = 2000.0;
+        static constexpr double kBodyOpacityDamping = 80.0;
         static constexpr auto kScaleInterval = std::chrono::milliseconds{ 16 };
 
         static Microsoft::UI::Xaml::Media::SolidColorBrush SolidBrush(
@@ -149,69 +161,41 @@ namespace winrt::WinUI::LiquidGlass::detail
             return brush;
         }
 
-        static void AnimateSliderScalar(
-            WinUI::Composition::Hlsl::HlslEffectBrush const& effect,
-            Microsoft::UI::Composition::CompositionEffectBrush const& compositionBrush,
-            Microsoft::UI::Composition::CompositionEasingFunction const& easing,
-            std::chrono::milliseconds duration,
-            wchar_t const* propertyName,
-            double from,
-            double to)
+        void WriteDynamicOptics()
         {
-            if (!effect || !compositionBrush || std::abs(from - to) <= 1e-5) return;
+            if (!m_loaded || !m_opticsInitialized) return;
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
+            auto effect = material ? material.EffectBrush() : WinUI::Composition::Hlsl::HlslEffectBrush{ nullptr };
+            if (!effect) return;
 
-            auto const path = effect.GetPropertyPath(hstring{ propertyName });
-            auto properties = compositionBrush.Properties();
-
-            // Effect parameters are owned by CompositionEffectBrush.Properties.
-            // LiquidGlassWinUI animates this property set directly; targeting the
-            // brush object can leave the DependencyProperty endpoint and the actual
-            // presentation value out of sync.
-            properties.StopAnimation(path);
-
-            auto animation = compositionBrush.Compositor().CreateScalarKeyFrameAnimation();
-            animation.InsertKeyFrame(0.0f, static_cast<float>(from));
-            animation.InsertKeyFrame(1.0f, static_cast<float>(to), easing);
-            animation.Duration(duration);
-            properties.StartAnimation(path, animation);
+            try
+            {
+                effect.SetFloat(L"RefractionStrength", static_cast<float>(std::clamp(m_currentRefraction, 0.0, 128.0)));
+                effect.SetFloat(L"TintOpacity", static_cast<float>(std::clamp(m_currentTintOpacity, 0.0, 1.0)));
+            }
+            catch (winrt::hresult_error const& error)
+            {
+                if (error.code() != winrt::hresult{ RO_E_CLOSED }) throw;
+            }
         }
 
-        static void AnimateSliderOpticsTransition(
-            Microsoft::UI::Xaml::DependencyObject const& owner,
-            WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
-            OpticsSnapshot const& from)
+        void SyncDynamicOpticsFromBrush()
         {
-            if (!owner || !brush || !from.active || !MotionAnimationsEnabled(owner)) return;
+            if (!m_loaded || m_pressOptics.active) return;
+            auto self = static_cast<Self*>(this);
+            auto brush = self->GlassBrush();
+            if (!brush) return;
 
-            auto const durationMs = std::clamp(
-                implementation::LiquidGlassInteraction::GetOpticsTransitionDuration(owner), 0.0, 2000.0);
-            if (durationMs <= 0.0) return;
-
-            auto material = brush.Material();
-            if (!material) return;
-            auto effect = material.EffectBrush();
-            if (!effect) return;
-            auto compositionBrush = effect.EffectBrush();
-            if (!compositionBrush) return;
-
-            auto easing = compositionBrush.Compositor().CreateCubicBezierEasingFunction(
-                { .20f, 0.0f }, { 0.0f, 1.0f });
-            auto const duration = std::chrono::milliseconds{
-                static_cast<int64_t>(std::lround(durationMs)) };
-
-            // Keep Slider optics on the same material transition path as the working
-            // ToggleSwitch. Geometry scale is independent, but refraction itself belongs
-            // to the fixed optical child and must not be rewritten every scale tick.
-            AnimateSliderScalar(effect, compositionBrush, easing, duration,
-                L"RefractionStrength", from.refraction, brush.RefractionStrength());
-            AnimateSliderScalar(effect, compositionBrush, easing, duration,
-                L"DispersionStrength", from.dispersion, brush.DispersionStrength());
-            AnimateSliderScalar(effect, compositionBrush, easing, duration,
-                L"TintOpacity", from.tintOpacity, brush.TintOpacity());
-            AnimateSliderScalar(effect, compositionBrush, easing, duration,
-                L"HighlightStrength", from.highlight, brush.HighlightStrength());
-            AnimateSliderScalar(effect, compositionBrush, easing, duration,
-                L"InnerShadowStrength", from.innerShadow, brush.InnerShadowStrength());
+            m_currentRefraction = brush.RefractionStrength();
+            m_targetRefraction = m_currentRefraction;
+            m_refractionVelocity = 0.0;
+            m_currentTintOpacity = brush.TintOpacity();
+            m_targetTintOpacity = m_currentTintOpacity;
+            m_tintVelocity = 0.0;
+            m_opticsInitialized = true;
+            WriteDynamicOptics();
         }
 
         static void RestoreSliderOptics(OpticsSnapshot& state)
@@ -227,57 +211,66 @@ namespace winrt::WinUI::LiquidGlass::detail
             state.active = false;
         }
 
-        static void EnterSliderPressedOptics(
+        void EnterSliderPressedOptics(
             Microsoft::UI::Xaml::DependencyObject const& owner,
-            WinUI::Composition::Hlsl::LiquidGlassBrush const& brush,
-            OpticsSnapshot& state)
+            WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
         {
-            if (state.active || !owner || !brush) return;
-            CaptureOptics(brush, state);
-            state.owner = owner;
-            auto const from = state;
+            if (m_pressOptics.active || !owner || !brush) return;
 
-            brush.RefractionStrength(std::clamp(
-                state.refraction * std::clamp(
+            CaptureOptics(brush, m_pressOptics);
+            m_pressOptics.owner = owner;
+
+            if (!m_opticsInitialized)
+            {
+                m_currentRefraction = m_pressOptics.refraction;
+                m_targetRefraction = m_currentRefraction;
+                m_refractionVelocity = 0.0;
+                m_currentTintOpacity = m_pressOptics.tintOpacity;
+                m_targetTintOpacity = m_currentTintOpacity;
+                m_tintVelocity = 0.0;
+                m_opticsInitialized = true;
+            }
+
+            m_targetRefraction = std::clamp(
+                m_pressOptics.refraction * std::clamp(
                     implementation::LiquidGlassInteraction::GetPressedRefractionMultiplier(owner), 0.0, 4.0) +
                 std::clamp(implementation::LiquidGlassInteraction::GetPressedRefractionBoost(owner), -128.0, 128.0),
                 0.0,
-                128.0));
-            brush.DispersionStrength(std::clamp(
-                state.dispersion * std::clamp(
-                    implementation::LiquidGlassInteraction::GetPressedDispersionMultiplier(owner), 0.0, 8.0),
-                0.0,
-                16.0));
-            brush.TintOpacity(std::clamp(
-                state.tintOpacity + std::clamp(
+                128.0);
+            m_targetTintOpacity = std::clamp(
+                m_pressOptics.tintOpacity + std::clamp(
                     implementation::LiquidGlassInteraction::GetPressedTintBoost(owner), -1.0, 1.0),
                 0.0,
-                1.0));
-            brush.HighlightStrength(std::clamp(
-                state.highlight * std::clamp(
-                    implementation::LiquidGlassInteraction::GetPressedHighlightMultiplier(owner), 0.0, 4.0) +
-                std::clamp(implementation::LiquidGlassInteraction::GetPressedHighlightBoost(owner), -4.0, 4.0),
-                0.0,
-                4.0));
-            brush.InnerShadowStrength(std::clamp(
-                state.innerShadow + std::clamp(
-                    implementation::LiquidGlassInteraction::GetPressedInnerShadowBoost(owner), -1.0, 1.0),
-                0.0,
-                1.0));
+                1.0);
 
-            AnimateSliderOpticsTransition(owner, brush, from);
+            // Synchronize DependencyProperty endpoints immediately so reconnect/retemplate
+            // rebuilds the intended state. Then put the current presentation values back;
+            // the continuous springs own what is visible between endpoints.
+            brush.RefractionStrength(m_targetRefraction);
+            brush.TintOpacity(m_targetTintOpacity);
+            WriteDynamicOptics();
         }
 
-        static void LeaveSliderPressedOptics(
-            Microsoft::UI::Xaml::DependencyObject const& owner,
-            OpticsSnapshot& state)
+        void LeaveSliderPressedOptics(
+            Microsoft::UI::Xaml::DependencyObject const& owner)
         {
-            if (!state.active || !state.brush) return;
-            auto brush = state.brush;
-            OpticsSnapshot from;
-            CaptureOptics(brush, from);
-            RestoreSliderOptics(state);
-            AnimateSliderOpticsTransition(owner, brush, from);
+            if (!m_pressOptics.active || !m_pressOptics.brush) return;
+
+            auto brush = m_pressOptics.brush;
+            m_targetRefraction = m_pressOptics.refraction;
+            m_targetTintOpacity = m_pressOptics.tintOpacity;
+
+            // Restore the authored DP endpoints first, then retain the current presentation
+            // values so rapid press/release reverses velocity instead of jumping.
+            brush.RefractionStrength(m_pressOptics.refraction);
+            brush.DispersionStrength(m_pressOptics.dispersion);
+            brush.TintOpacity(m_pressOptics.tintOpacity);
+            brush.HighlightStrength(m_pressOptics.highlight);
+            brush.InnerShadowStrength(m_pressOptics.innerShadow);
+            m_pressOptics.brush = nullptr;
+            m_pressOptics.owner = nullptr;
+            m_pressOptics.active = false;
+            WriteDynamicOptics();
         }
 
         void ConfigureResources()
@@ -383,19 +376,51 @@ namespace winrt::WinUI::LiquidGlass::detail
                 dt,
                 m_currentScale,
                 m_scaleVelocity);
+            if (m_opticsInitialized)
+            {
+                StepSpring(
+                    m_targetRefraction,
+                    kRefractionStiffness,
+                    kRefractionDamping,
+                    dt,
+                    m_currentRefraction,
+                    m_refractionVelocity);
+                StepSpring(
+                    m_targetTintOpacity,
+                    kBodyOpacityStiffness,
+                    kBodyOpacityDamping,
+                    dt,
+                    m_currentTintOpacity,
+                    m_tintVelocity);
+            }
 
-            // The wrapper owns geometry motion; the fixed 90x60 child owns the glass
-            // material. This mirrors the now-correct Switch knob/surface split.
+            // Kube's three active quantities intentionally do NOT share one animation:
+            // scale and white body use 2000/80, while refraction scaleRatio uses 100/10.
             SetElementScale(m_visualHost, m_currentScale, m_currentScale);
+            WriteDynamicOptics();
 
-            auto const settled =
+            auto const scaleSettled =
                 std::abs(m_currentScale - m_targetScale) < .0005 &&
                 std::abs(m_scaleVelocity) < .005;
-            if (settled)
+            auto const opticsSettled = !m_opticsInitialized ||
+                ((std::abs(m_currentRefraction - m_targetRefraction) < .001 &&
+                  std::abs(m_refractionVelocity) < .01) &&
+                 (std::abs(m_currentTintOpacity - m_targetTintOpacity) < .0005 &&
+                  std::abs(m_tintVelocity) < .005));
+            if (scaleSettled && opticsSettled)
             {
                 m_currentScale = m_targetScale;
                 m_scaleVelocity = 0.0;
                 SetElementScale(m_visualHost, m_currentScale, m_currentScale);
+
+                if (m_opticsInitialized)
+                {
+                    m_currentRefraction = m_targetRefraction;
+                    m_refractionVelocity = 0.0;
+                    m_currentTintOpacity = m_targetTintOpacity;
+                    m_tintVelocity = 0.0;
+                    WriteDynamicOptics();
+                }
                 if (m_scaleTimer) m_scaleTimer.Stop();
             }
         }
@@ -715,6 +740,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 RestoreSliderOptics(m_pressOptics);
             else
                 m_pressOptics = {};
+            m_opticsInitialized = false;
         }
 
         void BeginPress(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
@@ -753,11 +779,22 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (m_pressed)
             {
                 if (!m_pressOptics.active)
-                    EnterSliderPressedOptics(owner, self->GlassBrush(), m_pressOptics);
+                    EnterSliderPressedOptics(owner, self->GlassBrush());
             }
             else
             {
-                LeaveSliderPressedOptics(owner, m_pressOptics);
+                LeaveSliderPressedOptics(owner);
+            }
+
+            if (animate && MotionAnimationsEnabled(owner))
+                EnsureScaleTimer();
+            else if (m_opticsInitialized)
+            {
+                m_currentRefraction = m_targetRefraction;
+                m_refractionVelocity = 0.0;
+                m_currentTintOpacity = m_targetTintOpacity;
+                m_tintVelocity = 0.0;
+                WriteDynamicOptics();
             }
 
             m_pointerField.SetConfigurationScales(0.0, 1.0);
@@ -799,6 +836,12 @@ namespace winrt::WinUI::LiquidGlass::detail
         double m_currentScale{ kRestScale };
         double m_targetScale{ kRestScale };
         double m_scaleVelocity{};
+        double m_currentRefraction{ 9.6 };
+        double m_targetRefraction{ 9.6 };
+        double m_refractionVelocity{};
+        double m_currentTintOpacity{ 1.0 };
+        double m_targetTintOpacity{ 1.0 };
+        double m_tintVelocity{};
         Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
@@ -807,5 +850,6 @@ namespace winrt::WinUI::LiquidGlass::detail
         bool m_initialLayoutHooked{};
         bool m_loaded{};
         bool m_pressed{};
+        bool m_opticsInitialized{};
     };
 }
