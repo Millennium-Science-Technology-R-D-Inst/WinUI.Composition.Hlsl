@@ -120,6 +120,29 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_configurationDirty = true;
         }
 
+        void RefreshConfiguration()
+        {
+            m_configurationDirty = true;
+            if (!m_registrationId || !m_target || !m_target.IsLoaded() || !m_brushGetter) return;
+
+            auto brush = m_brushGetter();
+            auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
+            TrackMaterial(material);
+            if (!brush || !material) return;
+
+            auto effect = material.EffectBrush();
+            auto const width = m_target.ActualWidth();
+            auto const height = m_target.ActualHeight();
+            if (!effect || width <= 0.0 || height <= 0.0) return;
+            Configure(brush, effect, width, height);
+        }
+
+        void UpdateFromPointer(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
+        {
+            if (!m_registrationId) return;
+            Update(args, Clock::now());
+        }
+
     private:
         static constexpr double kHoverRangeDips = 28.0;
 

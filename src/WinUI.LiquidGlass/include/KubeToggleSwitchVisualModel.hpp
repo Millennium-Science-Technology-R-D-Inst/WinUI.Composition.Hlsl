@@ -112,6 +112,11 @@ namespace winrt::WinUI::LiquidGlass::detail
             RefreshPointerField();
         }
 
+        void RefreshPointerFieldConfiguration()
+        {
+            m_pointerField.RefreshConfiguration();
+        }
+
         bool TryHandleToggle()
         {
             // If native ToggleButton tries to toggle while a real drag is in progress,
@@ -377,6 +382,9 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_consumeNextToggle = false;
             m_dragging = true;
             SetScaleTarget(kPressedScale, true);
+            // PointerFieldRouter is move-driven; seed the press position so touch and
+            // a stationary mouse both activate the local refraction/highlight field.
+            m_pointerField.UpdateFromPointer(args);
         }
 
         void UpdateDrag(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)

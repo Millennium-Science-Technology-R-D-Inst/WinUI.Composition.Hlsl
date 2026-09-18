@@ -100,7 +100,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 self->AddHandler(routedEvent, storage, true);
             };
             bind(Microsoft::UI::Xaml::UIElement::PointerPressedEvent(), m_pointerPressedHandler,
-                [this](auto const&, auto const&) { BeginPress(); });
+                [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args) { BeginPress(args); });
             bind(Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(), m_pointerReleasedHandler,
                 [this](auto const&, auto const&) { EndPress(true); });
             bind(Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(), m_pointerCaptureLostHandler,
@@ -118,6 +118,11 @@ namespace winrt::WinUI::LiquidGlass::detail
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
             ApplyInteractionState(false);
             RefreshPointerField();
+        }
+
+        void RefreshPointerFieldConfiguration()
+        {
+            m_pointerField.RefreshConfiguration();
         }
 
     private:
@@ -661,11 +666,14 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_pressOptics = {};
         }
 
-        void BeginPress()
+        void BeginPress(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
             if (!m_loaded || m_pressed) return;
             m_pressed = true;
             ApplyInteractionState(true);
+            // Router updates are move-driven. Seed the field from PointerPressed as well
+            // so touch/stationary-pointer activation receives the same refractive response.
+            m_pointerField.UpdateFromPointer(args);
         }
 
         void EndPress(bool animate)
@@ -700,6 +708,11 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 LeaveSliderPressedOptics(owner, m_pressOptics);
             }
+
+            // PointerFieldSurface derives its local refraction/highlight strengths from
+            // the current brush values. Press optics change those values, so refresh the
+            // live field immediately instead of waiting for detach/reattach or SizeChanged.
+            m_pointerField.RefreshConfiguration();
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 

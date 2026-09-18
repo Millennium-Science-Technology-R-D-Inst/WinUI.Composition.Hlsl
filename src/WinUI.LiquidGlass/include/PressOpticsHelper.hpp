@@ -438,6 +438,14 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (m_loaded) Recompute(sender);
         }
 
+        void RefreshPointerFieldConfiguration()
+        {
+            if constexpr (requires(Self* value) { value->RefreshPointerFieldConfiguration(); })
+            {
+                static_cast<Self*>(this)->RefreshPointerFieldConfiguration();
+            }
+        }
+
         template<typename Sender>
         void Recompute(Sender const& sender)
         {
@@ -464,6 +472,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 CaptureOptics(brush, from);
                 RestoreOptics(m_baseline);
                 AnimateOpticsTransition(object, brush, from);
+                RefreshPointerFieldConfiguration();
                 return;
             }
 
@@ -483,6 +492,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (m_pointerOver) ApplyPointerOverOptics(object, brush);
             if (m_pressed) ApplyPressedOptics(object, brush);
             AnimateOpticsTransition(object, brush, from);
+            RefreshPointerFieldConfiguration();
         }
 
         OpticsSnapshot m_baseline;
