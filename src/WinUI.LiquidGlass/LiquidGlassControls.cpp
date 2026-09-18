@@ -171,17 +171,19 @@ namespace winrt::WinUI::LiquidGlass::implementation
         GlassBrush(CreateBrush(Preset::ToggleSwitchKnob));
         SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.65));
         SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(.9));
-        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(90.0));
-        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(85.0));
-        SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.08));
-        SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.12));
-        SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(.01));
-        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.35));
-        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(.25));
-        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(.02));
-        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.18));
-        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.025));
-        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.08));
+        SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(75.0));
+        SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(70.0));
+        SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.10));
+        SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.14));
+        SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(0.0));
+        // Kube drives the optical scale from 0.4 at rest to 0.9 while active.
+        SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
+        SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
+        // The authored knob body is .42 tint; pressed should reveal the backdrop at ~.10.
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.32));
+        SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
+        SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
+        SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.05));
     }
 
     Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const { return m_header; }
