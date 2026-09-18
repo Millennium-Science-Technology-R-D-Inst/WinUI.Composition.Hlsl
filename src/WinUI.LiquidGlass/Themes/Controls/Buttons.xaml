@@ -1,9 +1,6 @@
-<ResourceDictionary
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:WinUI.LiquidGlass">
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:WinUI.LiquidGlass">
 
-    <Style TargetType="local:LiquidGlassButton" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Style BasedOn="{StaticResource DefaultButtonStyle}" TargetType="local:LiquidGlassButton">
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Template">
             <Setter.Value>
@@ -11,14 +8,28 @@
                     <Grid x:Name="Root">
                         <Border x:Name="GlassSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
                         <Border x:Name="StateOverlay" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False" Opacity="0" />
-                        <ContentPresenter x:Name="ContentPresenter" Control.IsTemplateFocusTarget="True" AutomationProperties.AccessibilityView="Raw" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTransitions="{TemplateBinding ContentTransitions}" Foreground="{TemplateBinding Foreground}" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <ContentPresenter x:Name="ContentPresenter" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" AutomationProperties.AccessibilityView="Raw" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTransitions="{TemplateBinding ContentTransitions}" Control.IsTemplateFocusTarget="True" Foreground="{TemplateBinding Foreground}" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.08" /></VisualStateGroup.Transitions>
+                                <VisualStateGroup.Transitions>
+                                    <VisualTransition GeneratedDuration="0:0:0.08" />
+                                </VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.18" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="StateOverlay.Opacity" Value="0.10" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="StateOverlay.Opacity" Value="0.18" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.45" />
+                                    </VisualState.Setters>
+                                </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                     </Grid>
@@ -27,7 +38,7 @@
         </Setter>
     </Style>
 
-    <Style TargetType="local:LiquidGlassToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}">
+    <Style BasedOn="{StaticResource DefaultToggleButtonStyle}" TargetType="local:LiquidGlassToggleButton">
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Template">
             <Setter.Value>
@@ -36,22 +47,74 @@
                         <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
                         <Border x:Name="StateOverlay" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False" Opacity="0" />
                         <Border x:Name="CheckedOverlay" Background="{ThemeResource AccentFillColorSecondaryBrush}" CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False" Opacity="0" />
-                        <ContentPresenter x:Name="ContentPresenter" Control.IsTemplateFocusTarget="True" AutomationProperties.AccessibilityView="Raw" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTransitions="{TemplateBinding ContentTransitions}" Foreground="{TemplateBinding Foreground}" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <ContentPresenter x:Name="ContentPresenter" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" AutomationProperties.AccessibilityView="Raw" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTransitions="{TemplateBinding ContentTransitions}" Control.IsTemplateFocusTarget="True" Foreground="{TemplateBinding Foreground}" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.08" /></VisualStateGroup.Transitions>
+                                <VisualStateGroup.Transitions>
+                                    <VisualTransition GeneratedDuration="0:0:0.08" />
+                                </VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.18" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Checked"><VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.18" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.22" /><Setter Target="StateOverlay.Opacity" Value="0.06" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.26" /><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="CheckedDisabled"><VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.10" /><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Indeterminate"><VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.12" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="IndeterminatePointerOver"><VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.16" /><Setter Target="StateOverlay.Opacity" Value="0.06" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="IndeterminatePressed"><VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.20" /><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="IndeterminateDisabled"><VisualState.Setters><Setter Target="CheckedOverlay.Opacity" Value="0.08" /><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="StateOverlay.Opacity" Value="0.10" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="StateOverlay.Opacity" Value="0.18" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.45" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="CheckedOverlay.Opacity" Value="0.18" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="CheckedOverlay.Opacity" Value="0.22" />
+                                        <Setter Target="StateOverlay.Opacity" Value="0.06" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="CheckedOverlay.Opacity" Value="0.26" />
+                                        <Setter Target="StateOverlay.Opacity" Value="0.10" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="CheckedOverlay.Opacity" Value="0.10" />
+                                        <Setter Target="Root.Opacity" Value="0.45" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Indeterminate">
+                                    <VisualState.Setters>
+                                        <Setter Target="CheckedOverlay.Opacity" Value="0.12" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminatePointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="CheckedOverlay.Opacity" Value="0.16" />
+                                        <Setter Target="StateOverlay.Opacity" Value="0.06" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminatePressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="CheckedOverlay.Opacity" Value="0.20" />
+                                        <Setter Target="StateOverlay.Opacity" Value="0.10" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="IndeterminateDisabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="CheckedOverlay.Opacity" Value="0.08" />
+                                        <Setter Target="Root.Opacity" Value="0.45" />
+                                    </VisualState.Setters>
+                                </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                     </Grid>
@@ -60,7 +123,7 @@
         </Setter>
     </Style>
 
-    <Style TargetType="local:LiquidGlassHyperlinkButton" BasedOn="{StaticResource DefaultHyperlinkButtonStyle}">
+    <Style BasedOn="{StaticResource DefaultHyperlinkButtonStyle}" TargetType="local:LiquidGlassHyperlinkButton">
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Template">
             <Setter.Value>
@@ -68,14 +131,28 @@
                     <Grid x:Name="Root">
                         <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
                         <Border x:Name="StateOverlay" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False" Opacity="0" />
-                        <ContentPresenter x:Name="ContentPresenter" Control.IsTemplateFocusTarget="True" AutomationProperties.AccessibilityView="Raw" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTransitions="{TemplateBinding ContentTransitions}" Foreground="{TemplateBinding Foreground}" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <ContentPresenter x:Name="ContentPresenter" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" AutomationProperties.AccessibilityView="Raw" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTransitions="{TemplateBinding ContentTransitions}" Control.IsTemplateFocusTarget="True" Foreground="{TemplateBinding Foreground}" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.08" /></VisualStateGroup.Transitions>
+                                <VisualStateGroup.Transitions>
+                                    <VisualTransition GeneratedDuration="0:0:0.08" />
+                                </VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.10" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="StateOverlay.Opacity" Value="0.18" /></VisualState.Setters></VisualState>
-                                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="StateOverlay.Opacity" Value="0.10" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="StateOverlay.Opacity" Value="0.18" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Opacity" Value="0.45" />
+                                    </VisualState.Setters>
+                                </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                     </Grid>

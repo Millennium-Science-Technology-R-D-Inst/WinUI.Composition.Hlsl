@@ -1,9 +1,6 @@
-<ResourceDictionary
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:WinUI.LiquidGlass">
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:WinUI.LiquidGlass">
 
-    <Style TargetType="local:LiquidGlassToggleSwitch" BasedOn="{StaticResource DefaultToggleButtonStyle}">
+    <Style BasedOn="{StaticResource DefaultToggleButtonStyle}" TargetType="local:LiquidGlassToggleSwitch">
         <Setter Property="MinWidth" Value="160" />
         <Setter Property="MinHeight" Value="67" />
         <Setter Property="Padding" Value="0" />
@@ -14,36 +11,22 @@
                 <ControlTemplate TargetType="local:LiquidGlassToggleSwitch">
                     <StackPanel x:Name="Root" Orientation="Horizontal" Spacing="10">
                         <!--
-                          The authored knob is 146x92 while the semantic track is 160x67.
-                          Keep the public/layout footprint at 160x67, but give Composition
-                          22 DIPs of horizontal and 12.5 DIPs of vertical overscan so the
-                          .9 pressed scale, rim/refraction and ThemeShadow are never clipped.
+                            The authored knob is 146x92 while the semantic track is 160x67.
+                            Keep the public/layout footprint at 160x67, but give Composition
+                            22 DIPs of horizontal and 12.5 DIPs of vertical overscan so the
+                            .9 pressed scale, rim/refraction and ThemeShadow are never clipped.
                         -->
-                        <Grid Width="204" Height="92" Margin="-22,-12.5,-22,-12.5">
-                            <Grid x:Name="SwitchGlyph"
-                                  Width="160" Height="67"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Control.IsTemplateFocusTarget="True">
-                                <!-- Composition owns the rendered track color. This Border is its XAML host. -->
+                        <Grid>
+                            <Grid x:Name="SwitchGlyph" HorizontalAlignment="Center" VerticalAlignment="Center" Control.IsTemplateFocusTarget="True">
+                                <!--  Composition owns the rendered track color. This Border is its XAML host.  -->
                                 <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" />
                                 <!--
-                                  Position/track use the switch's control-level spring. The knob
-                                  scale may use its local spring tuning. The nested glass surface
-                                  owns only ThemeShadow/Z elevation; X/Y and scale stay on SwitchKnob.
+                                    Position/track use the switch's control-level spring. The knob
+                                    scale may use its local spring tuning. The nested glass surface
+                                    owns only ThemeShadow/Z elevation; X/Y and scale stay on SwitchKnob.
                                 -->
-                                <Grid x:Name="SwitchKnob"
-                                      Width="146" Height="92"
-                                      Margin="-21.95,0,0,0"
-                                      HorizontalAlignment="Left"
-                                      VerticalAlignment="Center"
-                                      local:LiquidGlassInteraction.SpringDampingRatio="0.86"
-                                      local:LiquidGlassInteraction.SpringPeriod="120">
-                                    <Border x:Name="SwitchKnobSurface"
-                                            Background="{TemplateBinding Background}"
-                                            BorderBrush="#33FFFFFF"
-                                            BorderThickness="1"
-                                            CornerRadius="46">
+                                <Grid x:Name="SwitchKnob" Width="146" Height="92" Margin="-21.95,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
+                                    <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="46">
                                         <Border.Shadow>
                                             <ThemeShadow />
                                         </Border.Shadow>
@@ -51,10 +34,7 @@
                                 </Grid>
                             </Grid>
                         </Grid>
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                                          ContentTemplate="{TemplateBinding ContentTemplate}"
-                                          Foreground="{TemplateBinding Foreground}"
-                                          VerticalAlignment="Center" />
+                        <ContentPresenter VerticalAlignment="Center" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" />
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal" />
