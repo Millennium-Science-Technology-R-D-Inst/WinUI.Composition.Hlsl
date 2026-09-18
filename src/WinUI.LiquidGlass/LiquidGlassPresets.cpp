@@ -74,9 +74,13 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.HighlightStrength(.4); b.HighlightSharpness(1.0);
             b.SpecularSaturation(7); b.SpecularWidth(1);
 
-            // Kube's white body is 1.0 at rest and .1 while active. It has no inset
-            // shadow; its only shadow is the separate CSS outer box-shadow.
-            b.TintOpacity(1.0); b.InnerShadowStrength(0.0);
+            // Kube paints the white body as CSS background after backdrop-filter and
+            // specular composition. Keep the shader itself untinted; the slider visual
+            // model adds a separate white overlay at opacity 1.0 -> 0.1.
+            // specular.ts defaults to +pi/3 in screen coordinates; our SDF normal Y axis
+            // is inverted relative to that raster map, so the matching shader angle is -pi/3.
+            b.TintOpacity(0.0); b.InnerShadowStrength(0.0);
+            b.LightAngle(-1.0471975512);
             b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::ToggleSwitchKnob:
             b.SurfaceProfile(Profile::Lip); b.CornerRadius(46); b.BlurRadius(.2);

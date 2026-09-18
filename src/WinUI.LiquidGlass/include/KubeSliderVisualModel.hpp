@@ -40,9 +40,10 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_scaleVelocity = 0.0;
                 m_opticsInitialized = false;
                 m_refractionVelocity = 0.0;
-                m_tintVelocity = 0.0;
+                m_bodyOpacityVelocity = 0.0;
                 m_thumb = nullptr;
                 m_surface = nullptr;
+                m_bodySurface = nullptr;
                 m_visualHost = nullptr;
                 m_templateHost = nullptr;
                 m_track = nullptr;
@@ -148,6 +149,8 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kRefractionDamping = 10.0;
         static constexpr double kBodyOpacityStiffness = 2000.0;
         static constexpr double kBodyOpacityDamping = 80.0;
+        static constexpr double kRestBodyOpacity = 1.0;
+        static constexpr double kPressedBodyOpacity = 0.1;
         static constexpr auto kScaleInterval = std::chrono::milliseconds{ 16 };
 
         static Microsoft::UI::Xaml::Media::SolidColorBrush SolidBrush(
@@ -173,12 +176,14 @@ namespace winrt::WinUI::LiquidGlass::detail
             try
             {
                 effect.SetFloat(L"RefractionStrength", static_cast<float>(std::clamp(m_currentRefraction, 0.0, 128.0)));
-                effect.SetFloat(L"TintOpacity", static_cast<float>(std::clamp(m_currentTintOpacity, 0.0, 1.0)));
             }
             catch (winrt::hresult_error const& error)
             {
                 if (error.code() != winrt::hresult{ RO_E_CLOSED }) throw;
             }
+
+            if (m_bodySurface)
+                m_bodySurface.Opacity(std::clamp(m_currentBodyOpacity, 0.0, 1.0));
         }
 
         void SyncDynamicOpticsFromBrush()
@@ -191,9 +196,9 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_currentRefraction = brush.RefractionStrength();
             m_targetRefraction = m_currentRefraction;
             m_refractionVelocity = 0.0;
-            m_currentTintOpacity = brush.TintOpacity();
-            m_targetTintOpacity = m_currentTintOpacity;
-            m_tintVelocity = 0.0;
+            m_currentBodyOpacity = kRestBodyOpacity;
+            m_targetBodyOpacity = m_currentBodyOpacity;
+            m_bodyOpacityVelocity = 0.0;
             m_opticsInitialized = true;
             WriteDynamicOptics();
         }
@@ -225,9 +230,9 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_currentRefraction = m_pressOptics.refraction;
                 m_targetRefraction = m_currentRefraction;
                 m_refractionVelocity = 0.0;
-                m_currentTintOpacity = m_pressOptics.tintOpacity;
-                m_targetTintOpacity = m_currentTintOpacity;
-                m_tintVelocity = 0.0;
+                m_currentBodyOpacity = kRestBodyOpacity;
+                m_targetBodyOpacity = m_currentBodyOpacity;
+                m_bodyOpacityVelocity = 0.0;
                 m_opticsInitialized = true;
             }
 
@@ -237,17 +242,12 @@ namespace winrt::WinUI::LiquidGlass::detail
                 std::clamp(implementation::LiquidGlassInteraction::GetPressedRefractionBoost(owner), -128.0, 128.0),
                 0.0,
                 128.0);
-            m_targetTintOpacity = std::clamp(
-                m_pressOptics.tintOpacity + std::clamp(
-                    implementation::LiquidGlassInteraction::GetPressedTintBoost(owner), -1.0, 1.0),
-                0.0,
-                1.0);
+            m_targetBodyOpacity = kPressedBodyOpacity;
 
-            // Synchronize DependencyProperty endpoints immediately so reconnect/retemplate
-            // rebuilds the intended state. Then put the current presentation values back;
-            // the continuous springs own what is visible between endpoints.
+            // Synchronize the refraction DP endpoint immediately so reconnect/retemplate
+            // rebuilds the intended optical state. The white body is a separate overlay,
+            // matching Kube's CSS background compositing order.
             brush.RefractionStrength(m_targetRefraction);
-            brush.TintOpacity(m_targetTintOpacity);
             WriteDynamicOptics();
         }
 
@@ -258,13 +258,12 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             auto brush = m_pressOptics.brush;
             m_targetRefraction = m_pressOptics.refraction;
-            m_targetTintOpacity = m_pressOptics.tintOpacity;
+            m_targetBodyOpacity = kRestBodyOpacity;
 
             // Restore the authored DP endpoints first, then retain the current presentation
             // values so rapid press/release reverses velocity instead of jumping.
             brush.RefractionStrength(m_pressOptics.refraction);
             brush.DispersionStrength(m_pressOptics.dispersion);
-            brush.TintOpacity(m_pressOptics.tintOpacity);
             brush.HighlightStrength(m_pressOptics.highlight);
             brush.InnerShadowStrength(m_pressOptics.innerShadow);
             m_pressOptics.brush = nullptr;
@@ -386,12 +385,12 @@ namespace winrt::WinUI::LiquidGlass::detail
                     m_currentRefraction,
                     m_refractionVelocity);
                 StepSpring(
-                    m_targetTintOpacity,
+                    m_targetBodyOpacity,
                     kBodyOpacityStiffness,
                     kBodyOpacityDamping,
                     dt,
-                    m_currentTintOpacity,
-                    m_tintVelocity);
+                    m_currentBodyOpacity,
+                    m_bodyOpacityVelocity);
             }
 
             // Kube's three active quantities intentionally do NOT share one animation:
@@ -405,8 +404,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const opticsSettled = !m_opticsInitialized ||
                 ((std::abs(m_currentRefraction - m_targetRefraction) < .001 &&
                   std::abs(m_refractionVelocity) < .01) &&
-                 (std::abs(m_currentTintOpacity - m_targetTintOpacity) < .0005 &&
-                  std::abs(m_tintVelocity) < .005));
+                 (std::abs(m_currentBodyOpacity - m_targetBodyOpacity) < .0005 &&
+                  std::abs(m_bodyOpacityVelocity) < .005));
             if (scaleSettled && opticsSettled)
             {
                 m_currentScale = m_targetScale;
@@ -417,8 +416,8 @@ namespace winrt::WinUI::LiquidGlass::detail
                 {
                     m_currentRefraction = m_targetRefraction;
                     m_refractionVelocity = 0.0;
-                    m_currentTintOpacity = m_targetTintOpacity;
-                    m_tintVelocity = 0.0;
+                    m_currentBodyOpacity = m_targetBodyOpacity;
+                    m_bodyOpacityVelocity = 0.0;
                     WriteDynamicOptics();
                 }
                 if (m_scaleTimer) m_scaleTimer.Stop();
@@ -565,8 +564,26 @@ namespace winrt::WinUI::LiquidGlass::detail
                     visualHost.Children().Append(surface);
                 }
 
+                auto bodySurface = FindNamedDescendant(visualHost, L"LiquidGlassSliderBody")
+                    .try_as<Microsoft::UI::Xaml::Controls::Border>();
+                if (!bodySurface)
+                {
+                    bodySurface = Microsoft::UI::Xaml::Controls::Border{};
+                    bodySurface.Name(L"LiquidGlassSliderBody");
+                    bodySurface.Width(horizontal ? kVisualWidth : kVisualHeight);
+                    bodySurface.Height(horizontal ? kVisualHeight : kVisualWidth);
+                    bodySurface.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Left);
+                    bodySurface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Top);
+                    bodySurface.IsHitTestVisible(false);
+                    bodySurface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
+                    bodySurface.Background(SolidBrush(0xff, 0xff, 0xff, 0xff));
+                    bodySurface.Opacity(m_currentBodyOpacity);
+                    visualHost.Children().Append(bodySurface);
+                }
+
                 m_visualHost = visualHost;
                 m_surface = surface;
+                m_bodySurface = bodySurface;
                 SetElementScale(m_visualHost, m_currentScale, m_currentScale);
             }
 
@@ -792,8 +809,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 m_currentRefraction = m_targetRefraction;
                 m_refractionVelocity = 0.0;
-                m_currentTintOpacity = m_targetTintOpacity;
-                m_tintVelocity = 0.0;
+                m_currentBodyOpacity = m_targetBodyOpacity;
+                m_bodyOpacityVelocity = 0.0;
                 WriteDynamicOptics();
             }
 
@@ -823,6 +840,7 @@ namespace winrt::WinUI::LiquidGlass::detail
         PointerFieldSurface m_pointerField;
         Microsoft::UI::Xaml::Controls::Primitives::Thumb m_thumb{ nullptr };
         Microsoft::UI::Xaml::Controls::Border m_surface{ nullptr };
+        Microsoft::UI::Xaml::Controls::Border m_bodySurface{ nullptr };
         Microsoft::UI::Xaml::Controls::Grid m_visualHost{ nullptr };
         Microsoft::UI::Xaml::Controls::Grid m_templateHost{ nullptr };
         Microsoft::UI::Xaml::Shapes::Rectangle m_track{ nullptr };
@@ -839,9 +857,9 @@ namespace winrt::WinUI::LiquidGlass::detail
         double m_currentRefraction{ 9.6 };
         double m_targetRefraction{ 9.6 };
         double m_refractionVelocity{};
-        double m_currentTintOpacity{ 1.0 };
-        double m_targetTintOpacity{ 1.0 };
-        double m_tintVelocity{};
+        double m_currentBodyOpacity{ kRestBodyOpacity };
+        double m_targetBodyOpacity{ kRestBodyOpacity };
+        double m_bodyOpacityVelocity{};
         Windows::Foundation::IInspectable m_pointerPressedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerReleasedHandler{ nullptr };
         Windows::Foundation::IInspectable m_pointerCaptureLostHandler{ nullptr };
