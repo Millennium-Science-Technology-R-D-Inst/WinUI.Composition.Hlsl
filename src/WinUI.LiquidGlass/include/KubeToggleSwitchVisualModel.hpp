@@ -112,7 +112,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             RefreshPointerField();
         }
 
-        void RefreshPointerFieldConfiguration()
+        void RefreshPressOpticsPointerFieldConfiguration()
         {
             m_pointerField.RefreshConfiguration();
         }

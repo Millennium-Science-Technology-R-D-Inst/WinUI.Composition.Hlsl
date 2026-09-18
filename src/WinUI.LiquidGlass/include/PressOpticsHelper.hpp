@@ -440,9 +440,16 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshPointerFieldConfiguration()
         {
-            if constexpr (requires(Self* value) { value->RefreshPointerFieldConfiguration(); })
+            // Do not probe for this helper's own member name through Self. Because Self
+            // inherits PressOpticsHelper, such a requires-expression succeeds even when
+            // the derived control has no override, and the call resolves straight back
+            // to this function (infinite recursion / stack overflow).
+            //
+            // Use a deliberately distinct opt-in hook name that only controls with an
+            // additional pointer-field owner implement.
+            if constexpr (requires(Self* value) { value->RefreshPressOpticsPointerFieldConfiguration(); })
             {
-                static_cast<Self*>(this)->RefreshPointerFieldConfiguration();
+                static_cast<Self*>(this)->RefreshPressOpticsPointerFieldConfiguration();
             }
         }
 
