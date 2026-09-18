@@ -161,9 +161,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
         // Kube's displacement map keeps strong colored/specular edges while the white
         // body fades away. Our HLSL has an explicit RGB dispersion control, so raise it
         // only for the active lens rather than baking excessive chroma into the rest state.
-        SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(1.55));
-        // The authored slider body is .55 tint; pressed should reveal the backdrop at ~.10.
-        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.45));
+        SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(2.6));
+        // Kube fades the white body from 1.0 to 0.1 while active.
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.03));
