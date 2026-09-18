@@ -66,11 +66,22 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_knob = FindNamedDescendant(root, L"SwitchKnob").try_as<Microsoft::UI::Xaml::FrameworkElement>();
             m_surface = FindNamedDescendant(root, L"SwitchKnobSurface").try_as<Microsoft::UI::Xaml::FrameworkElement>();
             auto track = FindNamedDescendant(root, L"Track").try_as<Microsoft::UI::Xaml::Controls::Border>();
-            if (!m_knob || !track)
+            if (!m_knob || !m_surface || !track)
             {
                 m_pointerField.Detach(false);
                 ClearTrackVisual(false);
                 return;
+            }
+
+            // Bind the authored material directly to the rendered knob surface. Do not
+            // rely on the ToggleButton Background -> TemplateBinding chain here: control
+            // state/template precedence can otherwise leave only the rim/shadow visible.
+            if (auto surfaceBorder = m_surface.try_as<Microsoft::UI::Xaml::Controls::Border>())
+            {
+                auto glass = self->GlassBrush();
+                surfaceBorder.Background(glass
+                    ? glass.as<Microsoft::UI::Xaml::Media::Brush>()
+                    : Microsoft::UI::Xaml::Media::Brush{ nullptr });
             }
 
             if (!m_trackHost || get_abi(m_trackHost) != get_abi(track))
