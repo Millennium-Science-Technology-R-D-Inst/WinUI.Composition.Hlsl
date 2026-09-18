@@ -52,15 +52,30 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.SpecularWidth(1); b.TintOpacity(.10); b.InnerShadowStrength(.05);
             b.FallbackColor({ 0x36, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::SliderThumb:
-            b.CornerRadius(30); b.BlurRadius(0); // LiquidGlass.hlsl maps RefractionStrength / 24 to Kube's displacement scale.
-            // 9.6 therefore represents Kube's resting 0.4 exactly; pressed 2.25x reaches 0.9.
+            // Match Kube Slider.tsx / virtual:refractionFilter exactly:
+            // width=90, height=60, radius=30, bezelWidth=16,
+            // glassThickness=80, refractiveIndex=1.45, blur=0,
+            // specularOpacity=.4 and specularSaturation=7.
+            b.CornerRadius(30); b.BlurRadius(0);
+            // LiquidGlass.hlsl maps RefractionStrength / 24 to Kube's displacement
+            // scaleRatio, so 9.6 is rest .4 and pressed 2.25x reaches .9.
             b.RefractionStrength(9.6);
-            b.DispersionStrength(.85); b.BezelWidth(16); b.GlassThickness(80);
-            b.RefractiveIndex(1.45); b.HighlightStrength(.4); b.HighlightSharpness(1.7);
+            b.BezelWidth(16); b.GlassThickness(80); b.RefractiveIndex(1.45);
+
+            // Kube's slider displacement map has no separate chromatic-dispersion
+            // pass and no generic border tint. Those two defaults are mostly hidden
+            // by the opaque white rest body, but become the dominant "wrong material"
+            // look after backgroundOpacity falls to .1.
+            b.DispersionStrength(0.0);
+            b.BorderThickness(0.0);
+
+            // specular.ts uses abs(dot(normal, light)) directly (power 1) and a
+            // one-pixel edge profile.
+            b.HighlightStrength(.4); b.HighlightSharpness(1.0);
             b.SpecularSaturation(7); b.SpecularWidth(1);
-            // Kube's slider thumb is an opaque white body at rest. The track should
-            // disappear completely underneath it and only become visible after press.
-            // Kube's slider has only an outer box shadow; it does not add an inset rim.
+
+            // Kube's white body is 1.0 at rest and .1 while active. It has no inset
+            // shadow; its only shadow is the separate CSS outer box-shadow.
             b.TintOpacity(1.0); b.InnerShadowStrength(0.0);
             b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::ToggleSwitchKnob:
