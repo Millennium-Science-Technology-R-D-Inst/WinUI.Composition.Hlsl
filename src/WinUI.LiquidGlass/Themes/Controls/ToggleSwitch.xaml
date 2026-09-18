@@ -2,13 +2,14 @@
 
     <Style BasedOn="{StaticResource DefaultToggleButtonStyle}" TargetType="local:LiquidGlassToggleSwitch">
         <!--
-            Keep Kube's authored geometry at 160x67 internally, but let the standard
-            FrameworkElement.Height property scale the entire glyph. A local Height
-            therefore overrides this 67-DIP default without rewriting shader geometry.
+            Keep Kube's authored geometry at 160x67 internally, but render it at a
+            compact WinUI control size by default. FrameworkElement.Height scales the
+            complete authored coordinate system, so callers can still override the size
+            without rewriting shader geometry or the 57.9-DIP authored travel.
         -->
         <Setter Property="MinWidth" Value="0" />
         <Setter Property="MinHeight" Value="0" />
-        <Setter Property="Height" Value="67" />
+        <Setter Property="Height" Value="44" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
