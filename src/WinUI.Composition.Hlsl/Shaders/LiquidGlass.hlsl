@@ -469,10 +469,14 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float innerShadow = 1.0f - smoothstep(0.0f, max(bezel * 0.65f, 1.0f), distanceFromEdge);
         color *= 1.0f - innerShadow * innerShadowStrength;
 
-        const float borderMask = 1.0f - smoothstep(
-            max(borderThickness, 0.0f),
-            max(borderThickness, 0.0f) + feather,
-            distanceFromEdge);
+        float borderMask = 0.0f;
+        if (borderThickness > 1e-4f)
+        {
+            borderMask = 1.0f - smoothstep(
+                borderThickness,
+                borderThickness + feather,
+                distanceFromEdge);
+        }
         color = lerp(color, tintColor, borderMask * 0.20f * highlightStrength);
 
         const float2 lightDirection = normalize(float2(cos(lightAngle), sin(lightAngle)));
