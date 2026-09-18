@@ -332,7 +332,15 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     // the same invariant: if the geometric edge lies exactly on the brush edge,
     // antialiasing/refraction/specular coverage has nowhere to extend and rounded
     // corners get visibly cut during resize or strong refraction.
-    const float shapeMargin = 1.0f;
+    // Kube's convex-squircle slider displacement/specular maps are authored exactly
+    // to the 90x60 object bounds. For that no-border profile, shrinking the SDF by one
+    // raster pixel changes radius 30 -> 29, moves the strongest refraction one pixel
+    // inward, and produces the visibly wrong corner/rim geometry. Keep the safety margin
+    // for generic bordered surfaces and the Concave/Lip paths that need materialized-edge
+    // protection, but let the borderless ConvexSquircle occupy its authored bounds.
+    const bool authoredBoundedConvex =
+        surfaceProfile < 0.5f && borderThickness <= 1e-4f;
+    const float shapeMargin = authoredBoundedConvex ? 0.0f : 1.0f;
     const float2 shapeHalfRect = max(halfRect - shapeMargin.xx, 1.0f.xx);
     const float halfMinSize = max(min(shapeHalfRect.x, shapeHalfRect.y), 1.0f);
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
