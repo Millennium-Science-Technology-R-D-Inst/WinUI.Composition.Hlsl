@@ -176,8 +176,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(2.6));
 		// Kube fades the white body from 1.0 to 0.1 while active.
 		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
-		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
-		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
+		// Kube keeps specularOpacity at .4 in both rest and active states. Keep the
+		// fixed-angle rim stable; the spatial PointerField owns the local pointer boost.
+		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
+		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
 		// Kube Slider has no pressed inset shadow; the shader specular and ThemeShadow
 		// already provide the edge/outer depth without a second dark capsule.
 		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(0.0));
@@ -208,8 +210,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(1.45));
 		// Kube fades the white body from 1.0 to 0.1 while active.
 		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
-		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
-		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
+		// Kube keeps specularOpacity at .5 while active; do not create a second
+		// full-perimeter rim just because the knob is pressed.
+		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
+		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
 		// Kube Switch adds a ~.09 inset black/white pair only while active. Our single
 		// inner-shadow scalar supplies the dark half; the existing highlight supplies
 		// the opposing bright half, so keep the rest state at zero and add .09 on press.
