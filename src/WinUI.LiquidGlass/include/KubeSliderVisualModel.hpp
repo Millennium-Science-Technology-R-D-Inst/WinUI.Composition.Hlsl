@@ -459,22 +459,33 @@ namespace winrt::WinUI::LiquidGlass::detail
             {
                 if (hostChanged) DetachInitialLayoutSync();
                 m_templateHost = templateHost;
-                Microsoft::UI::Xaml::Controls::Border surface;
-                surface.Width(horizontal ? kVisualWidth : kVisualHeight);
-                surface.Height(horizontal ? kVisualHeight : kVisualWidth);
-                surface.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Left);
-                surface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Top);
-                surface.IsHitTestVisible(false);
-                surface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
-                surface.BorderBrush(SolidBrush(0x33, 0xff, 0xff, 0xff));
-                surface.BorderThickness({ 1.0, 1.0, 1.0, 1.0 });
-                Microsoft::UI::Xaml::Controls::Grid::SetRow(surface, 0);
-                Microsoft::UI::Xaml::Controls::Grid::SetRowSpan(surface, 3);
-                Microsoft::UI::Xaml::Controls::Grid::SetColumn(surface, 0);
-                Microsoft::UI::Xaml::Controls::Grid::SetColumnSpan(surface, 3);
-                Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(surface, true);
-                surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
-                templateHost.Children().Append(surface);
+
+                // Unloaded does not mutate the XAML tree during teardown. If the same
+                // template subtree is later reattached, reuse the sibling we already
+                // inserted instead of appending another glass lens on every Loaded cycle.
+                auto surface = FindNamedDescendant(templateHost, L"LiquidGlassSliderSurface")
+                    .try_as<Microsoft::UI::Xaml::Controls::Border>();
+                if (!surface)
+                {
+                    surface = Microsoft::UI::Xaml::Controls::Border{};
+                    surface.Name(L"LiquidGlassSliderSurface");
+                    surface.Width(horizontal ? kVisualWidth : kVisualHeight);
+                    surface.Height(horizontal ? kVisualHeight : kVisualWidth);
+                    surface.HorizontalAlignment(Microsoft::UI::Xaml::HorizontalAlignment::Left);
+                    surface.VerticalAlignment(Microsoft::UI::Xaml::VerticalAlignment::Top);
+                    surface.IsHitTestVisible(false);
+                    surface.CornerRadius({ 30.0, 30.0, 30.0, 30.0 });
+                    surface.BorderBrush(SolidBrush(0x33, 0xff, 0xff, 0xff));
+                    surface.BorderThickness({ 1.0, 1.0, 1.0, 1.0 });
+                    surface.Opacity(0.0);
+                    Microsoft::UI::Xaml::Controls::Grid::SetRow(surface, 0);
+                    Microsoft::UI::Xaml::Controls::Grid::SetRowSpan(surface, 3);
+                    Microsoft::UI::Xaml::Controls::Grid::SetColumn(surface, 0);
+                    Microsoft::UI::Xaml::Controls::Grid::SetColumnSpan(surface, 3);
+                    Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(surface, true);
+                    surface.Shadow(Microsoft::UI::Xaml::Media::ThemeShadow{});
+                    templateHost.Children().Append(surface);
+                }
                 m_surface = surface;
             }
 
@@ -581,7 +592,9 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
             catch (...)
             {
-                // The next SizeChanged/value update will retry after the template is arranged.
+                // Keep a newly-created lens hidden until the template has a valid
+                // track-to-host transform. LayoutUpdated/SizeChanged will retry.
+                return;
             }
 
             // Kube constrains the lens center using its rendered rest footprint (54 DIPs),
@@ -611,6 +624,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
             translation.z = newZ;
             m_surface.Translation(translation);
+            if (m_surface.Opacity() != 1.0) m_surface.Opacity(1.0);
         }
 
         void ApplyBrush()
