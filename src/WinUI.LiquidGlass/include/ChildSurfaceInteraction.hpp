@@ -91,7 +91,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 {
                     Update(args, now);
                 },
-                [this] { DeactivateTrackedMaterial(); });
+                [this] { DeactivateIfAttached(); });
             if (!m_registrationId) Detach();
         }
 
@@ -113,7 +113,10 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void InvalidateBrush()
         {
-            DeactivateTrackedMaterial();
+            // GlassBrush replacement retires the old material. Do not write to the
+            // previously tracked effect here because XAML may already have disconnected
+            // and closed its CompositionEffectBrush before this callback is observed.
+            ClearTrackedMaterial();
             m_configurationDirty = true;
         }
 
@@ -144,10 +147,6 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void TrackMaterial(WinUI::Composition::Hlsl::LiquidGlassMaterial const& material)
         {
-            if (m_trackingMaterial && (!material || get_abi(m_trackingMaterial) != get_abi(material)))
-            {
-                DeactivateEffect(m_trackingMaterial.EffectBrush());
-            }
             if (!material)
             {
                 ClearTrackedMaterial();
@@ -155,10 +154,24 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
             if (!m_trackingMaterial || get_abi(m_trackingMaterial) != get_abi(material))
             {
+                // The current brush owns this new material. The previous material may
+                // already be closed after brush replacement/retemplating, so simply
+                // release our stale reference instead of trying to deactivate it.
                 m_trackingMaterial = material;
                 m_configurationDirty = true;
+                m_active = false;
                 m_lastPointValid = false;
             }
+        }
+
+        void DeactivateIfAttached()
+        {
+            if (!m_registrationId || !m_target || !m_target.IsLoaded())
+            {
+                ClearTrackedMaterial();
+                return;
+            }
+            DeactivateTrackedMaterial();
         }
 
         void Configure(
@@ -186,7 +199,12 @@ namespace winrt::WinUI::LiquidGlass::detail
             Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args,
             Clock::time_point now)
         {
-            if (!m_target || !m_brushGetter) return;
+            if (!m_registrationId || !m_target || !m_brushGetter) return;
+            if (!m_target.IsLoaded())
+            {
+                ClearTrackedMaterial();
+                return;
+            }
             auto brush = m_brushGetter();
             auto material = brush ? brush.Material() : WinUI::Composition::Hlsl::LiquidGlassMaterial{ nullptr };
             TrackMaterial(material);

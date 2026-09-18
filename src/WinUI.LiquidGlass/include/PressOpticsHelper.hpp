@@ -379,14 +379,11 @@ namespace winrt::WinUI::LiquidGlass::detail
                 [this](Microsoft::UI::Xaml::DependencyObject const& sender,
                        Microsoft::UI::Xaml::DependencyProperty const&)
                 {
-                    if (!m_loaded)
-                    {
-                        // If the brush is replaced while detached, the old visual is no
-                        // longer a runtime owner. Drop its baseline rather than writing to it.
-                        m_baseline = {};
-                        return;
-                    }
-                    Recompute(sender);
+                    // A brush replacement is an ownership boundary. The previous brush
+                    // may already have disconnected/closed its CompositionEffectBrush, so
+                    // never restore the old baseline as part of this callback.
+                    m_baseline = {};
+                    if (m_loaded) Recompute(sender);
                 });
 
             if constexpr (PersistentKind == PersistentOpticsKind::Toggle)
@@ -452,9 +449,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto brush = owner->GlassBrush();
             if (m_baseline.active && (!brush || get_abi(m_baseline.brush) != get_abi(brush)))
             {
-                // A runtime GlassBrush replacement must restore the detached
-                // brush before the active state is recomputed on the new one.
-                RestoreOptics(m_baseline);
+                // The old brush is no longer owned by this control. Dropping the
+                // snapshot is both sufficient and teardown-safe; restoring it would
+                // write through a possibly closed CompositionEffectBrush.
+                m_baseline = {};
             }
             if (!brush) return;
 
