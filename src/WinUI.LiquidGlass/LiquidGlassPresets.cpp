@@ -55,8 +55,11 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.CornerRadius(30); b.BlurRadius(0); b.RefractionStrength(13.2);
             b.DispersionStrength(.85); b.BezelWidth(16); b.GlassThickness(80);
             b.RefractiveIndex(1.45); b.HighlightStrength(.48); b.HighlightSharpness(1.7);
-            b.SpecularSaturation(7); b.SpecularWidth(1); b.TintOpacity(.55);
-            b.InnerShadowStrength(.07); b.FallbackColor({ 0x90, 0xff, 0xff, 0xff }); break;
+            b.SpecularSaturation(7); b.SpecularWidth(1);
+            // Kube's slider thumb is an opaque white body at rest. The track should
+            // disappear completely underneath it and only become visible after press.
+            b.TintOpacity(1.0); b.InnerShadowStrength(.07);
+            b.FallbackColor({ 0xff, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::ToggleSwitchKnob:
             b.SurfaceProfile(Profile::Lip); b.CornerRadius(46); b.BlurRadius(.2);
             b.RefractionStrength(10.8); b.DispersionStrength(.70); b.BezelWidth(19);
