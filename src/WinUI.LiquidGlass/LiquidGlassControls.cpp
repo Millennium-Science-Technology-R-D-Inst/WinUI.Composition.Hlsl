@@ -180,7 +180,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
         SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
         SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
         // The authored knob body is .42 tint; pressed should reveal the backdrop at ~.10.
-        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.32));
+        SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.68));
         SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.25));
         SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(.03));
         SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.05));
