@@ -51,7 +51,7 @@ namespace winrt::WinUI::LiquidGlass::detail
             bind(Microsoft::UI::Xaml::UIElement::PointerReleasedEvent(), m_pointerReleasedHandler,
                 [this](auto const&, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args) { EndDragFromRelease(args); });
             bind(Microsoft::UI::Xaml::UIElement::PointerCaptureLostEvent(), m_pointerCaptureLostHandler,
-                [this](auto const&, auto const&) { CancelDrag(true); });
+                [this](auto const&, auto const&) { EndDragFromCaptureLoss(); });
             bind(Microsoft::UI::Xaml::UIElement::PointerCanceledEvent(), m_pointerCanceledHandler,
                 [this](auto const&, auto const&) { CancelDrag(true); });
         }
@@ -410,6 +410,9 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             if (m_dragOverrideArmed)
             {
+                // A real drag owns the release semantics. Prevent a later native click
+                // from toggling the state a second time.
+                args.Handled(true);
                 auto const targetChecked = std::clamp(m_visualRatio, 0.0, 1.0) >= .5;
                 auto current = self->IsChecked();
                 bool const changed = !current || current.Value() != targetChecked;
@@ -437,6 +440,46 @@ namespace winrt::WinUI::LiquidGlass::detail
             // the sole owner of the position transition. Outside release gets no click, so
             // it must settle back to the existing semantic state here.
             FinishPointer(true, !releaseInside);
+        }
+
+        void EndDragFromCaptureLoss()
+        {
+            if (!m_loaded || !m_dragging)
+            {
+                m_dragOverrideArmed = false;
+                return;
+            }
+
+            // ButtonBase may release its capture before our routed PointerReleased
+            // handler is reached. If the pointer crossed the drag threshold, treat
+            // capture loss as the end of that drag rather than silently snapping back.
+            if (m_dragOverrideArmed)
+            {
+                auto self = static_cast<Self*>(this);
+                auto const targetChecked = std::clamp(m_visualRatio, 0.0, 1.0) >= .5;
+                auto current = self->IsChecked();
+                bool const changed = !current || current.Value() != targetChecked;
+
+                m_dragOverrideArmed = false;
+                m_nativeToggleConsumedThisGesture = true;
+                m_consumeNextToggle = true;
+                m_ownsCapture = false;
+
+                if (changed)
+                {
+                    self->IsChecked(box_value(targetChecked).as<
+                        Windows::Foundation::IReference<bool>>());
+                }
+                else
+                {
+                    SetRatioTarget(targetChecked ? 1.0 : 0.0, true);
+                }
+
+                FinishPointer(true, false);
+                return;
+            }
+
+            CancelDrag(true);
         }
 
         void CancelDrag(bool animate)
