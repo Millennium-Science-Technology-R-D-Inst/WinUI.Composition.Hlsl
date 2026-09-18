@@ -122,7 +122,10 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshPointerFieldConfiguration()
         {
-            m_pointerField.SetConfigurationScales(m_pressed ? 2.25 : 1.0);
+            // Kube Slider has one global displacement map. Keep the PointerField only
+            // for the local specular reveal; adding a second refractive field changes
+            // the authored .4 -> .9 displacement response and can hide the glass bend.
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
     private:
@@ -709,11 +712,10 @@ namespace winrt::WinUI::LiquidGlass::detail
                 LeaveSliderPressedOptics(owner, m_pressOptics);
             }
 
-            // Kube has one displacement field. Our shader also has a spatial pointer
-            // field, so multiplying both fields by the full active ratio over-bends the
-            // lens as the scale spring reaches 1. Keep the base surface at its rest bend
-            // and put the active delta into the local field instead.
-            m_pointerField.SetConfigurationScales(m_pressed ? 2.25 : 1.0);
+            // The authored Kube filter drives the global displacement map from
+            // scaleRatio .4 to .9 while the element itself scales .6 -> 1. PointerField
+            // remains highlight-only so the final expanded lens keeps that exact model.
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 
@@ -733,6 +735,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 if (auto owner = weak.get()) return owner->GlassBrush();
                 return nullptr;
             });
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
         PointerFieldSurface m_pointerField;

@@ -166,14 +166,13 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.12));
 		SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.15));
 		SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(0.0));
-		// Kube has one displacement map. Here global surface refraction and the spatial
-		// PointerField are separate shader terms; driving both to the full active ratio
-		// double-counts the bend. Keep the base surface at its rest .4-equivalent and put
-		// the press delta into PointerField.
-		SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.0));
+		// Kube Slider.tsx drives scaleRatio from .4 to .9. SliderThumb's resting
+		// RefractionStrength=9.6 encodes .4, so the active multiplier is exactly .9/.4.
+		// PointerField refraction is disabled for this control; this is the sole bend.
+		SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
 		SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
-		// RGB dispersion is an extension beyond Kube's displacement map. Do not widen it
-		// while the lens grows; this preserves the thin colored edge seen on the good frame.
+		// Kube changes displacement strength, not a separate chromatic-spread control.
+		// Keep our RGB extension stable while the authored displacement grows.
 		SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(1.0));
 		// Kube fades the white body from 1.0 to 0.1 while active.
 		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
