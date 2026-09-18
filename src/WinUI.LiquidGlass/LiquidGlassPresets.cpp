@@ -62,8 +62,11 @@ namespace winrt::WinUI::LiquidGlass::implementation
             b.RefractionStrength(10.8); b.DispersionStrength(.5); b.BezelWidth(19);
             b.GlassThickness(47); b.RefractiveIndex(1.5); b.HighlightStrength(.52);
             b.HighlightSharpness(1.6); b.SpecularSaturation(6); b.SpecularWidth(1);
-            b.TintOpacity(.07); b.InnerShadowStrength(.04);
-            b.FallbackColor({ 0x38, 0xff, 0xff, 0xff }); break;
+            // Kube keeps a visible white glass body at rest and reveals substantially
+            // more of the refracted backdrop while pressed. A moderate authored tint
+            // preserves the material on WinUI without flattening it to an opaque pill.
+            b.TintOpacity(.42); b.InnerShadowStrength(.04);
+            b.FallbackColor({ 0x70, 0xff, 0xff, 0xff }); break;
         case LiquidGlassPreset::Magnifier:
             b.CornerRadius(75); b.BlurRadius(0); b.RefractionStrength(19.2);
             b.DispersionStrength(.55); b.BezelWidth(25); b.GlassThickness(110);
