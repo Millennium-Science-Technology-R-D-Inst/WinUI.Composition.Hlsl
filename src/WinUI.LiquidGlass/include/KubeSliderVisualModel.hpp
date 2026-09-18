@@ -122,7 +122,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshPointerFieldConfiguration()
         {
-            m_pointerField.RefreshConfiguration();
+            m_pointerField.SetConfigurationScales(m_pressed ? 2.25 : 1.0);
         }
 
     private:
@@ -709,10 +709,11 @@ namespace winrt::WinUI::LiquidGlass::detail
                 LeaveSliderPressedOptics(owner, m_pressOptics);
             }
 
-            // PointerFieldSurface derives its local refraction/highlight strengths from
-            // the current brush values. Press optics change those values, so refresh the
-            // live field immediately instead of waiting for detach/reattach or SizeChanged.
-            m_pointerField.RefreshConfiguration();
+            // Kube has one displacement field. Our shader also has a spatial pointer
+            // field, so multiplying both fields by the full active ratio over-bends the
+            // lens as the scale spring reaches 1. Keep the base surface at its rest bend
+            // and put the active delta into the local field instead.
+            m_pointerField.SetConfigurationScales(m_pressed ? 2.25 : 1.0);
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 

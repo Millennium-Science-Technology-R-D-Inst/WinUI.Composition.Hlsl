@@ -118,7 +118,10 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshPressOpticsPointerFieldConfiguration()
         {
-            m_pointerField.RefreshConfiguration();
+            // Kube Switch has one global lip displacement map. Keep PointerField for
+            // local specular response only; a second pointer-driven refraction field
+            // produces the detached outer shell seen on press.
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
         bool TryHandleToggle()
@@ -568,6 +571,7 @@ namespace winrt::WinUI::LiquidGlass::detail
                 if (auto owner = weak.get()) return owner->GlassBrush();
                 return nullptr;
             });
+            m_pointerField.SetConfigurationScales(0.0, 1.0);
         }
 
         void ClearForTeardown()

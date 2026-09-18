@@ -166,14 +166,15 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.12));
 		SetValue(LiquidGlassInteraction::PointerOverHighlightMultiplierProperty(), box_value(1.15));
 		SetValue(LiquidGlassInteraction::PointerOverTintBoostProperty(), box_value(0.0));
-		// Kube's slider drives the refraction scale from 0.4 at rest to 0.9 while active.
-		// Preserve that 2.25x relation instead of the older, much weaker 1.45x response.
-		SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(2.25));
+		// Kube has one displacement map. Here global surface refraction and the spatial
+		// PointerField are separate shader terms; driving both to the full active ratio
+		// double-counts the bend. Keep the base surface at its rest .4-equivalent and put
+		// the press delta into PointerField.
+		SetValue(LiquidGlassInteraction::PressedRefractionMultiplierProperty(), box_value(1.0));
 		SetValue(LiquidGlassInteraction::PressedRefractionBoostProperty(), box_value(0.0));
-		// Kube's displacement map keeps strong colored/specular edges while the white
-		// body fades away. Our HLSL has an explicit RGB dispersion control, so raise it
-		// only for the active lens rather than baking excessive chroma into the rest state.
-		SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(2.6));
+		// RGB dispersion is an extension beyond Kube's displacement map. Do not widen it
+		// while the lens grows; this preserves the thin colored edge seen on the good frame.
+		SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(1.0));
 		// Kube fades the white body from 1.0 to 0.1 while active.
 		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
 		// Kube keeps specularOpacity at .4 in both rest and active states. Keep the

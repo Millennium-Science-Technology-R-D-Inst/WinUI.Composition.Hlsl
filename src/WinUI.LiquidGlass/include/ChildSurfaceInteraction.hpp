@@ -120,6 +120,13 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_configurationDirty = true;
         }
 
+        void SetConfigurationScales(double refractionScale, double highlightScale = 1.0)
+        {
+            m_refractionScale = std::clamp(refractionScale, 0.0, 4.0);
+            m_highlightScale = std::clamp(highlightScale, 0.0, 4.0);
+            RefreshConfiguration();
+        }
+
         void RefreshConfiguration()
         {
             m_configurationDirty = true;
@@ -207,8 +214,10 @@ namespace winrt::WinUI::LiquidGlass::detail
             auto const maxExtent = std::max(width, height);
             if (maxExtent <= 1e-4) return;
             auto const interactionRadiusDips = std::clamp(maxExtent * 0.65, 56.0, 180.0);
-            auto const refraction = static_cast<float>(std::clamp(brush.RefractionStrength() * 0.24, 2.0, 8.0));
-            auto const highlight = static_cast<float>(std::clamp(brush.HighlightStrength() * 0.55, 0.12, 0.40));
+            auto const refraction = static_cast<float>(std::clamp(
+                brush.RefractionStrength() * 0.24 * m_refractionScale, 0.0, 8.0));
+            auto const highlight = static_cast<float>(std::clamp(
+                brush.HighlightStrength() * 0.55 * m_highlightScale, 0.0, 0.40));
             effect.SetFloat(L"PointerInteractionRadius", static_cast<float>(interactionRadiusDips / maxExtent));
             effect.SetFloat(L"PointerInteractionStrength", 1.0f);
             effect.SetFloat(L"PointerHoverRange", static_cast<float>(kHoverRangeDips / maxExtent));
@@ -299,6 +308,8 @@ namespace winrt::WinUI::LiquidGlass::detail
         Windows::Foundation::Point m_lastPoint{};
         Clock::time_point m_lastTime{};
         std::uint64_t m_registrationId{};
+        double m_refractionScale{ 1.0 };
+        double m_highlightScale{ 1.0 };
         bool m_configurationDirty{ true };
         bool m_lastPointValid{};
         bool m_active{};
