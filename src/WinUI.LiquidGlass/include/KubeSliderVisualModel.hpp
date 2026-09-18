@@ -122,10 +122,14 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void RefreshPointerFieldConfiguration()
         {
-            // Kube Slider has one global displacement map. Keep the PointerField only
-            // for the local specular reveal; adding a second refractive field changes
-            // the authored .4 -> .9 displacement response and can hide the glass bend.
-            m_pointerField.SetConfigurationScales(0.0, 1.0);
+            // The global field keeps Kube's authored .4 -> .9 displacement. WinUI's
+            // materialized backdrop still needs the local pressed field that produced
+            // the approved detach/reattach appearance: it gives the active lens its
+            // spatial bend instead of reading as a uniformly enlarged translucent pill.
+            // Keep it press-only so rest state remains a single optical surface.
+            m_pointerField.SetConfigurationScales(
+                m_pressed ? kPressedPointerRefractionScale : 0.0,
+                1.0);
         }
 
     private:
@@ -134,6 +138,11 @@ namespace winrt::WinUI::LiquidGlass::detail
         static constexpr double kVisualHeight = 60.0;
         using Clock = std::chrono::steady_clock;
         static constexpr double kRestScale = 0.6;
+        // The original runtime state that matched the Kube reference used a 13.2
+        // refraction baseline. The current global field is correctly normalized to
+        // Kube's 9.6 (= 24 * .4), so preserve that approved local-field amplitude as
+        // 13.2 / 9.6 rather than inflating the global displacement again.
+        static constexpr double kPressedPointerRefractionScale = 13.2 / 9.6;
         static constexpr double kScaleStiffness = 2000.0;
         static constexpr double kScaleDamping = 80.0;
         static constexpr auto kScaleInterval = std::chrono::milliseconds{ 16 };
@@ -712,10 +721,12 @@ namespace winrt::WinUI::LiquidGlass::detail
                 LeaveSliderPressedOptics(owner, m_pressOptics);
             }
 
-            // The authored Kube filter drives the global displacement map from
-            // scaleRatio .4 to .9 while the element itself scales .6 -> 1. PointerField
-            // remains highlight-only so the final expanded lens keeps that exact model.
-            m_pointerField.SetConfigurationScales(0.0, 1.0);
+            // Keep Kube's global .4 -> .9 surface response, and add the local
+            // interaction field only while pressed. This is the state that survives a
+            // subtree reattach and visually reads as glass rather than scale-only motion.
+            m_pointerField.SetConfigurationScales(
+                m_pressed ? kPressedPointerRefractionScale : 0.0,
+                1.0);
             UpdateLensPosition(DisplayRatio(NormalizedValue()));
         }
 
@@ -735,7 +746,9 @@ namespace winrt::WinUI::LiquidGlass::detail
                 if (auto owner = weak.get()) return owner->GlassBrush();
                 return nullptr;
             });
-            m_pointerField.SetConfigurationScales(0.0, 1.0);
+            m_pointerField.SetConfigurationScales(
+                m_pressed ? kPressedPointerRefractionScale : 0.0,
+                1.0);
         }
 
         PointerFieldSurface m_pointerField;
