@@ -16,16 +16,22 @@
                             22 DIPs of horizontal and 12.5 DIPs of vertical overscan so the
                             .9 pressed scale, rim/refraction and ThemeShadow are never clipped.
                         -->
-                        <Grid>
-                            <Grid x:Name="SwitchGlyph" HorizontalAlignment="Center" VerticalAlignment="Center" Control.IsTemplateFocusTarget="True">
-                                <!--  Composition owns the rendered track color. This Border is its XAML host.  -->
-                                <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" />
+                        <Grid Width="204" Height="92" Margin="-22,-12.5,-22,-12.5">
+                            <!--
+                                This is a real 204x92 render host whose negative margin makes its
+                                layout contribution exactly 160x67. Unlike the old 160x67 inner
+                                host, it does not clip the 146x92 knob when the .9 pressed scale
+                                extends beyond the track.
+                            -->
+                            <Grid x:Name="SwitchGlyph" Width="204" Height="92" HorizontalAlignment="Center" VerticalAlignment="Center" Control.IsTemplateFocusTarget="True">
+                                <!-- Composition owns the rendered track color. Center the 160x67 semantic track inside the overscan host. -->
+                                <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 <!--
-                                    Position/track use the switch's control-level spring. The knob
-                                    scale may use its local spring tuning. The nested glass surface
-                                    owns only ThemeShadow/Z elevation; X/Y and scale stay on SwitchKnob.
+                                    Kube's -21.95 authored knob offset becomes approximately zero
+                                    here because the track starts 22 DIPs inside this render host.
+                                    Composition owns the remaining 0..57.9 DIP drag translation.
                                 -->
-                                <Grid x:Name="SwitchKnob" Width="146" Height="92" Margin="-21.95,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
+                                <Grid x:Name="SwitchKnob" Width="146" Height="92" HorizontalAlignment="Left" VerticalAlignment="Center" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
                                     <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="46">
                                         <Border.Shadow>
                                             <ThemeShadow />
