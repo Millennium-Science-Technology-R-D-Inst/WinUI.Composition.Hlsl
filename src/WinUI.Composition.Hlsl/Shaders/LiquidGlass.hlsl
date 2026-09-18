@@ -163,8 +163,12 @@ float4 CalculateTransmissionBounds(
     // region to estimate here: samplerData is the authoritative logical content rect.
     if (hasContentRect)
     {
-        safeMin = max(textureMin, contentMin);
-        safeMax = min(textureMax, contentMax);
+        // Stay half a texel inside the logical content rectangle. Custom-sampler
+        // materialization can place transparent allocation texels immediately
+        // outside samplerData's content rect; bilinear filtering exactly on that
+        // boundary otherwise mixes premultiplied black into strong refraction.
+        safeMin = max(textureMin, contentMin + halfTexel);
+        safeMax = min(textureMax, contentMax - halfTexel);
     }
 
     const float2 center = (safeMin + safeMax) * 0.5f;
@@ -173,14 +177,36 @@ float4 CalculateTransmissionBounds(
     return float4(safeMin, safeMax);
 }
 
+float OffsetScaleToBounds(float2 origin, float2 offset, float2 safeMin, float2 safeMax)
+{
+    float result = 1.0f;
+    const float epsilon = 1e-7f;
+
+    if (offset.x > epsilon)
+        result = min(result, (safeMax.x - origin.x) / offset.x);
+    else if (offset.x < -epsilon)
+        result = min(result, (safeMin.x - origin.x) / offset.x);
+
+    if (offset.y > epsilon)
+        result = min(result, (safeMax.y - origin.y) / offset.y);
+    else if (offset.y < -epsilon)
+        result = min(result, (safeMin.y - origin.y) / offset.y);
+
+    return saturate(result);
+}
+
 float4 SampleTransmission(float2 uv, float2 safeMin, float2 safeMax)
 {
-    // Clamp each spectral sample independently to the materialized content rect.
-    // A shared offset scale lets one outward dispersion channel collapse the green
-    // and opposite channel to the border too, producing the long top/left color
-    // streaks visible in RegressionLab. LiquidGlassWinUI uses per-sample clamping
-    // for the same reason.
-    return texture0.Sample(sampler0, clamp(uv, safeMin, safeMax));
+    float4 result = texture0.Sample(sampler0, clamp(uv, safeMin, safeMax));
+
+    // The materialized backdrop is premultiplied-alpha. Strong Concave/Lip
+    // refraction reaches the finite intermediate boundary first; if RGB is used
+    // directly there, its allocation alpha darkens the transmitted color into a
+    // black rim. Recover straight transmission color before applying glass alpha.
+    if (result.a > 1e-5f)
+        result.rgb /= result.a;
+
+    return result;
 }
 
 float SpecularEdgeProfile(
@@ -387,14 +413,40 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 
         const float4 transmissionBounds = CalculateTransmissionBounds(
             texelSize, contentMin, contentMax, hasContentRect);
-        const float2 redSampleUv = sampleUv - dispersionOffset;
-        const float2 greenSampleUv = sampleUv;
-        const float2 blueSampleUv = sampleUv + dispersionOffset;
+        const float2 transmissionOrigin = clamp(uv, transmissionBounds.xy, transmissionBounds.zw);
+        const float2 baseSampleOffset = sampleUv - uv;
 
-        float3 color = float3(
-            SampleTransmission(redSampleUv, transmissionBounds.xy, transmissionBounds.zw).r,
-            SampleTransmission(greenSampleUv, transmissionBounds.xy, transmissionBounds.zw).g,
-            SampleTransmission(blueSampleUv, transmissionBounds.xy, transmissionBounds.zw).b);
+        // The source texture is finite even though a real backdrop is not. Constrain
+        // each wavelength independently before sampling instead of hard-clamping the
+        // completed UV (which pins a large Concave field to one border texel) or using
+        // one shared RGB scale (which lets one channel collapse all three).
+        const float2 redOffset = baseSampleOffset - dispersionOffset;
+        const float2 greenOffset = baseSampleOffset;
+        const float2 blueOffset = baseSampleOffset + dispersionOffset;
+        const float redScale = OffsetScaleToBounds(
+            transmissionOrigin, redOffset, transmissionBounds.xy, transmissionBounds.zw);
+        const float greenScale = OffsetScaleToBounds(
+            transmissionOrigin, greenOffset, transmissionBounds.xy, transmissionBounds.zw);
+        const float blueScale = OffsetScaleToBounds(
+            transmissionOrigin, blueOffset, transmissionBounds.xy, transmissionBounds.zw);
+
+        float4 baseSample = SampleTransmission(
+            transmissionOrigin, transmissionBounds.xy, transmissionBounds.zw);
+        float4 redSample = SampleTransmission(
+            transmissionOrigin + redOffset * redScale, transmissionBounds.xy, transmissionBounds.zw);
+        float4 greenSample = SampleTransmission(
+            transmissionOrigin + greenOffset * greenScale, transmissionBounds.xy, transmissionBounds.zw);
+        float4 blueSample = SampleTransmission(
+            transmissionOrigin + blueOffset * blueScale, transmissionBounds.xy, transmissionBounds.zw);
+
+        // A zero-alpha allocation texel contains no recoverable straight color.
+        // Fall back to the undisplaced backdrop at this output pixel rather than
+        // manufacturing black. This path only activates at the materialized edge.
+        if (redSample.a <= 1e-5f) redSample = baseSample;
+        if (greenSample.a <= 1e-5f) greenSample = baseSample;
+        if (blueSample.a <= 1e-5f) blueSample = baseSample;
+
+        float3 color = float3(redSample.r, greenSample.g, blueSample.b);
         color = ApplySaturation(color, saturation);
         color = ApplyExposureContrast(color, exposure, contrast);
         color = lerp(color, tintColor, tintOpacity);
