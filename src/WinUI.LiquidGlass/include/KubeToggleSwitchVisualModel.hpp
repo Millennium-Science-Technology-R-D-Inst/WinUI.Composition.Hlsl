@@ -90,7 +90,11 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_trackHost = track;
                 BuildTrackVisual();
             }
-            m_trackHost.Background(nullptr);
+            // Keep the XAML Track background at Transparent. The Composition child
+            // visual paints the actual track, but the transparent Border is still the
+            // hit-test surface for the ToggleButton. Clearing Background to null makes
+            // the entire glyph non-hit-testable because the optical Canvas is deliberately
+            // IsHitTestVisible=False, which breaks press/drag routing.
             Microsoft::UI::Xaml::Hosting::ElementCompositionPreview::SetIsTranslationEnabled(m_knob, true);
 
             if (!m_initialized)
