@@ -192,4 +192,7 @@
       <UniqueIdentifier>{71591ca1-fe98-4e68-8516-db83c4775a35}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="WUILiquidGlassDemo.Hlsl_TemporaryKey.pfx" />
+  </ItemGroup>
 </Project>

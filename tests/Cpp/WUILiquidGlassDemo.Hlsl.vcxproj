@@ -249,4 +249,7 @@
       <Project>{b3e53b4f-4751-4d13-8d10-4d77f6b8e3c9}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="WUILiquidGlassDemo.Hlsl_TemporaryKey.pfx" />
+  </ItemGroup>
 </Project>
