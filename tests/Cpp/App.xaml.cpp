@@ -2,6 +2,7 @@
 
 #include "App.xaml.h"
 #include "MainWindow.xaml.h"
+#include "NavigationWindow.xaml.h"
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -84,6 +85,8 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 	void App::OnLaunched([[maybe_unused]] LaunchActivatedEventArgs const& e)
 	{
 		window = make<MainWindow>();
+		auto navigationWindow = make<NavigationWindow>();
+		navigationWindow.Activate();
 		window.Activate();
 	}
 }

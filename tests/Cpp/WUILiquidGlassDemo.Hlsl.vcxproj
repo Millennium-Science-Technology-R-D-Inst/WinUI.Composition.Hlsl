@@ -120,6 +120,21 @@
     <ClInclude Include="MainWindow.xaml.h">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </ClInclude>
+    <ClInclude Include="NavigationWindow.xaml.h">
+      <DependentUpon>NavigationWindow.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="OverviewPage.xaml.h">
+      <DependentUpon>OverviewPage.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="SharedBrushPage.xaml.h">
+      <DependentUpon>SharedBrushPage.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="IsolatedBrushPage.xaml.h">
+      <DependentUpon>IsolatedBrushPage.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="DetachPage.xaml.h">
+      <DependentUpon>DetachPage.xaml</DependentUpon>
+    </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="XamlWorkaround.h" />
     <ClCompile Include="windows.graphic.effects.interop.ixx" />
@@ -127,6 +142,11 @@
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml" />
     <Page Include="MainWindow.xaml" />
+    <Page Include="NavigationWindow.xaml" />
+    <Page Include="OverviewPage.xaml" />
+    <Page Include="SharedBrushPage.xaml" />
+    <Page Include="IsolatedBrushPage.xaml" />
+    <Page Include="DetachPage.xaml" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ApiSurfaceCompile.cpp" />
@@ -140,12 +160,47 @@
     <ClCompile Include="MainWindow.LiquidGlass.cpp">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </ClCompile>
+    <ClCompile Include="NavigationWindow.xaml.cpp">
+      <DependentUpon>NavigationWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="OverviewPage.xaml.cpp">
+      <DependentUpon>OverviewPage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="SharedBrushPage.xaml.cpp">
+      <DependentUpon>SharedBrushPage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="IsolatedBrushPage.xaml.cpp">
+      <DependentUpon>IsolatedBrushPage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="DetachPage.xaml.cpp">
+      <DependentUpon>DetachPage.xaml</DependentUpon>
+    </ClCompile>
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Midl Include="MainWindow.idl">
       <SubType>Code</SubType>
       <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="NavigationWindow.idl">
+      <SubType>Code</SubType>
+      <DependentUpon>NavigationWindow.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="OverviewPage.idl">
+      <SubType>Code</SubType>
+      <DependentUpon>OverviewPage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="SharedBrushPage.idl">
+      <SubType>Code</SubType>
+      <DependentUpon>SharedBrushPage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="IsolatedBrushPage.idl">
+      <SubType>Code</SubType>
+      <DependentUpon>IsolatedBrushPage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="DetachPage.idl">
+      <SubType>Code</SubType>
+      <DependentUpon>DetachPage.xaml</DependentUpon>
     </Midl>
   </ItemGroup>
   <ItemGroup>

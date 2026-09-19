@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="WUILiquidGlassDemo_Hlsl.SharedBrushPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer Padding="24">
+        <StackPanel MaxWidth="900" Spacing="16">
+            <TextBlock FontSize="30" FontWeight="SemiBold" Text="Shared brush" />
+            <TextBlock Opacity="0.8" TextWrapping="Wrap">All surfaces below resolve the same SharedGlassBrush. The shell NavigationView also uses it, so switching away should not disconnect this instance while the shell is visible.</TextBlock>
+            <Grid ColumnSpacing="14" RowSpacing="14">
+                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                <Border Background="{ThemeResource SharedGlassBrush}" CornerRadius="18" Padding="24" MinHeight="180">
+                    <StackPanel Spacing="8"><TextBlock FontSize="22" Text="Surface A" /><TextBlock Text="One CompositionBrush instance" TextWrapping="Wrap" /></StackPanel>
+                </Border>
+                <Border Grid.Column="1" Background="{ThemeResource SharedGlassBrush}" CornerRadius="18" Padding="24" MinHeight="180">
+                    <StackPanel Spacing="8"><TextBlock FontSize="22" Text="Surface B" /><TextBlock Text="Shared resource remains rooted by the shell" TextWrapping="Wrap" /></StackPanel>
+                </Border>
+                <Border Grid.Row="1" Grid.ColumnSpan="2" Background="{ThemeResource SharedGlassBrush}" CornerRadius="18" Padding="24">
+                    <StackPanel Spacing="8"><TextBlock FontSize="22" Text="Navigation test" /><TextBlock Text="Use Stress 40 cycles, then compare this page with Isolated brushes." TextWrapping="Wrap" /></StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

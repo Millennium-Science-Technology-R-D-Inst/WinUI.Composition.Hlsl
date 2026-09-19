@@ -1,0 +1,8 @@
+namespace WUILiquidGlassDemo_Hlsl
+{
+    [default_interface]
+    runtimeclass IsolatedBrushPage : Microsoft.UI.Xaml.Controls.Page
+    {
+        IsolatedBrushPage();
+    }
+}

@@ -1,0 +1,8 @@
+namespace WUILiquidGlassDemo_Hlsl
+{
+    [default_interface]
+    runtimeclass DetachPage : Microsoft.UI.Xaml.Controls.Page
+    {
+        DetachPage();
+    }
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="WUILiquidGlassDemo_Hlsl.IsolatedBrushPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:hlsl="using:WinUI.Composition.Hlsl">
+    <ScrollViewer Padding="24">
+        <StackPanel MaxWidth="900" Spacing="16">
+            <TextBlock FontSize="30" FontWeight="SemiBold" Text="Isolated brushes" />
+            <TextBlock Opacity="0.8" TextWrapping="Wrap">Each Border owns a separate LiquidGlassBrush declared inside the page template. This isolates teardown, but costs more Composition graphs. Use this page to compare stability and resource pressure, not as the default application architecture.</TextBlock>
+            <Grid ColumnSpacing="14" RowSpacing="14">
+                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                <Border CornerRadius="18" Padding="24" MinHeight="180">
+                    <Border.Background><hlsl:LiquidGlassBrush BlurRadius="8" BorderThickness="1" CornerRadius="18" FallbackColor="#D9252A38" IsEnabled="False" /></Border.Background>
+                    <StackPanel Spacing="8"><TextBlock FontSize="22" Text="Owned A" /><TextBlock Text="Independent lifecycle" /></StackPanel>
+                </Border>
+                <Border Grid.Column="1" CornerRadius="18" Padding="24" MinHeight="180">
+                    <Border.Background><hlsl:LiquidGlassBrush BlurRadius="8" BorderThickness="1" CornerRadius="18" FallbackColor="#D9252A38" IsEnabled="False" /></Border.Background>
+                    <StackPanel Spacing="8"><TextBlock FontSize="22" Text="Owned B" /><TextBlock Text="Independent lifecycle" /></StackPanel>
+                </Border>
+                <Border Grid.Row="1" Grid.ColumnSpan="2" CornerRadius="18" Padding="24">
+                    <Border.Background><hlsl:LiquidGlassBrush BlurRadius="8" BorderThickness="1" CornerRadius="18" FallbackColor="#D9252A38" IsEnabled="False" /></Border.Background>
+                    <TextBlock Text="Navigate away and back repeatedly. If this page alone fails, the problem is per-instance teardown rather than shared-resource ownership." TextWrapping="Wrap" />
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

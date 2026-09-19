@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="WUILiquidGlassDemo_Hlsl.OverviewPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer Padding="24">
+        <StackPanel MaxWidth="900" Spacing="16">
+            <TextBlock FontSize="30" FontWeight="SemiBold" Text="What this window tests" />
+            <TextBlock Opacity="0.8" TextWrapping="Wrap">
+                This window deliberately keeps the shell alive while navigation replaces pages. The Shared brush page uses one brush from Window.Resources. The Isolated page creates one brush per Border. The Detach page removes and restores a subtree. Enable the material only after the fallback navigation path is stable.
+            </TextBlock>
+            <Border Background="{ThemeResource SharedGlassBrush}" CornerRadius="18" Padding="24">
+                <StackPanel Spacing="10">
+                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="Recommended application shape" />
+                    <TextBlock TextWrapping="Wrap">Keep a small number of structural glass surfaces shared by the shell. Give interactive controls their own brush only when they animate optical properties independently. Do not turn every list item into a new effect graph.</TextBlock>
+                </StackPanel>
+            </Border>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Border Background="{ThemeResource SharedGlassBrush}" CornerRadius="14" Padding="18">
+                    <StackPanel Spacing="6"><TextBlock FontSize="18" Text="Shared" /><TextBlock Text="One resource, many consumers" TextWrapping="Wrap" /></StackPanel>
+                </Border>
+                <Border Grid.Column="1" Background="{ThemeResource SharedGlassBrush}" CornerRadius="14" Padding="18">
+                    <StackPanel Spacing="6"><TextBlock FontSize="18" Text="Navigation" /><TextBlock Text="Page unload / reload" TextWrapping="Wrap" /></StackPanel>
+                </Border>
+                <Border Grid.Column="2" Background="{ThemeResource SharedGlassBrush}" CornerRadius="14" Padding="18">
+                    <StackPanel Spacing="6"><TextBlock FontSize="18" Text="Fallback" /><TextBlock Text="Safe default first" TextWrapping="Wrap" /></StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,8 @@
+namespace WUILiquidGlassDemo_Hlsl
+{
+    [default_interface]
+    runtimeclass NavigationWindow : Microsoft.UI.Xaml.Window
+    {
+        NavigationWindow();
+    }
+}
