@@ -10,6 +10,9 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<RootNamespace>HlslCSharpConsumer</RootNamespace>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<!-- This project sits above another managed test project. Keep SDK default
+		     item globs from recursively compiling or packaging the child project. -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);LiquidGlassConsumer\**</DefaultItemExcludes>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.WindowsAppSDK"/>
