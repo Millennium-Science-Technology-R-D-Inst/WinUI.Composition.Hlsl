@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <WinUILiquidGlassWinMDPath>$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.LiquidGlass.winmd</WinUILiquidGlassWinMDPath>
+    <WinUILiquidGlassImplementationDllName>WinUI.LiquidGlass.dll</WinUILiquidGlassImplementationDllName>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <WinUILiquidGlassPlatform Condition="$(RuntimeIdentifier.EndsWith('-x64'))">x64</WinUILiquidGlassPlatform>
+    <WinUILiquidGlassPlatform Condition="$(RuntimeIdentifier.EndsWith('-x86'))">x86</WinUILiquidGlassPlatform>
+    <WinUILiquidGlassPlatform Condition="$(RuntimeIdentifier.EndsWith('-arm64'))">arm64</WinUILiquidGlassPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(WinUILiquidGlassPlatform)' == ''">
+    <WinUILiquidGlassPlatform Condition="'$(Platform)' == 'Win32'">x86</WinUILiquidGlassPlatform>
+    <WinUILiquidGlassPlatform Condition="'$(Platform)' != 'Win32' and '$(Platform)' != 'AnyCPU'">$(Platform)</WinUILiquidGlassPlatform>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <WindowsMetadataReference Include="$(WinUILiquidGlassWinMDPath)" Implementation="$(WinUILiquidGlassImplementationDllName)" />
+    <SDKReference Include="Microsoft.VCLibs.Desktop, Version=14.0" />
+  </ItemGroup>
+
+  <Target Name="WinUILiquidGlassWarnNoPlatform"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(WinUILiquidGlassPlatform)' == ''">
+    <Warning Code="WLG0001"
+             Text="'WinUI.LiquidGlass.dll' requires a concrete Windows architecture. Build with x64, x86, ARM64, or publish with a matching Windows RID." />
+  </Target>
+</Project>

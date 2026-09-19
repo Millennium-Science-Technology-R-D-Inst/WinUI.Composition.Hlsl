@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>LiquidGlassCSharpConsumer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="WinUI.LiquidGlass"
+                      VersionOverride="$(LiquidGlassPackageVersion)"
+                      Condition="'$(LiquidGlassPackageVersion)' != ''" />
+    <ProjectReference Include="../../../projection/WinUI.LiquidGlass.Projection.csproj"
+                      Condition="'$(LiquidGlassPackageVersion)' == ''" />
+  </ItemGroup>
+</Project>

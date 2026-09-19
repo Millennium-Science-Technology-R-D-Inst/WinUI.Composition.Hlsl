@@ -1,6 +1,6 @@
 # WinUI.LiquidGlass
 
-Native C++/WinRT Liquid Glass controls for WinUI 3. The package depends on the matching `WinUI.Composition.Hlsl` runtime and keeps the control layer separate from the lower-level HLSL/Composition engine.
+Native C++/WinRT Liquid Glass controls for WinUI 3. The package ships the native WinRT component plus a C#/WinRT projection for .NET Windows applications, depends on the matching `WinUI.Composition.Hlsl` runtime, and keeps the control layer separate from the lower-level HLSL/Composition engine.
 
 ```xml
 <PackageReference Include="WinUI.LiquidGlass" Version="1.0.x" />

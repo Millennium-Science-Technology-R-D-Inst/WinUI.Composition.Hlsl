@@ -115,7 +115,7 @@ jobs:
           }
           Write-Host "Generated: $($dxbc.FullName) ($($dxbc.Length) bytes)"
 
-      - name: Build projection package asset
+      - name: Build managed projection package assets
         shell: pwsh
         run: |
           & $env:MSBUILD `
@@ -127,7 +127,19 @@ jobs:
             /p:NuGetAudit=false `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
-            /fl "/flp:logfile=projection-build.log;verbosity=minimal"
+            /fl "/flp:logfile=projection-core-build.log;verbosity=minimal"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          & $env:MSBUILD `
+            'projection\WinUI.LiquidGlass.Projection.csproj' `
+            /restore `
+            /t:Build `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:NuGetAudit=false `
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+            /m /v:minimal /nologo `
+            /fl "/flp:logfile=projection-liquidglass-build.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Validate native HLSL build integration
@@ -170,6 +182,7 @@ jobs:
             'artifacts\Win32\Release\WinUI.Composition.Hlsl.dll',
             'artifacts\ARM64\Release\WinUI.Composition.Hlsl.dll',
             'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll',
+            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.LiquidGlass.Projection.dll',
             'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.winmd',
             'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.pri',
             'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll',
@@ -226,7 +239,7 @@ jobs:
           path: |
             core-*.log
             liquidglass-*.log
-            projection-build.log
+            projection-*-build.log
             native-shader-consumer.log
             core-nuget-pack.log
             liquidglass-nuget-pack.log
@@ -314,7 +327,7 @@ jobs:
           path: Cpp-test-build.log
 
   build-csharp-demo:
-    name: Build C# core demo from packed NuGet
+    name: Build C# package consumers from packed NuGet
     needs: pack-nuget
     runs-on: windows-2025-vs2026
     env:
@@ -333,11 +346,13 @@ jobs:
           name: ${{ needs.pack-nuget.outputs.package-artifact }}
           path: artifacts/packages
 
-      - name: Configure exact core package consumer
+      - name: Configure exact package consumers
         shell: pwsh
         run: |
-          $expected = "WinUI.Composition.Hlsl.$env:PACKAGE_VERSION.nupkg"
-          if (!(Test-Path "artifacts\packages\$expected")) { throw "Expected package $expected was not downloaded." }
+          foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.LiquidGlass')) {
+            $expected = "$id.$env:PACKAGE_VERSION.nupkg"
+            if (!(Test-Path "artifacts\packages\$expected")) { throw "Expected package $expected was not downloaded." }
+          }
 
           $projectPath = (Resolve-Path 'tests\CSharp\HlslCSharpConsumer.csproj').Path
           [xml]$project = Get-Content $projectPath -Raw
@@ -375,6 +390,20 @@ jobs:
             /fl "/flp:logfile=CSharp-test-build.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
+      - name: Build managed LiquidGlass consumer from package
+        shell: pwsh
+        run: |
+          & $env:MSBUILD `
+            'tests\CSharp\LiquidGlassConsumer\LiquidGlassConsumer.csproj' `
+            /restore /t:Build `
+            /p:Configuration=Debug /p:Platform=x64 /p:NuGetAudit=false `
+            "/p:LiquidGlassPackageVersion=$env:PACKAGE_VERSION" `
+            "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
+            /m /v:minimal /nologo `
+            /fl "/flp:logfile=CSharp-liquidglass-build.log;verbosity=minimal"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
       - name: Verify managed HLSL build outputs
         shell: pwsh
         run: |
@@ -399,7 +428,9 @@ jobs:
         with:
           name: csharp-demo-build-logs-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: ignore
-          path: CSharp-test-build.log
+          path: |
+            CSharp-test-build.log
+            CSharp-liquidglass-build.log
 
   publish-nuget:
     name: Publish NuGet
