@@ -12,7 +12,7 @@
 	<Identity
 	  Name="8bf9eaa4-ea72-409e-a9a9-f140f7540c9a"
 	  Publisher="CN=Millennium Science Technology R&amp;D Inst"
-	  Version="1.0.0.0" />
+	  Version="1.1.336.0" />
 
 	<mp:PhoneIdentity PhoneProductId="8bf9eaa4-ea72-409e-a9a9-f140f7540c9a" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

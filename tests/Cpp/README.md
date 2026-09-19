@@ -56,3 +56,30 @@ VS内部构建或
 ~~~
 
 smoke 依次切换 invert、sampler blur、glass，更新参数并 resize，写入工作目录 smoke.log，完成后关闭。它检查创建/更新和持续运行，不替代像素正确性测试。
+
+## MSIX 打包注意事项
+
+这个 Demo 直接 `ProjectReference` 到 native `WinUI.Composition.Hlsl` 项目。C++ shader 的 `*.dxbc` 是 FXC 生成 `.g.h` 时使用的中间文件，运行时 bytecode 已经嵌入 native DLL，不应作为 loose MSIX 内容重复部署。
+
+如果 Visual Studio 在 `MakeAppx` 阶段报告：
+
+```text
+0x8007007B - The filename, directory name, or volume label syntax is incorrect.
+```
+
+先检查以下生成文件：
+
+```text
+Output\WUILiquidGlassDemo.Hlsl\<Platform>\<Configuration>\package.map.txt
+Output\<Platform>\<Configuration>\WUILiquidGlassDemo.Hlsl.build.appxrecipe
+```
+
+包内目标路径必须是相对路径。下面这种路径非法：
+
+```text
+WinUI.Composition.Hlsl\..\..\..\src\WinUI.Composition.Hlsl\obj\...\LiquidGlassShader.dxbc
+```
+
+当前 Demo 在 [WUILiquidGlassDemo.Hlsl.vcxproj](WUILiquidGlassDemo.Hlsl.vcxproj) 的 MSIX payload 阶段移除这类 native core shader 条目。这个处理只作用于 C++ Demo；不要把它改成 HLSL 项目的全局 DXBC 删除规则，否则可能影响需要部署 loose DXBC 的 managed/C# 消费者。
+
+如果修复后仍看到旧的 `.dxbc` 条目，先执行 Clean/Rebuild，让 `.appxrecipe` 和 `package.map.txt` 重新生成，再继续检查 MakeAppx 输出。

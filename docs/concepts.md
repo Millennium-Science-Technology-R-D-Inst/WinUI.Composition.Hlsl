@@ -52,6 +52,27 @@ C# content       C++ .g.h byte array
 
 A `.cso` or `.dxbc` filename is only a storage convention. The actual format is determined by the bytes and compilation target.
 
+### Native, managed, and MSIX deployment
+
+The native and managed build paths intentionally deploy shader output differently:
+
+| Consumer | Runtime form | Normal package behavior |
+| --- | --- | --- |
+| C++/WinRT | Generated `.g.h` byte array | DXBC remains an intermediate output and is embedded in the native DLL/application. |
+| C# / managed | Loose generated `.dxbc` | DXBC is published as application content under `Hlsl\...`. |
+
+Do not remove all `.dxbc` items globally to fix a native MSIX build. Managed consumers need their generated `Hlsl\...` files. Conversely, do not force the native library's intermediate DXBC into the package unless the application explicitly loads it as a loose file.
+
+When a native application references the HLSL project directly, Visual Studio's C++ `FxCompile` targets can export the intermediate object output as deployment content. If the library output directory and the intermediate shader directory are different, the generated package recipe can contain a path like:
+
+```text
+WinUI.Composition.Hlsl\..\..\..\src\WinUI.Composition.Hlsl\obj\x64\Release\LiquidGlassShader.dxbc
+```
+
+That path is usable as a source-on-disk relationship, but it is not a valid MSIX package path. The left side of a MakeAppx mapping is allowed to be an absolute source path; the right side must be a clean package-relative path and must not contain a drive letter, `..`, or unresolved MSBuild properties.
+
+For `0x8007007B` during MakeAppx, inspect the generated `.appxrecipe` and `package.map.txt` first. If the malformed entry comes from a referenced native library, fix or filter it at the consuming application's MSIX payload boundary. Do not change the managed `HlslCompositionPublishAsContent` policy as a workaround for a native package recipe problem.
+
 ## Shader profile
 
 `HlslShaderProfile` selects the FXC library target:

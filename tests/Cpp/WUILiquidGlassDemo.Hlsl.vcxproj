@@ -252,4 +252,16 @@
   <ItemGroup>
     <None Include="WUILiquidGlassDemo.Hlsl_TemporaryKey.pfx" />
   </ItemGroup>
+  <Target Name="RemoveInvalidCoreShaderPayloadFromMsix"
+          AfterTargets="_ComputeAppxPackagePayload"
+          BeforeTargets="_CalculateInputsForGenerateAppxPackageRecipe">
+    <ItemGroup>
+      <!-- The native HLSL project embeds these shaders in its DLL. Remove only
+           malformed DXBC payload paths from this C++ app's MSIX recipe. -->
+      <AppxPackagePayload Remove="@(AppxPackagePayload)"
+          Condition="'%(Extension)'=='.dxbc'
+                 and '%(TargetPath)'!=''
+                 and $([System.String]::Copy('%(TargetPath)').Contains('..'))" />
+    </ItemGroup>
+  </Target>
 </Project>
