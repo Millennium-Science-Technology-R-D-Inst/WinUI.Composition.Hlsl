@@ -10,8 +10,15 @@
   <Folder Name="/tests/">
     <Project Path="tests/Cpp/WUILiquidGlassDemo.Hlsl.vcxproj" Id="8bf9eaa4-ea72-409e-a9a9-f140f7540c9a" />
     <Project Path="tests/CSharp/HlslCSharpConsumer.csproj"><Platform Project="x64" /></Project>
+    <Project Path="tests/CSharp/LiquidGlassConsumer/LiquidGlassConsumer.csproj"><Platform Project="x64" /></Project>
   </Folder>
   <Project Path="projection/WinUI.Composition.Hlsl.Projection.csproj">
+    <Platform Solution="*|Any CPU" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="x86" />
+  </Project>
+  <Project Path="projection/WinUI.LiquidGlass.Projection.csproj">
     <Platform Solution="*|Any CPU" Project="x64" />
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
