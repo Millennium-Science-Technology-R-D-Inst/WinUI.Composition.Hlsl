@@ -307,7 +307,7 @@ A rounded content surface using the `FloatingPanel` preset. The default corner r
 runtimeclass LiquidGlassSearchBox : Microsoft.UI.Xaml.Controls.ContentControl
 ```
 
-WinUI's native `AutoSuggestBox` is sealed, so this control hosts a real native `AutoSuggestBox` instead of subclassing it. The wrapper mirrors the native search-specific dependency-property surface and keeps the outer and inner property systems synchronized in both directions.
+WinUI's native `AutoSuggestBox` is sealed, so this control hosts a real native `AutoSuggestBox` instead of subclassing it. The wrapper mirrors the search-specific dependency-property surface that is exported by the Windows App SDK contract consumed by this package and keeps the outer and inner property systems synchronized in both directions.
 
 ### Properties
 
@@ -325,12 +325,11 @@ WinUI's native `AutoSuggestBox` is sealed, so this control hosts a real native `
 | `QueryIcon` | `IconElement` | Gets or sets the query icon. |
 | `LightDismissOverlayMode` | `LightDismissOverlayMode` | Gets or sets the light-dismiss overlay behavior for the suggestion popup. |
 | `Description` | `Object` | Gets or sets the control description. |
-| `HeaderPlacement` | `ControlHeaderPlacement` | Gets or sets the header placement. |
 | `ItemsSource` | `Object` | Mirrors inherited `ItemsControl.ItemsSource` on the hosted native control. |
 | `ItemTemplate` | `DataTemplate` | Mirrors inherited `ItemsControl.ItemTemplate` on the hosted native control. |
 | `InnerAutoSuggestBox` | `AutoSuggestBox` | Gets the hosted native control for APIs that are intentionally not mirrored. Read-only. |
 
-Every mutable property above except `InnerAutoSuggestBox` is backed by a public `<Name>Property` dependency-property identifier on `LiquidGlassSearchBox`.
+Every mutable wrapper property above except `InnerAutoSuggestBox` is backed by a public `<Name>Property` dependency-property identifier on `LiquidGlassSearchBox`. WinUI source can contain feature-gated API that is not exported by the Windows App SDK WinMD consumed at build time; such members are intentionally not mirrored until they become part of that public contract.
 
 ### Events
 

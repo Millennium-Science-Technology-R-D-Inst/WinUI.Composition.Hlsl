@@ -104,7 +104,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         (void)QueryIconProperty();
         (void)LightDismissOverlayModeProperty();
         (void)DescriptionProperty();
-        (void)HeaderPlacementProperty();
         (void)ItemsSourceProperty();
         (void)ItemTemplateProperty();
     }
@@ -193,14 +192,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         return property;
     }
 
-    Xaml::DependencyProperty LiquidGlassSearchBox::HeaderPlacementProperty()
-    {
-        static auto const property = RegisterForwardedProperty<Controls::ControlHeaderPlacement>(
-            L"HeaderPlacement",
-            box_value(Controls::ControlHeaderPlacement::Top));
-        return property;
-    }
-
     Xaml::DependencyProperty LiquidGlassSearchBox::ItemsSourceProperty()
     {
         static auto const property = RegisterForwardedProperty<Windows::Foundation::IInspectable>(
@@ -231,7 +222,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         if (outerProperty == QueryIconProperty()) return Controls::AutoSuggestBox::QueryIconProperty();
         if (outerProperty == LightDismissOverlayModeProperty()) return Controls::AutoSuggestBox::LightDismissOverlayModeProperty();
         if (outerProperty == DescriptionProperty()) return Controls::AutoSuggestBox::DescriptionProperty();
-        if (outerProperty == HeaderPlacementProperty()) return Controls::AutoSuggestBox::HeaderPlacementProperty();
         if (outerProperty == ItemsSourceProperty()) return Controls::ItemsControl::ItemsSourceProperty();
         if (outerProperty == ItemTemplateProperty()) return Controls::ItemsControl::ItemTemplateProperty();
         return nullptr;
@@ -311,7 +301,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         mirror(QueryIconProperty());
         mirror(LightDismissOverlayModeProperty());
         mirror(DescriptionProperty());
-        mirror(HeaderPlacementProperty());
         mirror(ItemsSourceProperty());
         mirror(ItemTemplateProperty());
     }
@@ -487,18 +476,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
     void LiquidGlassSearchBox::Description(Windows::Foundation::IInspectable const& value)
     {
         SetValue(DescriptionProperty(), value);
-    }
-
-    Controls::ControlHeaderPlacement LiquidGlassSearchBox::HeaderPlacement() const
-    {
-        return unbox_value_or<Controls::ControlHeaderPlacement>(
-            GetValue(HeaderPlacementProperty()),
-            Controls::ControlHeaderPlacement::Top);
-    }
-
-    void LiquidGlassSearchBox::HeaderPlacement(Controls::ControlHeaderPlacement value)
-    {
-        SetValue(HeaderPlacementProperty(), box_value(value));
     }
 
     Windows::Foundation::IInspectable LiquidGlassSearchBox::ItemsSource() const

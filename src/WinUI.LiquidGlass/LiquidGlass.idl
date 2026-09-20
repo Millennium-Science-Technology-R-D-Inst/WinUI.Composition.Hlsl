@@ -388,9 +388,6 @@ namespace WinUI.LiquidGlass
         Object Description;
         static Microsoft.UI.Xaml.DependencyProperty DescriptionProperty{ get; };
 
-        Microsoft.UI.Xaml.Controls.ControlHeaderPlacement HeaderPlacement;
-        static Microsoft.UI.Xaml.DependencyProperty HeaderPlacementProperty{ get; };
-
         Object ItemsSource;
         static Microsoft.UI.Xaml.DependencyProperty ItemsSourceProperty{ get; };
 

@@ -24,7 +24,6 @@ internal static class ApiSurfaceCompile
         _ = LiquidGlassSearchBox.QueryIconProperty;
         _ = LiquidGlassSearchBox.LightDismissOverlayModeProperty;
         _ = LiquidGlassSearchBox.DescriptionProperty;
-        _ = LiquidGlassSearchBox.HeaderPlacementProperty;
         _ = LiquidGlassSearchBox.ItemsSourceProperty;
         _ = LiquidGlassSearchBox.ItemTemplateProperty;
         _ = LiquidGlassInteraction.PointerLightingEnabledProperty;

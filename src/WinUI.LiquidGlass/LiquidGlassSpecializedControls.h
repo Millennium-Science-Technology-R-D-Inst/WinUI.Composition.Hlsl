@@ -83,10 +83,6 @@ namespace winrt::WinUI::LiquidGlass::implementation
         void Description(Windows::Foundation::IInspectable const& value);
         static Microsoft::UI::Xaml::DependencyProperty DescriptionProperty();
 
-        Microsoft::UI::Xaml::Controls::ControlHeaderPlacement HeaderPlacement() const;
-        void HeaderPlacement(Microsoft::UI::Xaml::Controls::ControlHeaderPlacement value);
-        static Microsoft::UI::Xaml::DependencyProperty HeaderPlacementProperty();
-
         Microsoft::UI::Xaml::Controls::AutoSuggestBox InnerAutoSuggestBox() const;
 
         event_token SuggestionChosen(
