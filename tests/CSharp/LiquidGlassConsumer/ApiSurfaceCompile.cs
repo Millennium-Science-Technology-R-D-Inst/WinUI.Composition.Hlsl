@@ -12,6 +12,21 @@ internal static class ApiSurfaceCompile
         _ = typeof(LiquidGlassSlider);
         _ = typeof(LiquidGlassToggleSwitch);
         _ = typeof(LiquidGlassSearchBox);
+        _ = LiquidGlassSearchBox.MaxSuggestionListHeightProperty;
+        _ = LiquidGlassSearchBox.IsSuggestionListOpenProperty;
+        _ = LiquidGlassSearchBox.TextMemberPathProperty;
+        _ = LiquidGlassSearchBox.TextProperty;
+        _ = LiquidGlassSearchBox.UpdateTextOnSelectProperty;
+        _ = LiquidGlassSearchBox.PlaceholderTextProperty;
+        _ = LiquidGlassSearchBox.HeaderProperty;
+        _ = LiquidGlassSearchBox.AutoMaximizeSuggestionAreaProperty;
+        _ = LiquidGlassSearchBox.TextBoxStyleProperty;
+        _ = LiquidGlassSearchBox.QueryIconProperty;
+        _ = LiquidGlassSearchBox.LightDismissOverlayModeProperty;
+        _ = LiquidGlassSearchBox.DescriptionProperty;
+        _ = LiquidGlassSearchBox.HeaderPlacementProperty;
+        _ = LiquidGlassSearchBox.ItemsSourceProperty;
+        _ = LiquidGlassSearchBox.ItemTemplateProperty;
         _ = LiquidGlassInteraction.PointerLightingEnabledProperty;
         _ = LiquidGlassPresets.CreateBrush(LiquidGlassPreset.Button);
     }

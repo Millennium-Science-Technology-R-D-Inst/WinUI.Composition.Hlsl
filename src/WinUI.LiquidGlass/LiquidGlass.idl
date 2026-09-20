@@ -351,17 +351,52 @@ namespace WinUI.LiquidGlass
     [webhosthidden] runtimeclass LiquidGlassSearchBox : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassSearchBox();
-        String Text;
-        String PlaceholderText;
-        Object ItemsSource;
-        Microsoft.UI.Xaml.DataTemplate ItemTemplate;
-        Boolean IsSuggestionListOpen;
-        Boolean AutoMaximizeSuggestionArea;
+
         Double MaxSuggestionListHeight;
-        Boolean UpdateTextOnSelect;
+        static Microsoft.UI.Xaml.DependencyProperty MaxSuggestionListHeightProperty{ get; };
+
+        Boolean IsSuggestionListOpen;
+        static Microsoft.UI.Xaml.DependencyProperty IsSuggestionListOpenProperty{ get; };
+
         String TextMemberPath;
+        static Microsoft.UI.Xaml.DependencyProperty TextMemberPathProperty{ get; };
+
+        String Text;
+        static Microsoft.UI.Xaml.DependencyProperty TextProperty{ get; };
+
+        Boolean UpdateTextOnSelect;
+        static Microsoft.UI.Xaml.DependencyProperty UpdateTextOnSelectProperty{ get; };
+
+        String PlaceholderText;
+        static Microsoft.UI.Xaml.DependencyProperty PlaceholderTextProperty{ get; };
+
         Object Header;
+        static Microsoft.UI.Xaml.DependencyProperty HeaderProperty{ get; };
+
+        Boolean AutoMaximizeSuggestionArea;
+        static Microsoft.UI.Xaml.DependencyProperty AutoMaximizeSuggestionAreaProperty{ get; };
+
+        Microsoft.UI.Xaml.Style TextBoxStyle;
+        static Microsoft.UI.Xaml.DependencyProperty TextBoxStyleProperty{ get; };
+
         Microsoft.UI.Xaml.Controls.IconElement QueryIcon;
+        static Microsoft.UI.Xaml.DependencyProperty QueryIconProperty{ get; };
+
+        Microsoft.UI.Xaml.Controls.LightDismissOverlayMode LightDismissOverlayMode;
+        static Microsoft.UI.Xaml.DependencyProperty LightDismissOverlayModeProperty{ get; };
+
+        Object Description;
+        static Microsoft.UI.Xaml.DependencyProperty DescriptionProperty{ get; };
+
+        Microsoft.UI.Xaml.Controls.ControlHeaderPlacement HeaderPlacement;
+        static Microsoft.UI.Xaml.DependencyProperty HeaderPlacementProperty{ get; };
+
+        Object ItemsSource;
+        static Microsoft.UI.Xaml.DependencyProperty ItemsSourceProperty{ get; };
+
+        Microsoft.UI.Xaml.DataTemplate ItemTemplate;
+        static Microsoft.UI.Xaml.DependencyProperty ItemTemplateProperty{ get; };
+
         Microsoft.UI.Xaml.Controls.AutoSuggestBox InnerAutoSuggestBox{ get; };
 
         event Windows.Foundation.TypedEventHandler<Microsoft.UI.Xaml.Controls.AutoSuggestBox, Microsoft.UI.Xaml.Controls.AutoSuggestBoxSuggestionChosenEventArgs> SuggestionChosen;

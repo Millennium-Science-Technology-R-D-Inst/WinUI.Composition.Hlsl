@@ -52,6 +52,21 @@ namespace
         (void)LiquidGlassTabBar::GlassBrushProperty();
         (void)LiquidGlassFloatingPanel::GlassBrushProperty();
         (void)LiquidGlassSearchBox::GlassBrushProperty();
+        (void)LiquidGlassSearchBox::MaxSuggestionListHeightProperty();
+        (void)LiquidGlassSearchBox::IsSuggestionListOpenProperty();
+        (void)LiquidGlassSearchBox::TextMemberPathProperty();
+        (void)LiquidGlassSearchBox::TextProperty();
+        (void)LiquidGlassSearchBox::UpdateTextOnSelectProperty();
+        (void)LiquidGlassSearchBox::PlaceholderTextProperty();
+        (void)LiquidGlassSearchBox::HeaderProperty();
+        (void)LiquidGlassSearchBox::AutoMaximizeSuggestionAreaProperty();
+        (void)LiquidGlassSearchBox::TextBoxStyleProperty();
+        (void)LiquidGlassSearchBox::QueryIconProperty();
+        (void)LiquidGlassSearchBox::LightDismissOverlayModeProperty();
+        (void)LiquidGlassSearchBox::DescriptionProperty();
+        (void)LiquidGlassSearchBox::HeaderPlacementProperty();
+        (void)LiquidGlassSearchBox::ItemsSourceProperty();
+        (void)LiquidGlassSearchBox::ItemTemplateProperty();
 
         passwordBox.PlaceholderText(L"Password");
         passwordBox.Password(L"Glass");
@@ -70,6 +85,10 @@ namespace
         searchBox.MaxSuggestionListHeight(320.0);
         searchBox.UpdateTextOnSelect(true);
         searchBox.TextMemberPath(L"Name");
+        searchBox.Header(box_value(hstring{ L"Search" }));
+        searchBox.LightDismissOverlayMode(Controls::LightDismissOverlayMode::Auto);
+        searchBox.Description(box_value(hstring{ L"Search suggestions" }));
+        searchBox.HeaderPlacement(Controls::ControlHeaderPlacement::Top);
         (void)searchBox.Text();
         (void)searchBox.PlaceholderText();
         (void)searchBox.ItemsSource();
@@ -80,7 +99,11 @@ namespace
         (void)searchBox.UpdateTextOnSelect();
         (void)searchBox.TextMemberPath();
         (void)searchBox.Header();
+        (void)searchBox.TextBoxStyle();
         (void)searchBox.QueryIcon();
+        (void)searchBox.LightDismissOverlayMode();
+        (void)searchBox.Description();
+        (void)searchBox.HeaderPlacement();
         (void)searchBox.InnerAutoSuggestBox();
 
         auto owner = button.as<DependencyObject>();

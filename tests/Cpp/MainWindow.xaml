@@ -344,6 +344,8 @@
                         FontWeight="SemiBold"
                         Text="Complex native controls" />
                     <liquid:LiquidGlassSearchBox PlaceholderText="Search liquid glass controls" Text="Refraction" />
+                    <!-- Compile-time regression for WMC1118: Text must remain a dependency-property target for TwoWay x:Bind. -->
+                    <liquid:LiquidGlassSearchBox Visibility="Collapsed" Text="{x:Bind Title, Mode=TwoWay}" />
                     <liquid:LiquidGlassTabBar SelectedIndex="0">
                         <liquid:LiquidGlassTabBarItem Content="Glass" />
                         <liquid:LiquidGlassTabBarItem Content="Optics" />

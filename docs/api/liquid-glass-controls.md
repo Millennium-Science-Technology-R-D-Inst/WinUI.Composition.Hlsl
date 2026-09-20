@@ -307,34 +307,52 @@ A rounded content surface using the `FloatingPanel` preset. The default corner r
 runtimeclass LiquidGlassSearchBox : Microsoft.UI.Xaml.Controls.ContentControl
 ```
 
+WinUI's native `AutoSuggestBox` is sealed, so this control hosts a real native `AutoSuggestBox` instead of subclassing it. The wrapper mirrors the native search-specific dependency-property surface and keeps the outer and inner property systems synchronized in both directions.
+
 ### Properties
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `Text` | `String` | Gets or sets the inner `AutoSuggestBox.Text`. |
+| `MaxSuggestionListHeight` | `Double` | Gets or sets the maximum height of the suggestion list. |
+| `IsSuggestionListOpen` | `Boolean` | Gets or sets whether the suggestion list is open. |
+| `TextMemberPath` | `String` | Gets or sets the member path used to obtain suggestion display text. |
+| `Text` | `String` | Gets or sets the current text. This is a dependency property and supports `Binding` and TwoWay `x:Bind`. |
+| `UpdateTextOnSelect` | `Boolean` | Gets or sets whether choosing a suggestion updates `Text`. |
 | `PlaceholderText` | `String` | Gets or sets placeholder text. |
-| `ItemsSource` | `Object` | Gets or sets the suggestions source. |
-| `ItemTemplate` | `DataTemplate` | Gets or sets the suggestions item template. |
-| `IsSuggestionListOpen` | `Boolean` | Gets or sets whether the suggestions list is open. |
-| `AutoMaximizeSuggestionArea` | `Boolean` | Forwards the corresponding `AutoSuggestBox` property. |
-| `MaxSuggestionListHeight` | `Double` | Gets or sets the maximum suggestions-list height. |
-| `UpdateTextOnSelect` | `Boolean` | Gets or sets whether selecting a suggestion updates text. |
-| `TextMemberPath` | `String` | Gets or sets the member path used for display text. |
-| `Header` | `Object` | Gets or sets the inner search header. |
+| `Header` | `Object` | Gets or sets the search header. |
+| `AutoMaximizeSuggestionArea` | `Boolean` | Gets or sets whether WinUI may maximize the suggestion area. |
+| `TextBoxStyle` | `Style` | Gets or sets the inner text editor style. A null wrapper value keeps the built-in transparent LiquidGlass editor style. |
 | `QueryIcon` | `IconElement` | Gets or sets the query icon. |
-| `InnerAutoSuggestBox` | `AutoSuggestBox` | Gets the native inner control for advanced scenarios. Read-only. |
+| `LightDismissOverlayMode` | `LightDismissOverlayMode` | Gets or sets the light-dismiss overlay behavior for the suggestion popup. |
+| `Description` | `Object` | Gets or sets the control description. |
+| `HeaderPlacement` | `ControlHeaderPlacement` | Gets or sets the header placement. |
+| `ItemsSource` | `Object` | Mirrors inherited `ItemsControl.ItemsSource` on the hosted native control. |
+| `ItemTemplate` | `DataTemplate` | Mirrors inherited `ItemsControl.ItemTemplate` on the hosted native control. |
+| `InnerAutoSuggestBox` | `AutoSuggestBox` | Gets the hosted native control for APIs that are intentionally not mirrored. Read-only. |
+
+Every mutable property above except `InnerAutoSuggestBox` is backed by a public `<Name>Property` dependency-property identifier on `LiquidGlassSearchBox`.
 
 ### Events
 
 | Event | Description |
 | --- | --- |
-| `SuggestionChosen` | Forwards `AutoSuggestBox.SuggestionChosen`. |
-| `TextChanged` | Forwards `AutoSuggestBox.TextChanged`. |
-| `QuerySubmitted` | Forwards `AutoSuggestBox.QuerySubmitted`. |
+| `SuggestionChosen` | Forwards `AutoSuggestBox.SuggestionChosen` with the native sender and event args. |
+| `TextChanged` | Forwards `AutoSuggestBox.TextChanged` with the native sender and event args. |
+| `QuerySubmitted` | Forwards `AutoSuggestBox.QuerySubmitted` with the native sender and event args. |
 
 ### Remarks
 
-The outer control owns the rounded glass background. The inner `AutoSuggestBox` remains responsible for text editing, suggestions, keyboard handling, and UI Automation and is kept visually transparent so its stock rectangular background does not cover the glass surface.
+The outer control owns the rounded glass background. The hosted `AutoSuggestBox` remains responsible for text editing, suggestions, keyboard handling, IME, popup behavior, and UI Automation and is kept visually transparent so its stock rectangular background does not cover the glass surface.
+
+Changes made through the wrapper dependency properties are forwarded to the native `AutoSuggestBox`. Changes made by native control behavior, user input, or through `InnerAutoSuggestBox` are mirrored back to the wrapper dependency properties. Reentrancy guards prevent the two property systems from feeding changes back into each other indefinitely.
+
+For example, a TwoWay compiled binding is valid:
+
+```xml
+<liquid:LiquidGlassSearchBox
+    PlaceholderText="Search"
+    Text="{x:Bind ViewModel.Query, Mode=TwoWay}" />
+```
 
 ## Presets
 
