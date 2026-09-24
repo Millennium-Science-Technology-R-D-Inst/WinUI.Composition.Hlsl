@@ -46,8 +46,12 @@ namespace
         (void)LiquidGlassSlider::GlassBrushProperty();
         (void)LiquidGlassTextBox::GlassBrushProperty();
         (void)LiquidGlassPasswordBox::GlassBrushProperty();
+        (void)LiquidGlassPasswordBox::PlaceholderTextProperty();
+        (void)LiquidGlassPasswordBox::PasswordProperty();
         (void)LiquidGlassComboBox::GlassBrushProperty();
         (void)LiquidGlassToggleSwitch::GlassBrushProperty();
+        (void)LiquidGlassToggleSwitch::IsOnProperty();
+        (void)LiquidGlassToggleSwitch::HeaderProperty();
         (void)LiquidGlassTabBarItem::GlassBrushProperty();
         (void)LiquidGlassTabBar::GlassBrushProperty();
         (void)LiquidGlassFloatingPanel::GlassBrushProperty();
@@ -71,6 +75,7 @@ namespace
         passwordBox.Password(L"Glass");
         (void)passwordBox.PlaceholderText();
         (void)passwordBox.Password();
+        (void)passwordBox.InnerPasswordBox();
 
         toggleSwitch.Header(box_value(hstring{ L"Switch" }));
         toggleSwitch.IsOn(true);

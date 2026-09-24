@@ -33,9 +33,9 @@ xmlns:liquid="using:WinUI.LiquidGlass"
 | `LiquidGlassRadioButton` | `RadioButton` | Radio button whose circular choice glyph is the glass surface. |
 | `LiquidGlassSlider` | `Slider` | Native Slider mechanics with a kube-compatible 90×60 optical thumb. |
 | `LiquidGlassTextBox` | `TextBox` | Text input with focus-driven glass optics. |
-| `LiquidGlassPasswordBox` | `ContentControl` | Glass wrapper around a native `PasswordBox`. |
+| `LiquidGlassPasswordBox` | `ContentControl` | Glass wrapper around a native sealed `PasswordBox`; wrapper input properties are dependency properties. |
 | `LiquidGlassComboBox` | `ComboBox` | Combo box with focus-driven glass optics. |
-| `LiquidGlassToggleSwitch` | `ToggleButton` | Switch-style toggle using the kube Lip-profile knob geometry. |
+| `LiquidGlassToggleSwitch` | `ToggleButton` | Kube switch visuals with bindable `IsOn` synchronized to inherited `IsChecked`. |
 | `LiquidGlassTabBar` | `ListView` | Horizontal selector that generates `LiquidGlassTabBarItem` containers. |
 | `LiquidGlassTabBarItem` | `ListViewItem` | Selectable glass tab item. |
 | `LiquidGlassFloatingPanel` | `ContentControl` | Floating glass content surface. |
@@ -223,12 +223,13 @@ runtimeclass LiquidGlassPasswordBox : Microsoft.UI.Xaml.Controls.ContentControl
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `PlaceholderText` | `String` | Gets or sets the placeholder text of the inner native `PasswordBox`. |
-| `Password` | `String` | Gets or sets the password value of the inner native `PasswordBox`. |
+| `PlaceholderText` | `String` | Dependency property forwarded to the native `PasswordBox.PlaceholderTextProperty`. |
+| `Password` | `String` | Dependency property synchronized bidirectionally with the native `PasswordBox.PasswordProperty`. |
+| `InnerPasswordBox` | `PasswordBox` | Gets the hosted native control for APIs that are intentionally not mirrored. Read-only. |
 
 ### Remarks
 
-The runtimeclass is a glass wrapper rather than a subclass of WinUI's sealed/internal password implementation. Password editing remains delegated to the native `PasswordBox`.
+WinUI `PasswordBox` is sealed, so LiquidGlass uses composition instead of pretending that ordinary WinRT getter/setter properties are inherited XAML properties. `Password` and `PlaceholderText` now participate in the outer XAML property system and can be binding targets, including TwoWay `x:Bind`. User edits to the native password editor are mirrored back to the wrapper `PasswordProperty`.
 
 ## LiquidGlassComboBox
 
@@ -250,29 +251,26 @@ Selection, item containers, flyout behavior, keyboard navigation, and automation
 runtimeclass LiquidGlassToggleSwitch : Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
 ```
 
+WinUI's shipping `ToggleSwitch` runtimeclass is sealed. LiquidGlass therefore keeps its original `ToggleButton`-based Kube visual implementation instead of wrapping the native switch and disturbing the authored geometry.
+
 ### Properties
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `Header` | `Object` | Gets or sets the switch label/content. |
-| `IsOn` | `Boolean` | Gets or sets the Boolean switch state. Maps to inherited `IsChecked`. |
+| `IsOn` | `Boolean` | Dependency property synchronized bidirectionally with inherited `ToggleButton.IsCheckedProperty`. |
+| `Header` | `Object` | Dependency property forwarded to inherited `Content`, which the existing Kube template presents beside the switch glyph. |
 
-### Default geometry
+### Semantics and geometry
 
-The default visual geometry follows the kube reference:
+The visual and interaction implementation remains the established Kube switch model: the 160×67 authored track, 146×92 overflowing optical knob, 57.9-DIP authored travel, the existing press/refraction response, and `KubeToggleSwitchVisualModel` are unchanged. `Click`, checked state, keyboard activation, focus, and UI Automation continue to come from the real `ToggleButton` base.
 
-- Track: 160×67.
-- Optical knob: 146×92 with radius 46.
-- Surface profile: `Lip`.
-- Rest scale: 0.65.
-- Pressed scale: 0.9.
-- Bezel width: 19.
-- Glass thickness: 47.
-- Refractive index: 1.5.
+`IsOn` is an API alias, not a plain getter/setter shim. The outer dependency property mirrors inherited `IsCheckedProperty` in both directions, so user toggles update TwoWay bindings and programmatic `IsOn` changes update the existing checked-state machinery.
 
-### Remarks
-
-The runtimeclass derives from `ToggleButton`; consequently its template uses the native ToggleButton combined checked/pointer state names rather than a separate custom state machine. This keeps `Checked`, `Unchecked`, keyboard activation, and automation behavior aligned with WinUI.
+```xml
+<liquid:LiquidGlassToggleSwitch
+    Header="Web UI"
+    IsOn="{x:Bind ViewModel.Enabled, Mode=TwoWay}" />
+```
 
 ## LiquidGlassTabBar and LiquidGlassTabBarItem
 

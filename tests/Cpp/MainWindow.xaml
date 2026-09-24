@@ -320,6 +320,10 @@
                     </Grid>
 
                     <liquid:LiquidGlassToggleSwitch Header="Switch" IsOn="True" />
+                    <!-- Compile-time regressions for wrapper properties used as TwoWay x:Bind targets. -->
+                    <liquid:LiquidGlassToggleSwitch
+                        Visibility="Collapsed"
+                        IsOn="{x:Bind RegressionToggleState, Mode=TwoWay}" />
 
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
@@ -331,6 +335,10 @@
                             Grid.Column="1"
                             Password="Glass"
                             PlaceholderText="Password" />
+                        <liquid:LiquidGlassPasswordBox
+                            Grid.Column="1"
+                            Visibility="Collapsed"
+                            Password="{x:Bind Title, Mode=TwoWay}" />
                     </Grid>
                     <liquid:LiquidGlassComboBox HorizontalAlignment="Stretch" SelectedIndex="0">
                         <ComboBoxItem Content="Convex squircle" />

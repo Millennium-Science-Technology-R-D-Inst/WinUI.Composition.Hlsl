@@ -8,7 +8,7 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<AssemblyName>WinUI.Composition.Hlsl.Projection</AssemblyName>
 		<CsWinRTIncludes>WinUI.Composition.Hlsl</CsWinRTIncludes>
-		<CsWinRTGeneratedFilesDir>$(BaseIntermediateOutputPath)$(Configuration)\$(Platform)\Generated\</CsWinRTGeneratedFilesDir>
+		<CsWinRTGeneratedFilesDir>$(BaseIntermediateOutputPath)$(MSBuildProjectName)\$(Configuration)\$(Platform)\$(TargetFramework)\Generated\</CsWinRTGeneratedFilesDir>
 		<IsPackable>true</IsPackable>
 		<NuspecFile>../packaging/WinUI.Composition.Hlsl.nuspec</NuspecFile>
 		<NuspecBasePath>$(MSBuildThisFileDirectory)..</NuspecBasePath>

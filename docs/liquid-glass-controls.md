@@ -94,19 +94,9 @@ The active optical response mirrors the Kube reference conceptually:
 
 ## LiquidGlassToggleSwitch
 
-`LiquidGlassToggleSwitch` uses a composable `ToggleButton` semantic base because the WinUI `ToggleSwitch` runtime class is sealed.
+`LiquidGlassToggleSwitch` keeps the original `ToggleButton`-based Kube implementation because the public WinUI `ToggleSwitch` runtimeclass is sealed and wrapping it changes the switch template/layout contract.
 
-The visual model uses the Kube geometry:
-
-- track: `160 x 67`
-- glass knob: `146 x 92`
-- rest scale: `0.65`
-- pressed scale: `0.9`
-- travel: `57.9` DIPs
-- overscroll damping: `/22`
-- drag threshold: 4 DIPs
-
-Semantic `IsChecked` remains the source of truth. Drag interaction may preview an intermediate ratio, but release commits the semantic state before the final spring settles. This prevents native `ToggleButton::OnToggle`, pointer capture loss, and the visual ratio from starting conflicting transitions.
+The existing switch visuals remain unchanged: a 160×67 authored track, a 146×92 overflowing optical knob, Kube travel/drag behavior, and the established press/refraction animation. The public `IsOnProperty` is synchronized bidirectionally with inherited `ToggleButton.IsCheckedProperty`, while `HeaderProperty` forwards to inherited `Content`. This preserves the previous appearance and interaction behavior while making `IsOn` a valid TwoWay XAML binding target.
 
 ## LiquidGlassMagnifier
 

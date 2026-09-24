@@ -15,6 +15,9 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 
 		void InitializeComponent();
 
+		bool RegressionToggleState() const noexcept { return m_regressionToggleState; }
+		void RegressionToggleState(bool value) noexcept { m_regressionToggleState = value; }
+
 		void OnSetBackgroundImageClick(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
 		void OnClearBackgroundImageClick(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
 		void OnRootDragOver(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::DragEventArgs const& args);
@@ -72,6 +75,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		float m_startHeight{};
 		bool m_advancedLiquidGlassWired{};
 		bool m_regressionLabBuilt{};
+		bool m_regressionToggleState{};
 
 		void StartDynamicScene();
 		void InitializeBackdropBrush();

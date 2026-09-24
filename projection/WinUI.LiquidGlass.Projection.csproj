@@ -8,9 +8,20 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>WinUI.LiquidGlass.Projection</AssemblyName>
     <CsWinRTIncludes>WinUI.LiquidGlass</CsWinRTIncludes>
-    <CsWinRTGeneratedFilesDir>$(BaseIntermediateOutputPath)$(Configuration)\$(Platform)\Generated\</CsWinRTGeneratedFilesDir>
+    <CsWinRTGeneratedFilesDir>$(BaseIntermediateOutputPath)$(MSBuildProjectName)\$(Configuration)\$(Platform)\$(TargetFramework)\Generated\</CsWinRTGeneratedFilesDir>
     <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
     <NoWarn>$(NoWarn);NU1701</NoWarn>
+
+    <!--
+      The C++/WinRT component is a build dependency, not a managed assembly reference.
+      Feed its metadata (and the core metadata referenced by that WinMD) directly to
+      CsWinRT instead of allowing the .NET SDK to consume .winmd through ReferencePath.
+    -->
+    <LiquidGlassNativePlatform Condition="'$(Platform)' == 'x86'">Win32</LiquidGlassNativePlatform>
+    <LiquidGlassNativePlatform Condition="'$(LiquidGlassNativePlatform)' == '' and ('$(Platform)' == '' or '$(Platform)' == 'AnyCPU')">x64</LiquidGlassNativePlatform>
+    <LiquidGlassNativePlatform Condition="'$(LiquidGlassNativePlatform)' == ''">$(Platform)</LiquidGlassNativePlatform>
+    <LiquidGlassWinMD>$(MSBuildThisFileDirectory)..\artifacts\$(LiquidGlassNativePlatform)\$(Configuration)\WinUI.LiquidGlass\WinUI.LiquidGlass.winmd</LiquidGlassWinMD>
+    <HlslWinMD>$(MSBuildThisFileDirectory)..\artifacts\$(LiquidGlassNativePlatform)\$(Configuration)\WinUI.Composition.Hlsl.winmd</HlslWinMD>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,7 +30,44 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../src/WinUI.LiquidGlass/WinUI.LiquidGlass.vcxproj" />
+    <!--
+      Feed WinMD through ResolveReferences using the supported CsWinRT path.
+      CsWinRTRemoveWinMDReferences removes these from the managed compiler
+      reference set before NETSDK1130 validation and moves them to CsWinRTInputs.
+    -->
+    <Reference Include="WinUI.LiquidGlass">
+      <HintPath>$(LiquidGlassWinMD)</HintPath>
+      <IsWinMDFile>true</IsWinMDFile>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="WinUI.Composition.Hlsl">
+      <HintPath>$(HlslWinMD)</HintPath>
+      <IsWinMDFile>true</IsWinMDFile>
+      <Private>false</Private>
+    </Reference>
+
+    <ProjectReference Include="../src/WinUI.LiquidGlass/WinUI.LiquidGlass.vcxproj"
+                      ReferenceOutputAssembly="false"
+                      SetPlatform="Platform=$(LiquidGlassNativePlatform)" />
     <ProjectReference Include="WinUI.Composition.Hlsl.Projection.csproj" />
   </ItemGroup>
+
+  <Target Name="ValidateLiquidGlassWinMDInputs"
+          BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(LiquidGlassWinMD)')"
+           Text="LiquidGlass WinMD was not produced before projection reference resolution: $(LiquidGlassWinMD)" />
+    <Error Condition="!Exists('$(HlslWinMD)')"
+           Text="Composition HLSL WinMD was not produced before projection reference resolution: $(HlslWinMD)" />
+  </Target>
+
+  <Target Name="ValidateLiquidGlassGeneratedProjection"
+          AfterTargets="CsWinRTGenerateProjection">
+    <ItemGroup>
+      <_LiquidGlassGeneratedProjection Include="$(CsWinRTGeneratedFilesDir)*.cs" />
+    </ItemGroup>
+    <Error Condition="'@(_LiquidGlassGeneratedProjection)' == ''"
+           Text="CsWinRT generated no WinUI.LiquidGlass projection sources. GeneratedDir=$(CsWinRTGeneratedFilesDir); Inputs=@(CsWinRTInputs)" />
+    <Message Importance="high"
+             Text="LiquidGlass CsWinRT generated @(_LiquidGlassGeneratedProjection->'%(Filename)%(Extension)', ', ')" />
+  </Target>
 </Project>
