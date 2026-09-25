@@ -47,7 +47,28 @@
                                 </Canvas>
                             </Grid>
                         </Viewbox>
-                        <ContentPresenter VerticalAlignment="Center" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" />
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Spacing="8">
+                            <ContentPresenter
+                                VerticalAlignment="Center"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                Foreground="{TemplateBinding Foreground}" />
+                            <Grid VerticalAlignment="Center">
+                                <ContentPresenter
+                                    x:Name="OffContentPresenter"
+                                    VerticalAlignment="Center"
+                                    Content="{TemplateBinding OffContent}"
+                                    ContentTemplate="{TemplateBinding OffContentTemplate}"
+                                    Foreground="{TemplateBinding Foreground}" />
+                                <ContentPresenter
+                                    x:Name="OnContentPresenter"
+                                    VerticalAlignment="Center"
+                                    Content="{TemplateBinding OnContent}"
+                                    ContentTemplate="{TemplateBinding OnContentTemplate}"
+                                    Foreground="{TemplateBinding Foreground}"
+                                    Visibility="Collapsed" />
+                            </Grid>
+                        </StackPanel>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal" />
@@ -58,12 +79,29 @@
                                         <Setter Target="Root.Opacity" Value="0.45" />
                                     </VisualState.Setters>
                                 </VisualState>
-                                <VisualState x:Name="Checked" />
-                                <VisualState x:Name="CheckedPointerOver" />
-                                <VisualState x:Name="CheckedPressed" />
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="OffContentPresenter.Visibility" Value="Collapsed" />
+                                        <Setter Target="OnContentPresenter.Visibility" Value="Visible" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="OffContentPresenter.Visibility" Value="Collapsed" />
+                                        <Setter Target="OnContentPresenter.Visibility" Value="Visible" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="OffContentPresenter.Visibility" Value="Collapsed" />
+                                        <Setter Target="OnContentPresenter.Visibility" Value="Visible" />
+                                    </VisualState.Setters>
+                                </VisualState>
                                 <VisualState x:Name="CheckedDisabled">
                                     <VisualState.Setters>
                                         <Setter Target="Root.Opacity" Value="0.45" />
+                                        <Setter Target="OffContentPresenter.Visibility" Value="Collapsed" />
+                                        <Setter Target="OnContentPresenter.Visibility" Value="Visible" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Indeterminate" />

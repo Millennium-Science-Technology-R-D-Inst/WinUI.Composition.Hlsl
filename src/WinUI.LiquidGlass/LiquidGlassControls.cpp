@@ -28,6 +28,18 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		using Brush = WinUI::Composition::Hlsl::LiquidGlassBrush;
 		using Preset = WinUI::LiquidGlass::LiquidGlassPreset;
 
+		struct SyncFlagGuard
+		{
+			explicit SyncFlagGuard(bool& value) : m_value(value) { m_value = true; }
+			~SyncFlagGuard() { m_value = false; }
+
+			SyncFlagGuard(SyncFlagGuard const&) = delete;
+			SyncFlagGuard& operator=(SyncFlagGuard const&) = delete;
+
+		private:
+			bool& m_value;
+		};
+
 		Media::Brush AsBrush(Brush const& value)
 		{
 			return value ? value.as<Media::Brush>() : Media::Brush{ nullptr };
@@ -95,6 +107,108 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(140.0));
 	}
 
+	Xaml::PropertyChangedCallback LiquidGlassPasswordBox::ForwardedPropertyChangedCallback()
+	{
+		return Xaml::PropertyChangedCallback{
+			[](Xaml::DependencyObject const& object, Xaml::DependencyPropertyChangedEventArgs const& args)
+			{
+				auto self = detail::EnsureDependencyProperty<LiquidGlassPasswordBox>::GetSelf(object);
+				self->OnForwardedPropertyChanged(args);
+			}
+		};
+	}
+
+	template<typename T>
+	Xaml::DependencyProperty LiquidGlassPasswordBox::RegisterForwardedProperty(
+		wchar_t const* name,
+		Windows::Foundation::IInspectable const& defaultValue)
+	{
+		return Xaml::DependencyProperty::Register(
+			name,
+			xaml_typename<T>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{ defaultValue, ForwardedPropertyChangedCallback() });
+	}
+
+	void LiquidGlassPasswordBox::EnsureDependencyProperties()
+	{
+		(void)GlassBrushProperty();
+		(void)PlaceholderTextProperty();
+		(void)PasswordProperty();
+	}
+
+	Xaml::DependencyProperty LiquidGlassPasswordBox::PlaceholderTextProperty()
+	{
+		static auto const property = RegisterForwardedProperty<hstring>(L"PlaceholderText", box_value(hstring{}));
+		return property;
+	}
+
+	Xaml::DependencyProperty LiquidGlassPasswordBox::PasswordProperty()
+	{
+		static auto const property = RegisterForwardedProperty<hstring>(L"Password", box_value(hstring{}));
+		return property;
+	}
+
+	Xaml::DependencyProperty LiquidGlassPasswordBox::InnerPropertyFor(Xaml::DependencyProperty const& outerProperty)
+	{
+		if (outerProperty == PlaceholderTextProperty()) return Controls::PasswordBox::PlaceholderTextProperty();
+		if (outerProperty == PasswordProperty()) return Controls::PasswordBox::PasswordProperty();
+		return nullptr;
+	}
+
+	void LiquidGlassPasswordBox::OnForwardedPropertyChanged(Xaml::DependencyPropertyChangedEventArgs const& args)
+	{
+		ForwardPropertyToInner(args.Property(), args.NewValue());
+	}
+
+	void LiquidGlassPasswordBox::ForwardPropertyToInner(
+		Xaml::DependencyProperty const& outerProperty,
+		Windows::Foundation::IInspectable const& value)
+	{
+		if (!m_passwordBox || m_syncingFromInner) return;
+
+		auto const innerProperty = InnerPropertyFor(outerProperty);
+		if (!innerProperty) return;
+
+		SyncFlagGuard guard{ m_syncingToInner };
+		m_passwordBox.SetValue(innerProperty, value);
+	}
+
+	void LiquidGlassPasswordBox::MirrorPropertyFromInner(
+		Xaml::DependencyProperty const& outerProperty,
+		Windows::Foundation::IInspectable const& value)
+	{
+		if (m_syncingToInner) return;
+
+		SyncFlagGuard guard{ m_syncingFromInner };
+		SetValue(outerProperty, value);
+	}
+
+	void LiquidGlassPasswordBox::AttachInnerPropertyMirrors()
+	{
+		auto weak = get_weak();
+		auto mirror = [this, weak](Xaml::DependencyProperty const& outerProperty)
+		{
+			auto const innerProperty = InnerPropertyFor(outerProperty);
+			if (!innerProperty) return;
+
+			(void)m_passwordBox.RegisterPropertyChangedCallback(
+				innerProperty,
+				[weak, outerProperty](
+					Xaml::DependencyObject const& sender,
+					Xaml::DependencyProperty const& changedProperty)
+				{
+					if (auto self = weak.get())
+					{
+						self->MirrorPropertyFromInner(outerProperty, sender.GetValue(changedProperty));
+					}
+				});
+		};
+
+		mirror(PlaceholderTextProperty());
+		mirror(PasswordProperty());
+	}
+
 	void LiquidGlassPasswordBox::ApplyGlassBrush(Brush const& value)
 	{
 		m_glassBrush = value;
@@ -105,8 +219,14 @@ namespace winrt::WinUI::LiquidGlass::implementation
 	{
 		m_passwordBox = Controls::PasswordBox{};
 		m_passwordBox.HorizontalAlignment(Xaml::HorizontalAlignment::Stretch);
+		m_passwordBox.VerticalAlignment(Xaml::VerticalAlignment::Stretch);
+		AttachInnerPropertyMirrors();
+
 		HorizontalContentAlignment(Xaml::HorizontalAlignment::Stretch);
+		VerticalContentAlignment(Xaml::VerticalAlignment::Stretch);
+		IsTabStop(false);
 		Content(m_passwordBox);
+
 		GlassBrush(CreateBrush(Preset::Input));
 		SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.99));
 		SetValue(LiquidGlassInteraction::FocusedScaleProperty(), box_value(1.0));
@@ -118,17 +238,25 @@ namespace winrt::WinUI::LiquidGlass::implementation
 	{
 		return m_passwordBox ? m_passwordBox.PlaceholderText() : hstring{};
 	}
+
 	void LiquidGlassPasswordBox::PlaceholderText(hstring const& value)
 	{
-		if (m_passwordBox) m_passwordBox.PlaceholderText(value);
+		SetValue(PlaceholderTextProperty(), box_value(value));
 	}
+
 	hstring LiquidGlassPasswordBox::Password() const
 	{
 		return m_passwordBox ? m_passwordBox.Password() : hstring{};
 	}
+
 	void LiquidGlassPasswordBox::Password(hstring const& value)
 	{
-		if (m_passwordBox) m_passwordBox.Password(value);
+		SetValue(PasswordProperty(), box_value(value));
+	}
+
+	Controls::PasswordBox LiquidGlassPasswordBox::InnerPasswordBox() const
+	{
+		return m_passwordBox;
 	}
 
 	LiquidGlassMagnifier::LiquidGlassMagnifier()
@@ -185,17 +313,136 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(0.0));
 	}
 
+	void LiquidGlassToggleSwitch::EnsureDependencyProperties()
+	{
+		(void)GlassBrushProperty();
+		(void)HeaderProperty();
+		(void)HeaderTemplateProperty();
+		(void)OnContentProperty();
+		(void)OnContentTemplateProperty();
+		(void)OffContentProperty();
+		(void)OffContentTemplateProperty();
+		(void)IsOnProperty();
+	}
+
+	Xaml::DependencyProperty LiquidGlassToggleSwitch::HeaderProperty()
+	{
+		static auto const property = Xaml::DependencyProperty::Register(
+			L"Header",
+			xaml_typename<Windows::Foundation::IInspectable>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{
+				Windows::Foundation::IInspectable{ nullptr },
+				Xaml::PropertyChangedCallback{
+					[](Xaml::DependencyObject const& object, Xaml::DependencyPropertyChangedEventArgs const& args)
+					{
+						auto self = detail::EnsureDependencyProperty<LiquidGlassToggleSwitch>::GetSelf(object);
+						self->Content(args.NewValue());
+					}
+				}
+			});
+		return property;
+	}
+
+	Xaml::DependencyProperty LiquidGlassToggleSwitch::HeaderTemplateProperty()
+	{
+		static auto const property = Xaml::DependencyProperty::Register(
+			L"HeaderTemplate",
+			xaml_typename<Xaml::DataTemplate>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{
+				Windows::Foundation::IInspectable{ nullptr },
+				Xaml::PropertyChangedCallback{
+					[](Xaml::DependencyObject const& object, Xaml::DependencyPropertyChangedEventArgs const& args)
+					{
+						auto self = detail::EnsureDependencyProperty<LiquidGlassToggleSwitch>::GetSelf(object);
+						self->ContentTemplate(args.NewValue().try_as<Xaml::DataTemplate>());
+					}
+				}
+			});
+		return property;
+	}
+
+	Xaml::DependencyProperty LiquidGlassToggleSwitch::OnContentProperty()
+	{
+		static auto const property = Xaml::DependencyProperty::Register(
+			L"OnContent",
+			xaml_typename<Windows::Foundation::IInspectable>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr } });
+		return property;
+	}
+
+	Xaml::DependencyProperty LiquidGlassToggleSwitch::OnContentTemplateProperty()
+	{
+		static auto const property = Xaml::DependencyProperty::Register(
+			L"OnContentTemplate",
+			xaml_typename<Xaml::DataTemplate>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr } });
+		return property;
+	}
+
+	Xaml::DependencyProperty LiquidGlassToggleSwitch::OffContentProperty()
+	{
+		static auto const property = Xaml::DependencyProperty::Register(
+			L"OffContent",
+			xaml_typename<Windows::Foundation::IInspectable>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr } });
+		return property;
+	}
+
+	Xaml::DependencyProperty LiquidGlassToggleSwitch::OffContentTemplateProperty()
+	{
+		static auto const property = Xaml::DependencyProperty::Register(
+			L"OffContentTemplate",
+			xaml_typename<Xaml::DataTemplate>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr } });
+		return property;
+	}
+
+	Xaml::DependencyProperty LiquidGlassToggleSwitch::IsOnProperty()
+	{
+		static auto const property = Xaml::DependencyProperty::Register(
+			L"IsOn",
+			xaml_typename<bool>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{
+				box_value(false),
+				Xaml::PropertyChangedCallback{
+					[](Xaml::DependencyObject const& object, Xaml::DependencyPropertyChangedEventArgs const& args)
+					{
+						auto self = detail::EnsureDependencyProperty<LiquidGlassToggleSwitch>::GetSelf(object);
+						self->OnIsOnPropertyChanged(unbox_value<bool>(args.NewValue()));
+					}
+				}
+			});
+		return property;
+	}
+
 	LiquidGlassToggleSwitch::LiquidGlassToggleSwitch()
 	{
 		DefaultStyleKey(box_value(xaml_typename<class_type>()));
+
+		auto weak = get_weak();
+		(void)RegisterPropertyChangedCallback(
+			Controls::Primitives::ToggleButton::IsCheckedProperty(),
+			[weak](Xaml::DependencyObject const&, Xaml::DependencyProperty const&)
+			{
+				if (auto self = weak.get())
+				{
+					self->MirrorIsCheckedToIsOn();
+				}
+			});
+
 		GlassBrush(CreateBrush(Preset::ToggleSwitchKnob));
 		SetValue(LiquidGlassInteraction::RestScaleProperty(), box_value(.65));
 		SetValue(LiquidGlassInteraction::PressedScaleProperty(), box_value(.9));
 		SetValue(LiquidGlassInteraction::MotionDurationProperty(), box_value(75.0));
 		SetValue(LiquidGlassInteraction::OpticsTransitionDurationProperty(), box_value(60.0));
 		// Kube does not change the material merely because the pointer is hovering.
-		// Keep the dedicated spatial PointerField highlight, but make the global optics
-		// hover layer neutral so checked/rest/pressed states do not stack extra capsules.
 		SetValue(LiquidGlassInteraction::PointerOverRefractionMultiplierProperty(), box_value(1.0));
 		SetValue(LiquidGlassInteraction::PointerOverDispersionMultiplierProperty(), box_value(1.0));
 		SetValue(LiquidGlassInteraction::PointerOverSaturationMultiplierProperty(), box_value(1.0));
@@ -210,30 +457,108 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedDispersionMultiplierProperty(), box_value(1.45));
 		// Kube fades the white body from 1.0 to 0.1 while active.
 		SetValue(LiquidGlassInteraction::PressedTintBoostProperty(), box_value(-.90));
-		// Kube keeps specularOpacity at .5 while active; do not create a second
-		// full-perimeter rim just because the knob is pressed.
 		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
 		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
-		// Kube Switch adds a ~.09 inset black/white pair only while active. Our single
-		// inner-shadow scalar supplies the dark half; the existing highlight supplies
-		// the opposing bright half, so keep the rest state at zero and add .09 on press.
 		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.09));
 	}
 
 	Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const
 	{
-		return m_header;
+		return GetValue(HeaderProperty());
 	}
+
 	void LiquidGlassToggleSwitch::Header(Windows::Foundation::IInspectable const& value)
 	{
-		m_header = value; Content(value);
+		SetValue(HeaderProperty(), value);
 	}
+
+	Xaml::DataTemplate LiquidGlassToggleSwitch::HeaderTemplate() const
+	{
+		return GetValue(HeaderTemplateProperty()).try_as<Xaml::DataTemplate>();
+	}
+
+	void LiquidGlassToggleSwitch::HeaderTemplate(Xaml::DataTemplate const& value)
+	{
+		SetValue(HeaderTemplateProperty(), value);
+	}
+
+	Windows::Foundation::IInspectable LiquidGlassToggleSwitch::OnContent() const
+	{
+		return GetValue(OnContentProperty());
+	}
+
+	void LiquidGlassToggleSwitch::OnContent(Windows::Foundation::IInspectable const& value)
+	{
+		SetValue(OnContentProperty(), value);
+	}
+
+	Xaml::DataTemplate LiquidGlassToggleSwitch::OnContentTemplate() const
+	{
+		return GetValue(OnContentTemplateProperty()).try_as<Xaml::DataTemplate>();
+	}
+
+	void LiquidGlassToggleSwitch::OnContentTemplate(Xaml::DataTemplate const& value)
+	{
+		SetValue(OnContentTemplateProperty(), value);
+	}
+
+	Windows::Foundation::IInspectable LiquidGlassToggleSwitch::OffContent() const
+	{
+		return GetValue(OffContentProperty());
+	}
+
+	void LiquidGlassToggleSwitch::OffContent(Windows::Foundation::IInspectable const& value)
+	{
+		SetValue(OffContentProperty(), value);
+	}
+
+	Xaml::DataTemplate LiquidGlassToggleSwitch::OffContentTemplate() const
+	{
+		return GetValue(OffContentTemplateProperty()).try_as<Xaml::DataTemplate>();
+	}
+
+	void LiquidGlassToggleSwitch::OffContentTemplate(Xaml::DataTemplate const& value)
+	{
+		SetValue(OffContentTemplateProperty(), value);
+	}
+
 	bool LiquidGlassToggleSwitch::IsOn() const
 	{
-		auto v = IsChecked(); return v && v.Value();
+		return unbox_value_or<bool>(GetValue(IsOnProperty()), false);
 	}
+
 	void LiquidGlassToggleSwitch::IsOn(bool value)
 	{
+		SetValue(IsOnProperty(), box_value(value));
+	}
+
+	void LiquidGlassToggleSwitch::OnIsOnPropertyChanged(bool value)
+	{
+		if (m_syncingIsOn)
+		{
+			return;
+		}
+
+		SyncFlagGuard guard{ m_syncingIsOn };
 		IsChecked(box_value(value).as<Windows::Foundation::IReference<bool>>());
 	}
+
+	void LiquidGlassToggleSwitch::MirrorIsCheckedToIsOn()
+	{
+		if (m_syncingIsOn)
+		{
+			return;
+		}
+
+		auto const checked = IsChecked();
+		auto const value = checked && checked.Value();
+		if (IsOn() == value)
+		{
+			return;
+		}
+
+		SyncFlagGuard guard{ m_syncingIsOn };
+		SetValue(IsOnProperty(), box_value(value));
+	}
+
 }

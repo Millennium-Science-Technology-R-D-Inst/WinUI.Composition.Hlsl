@@ -11,6 +11,20 @@ internal static class ApiSurfaceCompile
         _ = typeof(LiquidGlassButton);
         _ = typeof(LiquidGlassSlider);
         _ = typeof(LiquidGlassToggleSwitch);
+        _ = LiquidGlassToggleSwitch.IsOnProperty;
+        _ = LiquidGlassToggleSwitch.HeaderProperty;
+        _ = LiquidGlassToggleSwitch.HeaderTemplateProperty;
+        _ = LiquidGlassToggleSwitch.OnContentProperty;
+        _ = LiquidGlassToggleSwitch.OnContentTemplateProperty;
+        _ = LiquidGlassToggleSwitch.OffContentProperty;
+        _ = LiquidGlassToggleSwitch.OffContentTemplateProperty;
+        _ = typeof(LiquidGlassPasswordBox);
+        _ = LiquidGlassPasswordBox.PasswordProperty;
+        _ = LiquidGlassPasswordBox.PlaceholderTextProperty;
+
+        var password = new LiquidGlassPasswordBox();
+        _ = password.InnerPasswordBox;
+
         _ = typeof(LiquidGlassSearchBox);
         _ = LiquidGlassSearchBox.MaxSuggestionListHeightProperty;
         _ = LiquidGlassSearchBox.IsSuggestionListOpenProperty;

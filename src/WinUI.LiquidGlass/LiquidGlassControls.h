@@ -173,16 +173,44 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		detail::FocusOpticsHelper<LiquidGlassPasswordBox>
 	{
 		LiquidGlassPasswordBox();
+
+		static void EnsureDependencyProperties();
+
 		hstring PlaceholderText() const;
 		void PlaceholderText(hstring const& value);
+		static Microsoft::UI::Xaml::DependencyProperty PlaceholderTextProperty();
+
 		hstring Password() const;
 		void Password(hstring const& value);
+		static Microsoft::UI::Xaml::DependencyProperty PasswordProperty();
+
+		Microsoft::UI::Xaml::Controls::PasswordBox InnerPasswordBox() const;
+
 		void ApplyGlassBrush(WinUI::Composition::Hlsl::LiquidGlassBrush const& value);
 
 	private:
-		Microsoft::UI::Xaml::Controls::PasswordBox m_passwordBox{ nullptr };
-	};
+		template<typename T>
+		static Microsoft::UI::Xaml::DependencyProperty RegisterForwardedProperty(
+			wchar_t const* name,
+			Windows::Foundation::IInspectable const& defaultValue);
 
+		static Microsoft::UI::Xaml::PropertyChangedCallback ForwardedPropertyChangedCallback();
+		static Microsoft::UI::Xaml::DependencyProperty InnerPropertyFor(
+			Microsoft::UI::Xaml::DependencyProperty const& outerProperty);
+
+		void OnForwardedPropertyChanged(Microsoft::UI::Xaml::DependencyPropertyChangedEventArgs const& args);
+		void ForwardPropertyToInner(
+			Microsoft::UI::Xaml::DependencyProperty const& outerProperty,
+			Windows::Foundation::IInspectable const& value);
+		void MirrorPropertyFromInner(
+			Microsoft::UI::Xaml::DependencyProperty const& outerProperty,
+			Windows::Foundation::IInspectable const& value);
+		void AttachInnerPropertyMirrors();
+
+		Microsoft::UI::Xaml::Controls::PasswordBox m_passwordBox{ nullptr };
+		bool m_syncingToInner{};
+		bool m_syncingFromInner{};
+	};
 	struct LiquidGlassComboBox :
 		LiquidGlassComboBoxT<LiquidGlassComboBox>,
 		detail::GlassBrushHelper<LiquidGlassComboBox>,
@@ -207,10 +235,36 @@ namespace winrt::WinUI::LiquidGlass::implementation
 	{
 		constexpr static auto ResourceUri = detail::ThemeResourceUri;
 		LiquidGlassToggleSwitch();
+
+		static void EnsureDependencyProperties();
+
 		Windows::Foundation::IInspectable Header() const;
 		void Header(Windows::Foundation::IInspectable const& value);
+		static Microsoft::UI::Xaml::DependencyProperty HeaderProperty();
+
+		Microsoft::UI::Xaml::DataTemplate HeaderTemplate() const;
+		void HeaderTemplate(Microsoft::UI::Xaml::DataTemplate const& value);
+		static Microsoft::UI::Xaml::DependencyProperty HeaderTemplateProperty();
+
+		Windows::Foundation::IInspectable OnContent() const;
+		void OnContent(Windows::Foundation::IInspectable const& value);
+		static Microsoft::UI::Xaml::DependencyProperty OnContentProperty();
+
+		Microsoft::UI::Xaml::DataTemplate OnContentTemplate() const;
+		void OnContentTemplate(Microsoft::UI::Xaml::DataTemplate const& value);
+		static Microsoft::UI::Xaml::DependencyProperty OnContentTemplateProperty();
+
+		Windows::Foundation::IInspectable OffContent() const;
+		void OffContent(Windows::Foundation::IInspectable const& value);
+		static Microsoft::UI::Xaml::DependencyProperty OffContentProperty();
+
+		Microsoft::UI::Xaml::DataTemplate OffContentTemplate() const;
+		void OffContentTemplate(Microsoft::UI::Xaml::DataTemplate const& value);
+		static Microsoft::UI::Xaml::DependencyProperty OffContentTemplateProperty();
+
 		bool IsOn() const;
 		void IsOn(bool value);
+		static Microsoft::UI::Xaml::DependencyProperty IsOnProperty();
 
 		void OnApplyTemplate()
 		{
@@ -225,7 +279,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		}
 
 	private:
-		Windows::Foundation::IInspectable m_header{ nullptr };
+		void OnIsOnPropertyChanged(bool value);
+		void MirrorIsCheckedToIsOn();
+		bool m_syncingIsOn{};
 	};
 
 	struct LiquidGlassTabBarItem :

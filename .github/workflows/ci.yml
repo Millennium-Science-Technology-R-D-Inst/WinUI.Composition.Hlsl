@@ -194,6 +194,17 @@ jobs:
             Write-Host "Found: $path"
           }
 
+          # A successful C# build can still produce a 4-KB assembly with no
+          # projected WinRT types. Assert on both size and a concrete projected type.
+          $projection = Get-Item 'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.LiquidGlass.Projection.dll'
+          if ($projection.Length -lt 16384) {
+            throw "WinUI.LiquidGlass.Projection.dll is suspiciously small ($($projection.Length) bytes)."
+          }
+          $projectionText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($projection.FullName))
+          if (!$projectionText.Contains('LiquidGlassToggleSwitch')) {
+            throw 'WinUI.LiquidGlass.Projection.dll does not contain the LiquidGlassToggleSwitch projected type.'
+          }
+
       - name: Pack NuGet packages
         shell: pwsh
         run: |

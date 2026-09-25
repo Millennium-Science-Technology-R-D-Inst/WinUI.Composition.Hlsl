@@ -305,8 +305,15 @@ namespace WinUI.LiquidGlass
     [webhosthidden] runtimeclass LiquidGlassPasswordBox : Microsoft.UI.Xaml.Controls.ContentControl
     {
         LiquidGlassPasswordBox();
+
         String PlaceholderText;
+        static Microsoft.UI.Xaml.DependencyProperty PlaceholderTextProperty{ get; };
+
         String Password;
+        static Microsoft.UI.Xaml.DependencyProperty PasswordProperty{ get; };
+
+        Microsoft.UI.Xaml.Controls.PasswordBox InnerPasswordBox{ get; };
+
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
         static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }
@@ -321,8 +328,28 @@ namespace WinUI.LiquidGlass
     [webhosthidden] runtimeclass LiquidGlassToggleSwitch : Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
     {
         LiquidGlassToggleSwitch();
+
         Object Header;
+        static Microsoft.UI.Xaml.DependencyProperty HeaderProperty{ get; };
+
+        Microsoft.UI.Xaml.DataTemplate HeaderTemplate;
+        static Microsoft.UI.Xaml.DependencyProperty HeaderTemplateProperty{ get; };
+
+        Object OnContent;
+        static Microsoft.UI.Xaml.DependencyProperty OnContentProperty{ get; };
+
+        Microsoft.UI.Xaml.DataTemplate OnContentTemplate;
+        static Microsoft.UI.Xaml.DependencyProperty OnContentTemplateProperty{ get; };
+
+        Object OffContent;
+        static Microsoft.UI.Xaml.DependencyProperty OffContentProperty{ get; };
+
+        Microsoft.UI.Xaml.DataTemplate OffContentTemplate;
+        static Microsoft.UI.Xaml.DependencyProperty OffContentTemplateProperty{ get; };
+
         Boolean IsOn;
+        static Microsoft.UI.Xaml.DependencyProperty IsOnProperty{ get; };
+
         WinUI.Composition.Hlsl.LiquidGlassBrush GlassBrush;
         static Microsoft.UI.Xaml.DependencyProperty GlassBrushProperty{ get; };
     }

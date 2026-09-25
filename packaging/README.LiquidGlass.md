@@ -8,6 +8,8 @@ Native C++/WinRT Liquid Glass controls for WinUI 3. The package ships the native
 
 Controls: `LiquidGlassCard`, `LiquidGlassFloatingPanel`, `LiquidGlassMagnifier`, `LiquidGlassButton`, `LiquidGlassToggleButton`, `LiquidGlassHyperlinkButton`, `LiquidGlassCheckBox`, `LiquidGlassRadioButton`, `LiquidGlassSlider`, `LiquidGlassTextBox`, `LiquidGlassPasswordBox`, `LiquidGlassSearchBox`, `LiquidGlassComboBox`, `LiquidGlassToggleSwitch`, `LiquidGlassTabBar`, and `LiquidGlassTabBarItem`.
 
+`LiquidGlassSearchBox` and `LiquidGlassPasswordBox` host their sealed native WinUI controls and expose real wrapper dependency properties. `LiquidGlassToggleSwitch` keeps the established `ToggleButton`-based Kube visual implementation; its `IsOnProperty` is synchronized bidirectionally with inherited `IsCheckedProperty` so TwoWay bindings work without changing the switch appearance.
+
 Each control exposes `GlassBrush` as a dependency property. The default value is a per-instance `WinUI.Composition.Hlsl.LiquidGlassBrush`, while applications can replace it from XAML or C++/WinRT:
 
 ```xml
