@@ -85,9 +85,10 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 	void App::OnLaunched([[maybe_unused]] LaunchActivatedEventArgs const& e)
 	{
 		window = make<MainWindow>();
+		window.Activate();
+#if defined _DEBUG
 		auto navigationWindow = make<NavigationWindow>();
 		navigationWindow.Activate();
-		window.Activate();
+#endif
 	}
 }
-

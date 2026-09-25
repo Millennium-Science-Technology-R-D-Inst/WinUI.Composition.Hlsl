@@ -186,6 +186,11 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="MainWindow.xaml" />
+    <Page Include="NavigationWindow.xaml" />
+    <Page Include="OverviewPage.xaml" />
+    <Page Include="SharedBrushPage.xaml" />
+    <Page Include="IsolatedBrushPage.xaml" />
+    <Page Include="DetachPage.xaml" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Assets">
@@ -194,5 +199,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="WUILiquidGlassDemo.Hlsl_TemporaryKey.pfx" />
+    <None Include="Package.StoreAssociation.xml" />
   </ItemGroup>
 </Project>

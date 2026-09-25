@@ -10,15 +10,15 @@
   IgnorableNamespaces="uap rescap systemai uap18">
 
 	<Identity
-	  Name="8bf9eaa4-ea72-409e-a9a9-f140f7540c9a"
-	  Publisher="CN=Millennium Science Technology R&amp;D Inst"
-	  Version="1.1.336.0" />
+	  Name="MillenniumScienceTechnolo.WinUI3LiquidGlassdemo"
+	  Publisher="CN=9C947BF5-422C-4285-B301-9F787230839B"
+	  Version="1.1.351.0" />
 
-	<mp:PhoneIdentity PhoneProductId="8bf9eaa4-ea72-409e-a9a9-f140f7540c9a" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+	<mp:PhoneIdentity PhoneProductId="9a76f38b-cdf3-4667-ad4d-62f314dd5657" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
 	<Properties>
-		<DisplayName>WUILiquidGlassDemo Hlsl</DisplayName>
-		<PublisherDisplayName>hoshiizumiya</PublisherDisplayName>
+		<DisplayName>WinUI3 Liquid Glass demo</DisplayName>
+		<PublisherDisplayName>Millennium Science Technology R&amp;D Inst</PublisherDisplayName>
 		<Logo>Assets\StoreLogo.png</Logo>
 	</Properties>
 
@@ -36,7 +36,7 @@
 		  Executable="$targetnametoken$.exe"
 		  EntryPoint="$targetentrypoint$" uap18:RuntimeBehavior="packagedClassicApp" >
 			<uap:VisualElements
-			  DisplayName="WUILiquidGlassDemo Hlsl"
+			  DisplayName="WinUI3 Liquid Glass demo"
 			  Description="WUILiquidGlassDemo Hlsl"
 			  BackgroundColor="transparent"
 			  Square150x150Logo="Assets\Square150x150Logo.png"

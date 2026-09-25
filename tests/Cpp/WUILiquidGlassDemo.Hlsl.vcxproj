@@ -77,6 +77,15 @@
     <IntDir>$(MSBuildThisFileDirectory)Output\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <GeneratedFilesDir>$(IntDir)Generated Files\</GeneratedFilesDir>
     <AppxPackageDir>$(MSBuildThisFileDirectory)AppPackages\</AppxPackageDir>
+    <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
+    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
+    <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
+    <GenerateTestArtifacts>False</GenerateTestArtifacts>
+    <AppxBundle>Never</AppxBundle>
+    <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -307,9 +316,10 @@
   <ItemGroup>
     <None Include="WUILiquidGlassDemo.Hlsl_TemporaryKey.pfx" />
   </ItemGroup>
-  <Target Name="RemoveInvalidCoreShaderPayloadFromMsix"
-          AfterTargets="_ComputeAppxPackagePayload"
-          BeforeTargets="_CalculateInputsForGenerateAppxPackageRecipe">
+  <ItemGroup>
+    <None Include="Package.StoreAssociation.xml" />
+  </ItemGroup>
+  <Target Name="RemoveInvalidCoreShaderPayloadFromMsix" AfterTargets="_ComputeAppxPackagePayload" BeforeTargets="_CalculateInputsForGenerateAppxPackageRecipe">
     <ItemGroup>
       <!-- The native HLSL project embeds these shaders in its DLL. Remove only
            malformed DXBC payload paths from this C++ app's MSIX recipe. -->
