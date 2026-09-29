@@ -6,19 +6,12 @@ on:
       - master
     paths-ignore:
       - '.gitattributes'
+      - '.github/**'
       - '.gitignore'
       - '.gitmodules'
       - '**.md'
       - 'LICENSE'
-  pull_request:
-    branches:
-      - master
-    paths-ignore:
-      - '.gitattributes'
-      - '.gitignore'
-      - '.gitmodules'
-      - '**.md'
-      - 'LICENSE'
+      - '**.yml'
   workflow_dispatch:
 
 permissions:

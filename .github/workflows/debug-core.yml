@@ -1,12 +1,19 @@
-name: Debug Core
+﻿name: Debug Core
 
 on:
   push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+    branches-ignore:
+      - l10n_develop
+      - release
+      - dependabot/**
+    paths-ignore:
+      - '.gitattributes'
+      - '.github/**'
+      - '.gitignore'
+      - '.gitmodules'
+      - '**.md'
+      - 'LICENSE'
+      - '**.yml'
   workflow_dispatch:
 
 permissions:
