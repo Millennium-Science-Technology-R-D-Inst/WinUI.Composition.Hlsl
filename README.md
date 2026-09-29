@@ -16,6 +16,10 @@
   <img alt="WinUI 3" src="https://img.shields.io/badge/WinUI-3-0078D4">
 </p>
 
+## Check the demo app
+
+<a href="https://get.microsoft.com/installer/download/9NHZ58MQGRV7?referrer=appbadge" target="_self"><img src="https://get.microsoft.com/images/en-us%20light.svg" width="200"/></a> or [Go to Microsoft Store web page](https://apps.microsoft.com/detail/9NHZ58MQGRV7)
+
 ## What this repository does
 
 `WinUI.Composition.Hlsl` lets application HLSL participate in the existing Windows Graphics Effects / `Microsoft.UI.Composition` / WinUI 3 XAML pipeline:
