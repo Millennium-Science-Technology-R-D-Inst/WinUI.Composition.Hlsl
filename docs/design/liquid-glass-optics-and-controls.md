@@ -65,6 +65,42 @@ The correction is deliberately not applied to exact Kube/pill geometry. Borderle
 
 The `n = 4` gradient is evaluated with cubic multiplies rather than additional `pow()` calls. This keeps the corner improvement inexpensive enough for the DWM-linked shader path.
 
+## Public parameter model versus LiquidGlassWinUI
+
+The two implementations do not expose one-to-one parameter sets because their optical models are different. `WinUI.Composition.Hlsl` uses an explicit Snell/bezel model plus control-oriented material parameters, while `LiquidGlassWinUI` exposes a more artistic Fresnel/glare/post-processing model.
+
+The closest conceptual mappings are:
+
+| WinUI.Composition.Hlsl | LiquidGlassWinUI | Notes |
+| --- | --- | --- |
+| `BlurRadius` | `BlurAmount` | Same role; units and blur implementation differ. |
+| `BezelWidth` | `RefThickness` | Both define the optical edge depth, but the equations differ. |
+| `RefractiveIndex` | `RefFactor` | Both represent IOR/refraction factor. |
+| `DispersionStrength` | `RefDispersion` | Both control chromatic separation. |
+| `MagnificationStrength` | `Magnification` | Same broad feature with different scaling semantics. |
+| `HighlightStrength` | `GlareFactor` | Approximate mapping; the lighting models are not identical. |
+| `HighlightSharpness` | `GlareHardness` | Approximate falloff/sharpness mapping. |
+| `LightAngle` | `GlareAngle` | Direction control; this implementation uses radians. |
+| `TintRed/Green/Blue/TintOpacity` | `TintR/G/B/A` | Direct conceptual mapping. |
+| `Saturation` | `Saturation` | Same broad operation. |
+| `Contrast` | `Contrast` | Same broad operation. |
+| `Exposure` | `Exposure` | Names match, but this implementation uses an EV-style `exp2` gain rather than LiquidGlassWinUI's multiplicative convention. |
+| `CornerRadius` | `ShapeRadius` | Not equivalent units: absolute radius here versus a shorter-half-side fraction there. |
+
+`WinUI.Composition.Hlsl` additionally exposes controls that are absent or not explicit in LiquidGlassWinUI: `RefractionStrength`, `GlassThickness`, `SurfaceProfile`, `BorderThickness`, `EdgeSoftness`, `MaterialOpacity`, `InnerShadowStrength`, `SpecularSaturation`, and `SpecularWidth`.
+
+LiquidGlassWinUI exposes independent dimensions that are not currently represented as public authoring properties here:
+
+- `DispersionRange`;
+- `RefFresnelRange`, `RefFresnelHardness`, and `RefFresnelFactor`;
+- `GlareRange`, `GlareConvergence`, and `GlareOppositeFactor`;
+- `BloomAmount`, `Brightness`, `Temperature`, and `Vibrance`;
+- `ShapeRoundness`.
+
+`ShapeRoundness` is the most directly relevant missing dimension for corner work. The current corner-optics correction deliberately fixes its superellipse exponent at `n = 4`; exposing a future `CornerRoundness`/`ShapeRoundness` property would allow the optical corner to vary from circular (`n = 2`) through squircle-like values to a squarer shape. It should not be added merely as a renamed property unless the constant-buffer, material, brush dependency property, validation, and XAML coverage interaction are updated together.
+
+The effect also contains high-frequency pointer/internal scalars (`PointerX/Y`, interaction radius/strength, pointer velocity, hover/active state, pointer refraction/highlight/motion strengths, and `RefractionNormalization`). These are intentionally not ordinary public `LiquidGlassBrush` dependency properties: interaction helpers update them directly on the live Composition effect, while `RefractionNormalization` is derived from authored optical parameters.
+
 ## Why blur no longer defines the corner shape
 
 Blur and shape coverage solve different problems and therefore must not share the same edge.
