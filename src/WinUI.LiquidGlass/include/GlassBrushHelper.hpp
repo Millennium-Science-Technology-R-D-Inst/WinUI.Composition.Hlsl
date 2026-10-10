@@ -82,7 +82,15 @@ namespace winrt::WinUI::LiquidGlass::detail
                         [](Xaml::DependencyObject const& object, Xaml::DependencyPropertyChangedEventArgs const& args)
                         {
                             auto self = EnsureDependencyProperty<Derived>::GetSelf(object);
-                            self->ApplyGlassBrush(args.NewValue().try_as<Brush>());
+                            auto const brush = args.NewValue().try_as<Brush>();
+
+                            // Keep scale synchronization outside the virtual-by-convention
+                            // ApplyGlassBrush hook. PasswordBox/SearchBox replace that hook to
+                            // paint an inner native control; a brush swapped after Loaded must
+                            // still inherit the current XamlRoot scale immediately.
+                            auto helper = static_cast<GlassBrushHelper<Derived>*>(self);
+                            helper->PrepareGlassBrush(brush);
+                            self->ApplyGlassBrush(brush);
                         } } });
             return property;
         }
@@ -102,7 +110,15 @@ namespace winrt::WinUI::LiquidGlass::detail
             m_glassBrush = value;
             static_cast<Derived*>(this)->Background(
                 value ? value.as<Microsoft::UI::Xaml::Media::Brush>() : Microsoft::UI::Xaml::Media::Brush{ nullptr });
+        }
 
+    protected:
+        Brush m_glassBrush{ nullptr };
+
+    private:
+        void PrepareGlassBrush(Brush const& value)
+        {
+            m_glassBrush = value;
             if constexpr (AutoRasterizationScale)
             {
                 AttachXamlRoot();
@@ -110,10 +126,6 @@ namespace winrt::WinUI::LiquidGlass::detail
             }
         }
 
-    protected:
-        Brush m_glassBrush{ nullptr };
-
-    private:
         void AttachXamlRoot()
         {
             if constexpr (AutoRasterizationScale)
