@@ -28,6 +28,7 @@ namespace
 		float materialParams6[4];
 		float materialParams7[4];
 		float materialParams8[4];
+		float materialParams9[4];
 	};
 
 	// Keep this layout byte-for-byte synchronized with LiquidGlass.hlsl.
@@ -40,6 +41,7 @@ namespace
 	// P6: normalized pointer X/Y, normalized interaction radius, interaction strength.
 	// P7: normalized pointer velocity X/Y per second, normalized outside hover range, active flag.
 	// P8: pointer refraction, pointer highlight, motion refraction, Kube displacement normalization.
+	// P9: optical corner roundness (2 = circular, 4 = default squircle, 8 = squarer), reserved, reserved, reserved.
 	constexpr LiquidGlassConstants kInitialConstants{
 		{ 1.5f, 36.0f, 24.0f, 32.0f },
 		{ 0.85f, 1.0f, 1.2f, 1.0f },
@@ -50,9 +52,10 @@ namespace
 		{ 0.0f, 0.0f, 0.65f, 1.0f },
 		{ 0.0f, 0.0f, 0.10f, 0.0f },
 		{ 5.0f, 0.22f, 5.0f, 1.0f },
+		{ 4.0f, 0.0f, 0.0f, 0.0f },
 	};
 
-	static_assert(sizeof(LiquidGlassConstants) == 144);
+	static_assert(sizeof(LiquidGlassConstants) == 160);
 
 	enum LiquidGlassPropertyIndex : std::uint32_t
 	{
@@ -92,6 +95,7 @@ namespace
 		PointerHighlightStrengthProperty,
 		PointerMotionRefractionStrengthProperty,
 		RefractionNormalizationProperty,
+		ShapeRoundnessProperty,
 	};
 
 	constexpr std::uint32_t kDCompositionExpressionTypeScalar = 18;
@@ -132,6 +136,7 @@ namespace
 	constexpr std::uint32_t kPointerHighlightStrengthOffset = 132;
 	constexpr std::uint32_t kPointerMotionRefractionStrengthOffset = 136;
 	constexpr std::uint32_t kRefractionNormalizationOffset = 140;
+	constexpr std::uint32_t kShapeRoundnessOffset = 144;
 
 	HRESULT CreateScalarProperty(float scalar, ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
@@ -157,7 +162,7 @@ namespace
 	template<std::size_t Group, std::size_t Index>
 	HRESULT GetDefaultScalar(ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
-		static_assert(Group < 9 && Index < 4);
+		static_assert(Group < 10 && Index < 4);
 		if constexpr (Group == 0) return CreateScalarProperty(kInitialConstants.materialParams0[Index], value);
 		if constexpr (Group == 1) return CreateScalarProperty(kInitialConstants.materialParams1[Index], value);
 		if constexpr (Group == 2) return CreateScalarProperty(kInitialConstants.materialParams2[Index], value);
@@ -166,7 +171,8 @@ namespace
 		if constexpr (Group == 5) return CreateScalarProperty(kInitialConstants.materialParams5[Index], value);
 		if constexpr (Group == 6) return CreateScalarProperty(kInitialConstants.materialParams6[Index], value);
 		if constexpr (Group == 7) return CreateScalarProperty(kInitialConstants.materialParams7[Index], value);
-		return CreateScalarProperty(kInitialConstants.materialParams8[Index], value);
+		if constexpr (Group == 8) return CreateScalarProperty(kInitialConstants.materialParams8[Index], value);
+		return CreateScalarProperty(kInitialConstants.materialParams9[Index], value);
 	}
 
 	CustomEffectRuntime::PropertyDescriptor const kProperties[] = {
@@ -206,6 +212,7 @@ namespace
 		{ L"PointerHighlightStrength", PointerHighlightStrengthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<8, 1> },
 		{ L"PointerMotionRefractionStrength", PointerMotionRefractionStrengthProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<8, 2> },
 		{ L"RefractionNormalization", RefractionNormalizationProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<8, 3> },
+		{ L"ShapeRoundness", ShapeRoundnessProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<9, 0> },
 	};
 
 	CustomEffectRuntime::NativePropertyMetadata const kNativePropertyMetadata[] = {
@@ -245,6 +252,7 @@ namespace
 		{ "PointerHighlightStrength", kPointerHighlightStrengthOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 		{ "PointerMotionRefractionStrength", kPointerMotionRefractionStrengthOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 		{ "RefractionNormalization", kRefractionNormalizationOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "ShapeRoundness", kShapeRoundnessOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 	};
 
 	CustomEffectRuntime::ConstantBufferPropertyMapping const kConstantBufferProperties[] = {
@@ -284,6 +292,7 @@ namespace
 		{ PointerHighlightStrengthProperty, kPointerHighlightStrengthOffset },
 		{ PointerMotionRefractionStrengthProperty, kPointerMotionRefractionStrengthOffset },
 		{ RefractionNormalizationProperty, kRefractionNormalizationOffset },
+		{ ShapeRoundnessProperty, kShapeRoundnessOffset },
 	};
 
 	constexpr uint16_t kBackdropUvArgument = 0x0100;
@@ -347,6 +356,7 @@ namespace CustomLiquidGlassEffect
 				definition->properties = {
 					{ L"RefractionStrength", 24.0f, 0.0f, 128.0f },
 					{ L"CornerRadius", 36.0f, 0.0f, 512.0f },
+					{ L"ShapeRoundness", 4.0f, 2.0f, 8.0f },
 					{ L"BorderThickness", 1.5f, 0.0f, 32.0f },
 					{ L"HighlightStrength", 0.85f, 0.0f, 4.0f },
 					{ L"DispersionStrength", 1.2f, 0.0f, 16.0f },
