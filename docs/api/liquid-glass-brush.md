@@ -12,25 +12,41 @@ runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
 
 ## Properties
 
+Every author-facing material parameter is exposed as a XAML dependency property, so it can be set from XAML, bound, or animated. Numeric dependency properties use `Double` for normal WinUI XAML conversion and are validated before being converted to GPU `float` values.
+
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `IsEnabled` | `Boolean` | `true` | Enables the effect. When false, the brush displays `FallbackColor`. |
-| `BlurRadius` | `Double` | `12` | Gaussian radius in DIPs. Blur affects transmitted content, not the final rounded silhouette. |
-| `CornerRadius` | `Double` | `36` | Rounded material radius. |
-| `BezelWidth` | `Double` | `32` | Width of the curved optical bezel. |
-| `GlassThickness` | `Double` | `50` | Optical thickness used to turn the refracted ray angle into displacement. |
-| `RefractiveIndex` | `Double` | `1.5` | IOR (index of refraction) used by Snell's law. |
-| `RefractionStrength` | `Double` | `24` | Artistic multiplier over the physically-derived displacement. |
-| `DispersionStrength` | `Double` | `1.2` | RGB dispersion strength. |
+| `IsEnabled` | `Boolean` | `true` | Enables the effect. When false, the brush displays inherited `FallbackColor`. |
+| `Material` | `LiquidGlassMaterial` | — | Gets the live Composition material instance while connected. Read-only. |
+| `BlurRadius` | `Double` | `12` | Gaussian transmission blur radius in DIPs. |
+| `RefractionStrength` | `Double` | `24` | Artistic multiplier over physically-derived refraction displacement. |
+| `DispersionStrength` | `Double` | `1.2` | RGB chromatic-separation strength. |
+| `CornerRadius` | `Double` | `36` | WinUI-compatible rounded material radius in DIPs. |
 | `BorderThickness` | `Double` | `1.5` | Bright edge-rim width. |
 | `HighlightStrength` | `Double` | `0.85` | Directional specular intensity. |
-| `TintOpacity` | `Double` | `0.08` | White tint contribution. |
+| `EdgeSoftness` | `Double` | `1` | SDF edge/antialias transition width. |
+| `MaterialOpacity` | `Double` | `1` | Overall material opacity. |
+| `BezelWidth` | `Double` | `32` | Width of the curved optical bezel. |
+| `GlassThickness` | `Double` | `50` | Optical thickness used to convert refracted ray angle into displacement. |
+| `RefractiveIndex` | `Double` | `1.5` | IOR (index of refraction) used by Snell's law. |
+| `TintOpacity` | `Double` | `0.08` | Tint contribution. |
 | `Saturation` | `Double` | `1.25` | Transmitted-color saturation multiplier. |
-| `LightAngle` | `Double` | `-0.95` | Directional highlight angle in radians. |
+| `LightAngle` | `Double` | `-0.95` | Directional-light angle in radians. |
+| `SurfaceProfile` | `LiquidGlassSurfaceProfile` | `ConvexSquircle` | Selects the optical bezel height profile. |
+| `MagnificationStrength` | `Double` | `0` | Additional magnification displacement. |
+| `HighlightSharpness` | `Double` | `1.5` | Directional highlight concentration. |
+| `TintRed` | `Double` | `1` | Tint red component, normalized 0–1. |
+| `TintGreen` | `Double` | `1` | Tint green component, normalized 0–1. |
+| `TintBlue` | `Double` | `1` | Tint blue component, normalized 0–1. |
+| `InnerShadowStrength` | `Double` | `0.09` | Inner-bezel darkening strength. |
+| `SpecularSaturation` | `Double` | `4` | Saturation applied to the specular color response. |
+| `SpecularWidth` | `Double` | `1` | Specular edge-profile width in DIPs. |
+| `Contrast` | `Double` | `1` | Contrast multiplier around mid-grey. |
+| `Exposure` | `Double` | `0` | Exposure in stops; internally evaluated through `exp2`. |
 
-The numeric dependency properties use `Double`, matching WinUI XAML text conversion. Values are validated and converted to GPU `float` values internally.
+For exact validation ranges and Composition-level semantics, see [LiquidGlassMaterial](liquid-glass-material.md).
 
-The material is compiled as one effect graph containing the native Gaussian stage and the custom sampler. The private backend lowers the native upstream graph through a `MaterializedTexture` intermediate, then links the custom sampler into the final consumer. It does not pass a `CompositionEffectBrush` as the source of another `CompositionEffectBrush`.
+The private pointer interaction field is intentionally not duplicated as XAML dependency properties. Pointer coordinates and velocity are high-frequency state and are written directly to the live Composition effect by `WinUI.LiquidGlass` interaction helpers.
 
 ## Theme resources
 
@@ -59,10 +75,6 @@ Keep material style separate from `RequestedTheme`. Define the same semantic key
 
 Use `{ThemeResource CardMaterialBrush}` from controls. To switch visual material without changing Light/Dark, update `LiquidGlassBrush.IsEnabled` on the active resource.
 
-## Control styling
-
-The C++ demo includes `LiquidGlassControls.xaml`, a deliberately separate prototype resource dictionary with reusable Button, ToggleButton, Slider and card styles. Button and ToggleButton templates expose explicit Normal, PointerOver, Pressed, Disabled, Focused and Checked visual states. Keeping these styles outside the core runtime avoids coupling an experimental control-template ABI to the shader/runtime package; the dictionary can later move to a dedicated `WinUI.Composition.Hlsl.Controls` package.
-
 ## Remarks
 
-The brush checks `CompositionCapabilities.AreEffectsSupported()` when connected. If effects are disabled, initialization fails, or `IsEnabled` is false, it uses `FallbackColor`. It closes replaced Composition brushes when disconnected or rebuilt.
+The brush checks `CompositionCapabilities.AreEffectsSupported()` when connected. If effects are disabled, initialization fails, or `IsEnabled` is false, it uses `FallbackColor`. It closes replaced Composition resources when disconnected or rebuilt.
