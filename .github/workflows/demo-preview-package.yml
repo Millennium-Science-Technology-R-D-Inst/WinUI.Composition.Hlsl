@@ -1,0 +1,240 @@
+name: Demo Preview Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: Optional package version (Major.Minor.Build.0). Leave blank for YYYY.MMDD.RUN.0.
+        required: false
+        type: string
+  push:
+    branches:
+      - fix/liquid-glass-corner-optics
+    paths:
+      - '.github/workflows/demo-preview-package.yml'
+      - 'src/**'
+      - 'tests/Cpp/**'
+      - 'Directory.*'
+      - '*.props'
+      - '*.targets'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-package:
+    runs-on: windows-2025-vs2026
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Resolve Windows SDK
+        shell: pwsh
+        run: |
+          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Lib"
+          $sdk = Get-ChildItem $sdkRoot -Directory |
+            Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            Select-Object -First 1
+          if (!$sdk) { throw 'No Windows SDK found on the runner.' }
+          "WIN_SDK=$($sdk.Name)" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\ci-logs" | Out-Null
+          Write-Host "Using Windows SDK $($sdk.Name)"
+
+      - name: Validate Debug x64 build
+        shell: pwsh
+        run: |
+          $args = @(
+            'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj',
+            '/restore',
+            '/t:Build',
+            '/p:Configuration=Debug',
+            '/p:Platform=x64',
+            '/p:GenerateAppxPackageOnBuild=false',
+            '/p:AppxPackageSigningEnabled=false',
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK",
+            '/m',
+            '/v:minimal',
+            '/nologo'
+          )
+          & msbuild @args *> "$env:GITHUB_WORKSPACE\ci-logs\debug-x64.log"
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content "$env:GITHUB_WORKSPACE\ci-logs\debug-x64.log" -Tail 300
+            exit $LASTEXITCODE
+          }
+
+      - name: Generate package metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $version = '${{ inputs.package_version }}'.Trim()
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $year = [int](Get-Date -Format 'yyyy')
+            $monthDay = [int](Get-Date -Format 'MMdd')
+            $runNumber = [int]'${{ github.run_number }}'
+            if ($runNumber -gt 65535) { throw 'github.run_number exceeds the MSIX component limit.' }
+            $version = "$year.$monthDay.$runNumber.0"
+          }
+          $parts = $version.Split('.')
+          if ($parts.Count -ne 4) { throw 'Package version must contain four numeric components.' }
+          foreach ($part in $parts) {
+            $value = 0
+            if (-not [int]::TryParse($part, [ref]$value) -or $value -lt 0 -or $value -gt 65535) {
+              throw "Invalid MSIX version: $version"
+            }
+          }
+          if ([int]$parts[3] -ne 0) { throw 'The fourth version component must be 0 for Store packages.' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "artifact_name=LiquidGlassDemo.Preview_$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build unsigned Store upload bundle
+        shell: pwsh
+        run: |
+          $packageDir = "$env:GITHUB_WORKSPACE\artifacts\store\"
+          New-Item -ItemType Directory -Force $packageDir | Out-Null
+          $args = @(
+            'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj',
+            '/restore',
+            '/t:Build',
+            '/p:Configuration=Release',
+            '/p:Platform=x64',
+            '/p:GenerateAppxPackageOnBuild=true',
+            '/p:UapAppxPackageBuildMode=StoreUpload',
+            '/p:AppxBundle=Always',
+            '/p:AppxBundlePlatforms=x64|ARM64',
+            "/p:AppxPackageDir=$packageDir",
+            '/p:AppxPackageSigningEnabled=false',
+            '/p:GenerateTemporaryStoreCertificate=false',
+            "/p:AppxPackageVersion=${{ steps.meta.outputs.version }}",
+            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK",
+            '/m:1',
+            '/v:minimal',
+            '/nologo'
+          )
+          & msbuild @args *> "$env:GITHUB_WORKSPACE\ci-logs\store-upload.log"
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content "$env:GITHUB_WORKSPACE\ci-logs\store-upload.log" -Tail 300
+            exit $LASTEXITCODE
+          }
+
+      - name: Create preview signing certificate
+        id: cert
+        shell: pwsh
+        run: |
+          $publisher = 'CN=9C947BF5-422C-4285-B301-9F787230839B'
+          $passwordText = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+          $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject $publisher `
+            -KeyUsage DigitalSignature `
+            -FriendlyName 'WinUI Liquid Glass Demo Preview' `
+            -CertStoreLocation 'Cert:\CurrentUser\My' `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3','2.5.29.19={text}')
+          $certDir = "$env:GITHUB_WORKSPACE\artifacts\certificate"
+          New-Item -ItemType Directory -Force $certDir | Out-Null
+          $pfx = Join-Path $certDir 'LiquidGlassDemoPreview.pfx'
+          $cer = Join-Path $certDir 'LiquidGlassDemoPreview.cer'
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $password | Out-Null
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+          "pfx=$pfx" >> $env:GITHUB_OUTPUT
+          "cer=$cer" >> $env:GITHUB_OUTPUT
+          "password=$passwordText" >> $env:GITHUB_OUTPUT
+
+      - name: Build signed sideload MSIX packages
+        shell: pwsh
+        run: |
+          foreach ($platform in @('x64', 'ARM64')) {
+            $packageDir = "$env:GITHUB_WORKSPACE\artifacts\sideload\$platform\"
+            New-Item -ItemType Directory -Force $packageDir | Out-Null
+            $args = @(
+              'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj',
+              '/restore',
+              '/t:Build',
+              '/p:Configuration=Release',
+              "/p:Platform=$platform",
+              '/p:GenerateAppxPackageOnBuild=true',
+              '/p:UapAppxPackageBuildMode=SideloadOnly',
+              '/p:AppxBundle=Never',
+              "/p:AppxPackageDir=$packageDir",
+              '/p:AppxPackageSigningEnabled=true',
+              '/p:GenerateTemporaryStoreCertificate=false',
+              "/p:PackageCertificateKeyFile=${{ steps.cert.outputs.pfx }}",
+              "/p:PackageCertificatePassword=${{ steps.cert.outputs.password }}",
+              "/p:AppxPackageVersion=${{ steps.meta.outputs.version }}",
+              "/p:WindowsTargetPlatformVersion=$env:WIN_SDK",
+              '/m:1',
+              '/v:minimal',
+              '/nologo'
+            )
+            $log = "$env:GITHUB_WORKSPACE\ci-logs\sideload-$platform.log"
+            & msbuild @args *> $log
+            if ($LASTEXITCODE -ne 0) {
+              Get-Content $log -Tail 300
+              exit $LASTEXITCODE
+            }
+          }
+
+      - name: Verify package outputs
+        shell: pwsh
+        run: |
+          $uploads = @(Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\store" -Recurse -File -Filter '*.msixupload')
+          if ($uploads.Count -ne 1) {
+            Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\store" -Recurse -File | Select-Object FullName, Length
+            throw "Expected one .msixupload, found $($uploads.Count)."
+          }
+          $msix = @(Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\sideload" -Recurse -File -Filter '*.msix')
+          if ($msix.Count -lt 2) {
+            Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\sideload" -Recurse -File | Select-Object FullName, Length
+            throw "Expected x64 and ARM64 sideload .msix packages, found $($msix.Count)."
+          }
+          @"
+          ## Liquid Glass Demo preview
+          - Version: `${{ steps.meta.outputs.version }}`
+          - Store: unsigned x64/ARM64 `.msixupload` for Partner Center
+          - Sideload: signed x64 and ARM64 `.msix`
+          - Certificate: install `LiquidGlassDemoPreview.cer` into Trusted People before sideloading
+          - Source: `${{ github.sha }}`
+          "@ >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Remove private signing key
+        if: always()
+        shell: pwsh
+        run: Remove-Item '${{ steps.cert.outputs.pfx }}' -Force -ErrorAction SilentlyContinue
+
+      - name: Upload Store package
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}-Store
+          path: artifacts/store/**/*.msixupload
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload sideload preview
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}-Sideload
+          path: |
+            artifacts/sideload/**/*.msix
+            artifacts/certificate/*.cer
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: demo-preview-logs-${{ github.run_id }}
+          path: ci-logs/*.log
+          if-no-files-found: ignore
+          retention-days: 14
