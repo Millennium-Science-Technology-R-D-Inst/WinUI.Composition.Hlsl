@@ -97,10 +97,10 @@ float CalculateReferenceRefractionDistance(
 }
 
 // The coverage silhouette deliberately remains the ordinary WinUI rounded rectangle:
-// XAML Border/CornerRadius may clip the brush with that exact geometry.  The optical
-// field is allowed to be richer than the coverage geometry, however.  Generic glass
+// XAML Border/CornerRadius may clip the brush with that exact geometry. The optical
+// field is allowed to be richer than the coverage geometry, however. Generic glass
 // surfaces therefore use an n=4 superellipse-derived corner gradient and a slightly
-// larger virtual optical radius.  This makes the backdrop bend *through* the corner
+// larger virtual optical radius. This makes the backdrop bend through the corner
 // instead of looking like a straight-edge refraction that was rounded off afterwards.
 // Exact Kube/pill geometries can opt out and retain the circular n=2 field.
 float2 RoundedRectNormal(
@@ -159,18 +159,21 @@ float2 RoundedRectNormal(
 }
 
 // 0 on the straight-edge tangency points, 1 around the 45-degree part of a corner.
-// This uses the *coverage* radius rather than the virtual optical radius so boosts do
-// not leak onto straight edges.  It mirrors the useful part of LiquidGlassWinUI's
-// corner-weighted dispersion while keeping this material's Snell/bezel model.
+// FXC's SM4 library definite-assignment analysis is conservative across an early
+// return in this helper, so keep an explicitly initialized single return value.
 float RoundedRectCornerWeight(float2 local, float2 halfRect, float radius)
 {
-    if (radius <= 1e-4f)
-        return 0.0f;
-
-    const float2 q = abs(local) - (halfRect - radius.xx);
-    const float2 corner = max(q, 0.0f.xx);
-    float t = saturate(2.0f * min(corner.x, corner.y) / max(radius, 1.0f));
-    return t * t * (3.0f - 2.0f * t);
+    float result = 0.0f;
+    if (radius > 1e-4f)
+    {
+        float2 q = abs(local) - (halfRect - radius.xx);
+        float2 corner = max(q, 0.0f.xx);
+        float cornerMinimum = min(corner.x, corner.y);
+        float denominator = max(radius, 1.0f);
+        float t = saturate(2.0f * cornerMinimum / denominator);
+        result = t * t * (3.0f - 2.0f * t);
+    }
+    return result;
 }
 
 float CalculatePointerInteraction(
