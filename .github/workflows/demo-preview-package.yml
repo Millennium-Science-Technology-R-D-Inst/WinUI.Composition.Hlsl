@@ -138,7 +138,7 @@ jobs:
                 Where-Object { $_.Name -match $pattern }
             )
             if ($packages.Count -ne 1) {
-              Write-Host "MSIX files produced for $platform:"
+              Write-Host "MSIX files produced for ${platform}:"
               Get-ChildItem $packageDir -Recurse -File -Filter '*.msix' | Select-Object FullName, Length
               throw "Expected exactly one WUILiquidGlassDemo.Hlsl $platform MSIX, found $($packages.Count)."
             }
