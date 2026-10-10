@@ -12,6 +12,7 @@ cbuffer LiquidGlassConstants : register(b0)
     float4 MaterialParams6;
     float4 MaterialParams7;
     float4 MaterialParams8;
+    float4 MaterialParams9;
 };
 
 float RoundedRectSdf(float2 p, float2 halfSize, float radius)
@@ -96,10 +97,28 @@ float CalculateReferenceRefractionDistance(
     return result;
 }
 
+// Approximate the gradient of a superellipse without a dynamic pow(). The anchor
+// values are exact: roundness 2 => circular x^1/y^1 gradient, 4 => x^3/y^3,
+// and 8 => x^7/y^7. Interpolation between anchors gives an artist-friendly 2..8
+// control while keeping the linked SM4/DWM shader substantially cheaper than pow(x,n).
+float2 SuperellipseGradient(float2 scaled, float roundness)
+{
+    const float2 squared = scaled * scaled;
+    const float2 gradient2 = scaled;
+    const float2 gradient4 = scaled * squared;
+    const float2 fourth = squared * squared;
+    const float2 gradient8 = gradient4 * fourth;
+    const float blend24 = saturate((roundness - 2.0f) * 0.5f);
+    const float blend48 = saturate((roundness - 4.0f) * 0.25f);
+    const float2 low = lerp(gradient2, gradient4, blend24);
+    const float2 high = lerp(gradient4, gradient8, blend48);
+    return roundness <= 4.0f ? low : high;
+}
+
 // The coverage silhouette deliberately remains the ordinary WinUI rounded rectangle:
 // XAML Border/CornerRadius may clip the brush with that exact geometry. The optical
 // field is allowed to be richer than the coverage geometry, however. Generic glass
-// surfaces therefore use an n=4 superellipse-derived corner gradient and a slightly
+// surfaces therefore use a tunable superellipse-derived corner gradient and a slightly
 // larger virtual optical radius. This makes the backdrop bend through the corner
 // instead of looking like a straight-edge refraction that was rounded off afterwards.
 // Exact Kube/pill geometries can opt out and retain the circular n=2 field.
@@ -109,6 +128,7 @@ float2 RoundedRectNormal(
     float radius,
     float opticalRadius,
     float medialBlend,
+    float shapeRoundness,
     bool useSuperellipseCorners)
 {
     const float2 signs = float2(local.x < 0.0f ? -1.0f : 1.0f, local.y < 0.0f ? -1.0f : 1.0f);
@@ -121,11 +141,9 @@ float2 RoundedRectNormal(
     {
         if (useSuperellipseCorners)
         {
-            // Gradient of |x|^4 + |y|^4 = r^4. Cubes are used instead of pow()
-            // to keep the linked DWM shader comfortably inside its instruction budget.
             const float invRadius = 1.0f / max(activeRadius, 1.0f);
             const float2 scaled = outside * invRadius;
-            const float2 gradient = scaled * scaled * scaled;
+            const float2 gradient = SuperellipseGradient(scaled, shapeRoundness);
             const float gradientLength = length(gradient);
             if (gradientLength > 1e-6f)
                 result = gradient / gradientLength;
@@ -346,6 +364,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float pointerHighlightStrength = max(MaterialParams8.y, 0.0f);
     const float pointerMotionRefractionStrength = max(MaterialParams8.z, 0.0f);
     const float refractionNormalization = max(MaterialParams8.w, 0.0f);
+    const float shapeRoundness = clamp(MaterialParams9.x, 2.0f, 8.0f);
 
     const float2 contentMin = min(samplerData.xy, samplerData.zw);
     const float2 contentMax = max(samplerData.xy, samplerData.zw);
@@ -406,8 +425,9 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 
         // Do not alter Kube's exact borderless convex field, Lip switch optics, or
         // circles/pills where a superellipse corner would change the authored shape.
-        // Ordinary rounded rectangles get a larger virtual corner whose n=4 gradient
-        // stays curved through more of the bezel while the visible SDF remains WinUI-compatible.
+        // Ordinary rounded rectangles get a larger virtual corner whose tunable
+        // superellipse gradient stays curved through more of the bezel while the
+        // visible SDF remains WinUI-compatible.
         const bool hasDistinctCorners = radius > 0.5f && radius < halfMinSize - 0.5f;
         const bool enhanceCornerOptics =
             hasDistinctCorners && !authoredBoundedConvex && surfaceProfile < 2.5f;
@@ -421,6 +441,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             radius,
             opticalRadius,
             medialBlend,
+            shapeRoundness,
             enhanceCornerOptics);
         const float cornerWeight = enhanceCornerOptics
             ? RoundedRectCornerWeight(local, shapeHalfRect, radius)
