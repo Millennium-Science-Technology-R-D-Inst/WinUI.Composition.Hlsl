@@ -15,7 +15,7 @@ The built-in Liquid Glass material should be more than a fixed artistic distorti
 
 ## Reference mapping
 
-The implementation borrows two mechanisms from the reference projects rather than copying their rendering stacks.
+The implementation borrows mechanisms from the reference projects rather than copying their rendering stacks.
 
 The `liunnn1994` implementation separates a one-dimensional bezel profile from the two-dimensional rounded-rectangle displacement field. Its important idea is that displacement is derived from surface geometry and refractive index, then directed along the rounded-rectangle edge normal.
 
@@ -31,6 +31,39 @@ The `archisvaze/liquid-glass` WebGL shader expresses the same chain directly in 
 8. add directional rim/specular, tint and inner-edge response.
 
 `LiquidGlass.hlsl` follows that chain on the GPU. It retains `RefractionStrength` after the physically-derived displacement as an artistic multiplier because UI material design often needs exaggeration or suppression beyond literal optics.
+
+`luckyelysia/LiquidGlassWinUI` additionally demonstrates an important perceptual property of rounded liquid glass: a superellipse-derived corner normal and corner-weighted chromatic separation make the four corners read as curved optical surfaces rather than as a rectangular refraction field that is merely clipped to a radius. The native shader adopts that idea without replacing its existing Snell/bezel model.
+
+## Corner coverage versus corner optics
+
+The visible silhouette and the optical field intentionally have separate responsibilities.
+
+The visible coverage remains the ordinary WinUI rounded-rectangle SDF. This is required because a `LiquidGlassBrush` is commonly hosted by a XAML `Border` whose `CornerRadius` uses the same circular rounded-rectangle geometry. Changing only the shader silhouette to a superellipse would let the XAML border clip the extra superellipse area and would make the two layers disagree.
+
+Inside that compatible coverage shape, ordinary rounded rectangles use a richer optical field:
+
+- the corner normal follows the gradient of an `n = 4` superellipse instead of the circular `n = 2` gradient;
+- the virtual optical radius may extend inward to at least the bezel scale, so a thick bezel does not lose its corner curvature after the geometric corner arc collapses;
+- the rounded-rectangle medial-axis normal transition is blended instead of changing direction abruptly;
+- refraction, dispersion, and specular energy receive modest corner-only weighting that reaches its maximum near the 45-degree part of each corner and is exactly zero at the straight-edge tangency points.
+
+This produces the intended visual chain:
+
+```text
+WinUI-compatible rounded coverage
+        +
+superellipse corner normal
+        +
+Snell/bezel displacement
+        +
+corner-weighted dispersion/specular
+        =
+continuous curved corner refraction
+```
+
+The correction is deliberately not applied to exact Kube/pill geometry. Borderless Kube slider optics, Lip switch optics, and circles/capsules keep their authored circular field so the reference geometry is not distorted.
+
+The `n = 4` gradient is evaluated with cubic multiplies rather than additional `pow()` calls. This keeps the corner improvement inexpensive enough for the DWM-linked shader path.
 
 ## Why blur no longer defines the corner shape
 
@@ -48,35 +81,16 @@ If the rounded shape were blurred together with the source, increasing `BlurRadi
 
 ## Constant-buffer layout
 
-The private native-effect metadata and HLSL constant buffer must remain byte-for-byte synchronized.
-
-```text
-MaterialParams0: BorderThickness, CornerRadius, RefractionStrength, BezelWidth
-MaterialParams1: HighlightStrength, EdgeSoftness, DispersionStrength, MaterialOpacity
-MaterialParams2: GlassThickness, RefractiveIndex, TintOpacity, Saturation
-MaterialParams3: LightAngle, reserved, reserved, reserved
-```
+The private native-effect metadata and HLSL constant buffer must remain byte-for-byte synchronized. The corner-optics correction derives its parameters from the existing radius, bezel, profile, and geometry values and therefore does not add an ABI-visible constant-buffer property.
 
 Every public parameter is registered through the custom-effect property table and included in `CompositionEffectFactory`'s animatable-property list. Interaction code therefore updates constants on the existing graph rather than recreating the graph.
 
 ## Interaction model
 
-The C++ demo demonstrates two levels of motion.
+Pointer-driven refraction and highlights are evaluated against the same rounded coverage geometry. The corner optical field only changes the material response inside the shape; it does not alter hit testing, control geometry, or pointer activation bounds.
 
-For the large draggable glass surface, pointer position drives only `LightAngle`. Press/release feedback drives the XAML element's Composition `Visual.Scale`. Both operations stay on the Composition side and leave the expensive material graph intact.
+For ordinary controls, XAML `VisualStateManager` states retain the WinUI input/accessibility contract while the material properties are animated on the existing Composition graph.
 
-For ordinary controls, `LiquidGlassControls.xaml` uses XAML `VisualStateManager` states. Button and ToggleButton explicitly animate Normal, PointerOver, Pressed, Disabled, Focused and Checked states. This keeps normal WinUI input/accessibility semantics while replacing only the presentation.
+## Layering responsibility
 
-## Why controls are not in the core DLL yet
-
-The runtime package has a narrow responsibility: compile/link HLSL through the Composition backend and expose reusable material brushes. XAML control templates evolve with WinUI visual conventions and have a different compatibility surface.
-
-For that reason the first control layer is a standalone ResourceDictionary in the C++ demo. If the templates stabilize, the recommended next step is a sibling package/project:
-
-```text
-src/
-  WinUI.Composition.Hlsl/           # runtime, effects, brushes
-  WinUI.Composition.Hlsl.Controls/  # optional XAML control resources / controls
-```
-
-The controls project should depend on the runtime package, never the reverse. That dependency direction prevents control-template changes from destabilizing the HLSL/Composition ABI.
+The runtime package owns HLSL compilation/linking, reusable material brushes, and the optical model. `WinUI.LiquidGlass` owns XAML control templates and interaction behavior. Keeping the ordinary rounded coverage silhouette compatible with the XAML layer prevents control-template clipping from silently changing the shader's authored corner shape.
