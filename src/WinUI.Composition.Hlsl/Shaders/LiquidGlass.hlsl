@@ -390,10 +390,15 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float2 local = localPosition - halfRect;
 
     // Keep one raster pixel for generic surfaces so AA/refraction/specular survive
-    // the compositor/XAML clip. Borderless ConvexSquircle is the Kube-authored path
-    // and intentionally occupies its exact 90x60-style bounds.
-    const bool authoredBoundedConvex = surfaceProfile < 0.5f && borderThickness <= 1e-4f;
-    const float shapeMargin = authoredBoundedConvex ? 0.0f : 1.0f;
+    // the compositor/XAML clip. Only an authored borderless convex pill/circle keeps
+    // zero margin; using BorderThickness == 0 alone is too broad because ordinary
+    // borderless rounded rectangles still need the richer corner-optics path.
+    const float authoredHalfMinSize = max(min(halfRect.x, halfRect.y), 1.0f);
+    const bool authoredConvexPill =
+        surfaceProfile < 0.5f &&
+        borderThickness <= 1e-4f &&
+        cornerRadius >= authoredHalfMinSize - 0.5f;
+    const float shapeMargin = authoredConvexPill ? 0.0f : 1.0f;
     const float2 shapeHalfRect = max(halfRect - shapeMargin.xx, 1.0f.xx);
     const float halfMinSize = max(min(shapeHalfRect.x, shapeHalfRect.y), 1.0f);
     const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
@@ -423,14 +428,14 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
         const float opticalInterior = 1.0f - smoothstep(0.0f, opticalFeather, sdf);
 
-        // Do not alter Kube's exact borderless convex field, Lip switch optics, or
-        // circles/pills where a superellipse corner would change the authored shape.
+        // Do not alter Kube's exact borderless convex pill/circle field, Lip switch optics,
+        // or other pills where a superellipse corner would change the authored shape.
         // Ordinary rounded rectangles get a larger virtual corner whose tunable
         // superellipse gradient stays curved through more of the bezel while the
         // visible SDF remains WinUI-compatible.
         const bool hasDistinctCorners = radius > 0.5f && radius < halfMinSize - 0.5f;
         const bool enhanceCornerOptics =
-            hasDistinctCorners && !authoredBoundedConvex && surfaceProfile < 2.5f;
+            hasDistinctCorners && !authoredConvexPill && surfaceProfile < 2.5f;
         const float opticalRadius = enhanceCornerOptics
             ? min(max(radius, bezel * 1.25f), halfMinSize)
             : radius;
