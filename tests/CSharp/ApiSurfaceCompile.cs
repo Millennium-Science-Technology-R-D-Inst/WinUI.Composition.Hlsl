@@ -60,14 +60,19 @@ internal static class ApiSurfaceCompile
         var glassMaterial = new LiquidGlassMaterial(compositor)
         {
             ShapeRoundness = 5.0f,
+            RasterizationScale = 1.5f,
         };
         _ = glassMaterial.ShapeRoundness;
+        _ = glassMaterial.RasterizationScale;
         var glassBrush = new LiquidGlassBrush
         {
             ShapeRoundness = 5.0,
+            RasterizationScale = 1.5,
         };
         _ = glassBrush.ShapeRoundness;
+        _ = glassBrush.RasterizationScale;
         _ = LiquidGlassBrush.ShapeRoundnessProperty;
+        _ = LiquidGlassBrush.RasterizationScaleProperty;
 
         _ = HlslCompiler.CompileAsync(
             MaterializedShader,

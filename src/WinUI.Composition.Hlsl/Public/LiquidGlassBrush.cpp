@@ -114,6 +114,15 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	double LiquidGlassBrush::ShapeRoundness() const { return GetDoubleProperty(ShapeRoundnessProperty()); }
 	void LiquidGlassBrush::ShapeRoundness(double value) { SetDoubleProperty(ShapeRoundnessProperty(), value, 2.0, 8.0, L"ShapeRoundness must be between 2 and 8."); }
 
+	DependencyProperty LiquidGlassBrush::RasterizationScaleProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"RasterizationScale", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::RasterizationScale() const { return GetDoubleProperty(RasterizationScaleProperty()); }
+	void LiquidGlassBrush::RasterizationScale(double value) { SetDoubleProperty(RasterizationScaleProperty(), value, 0.01, 16.0, L"RasterizationScale must be between 0.01 and 16."); }
+
 	DependencyProperty LiquidGlassBrush::BorderThicknessProperty()
 	{
 		static auto const property = RegisterDoubleProperty(L"BorderThickness", 1.5);
@@ -326,6 +335,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			m_material = Hlsl::LiquidGlassMaterial(compositor);
 		}
 
+		m_material.RasterizationScale(static_cast<float>(RasterizationScale()));
 		m_material.BlurRadius(static_cast<float>(BlurRadius()));
 		m_material.RefractionStrength(static_cast<float>(RefractionStrength()));
 		m_material.DispersionStrength(static_cast<float>(DispersionStrength()));

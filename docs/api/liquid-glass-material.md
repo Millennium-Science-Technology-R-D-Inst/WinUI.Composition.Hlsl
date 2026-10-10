@@ -8,6 +8,8 @@ The built-in shader models the glass edge as an optical bezel. For every destina
 
 `CornerRadius` continues to define the final WinUI-compatible rounded-rectangle coverage silhouette. `ShapeRoundness` independently controls the two-dimensional optical normal used in generic rounded corners: `2` is circular, `4` is the default squircle-like response, and values up to `8` make the optical corner progressively squarer. This is deliberately separate from `SurfaceProfile::ConvexSquircle`, which describes the one-dimensional bezel height cross-section rather than the XY footprint.
 
+The custom-sampler coordinate system is raster-pixel based. `RasterizationScale` converts author-facing DIP geometry into that raster space, including the separable blur radius, rounded geometry, bezel width, glass thickness, edge softness, and specular width. `RefractionNormalization` intentionally remains in authored units so optical displacement scales exactly once. Composition-only callers should set the scale for the target surface; `LiquidGlassBrush` and the first-party controls provide the XAML-facing path.
+
 The final rounded-rectangle coverage mask is evaluated after the transmitted backdrop has been sampled. Consequently `BlurRadius` changes the transmitted image but does not blur the material's own `CornerRadius` silhouette.
 
 The built-in LiquidGlass shader is compiled at build time with the Visual C++/Windows SDK FXC MSBuild task as an SM4 shader-linking library. The generated DXBC bytecode is embedded in the native DLL; runtime `D3DCompile` remains available only for dynamic source-based `HlslEffect` APIs.
@@ -21,7 +23,7 @@ public LiquidGlassMaterial(Compositor compositor);
 
 ## Properties
 
-`LiquidGlassMaterial` currently exposes 26 author-facing material parameters. They are also mirrored by `LiquidGlassBrush` as XAML dependency properties unless noted otherwise.
+`LiquidGlassMaterial` currently exposes 27 author-facing material parameters. They are also mirrored by `LiquidGlassBrush` as XAML dependency properties unless noted otherwise.
 
 | Property | Type | Range | Default | Description |
 | --- | --- | --- | --- | --- |
@@ -29,14 +31,15 @@ public LiquidGlassMaterial(Compositor compositor);
 | `BlurRadius` | `float` | 0–64 | `12` | Gaussian transmission blur radius in DIPs. |
 | `RefractionStrength` | `float` | 0–128 | `24` | Artistic multiplier applied after physically-derived Snell displacement. |
 | `DispersionStrength` | `float` | 0–16 | `1.2` | RGB sampling separation around the optical bezel. |
-| `CornerRadius` | `float` | 0–512 | `36` | Radius of the final WinUI-compatible rounded-rectangle silhouette. |
+| `CornerRadius` | `float` | 0–512 | `36` | Radius of the final WinUI-compatible rounded-rectangle silhouette in DIPs. |
 | `ShapeRoundness` | `float` | 2–8 | `4` | Roundness of the generic corner optical-normal field. `2` is circular; `4` is the default squircle-like response; larger values produce a squarer optical corner without changing the final WinUI clip geometry. |
+| `RasterizationScale` | `float` | 0.01–16 | `1` | Raster pixels per authored logical DIP. Set this for high-DPI targets so blur and optical geometry match the host's logical dimensions. |
 | `BorderThickness` | `float` | 0–32 | `1.5` | Width of the bright material rim in DIPs. |
 | `HighlightStrength` | `float` | 0–4 | `0.85` | Directional specular intensity. |
 | `EdgeSoftness` | `float` | 0.25–16 | `1` | Width of the final SDF antialias/edge transition in DIPs. |
 | `MaterialOpacity` | `float` | 0–1 | `1` | Overall glass-surface opacity. |
-| `BezelWidth` | `float` | 1–256 | `32` | Width of the curved optical edge before the interior surface becomes flat. |
-| `GlassThickness` | `float` | 0–256 | `50` | Optical travel thickness used to turn refracted ray angle into screen displacement. |
+| `BezelWidth` | `float` | 1–256 | `32` | Width in DIPs of the curved optical edge before the interior surface becomes flat. |
+| `GlassThickness` | `float` | 0–256 | `50` | Optical travel thickness in authored logical units used to turn refracted ray angle into screen displacement. |
 | `RefractiveIndex` | `float` | 1–3.5 | `1.5` | IOR (index of refraction) used by Snell's law. `1` approaches no physical bending. |
 | `TintOpacity` | `float` | 0–1 | `0.08` | Amount of tint mixed into transmitted light. |
 | `Saturation` | `float` | 0–4 | `1.25` | Saturation multiplier applied to transmitted color. |
@@ -55,7 +58,7 @@ public LiquidGlassMaterial(Compositor compositor);
 
 The high-frequency pointer field and `RefractionNormalization` are private effect controls, not authoring properties. Interaction helpers update them directly on the existing Composition effect rather than invalidating XAML dependency properties on every pointer move.
 
-All author-facing shader properties are registered as animatable Composition effect properties; changing them does not require rebuilding the effect graph. `BlurRadius` updates the existing separable blur brushes rather than recreating the graph.
+All author-facing shader properties are registered as animatable Composition effect properties; changing them does not require rebuilding the effect graph. `BlurRadius` and `RasterizationScale` update the existing separable blur brushes rather than recreating the graph.
 
 ## Example
 
@@ -65,6 +68,7 @@ var material = new LiquidGlassMaterial(compositor)
     BlurRadius = 12,
     CornerRadius = 28,
     ShapeRoundness = 5,
+    RasterizationScale = 1.5f,
     BezelWidth = 24,
     GlassThickness = 48,
     RefractiveIndex = 1.5f,

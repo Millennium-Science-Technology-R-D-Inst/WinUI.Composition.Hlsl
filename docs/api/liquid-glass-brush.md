@@ -23,6 +23,7 @@ Every author-facing material parameter is exposed as a XAML dependency property,
 | `DispersionStrength` | `Double` | `1.2` | RGB chromatic-separation strength. |
 | `CornerRadius` | `Double` | `36` | WinUI-compatible rounded material radius in DIPs. |
 | `ShapeRoundness` | `Double` | `4` | Optical corner roundness in the range 2–8. `2` gives a circular corner-normal field, `4` is the default squircle-like response, and larger values make corner refraction progressively squarer. It does not replace the final WinUI rounded-rectangle coverage silhouette. |
+| `RasterizationScale` | `Double` | `1` | Logical-DIP to raster-pixel scale used by the blur and custom sampler. Set it to the target `XamlRoot.RasterizationScale` when using a raw brush. `WinUI.LiquidGlass` controls synchronize it automatically, except the Slider visual model which already applies its exact Kube raster scaling directly. |
 | `BorderThickness` | `Double` | `1.5` | Bright edge-rim width. |
 | `HighlightStrength` | `Double` | `0.85` | Directional specular intensity. |
 | `EdgeSoftness` | `Double` | `1` | SDF edge/antialias transition width. |
@@ -46,6 +47,8 @@ Every author-facing material parameter is exposed as a XAML dependency property,
 | `Exposure` | `Double` | `0` | Exposure in stops; internally evaluated through `exp2`. |
 
 For exact validation ranges and Composition-level semantics, see [LiquidGlassMaterial](liquid-glass-material.md).
+
+The custom-sampler ABI exposes physical bitmap dimensions and reciprocal texel size, not the original XAML logical size, so the shader cannot infer display DPI on its own. A raw `LiquidGlassBrush` therefore defaults to `RasterizationScale="1"`; applications rendering it above 100% display scale should set or bind the scale explicitly. Avoid sharing one brush instance across simultaneous XAML roots with different rasterization scales.
 
 The private pointer interaction field is intentionally not duplicated as XAML dependency properties. Pointer coordinates and velocity are high-frequency state and are written directly to the live Composition effect by `WinUI.LiquidGlass` interaction helpers.
 

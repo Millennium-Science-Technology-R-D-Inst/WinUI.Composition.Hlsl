@@ -172,6 +172,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		animatableProperties.Append(CustomLiquidGlassEffect::RefractionStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::CornerRadiusPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::ShapeRoundnessPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::RasterizationScalePropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::BorderThicknessPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::HighlightStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::EdgeSoftnessPropertyPath);
@@ -221,11 +222,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		auto factory = make<implementation::HlslEffectFactory>(compositionFactory, definition);
 		m_effect = factory.CreateBrush();
 		m_effect.SetSource(L"Backdrop", m_blurVerticalBrush);
-		SetSeparableBlurRadius(m_blurHorizontalBrush, m_blurVerticalBrush, m_BlurRadius);
+		UpdateRasterizedBlurRadius();
 		m_effect.SetFloat(L"RefractionStrength", m_RefractionStrength);
 		m_effect.SetFloat(L"DispersionStrength", m_DispersionStrength);
 		m_effect.SetFloat(L"CornerRadius", m_CornerRadius);
 		m_effect.SetFloat(L"ShapeRoundness", m_ShapeRoundness);
+		m_effect.SetFloat(L"RasterizationScale", m_RasterizationScale);
 		m_effect.SetFloat(L"BorderThickness", m_BorderThickness);
 		m_effect.SetFloat(L"HighlightStrength", m_HighlightStrength);
 		m_effect.SetFloat(L"EdgeSoftness", m_EdgeSoftness);
@@ -273,11 +275,19 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				m_SurfaceProfile));
 	}
 
+	void LiquidGlassMaterial::UpdateRasterizedBlurRadius()
+	{
+		SetSeparableBlurRadius(
+			m_blurHorizontalBrush,
+			m_blurVerticalBrush,
+			m_BlurRadius * m_RasterizationScale);
+	}
+
 	void LiquidGlassMaterial::BlurRadius(float value)
 	{
 		ValidateBlurRadius(value);
-		SetSeparableBlurRadius(m_blurHorizontalBrush, m_blurVerticalBrush, value);
 		m_BlurRadius = value;
+		UpdateRasterizedBlurRadius();
 	}
 
 	void LiquidGlassMaterial::SetFloatProperty(wchar_t const* propertyName, float& storage, float value, float minimum, float maximum, wchar_t const* message)
@@ -291,6 +301,11 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	void LiquidGlassMaterial::DispersionStrength(float value) { SetFloatProperty(L"DispersionStrength", m_DispersionStrength, value, 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16."); }
 	void LiquidGlassMaterial::CornerRadius(float value) { SetFloatProperty(L"CornerRadius", m_CornerRadius, value, 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs."); }
 	void LiquidGlassMaterial::ShapeRoundness(float value) { SetFloatProperty(L"ShapeRoundness", m_ShapeRoundness, value, 2.0f, 8.0f, L"ShapeRoundness must be between 2 and 8."); }
+	void LiquidGlassMaterial::RasterizationScale(float value)
+	{
+		SetFloatProperty(L"RasterizationScale", m_RasterizationScale, value, 0.01f, 16.0f, L"RasterizationScale must be between 0.01 and 16.");
+		UpdateRasterizedBlurRadius();
+	}
 	void LiquidGlassMaterial::BorderThickness(float value) { SetFloatProperty(L"BorderThickness", m_BorderThickness, value, 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs."); }
 	void LiquidGlassMaterial::HighlightStrength(float value) { SetFloatProperty(L"HighlightStrength", m_HighlightStrength, value, 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4."); }
 	void LiquidGlassMaterial::EdgeSoftness(float value) { SetFloatProperty(L"EdgeSoftness", m_EdgeSoftness, value, 0.25f, 16.0f, L"EdgeSoftness must be between 0.25 and 16 DIPs."); }

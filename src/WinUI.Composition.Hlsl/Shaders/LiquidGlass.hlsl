@@ -332,15 +332,19 @@ float PointerSpecularCoefficient(
 
 float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 {
-    const float borderThickness = MaterialParams0.x;
-    const float cornerRadius = MaterialParams0.y;
+    // Custom-sampler derivatives are in raster pixels, while public material geometry
+    // is authored in logical DIPs. Keep the scale explicit because samplerDataExt only
+    // carries the physical bitmap size / texel size and cannot recover XAML logical DPI.
+    const float rasterizationScale = clamp(MaterialParams9.y, 0.01f, 16.0f);
+    const float borderThickness = MaterialParams0.x * rasterizationScale;
+    const float cornerRadius = MaterialParams0.y * rasterizationScale;
     const float refractionStrength = MaterialParams0.z;
-    const float bezelWidth = MaterialParams0.w;
+    const float bezelWidth = MaterialParams0.w * rasterizationScale;
     const float highlightStrength = MaterialParams1.x;
-    const float edgeSoftness = MaterialParams1.y;
+    const float edgeSoftness = MaterialParams1.y * rasterizationScale;
     const float dispersionStrength = MaterialParams1.z;
     const float materialOpacity = MaterialParams1.w;
-    const float glassThickness = MaterialParams2.x;
+    const float glassThickness = MaterialParams2.x * rasterizationScale;
     const float refractiveIndex = max(MaterialParams2.y, 1.0001f);
     const float tintOpacity = saturate(MaterialParams2.z);
     const float saturation = max(MaterialParams2.w, 0.0f);
@@ -351,7 +355,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float3 tintColor = saturate(MaterialParams4.xyz);
     const float innerShadowStrength = saturate(MaterialParams4.w);
     const float specularSaturation = max(MaterialParams5.x, 0.0f);
-    const float specularWidth = max(MaterialParams5.y, 0.25f);
+    const float specularWidth = max(MaterialParams5.y, 0.25f) * rasterizationScale;
     const float contrast = max(MaterialParams5.z, 0.0f);
     const float exposure = clamp(MaterialParams5.w, -4.0f, 4.0f);
     const float2 pointerNormalized = MaterialParams6.xy;
@@ -363,6 +367,8 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float pointerRefractionStrength = max(MaterialParams8.x, 0.0f);
     const float pointerHighlightStrength = max(MaterialParams8.y, 0.0f);
     const float pointerMotionRefractionStrength = max(MaterialParams8.z, 0.0f);
+    // RefractionNormalization stays in authored units. Scaling bezel/thickness above
+    // therefore scales the final screen-space displacement exactly once, not twice.
     const float refractionNormalization = max(MaterialParams8.w, 0.0f);
     const float shapeRoundness = clamp(MaterialParams9.x, 2.0f, 8.0f);
 

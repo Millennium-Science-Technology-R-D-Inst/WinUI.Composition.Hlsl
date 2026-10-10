@@ -31,6 +31,9 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		double ShapeRoundness() const;
 		void ShapeRoundness(double value);
 		static Microsoft::UI::Xaml::DependencyProperty ShapeRoundnessProperty();
+		double RasterizationScale() const;
+		void RasterizationScale(double value);
+		static Microsoft::UI::Xaml::DependencyProperty RasterizationScaleProperty();
 		double BorderThickness() const;
 		void BorderThickness(double value);
 		static Microsoft::UI::Xaml::DependencyProperty BorderThicknessProperty();
