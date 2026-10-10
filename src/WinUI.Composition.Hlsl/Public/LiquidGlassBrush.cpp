@@ -105,6 +105,15 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	double LiquidGlassBrush::CornerRadius() const { return GetDoubleProperty(CornerRadiusProperty()); }
 	void LiquidGlassBrush::CornerRadius(double value) { SetDoubleProperty(CornerRadiusProperty(), value, 0.0, 512.0, L"CornerRadius must be between 0 and 512 DIPs."); }
 
+	DependencyProperty LiquidGlassBrush::ShapeRoundnessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"ShapeRoundness", 4.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::ShapeRoundness() const { return GetDoubleProperty(ShapeRoundnessProperty()); }
+	void LiquidGlassBrush::ShapeRoundness(double value) { SetDoubleProperty(ShapeRoundnessProperty(), value, 2.0, 8.0, L"ShapeRoundness must be between 2 and 8."); }
+
 	DependencyProperty LiquidGlassBrush::BorderThicknessProperty()
 	{
 		static auto const property = RegisterDoubleProperty(L"BorderThickness", 1.5);
@@ -321,6 +330,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_material.RefractionStrength(static_cast<float>(RefractionStrength()));
 		m_material.DispersionStrength(static_cast<float>(DispersionStrength()));
 		m_material.CornerRadius(static_cast<float>(CornerRadius()));
+		m_material.ShapeRoundness(static_cast<float>(ShapeRoundness()));
 		m_material.BorderThickness(static_cast<float>(BorderThickness()));
 		m_material.HighlightStrength(static_cast<float>(HighlightStrength()));
 		m_material.EdgeSoftness(static_cast<float>(EdgeSoftness()));
