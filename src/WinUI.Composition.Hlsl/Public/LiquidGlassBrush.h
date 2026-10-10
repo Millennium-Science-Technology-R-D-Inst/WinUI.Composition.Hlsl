@@ -28,6 +28,9 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		double CornerRadius() const;
 		void CornerRadius(double value);
 		static Microsoft::UI::Xaml::DependencyProperty CornerRadiusProperty();
+		double ShapeRoundness() const;
+		void ShapeRoundness(double value);
+		static Microsoft::UI::Xaml::DependencyProperty ShapeRoundnessProperty();
 		double BorderThickness() const;
 		void BorderThickness(double value);
 		static Microsoft::UI::Xaml::DependencyProperty BorderThicknessProperty();
