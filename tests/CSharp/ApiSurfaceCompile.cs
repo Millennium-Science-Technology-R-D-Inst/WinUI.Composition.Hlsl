@@ -56,6 +56,19 @@ internal static class ApiSurfaceCompile
     private static void Validate(HlslShaderLibrary library, Compositor compositor, StorageFile file)
     {
         _ = HlslComposition.GetRuntimeCapabilities();
+
+        var glassMaterial = new LiquidGlassMaterial(compositor)
+        {
+            ShapeRoundness = 5.0f,
+        };
+        _ = glassMaterial.ShapeRoundness;
+        var glassBrush = new LiquidGlassBrush
+        {
+            ShapeRoundness = 5.0,
+        };
+        _ = glassBrush.ShapeRoundness;
+        _ = LiquidGlassBrush.ShapeRoundnessProperty;
+
         _ = HlslCompiler.CompileAsync(
             MaterializedShader,
             HlslEffectKind.Auto,
