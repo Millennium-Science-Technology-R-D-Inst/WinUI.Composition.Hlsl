@@ -6,6 +6,8 @@ The material is described as a Composition pipeline with a separable native-back
 
 The built-in shader models the glass edge as an optical bezel. For every destination pixel it evaluates a rounded-rectangle signed-distance field (SDF), derives an optical normal, evaluates the selected surface-height profile, obtains the surface slope, applies Snell refraction using `RefractiveIndex`, and converts the refracted ray through `GlassThickness` into a sampling displacement. `RefractionStrength` remains an artistic multiplier over that physically-derived displacement.
 
+`CornerRadius` continues to define the final WinUI-compatible rounded-rectangle coverage silhouette. `ShapeRoundness` independently controls the two-dimensional optical normal used in generic rounded corners: `2` is circular, `4` is the default squircle-like response, and values up to `8` make the optical corner progressively squarer. This is deliberately separate from `SurfaceProfile::ConvexSquircle`, which describes the one-dimensional bezel height cross-section rather than the XY footprint.
+
 The final rounded-rectangle coverage mask is evaluated after the transmitted backdrop has been sampled. Consequently `BlurRadius` changes the transmitted image but does not blur the material's own `CornerRadius` silhouette.
 
 The built-in LiquidGlass shader is compiled at build time with the Visual C++/Windows SDK FXC MSBuild task as an SM4 shader-linking library. The generated DXBC bytecode is embedded in the native DLL; runtime `D3DCompile` remains available only for dynamic source-based `HlslEffect` APIs.
@@ -19,7 +21,7 @@ public LiquidGlassMaterial(Compositor compositor);
 
 ## Properties
 
-`LiquidGlassMaterial` currently exposes 25 author-facing material parameters. They are also mirrored by `LiquidGlassBrush` as XAML dependency properties unless noted otherwise.
+`LiquidGlassMaterial` currently exposes 26 author-facing material parameters. They are also mirrored by `LiquidGlassBrush` as XAML dependency properties unless noted otherwise.
 
 | Property | Type | Range | Default | Description |
 | --- | --- | --- | --- | --- |
@@ -28,6 +30,7 @@ public LiquidGlassMaterial(Compositor compositor);
 | `RefractionStrength` | `float` | 0–128 | `24` | Artistic multiplier applied after physically-derived Snell displacement. |
 | `DispersionStrength` | `float` | 0–16 | `1.2` | RGB sampling separation around the optical bezel. |
 | `CornerRadius` | `float` | 0–512 | `36` | Radius of the final WinUI-compatible rounded-rectangle silhouette. |
+| `ShapeRoundness` | `float` | 2–8 | `4` | Roundness of the generic corner optical-normal field. `2` is circular; `4` is the default squircle-like response; larger values produce a squarer optical corner without changing the final WinUI clip geometry. |
 | `BorderThickness` | `float` | 0–32 | `1.5` | Width of the bright material rim in DIPs. |
 | `HighlightStrength` | `float` | 0–4 | `0.85` | Directional specular intensity. |
 | `EdgeSoftness` | `float` | 0.25–16 | `1` | Width of the final SDF antialias/edge transition in DIPs. |
@@ -38,7 +41,7 @@ public LiquidGlassMaterial(Compositor compositor);
 | `TintOpacity` | `float` | 0–1 | `0.08` | Amount of tint mixed into transmitted light. |
 | `Saturation` | `float` | 0–4 | `1.25` | Saturation multiplier applied to transmitted color. |
 | `LightAngle` | `float` | -2π–2π | `-0.95` | Directional-light angle in radians. |
-| `SurfaceProfile` | `LiquidGlassSurfaceProfile` | enum | `ConvexSquircle` | Selects `ConvexSquircle`, `ConvexCircle`, `Concave`, or `Lip` bezel height profile. |
+| `SurfaceProfile` | `LiquidGlassSurfaceProfile` | enum | `ConvexSquircle` | Selects `ConvexSquircle`, `ConvexCircle`, `Concave`, or `Lip` for the 1D bezel height profile; it is independent from the 2D optical `ShapeRoundness`. |
 | `MagnificationStrength` | `float` | 0–128 | `0` | Additional backdrop magnification displacement. |
 | `HighlightSharpness` | `float` | 0.25–64 | `1.5` | Angular concentration exponent for the directional highlight. |
 | `TintRed` | `float` | 0–1 | `1` | Red component of the tint color. |
@@ -61,6 +64,7 @@ var material = new LiquidGlassMaterial(compositor)
 {
     BlurRadius = 12,
     CornerRadius = 28,
+    ShapeRoundness = 5,
     BezelWidth = 24,
     GlassThickness = 48,
     RefractiveIndex = 1.5f,
