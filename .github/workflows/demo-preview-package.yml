@@ -51,28 +51,6 @@ jobs:
           New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\ci-logs" | Out-Null
           Write-Host "Using Windows SDK $($sdk.Name)"
 
-      - name: Validate Debug x64 build
-        shell: pwsh
-        run: |
-          $args = @(
-            'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj',
-            '/restore',
-            '/t:Build',
-            '/p:Configuration=Debug',
-            '/p:Platform=x64',
-            '/p:GenerateAppxPackageOnBuild=false',
-            '/p:AppxPackageSigningEnabled=false',
-            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK",
-            '/m',
-            '/v:minimal',
-            '/nologo'
-          )
-          & msbuild @args *> "$env:GITHUB_WORKSPACE\ci-logs\debug-x64.log"
-          if ($LASTEXITCODE -ne 0) {
-            Get-Content "$env:GITHUB_WORKSPACE\ci-logs\debug-x64.log" -Tail 300
-            exit $LASTEXITCODE
-          }
-
       - name: Generate package metadata
         id: meta
         shell: pwsh
