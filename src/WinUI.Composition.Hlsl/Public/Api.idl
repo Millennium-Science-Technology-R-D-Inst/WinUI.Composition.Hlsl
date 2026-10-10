@@ -138,6 +138,7 @@ namespace WinUI.Composition.Hlsl
         Single RefractionStrength;
         Single DispersionStrength;
         Single CornerRadius;
+        Single ShapeRoundness;
         Single BorderThickness;
         Single HighlightStrength;
         Single EdgeSoftness;
@@ -174,6 +175,8 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty DispersionStrengthProperty{ get; };
         Double CornerRadius;
         static Microsoft.UI.Xaml.DependencyProperty CornerRadiusProperty{ get; };
+        Double ShapeRoundness;
+        static Microsoft.UI.Xaml.DependencyProperty ShapeRoundnessProperty{ get; };
         Double BorderThickness;
         static Microsoft.UI.Xaml.DependencyProperty BorderThicknessProperty{ get; };
         Double HighlightStrength;
