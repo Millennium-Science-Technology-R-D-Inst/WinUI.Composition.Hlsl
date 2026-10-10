@@ -54,6 +54,15 @@ float4 Shade(float2 uv, float4 samplerDataExt)
 		auto const caps = HlslComposition::GetRuntimeCapabilities();
 		(void)caps;
 
+		// Keep the liquid-glass public shape parameter in the consumer compile graph.
+		auto glassMaterial = LiquidGlassMaterial(compositor);
+		glassMaterial.ShapeRoundness(5.0f);
+		(void)glassMaterial.ShapeRoundness();
+		auto glassBrush = LiquidGlassBrush{};
+		glassBrush.ShapeRoundness(5.0);
+		(void)glassBrush.ShapeRoundness();
+		(void)LiquidGlassBrush::ShapeRoundnessProperty();
+
 		auto defines = single_threaded_vector<hstring>();
 		defines.Append(L"RUNTIME_VARIANT=1");
 		auto properties = single_threaded_vector<HlslFloatProperty>();
