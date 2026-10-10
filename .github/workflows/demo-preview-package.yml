@@ -101,7 +101,6 @@ jobs:
           Write-Host "Package version: $($verify.Package.Identity.Version)"
 
       - name: Build unsigned x64 and ARM64 MSIX packages
-        id: unsigned
         shell: pwsh
         run: |
           foreach ($platform in @('x64', 'ARM64')) {
@@ -133,22 +132,33 @@ jobs:
               exit $LASTEXITCODE
             }
 
-            $packages = @(Get-ChildItem $packageDir -Recurse -File -Filter '*.msix')
+            $pattern = "^WUILiquidGlassDemo\.Hlsl_.*_${platform}\.msix$"
+            $packages = @(
+              Get-ChildItem $packageDir -Recurse -File -Filter '*.msix' |
+                Where-Object { $_.Name -match $pattern }
+            )
             if ($packages.Count -ne 1) {
-              Get-ChildItem $packageDir -Recurse -File | Select-Object FullName, Length
-              throw "Expected exactly one unsigned $platform MSIX, found $($packages.Count)."
+              Write-Host "MSIX files produced for $platform:"
+              Get-ChildItem $packageDir -Recurse -File -Filter '*.msix' | Select-Object FullName, Length
+              throw "Expected exactly one WUILiquidGlassDemo.Hlsl $platform MSIX, found $($packages.Count)."
             }
-            Write-Host "$platform package: $($packages[0].FullName)"
+            Write-Host "$platform application package: $($packages[0].FullName)"
           }
 
       - name: Create Store MSIX bundle and upload package
         shell: pwsh
         run: |
           $unsignedRoot = "$env:GITHUB_WORKSPACE\artifacts\unsigned"
-          $x64 = @(Get-ChildItem "$unsignedRoot\x64" -Recurse -File -Filter '*.msix')
-          $arm64 = @(Get-ChildItem "$unsignedRoot\ARM64" -Recurse -File -Filter '*.msix')
+          $x64 = @(
+            Get-ChildItem "$unsignedRoot\x64" -Recurse -File -Filter '*.msix' |
+              Where-Object { $_.Name -match '^WUILiquidGlassDemo\.Hlsl_.*_x64\.msix$' }
+          )
+          $arm64 = @(
+            Get-ChildItem "$unsignedRoot\ARM64" -Recurse -File -Filter '*.msix' |
+              Where-Object { $_.Name -match '^WUILiquidGlassDemo\.Hlsl_.*_ARM64\.msix$' }
+          )
           if ($x64.Count -ne 1 -or $arm64.Count -ne 1) {
-            throw "Expected one x64 and one ARM64 package; found x64=$($x64.Count), ARM64=$($arm64.Count)."
+            throw "Expected one x64 and one ARM64 application package; found x64=$($x64.Count), ARM64=$($arm64.Count)."
           }
 
           $storeDir = "$env:GITHUB_WORKSPACE\artifacts\store"
@@ -165,7 +175,7 @@ jobs:
           "$($arm64[0].FullName)" "WUILiquidGlassDemo.Hlsl_${{ steps.meta.outputs.version }}_arm64.msix"
           "@ | Set-Content -Path $mapping -Encoding ascii
 
-          & $env:MAKEAPPX bundle /v /o /f $mapping /p $bundlePath *> "$env:GITHUB_WORKSPACE\ci-logs\makeappx-bundle.log"
+          & $env:MAKEAPPX bundle /v /o /bv '${{ steps.meta.outputs.version }}' /f $mapping /p $bundlePath *> "$env:GITHUB_WORKSPACE\ci-logs\makeappx-bundle.log"
           if ($LASTEXITCODE -ne 0) {
             Get-Content "$env:GITHUB_WORKSPACE\ci-logs\makeappx-bundle.log" -Tail 200
             exit $LASTEXITCODE
@@ -211,8 +221,12 @@ jobs:
         shell: pwsh
         run: |
           foreach ($platform in @('x64', 'ARM64')) {
-            $source = @(Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\unsigned\$platform" -Recurse -File -Filter '*.msix')
-            if ($source.Count -ne 1) { throw "Expected one unsigned $platform package." }
+            $pattern = "^WUILiquidGlassDemo\.Hlsl_.*_${platform}\.msix$"
+            $source = @(
+              Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\unsigned\$platform" -Recurse -File -Filter '*.msix' |
+                Where-Object { $_.Name -match $pattern }
+            )
+            if ($source.Count -ne 1) { throw "Expected one unsigned WUILiquidGlassDemo.Hlsl $platform package." }
 
             $targetDir = "$env:GITHUB_WORKSPACE\artifacts\sideload\$platform"
             New-Item -ItemType Directory -Force $targetDir | Out-Null
@@ -236,10 +250,13 @@ jobs:
           $bundles = @(Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\store\bundle" -File -Filter '*.msixbundle')
           if ($bundles.Count -ne 1) { throw "Expected exactly one .msixbundle, found $($bundles.Count)." }
 
-          $msix = @(Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\sideload" -Recurse -File -Filter '*.msix')
+          $msix = @(
+            Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\sideload" -Recurse -File -Filter '*.msix' |
+              Where-Object { $_.Name -match '^WUILiquidGlassDemo\.Hlsl_.*_(x64|ARM64)\.msix$' }
+          )
           if ($msix.Count -ne 2) {
             Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\sideload" -Recurse -File | Select-Object FullName, Length
-            throw "Expected x64 and ARM64 sideload .msix packages, found $($msix.Count)."
+            throw "Expected x64 and ARM64 sideload application packages, found $($msix.Count)."
           }
 
           @"
