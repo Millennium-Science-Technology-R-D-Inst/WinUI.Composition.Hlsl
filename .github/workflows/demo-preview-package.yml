@@ -133,6 +133,7 @@ jobs:
         run: |
           $publisher = 'CN=9C947BF5-422C-4285-B301-9F787230839B'
           $passwordText = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+          Write-Output "::add-mask::$passwordText"
           $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
           $cert = New-SelfSignedCertificate `
             -Type Custom `
