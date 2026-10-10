@@ -210,7 +210,11 @@ jobs:
       - name: Remove private signing key
         if: always()
         shell: pwsh
-        run: Remove-Item '${{ steps.cert.outputs.pfx }}' -Force -ErrorAction SilentlyContinue
+        run: |
+          $pfx = '${{ steps.cert.outputs.pfx }}'
+          if (-not [string]::IsNullOrWhiteSpace($pfx) -and (Test-Path $pfx)) {
+            Remove-Item $pfx -Force
+          }
 
       - name: Upload Store package
         uses: actions/upload-artifact@v7
