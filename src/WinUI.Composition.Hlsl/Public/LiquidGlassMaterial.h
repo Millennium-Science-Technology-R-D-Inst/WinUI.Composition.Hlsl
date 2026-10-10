@@ -17,6 +17,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		void DispersionStrength(float value);
 		float CornerRadius() const { return m_CornerRadius; }
 		void CornerRadius(float value);
+		float ShapeRoundness() const { return m_ShapeRoundness; }
+		void ShapeRoundness(float value);
 		float BorderThickness() const { return m_BorderThickness; }
 		void BorderThickness(float value);
 		float HighlightStrength() const { return m_HighlightStrength; }
@@ -70,6 +72,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		float m_RefractionStrength{ 24.0f };
 		float m_DispersionStrength{ 1.2f };
 		float m_CornerRadius{ 36.0f };
+		float m_ShapeRoundness{ 4.0f };
 		float m_BorderThickness{ 1.5f };
 		float m_HighlightStrength{ 0.85f };
 		float m_EdgeSoftness{ 1.0f };
