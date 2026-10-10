@@ -22,6 +22,7 @@ Every author-facing material parameter is exposed as a XAML dependency property,
 | `RefractionStrength` | `Double` | `24` | Artistic multiplier over physically-derived refraction displacement. |
 | `DispersionStrength` | `Double` | `1.2` | RGB chromatic-separation strength. |
 | `CornerRadius` | `Double` | `36` | WinUI-compatible rounded material radius in DIPs. |
+| `ShapeRoundness` | `Double` | `4` | Optical corner roundness in the range 2–8. `2` gives a circular corner-normal field, `4` is the default squircle-like response, and larger values make corner refraction progressively squarer. It does not replace the final WinUI rounded-rectangle coverage silhouette. |
 | `BorderThickness` | `Double` | `1.5` | Bright edge-rim width. |
 | `HighlightStrength` | `Double` | `0.85` | Directional specular intensity. |
 | `EdgeSoftness` | `Double` | `1` | SDF edge/antialias transition width. |
@@ -32,7 +33,7 @@ Every author-facing material parameter is exposed as a XAML dependency property,
 | `TintOpacity` | `Double` | `0.08` | Tint contribution. |
 | `Saturation` | `Double` | `1.25` | Transmitted-color saturation multiplier. |
 | `LightAngle` | `Double` | `-0.95` | Directional-light angle in radians. |
-| `SurfaceProfile` | `LiquidGlassSurfaceProfile` | `ConvexSquircle` | Selects the optical bezel height profile. |
+| `SurfaceProfile` | `LiquidGlassSurfaceProfile` | `ConvexSquircle` | Selects the 1D optical bezel height profile; this is independent from the 2D optical corner `ShapeRoundness`. |
 | `MagnificationStrength` | `Double` | `0` | Additional magnification displacement. |
 | `HighlightSharpness` | `Double` | `1.5` | Directional highlight concentration. |
 | `TintRed` | `Double` | `1` | Tint red component, normalized 0–1. |
