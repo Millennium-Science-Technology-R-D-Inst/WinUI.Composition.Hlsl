@@ -171,6 +171,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		auto animatableProperties = single_threaded_vector<hstring>();
 		animatableProperties.Append(CustomLiquidGlassEffect::RefractionStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::CornerRadiusPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::ShapeRoundnessPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::BorderThicknessPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::HighlightStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::EdgeSoftnessPropertyPath);
@@ -224,6 +225,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"RefractionStrength", m_RefractionStrength);
 		m_effect.SetFloat(L"DispersionStrength", m_DispersionStrength);
 		m_effect.SetFloat(L"CornerRadius", m_CornerRadius);
+		m_effect.SetFloat(L"ShapeRoundness", m_ShapeRoundness);
 		m_effect.SetFloat(L"BorderThickness", m_BorderThickness);
 		m_effect.SetFloat(L"HighlightStrength", m_HighlightStrength);
 		m_effect.SetFloat(L"EdgeSoftness", m_EdgeSoftness);
@@ -288,6 +290,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	void LiquidGlassMaterial::RefractionStrength(float value) { SetFloatProperty(L"RefractionStrength", m_RefractionStrength, value, 0.0f, 128.0f, L"RefractionStrength must be between 0 and 128."); }
 	void LiquidGlassMaterial::DispersionStrength(float value) { SetFloatProperty(L"DispersionStrength", m_DispersionStrength, value, 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16."); }
 	void LiquidGlassMaterial::CornerRadius(float value) { SetFloatProperty(L"CornerRadius", m_CornerRadius, value, 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs."); }
+	void LiquidGlassMaterial::ShapeRoundness(float value) { SetFloatProperty(L"ShapeRoundness", m_ShapeRoundness, value, 2.0f, 8.0f, L"ShapeRoundness must be between 2 and 8."); }
 	void LiquidGlassMaterial::BorderThickness(float value) { SetFloatProperty(L"BorderThickness", m_BorderThickness, value, 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs."); }
 	void LiquidGlassMaterial::HighlightStrength(float value) { SetFloatProperty(L"HighlightStrength", m_HighlightStrength, value, 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4."); }
 	void LiquidGlassMaterial::EdgeSoftness(float value) { SetFloatProperty(L"EdgeSoftness", m_EdgeSoftness, value, 0.25f, 16.0f, L"EdgeSoftness must be between 0.25 and 16 DIPs."); }
