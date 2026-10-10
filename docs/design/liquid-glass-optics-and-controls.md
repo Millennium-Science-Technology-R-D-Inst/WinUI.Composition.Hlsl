@@ -42,7 +42,7 @@ The visible coverage remains the ordinary WinUI rounded-rectangle SDF. This is r
 
 Inside that compatible coverage shape, ordinary rounded rectangles use a richer optical field:
 
-- the corner normal follows the gradient of an `n = 4` superellipse instead of the circular `n = 2` gradient;
+- `ShapeRoundness` controls the corner-normal field from circular (`2`) through the default squircle-like response (`4`) to progressively squarer corners (`8`);
 - the virtual optical radius may extend inward to at least the bezel scale, so a thick bezel does not lose its corner curvature after the geometric corner arc collapses;
 - the rounded-rectangle medial-axis normal transition is blended instead of changing direction abruptly;
 - refraction, dispersion, and specular energy receive modest corner-only weighting that reaches its maximum near the 45-degree part of each corner and is exactly zero at the straight-edge tangency points.
@@ -52,7 +52,7 @@ This produces the intended visual chain:
 ```text
 WinUI-compatible rounded coverage
         +
-superellipse corner normal
+tunable superellipse corner normal
         +
 Snell/bezel displacement
         +
@@ -63,7 +63,9 @@ continuous curved corner refraction
 
 The correction is deliberately not applied to exact Kube/pill geometry. Borderless Kube slider optics, Lip switch optics, and circles/capsules keep their authored circular field so the reference geometry is not distorted.
 
-The `n = 4` gradient is evaluated with cubic multiplies rather than additional `pow()` calls. This keeps the corner improvement inexpensive enough for the DWM-linked shader path.
+A fully dynamic `pow(x, n - 1)` superellipse gradient would be the most literal implementation, but it is unnecessarily expensive and less attractive for the linked SM4/DWM shader path. Instead, the shader evaluates exact gradient anchors for `n = 2`, `n = 4`, and `n = 8` using multiplies and interpolates between them. The default `ShapeRoundness = 4` is therefore byte-for-byte equivalent in intent to the original fixed cubic gradient while exposing a continuous authoring control without adding dynamic `pow()` pressure.
+
+`ShapeRoundness` changes only the optical normal field. `CornerRadius` still defines the visible WinUI-compatible silhouette, and `SurfaceProfile::ConvexSquircle` still defines the one-dimensional bezel-height cross-section. These three concepts must not be conflated.
 
 ## Public parameter model versus LiquidGlassWinUI
 
@@ -86,18 +88,18 @@ The closest conceptual mappings are:
 | `Contrast` | `Contrast` | Same broad operation. |
 | `Exposure` | `Exposure` | Names match, but this implementation uses an EV-style `exp2` gain rather than LiquidGlassWinUI's multiplicative convention. |
 | `CornerRadius` | `ShapeRadius` | Not equivalent units: absolute radius here versus a shorter-half-side fraction there. |
+| `ShapeRoundness` | `ShapeRoundness` | Same conceptual 2D corner-roundness control. This implementation applies it to the optical normal while keeping the final WinUI rounded-rectangle silhouette compatible with XAML clipping. |
 
 `WinUI.Composition.Hlsl` additionally exposes controls that are absent or not explicit in LiquidGlassWinUI: `RefractionStrength`, `GlassThickness`, `SurfaceProfile`, `BorderThickness`, `EdgeSoftness`, `MaterialOpacity`, `InnerShadowStrength`, `SpecularSaturation`, and `SpecularWidth`.
 
-LiquidGlassWinUI exposes independent dimensions that are not currently represented as public authoring properties here:
+LiquidGlassWinUI still exposes independent dimensions that are not currently represented as public authoring properties here:
 
 - `DispersionRange`;
 - `RefFresnelRange`, `RefFresnelHardness`, and `RefFresnelFactor`;
 - `GlareRange`, `GlareConvergence`, and `GlareOppositeFactor`;
-- `BloomAmount`, `Brightness`, `Temperature`, and `Vibrance`;
-- `ShapeRoundness`.
+- `BloomAmount`, `Brightness`, `Temperature`, and `Vibrance`.
 
-`ShapeRoundness` is the most directly relevant missing dimension for corner work. The current corner-optics correction deliberately fixes its superellipse exponent at `n = 4`; exposing a future `CornerRoundness`/`ShapeRoundness` property would allow the optical corner to vary from circular (`n = 2`) through squircle-like values to a squarer shape. It should not be added merely as a renamed property unless the constant-buffer, material, brush dependency property, validation, and XAML coverage interaction are updated together.
+Those missing dimensions should not be copied by name alone. Fresnel, glare, and post-processing parameters need explicit shader stages or response functions so their semantics remain stable and testable rather than becoming aliases for existing strength values.
 
 The effect also contains high-frequency pointer/internal scalars (`PointerX/Y`, interaction radius/strength, pointer velocity, hover/active state, pointer refraction/highlight/motion strengths, and `RefractionNormalization`). These are intentionally not ordinary public `LiquidGlassBrush` dependency properties: interaction helpers update them directly on the live Composition effect, while `RefractionNormalization` is derived from authored optical parameters.
 
@@ -117,9 +119,11 @@ If the rounded shape were blurred together with the source, increasing `BlurRadi
 
 ## Constant-buffer layout
 
-The private native-effect metadata and HLSL constant buffer must remain byte-for-byte synchronized. The corner-optics correction derives its parameters from the existing radius, bezel, profile, and geometry values and therefore does not add an ABI-visible constant-buffer property.
+The private native-effect metadata and HLSL constant buffer must remain byte-for-byte synchronized.
 
-Every public parameter is registered through the custom-effect property table and included in `CompositionEffectFactory`'s animatable-property list. Interaction code therefore updates constants on the existing graph rather than recreating the graph.
+`ShapeRoundness` is an additive extension rather than a reorder of the existing layout. The previous P0–P8 fields keep their byte offsets `0..140`; a new P9 vector extends the constant buffer from 144 to 160 bytes, with `ShapeRoundness` stored at P9.x / byte offset 144 and the remaining P9 lanes reserved. This minimizes regression risk for the existing optical and pointer property mappings.
+
+Every public parameter is registered through the custom-effect property table and included in `CompositionEffectFactory`'s animatable-property list. Interaction code therefore updates constants on the existing graph rather than recreating the graph. `ShapeRoundness` follows that same path and is exposed by both `LiquidGlassMaterial` and the XAML `LiquidGlassBrush` dependency-property surface.
 
 ## Interaction model
 
