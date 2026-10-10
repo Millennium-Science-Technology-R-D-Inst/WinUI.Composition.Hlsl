@@ -324,7 +324,6 @@
                         IsOn="True"
                         OffContent="Off"
                         OnContent="On" />
-                    <!-- Compile-time regressions for wrapper properties used as TwoWay x:Bind targets. -->
                     <liquid:LiquidGlassToggleSwitch
                         Visibility="Collapsed"
                         IsOn="{x:Bind RegressionToggleState, Mode=TwoWay}" />
@@ -356,7 +355,6 @@
                         FontWeight="SemiBold"
                         Text="Complex native controls" />
                     <liquid:LiquidGlassSearchBox PlaceholderText="Search liquid glass controls" Text="Refraction" />
-                    <!-- Compile-time regression for WMC1118: Text must remain a dependency-property target for TwoWay x:Bind. -->
                     <liquid:LiquidGlassSearchBox Visibility="Collapsed" Text="{x:Bind Title, Mode=TwoWay}" />
                     <liquid:LiquidGlassTabBar SelectedIndex="0">
                         <liquid:LiquidGlassTabBarItem Content="Glass" />
@@ -400,6 +398,7 @@
                                 RefractionStrength="22"
                                 RefractiveIndex="1.5"
                                 Saturation="1"
+                                ShapeRoundness="{Binding ElementName=GalleryShapeRoundnessSlider, Path=Value, Mode=OneWay}"
                                 SpecularSaturation="{Binding ElementName=GallerySpecularSaturationSlider, Path=Value, Mode=OneWay}"
                                 SpecularWidth="{Binding ElementName=GallerySpecularWidthSlider, Path=Value, Mode=OneWay}"
                                 SurfaceProfile="Lip"
@@ -428,6 +427,8 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -534,6 +535,14 @@
                             Minimum="-4"
                             StepFrequency="0.1"
                             Value="0" />
+                        <TextBlock Grid.Row="10" Text="Shape roundness" />
+                        <Slider
+                            x:Name="GalleryShapeRoundnessSlider"
+                            Grid.Row="11"
+                            Maximum="8"
+                            Minimum="2"
+                            StepFrequency="0.25"
+                            Value="4" />
                     </Grid>
                 </StackPanel>
             </ScrollViewer>
