@@ -96,21 +96,81 @@ float CalculateReferenceRefractionDistance(
     return result;
 }
 
-float2 RoundedRectNormal(float2 local, float2 halfRect, float radius, float centerSdf)
+// The coverage silhouette deliberately remains the ordinary WinUI rounded rectangle:
+// XAML Border/CornerRadius may clip the brush with that exact geometry.  The optical
+// field is allowed to be richer than the coverage geometry, however.  Generic glass
+// surfaces therefore use an n=4 superellipse-derived corner gradient and a slightly
+// larger virtual optical radius.  This makes the backdrop bend *through* the corner
+// instead of looking like a straight-edge refraction that was rounded off afterwards.
+// Exact Kube/pill geometries can opt out and retain the circular n=2 field.
+float2 RoundedRectNormal(
+    float2 local,
+    float2 halfRect,
+    float radius,
+    float opticalRadius,
+    float medialBlend,
+    bool useSuperellipseCorners)
 {
     const float2 signs = float2(local.x < 0.0f ? -1.0f : 1.0f, local.y < 0.0f ? -1.0f : 1.0f);
-    const float2 q = abs(local) - (halfRect - radius.xx);
+    const float activeRadius = useSuperellipseCorners ? opticalRadius : radius;
+    const float2 q = abs(local) - (halfRect - activeRadius.xx);
     const float2 outside = max(q, 0.0f.xx);
-    const float outsideLength = length(outside);
-    float2 result = float2(0.0f, -1.0f);
+    float2 result = float2(0.0f, 1.0f);
 
-    if (outsideLength > 1e-5f)
-        result = (outside / outsideLength) * signs;
+    if (max(q.x, q.y) > 0.0f)
+    {
+        if (useSuperellipseCorners)
+        {
+            // Gradient of |x|^4 + |y|^4 = r^4. Cubes are used instead of pow()
+            // to keep the linked DWM shader comfortably inside its instruction budget.
+            const float invRadius = 1.0f / max(activeRadius, 1.0f);
+            const float2 scaled = outside * invRadius;
+            const float2 gradient = scaled * scaled * scaled;
+            const float gradientLength = length(gradient);
+            if (gradientLength > 1e-6f)
+                result = gradient / gradientLength;
+            else if (q.x > q.y)
+                result = float2(1.0f, 0.0f);
+        }
+        else
+        {
+            const float outsideLength = length(outside);
+            if (outsideLength > 1e-5f)
+                result = outside / outsideLength;
+            else if (q.x > q.y)
+                result = float2(1.0f, 0.0f);
+        }
+    }
+    else if (useSuperellipseCorners)
+    {
+        // The ordinary rounded-rect SDF has a 90-degree normal switch on its medial
+        // axis once the inset corner arc collapses. Blend that switch over a few
+        // pixels so a thick optical bezel stays continuous through the corner.
+        const float blend = max(medialBlend, 0.5f);
+        const float t = smoothstep(-blend, blend, q.x - q.y);
+        result = normalize(float2(t, 1.0f - t));
+    }
     else if (q.x > q.y)
-        result = float2(signs.x, 0.0f);
-    else
-        result = float2(0.0f, signs.y);
-    return result;
+    {
+        result = float2(1.0f, 0.0f);
+    }
+
+    return result * signs;
+}
+
+// 0 on the straight-edge tangency points, 1 around the 45-degree part of a corner.
+// This uses the *coverage* radius rather than the virtual optical radius so boosts do
+// not leak onto straight edges.  It mirrors the useful part of LiquidGlassWinUI's
+// corner-weighted dispersion while keeping this material's Snell/bezel model.
+float RoundedRectCornerWeight(float2 local, float2 halfRect, float radius)
+{
+    if (radius <= 1e-4f)
+        return 0.0f;
+
+    const float2 q = abs(local) - (halfRect - radius.xx);
+    const float2 corner = max(q, 0.0f.xx);
+    float t = saturate(2.0f * min(corner.x, corner.y) / max(radius, 1.0f));
+    return t * t * (3.0f - 2.0f * t);
 }
 
 float CalculatePointerInteraction(
@@ -158,15 +218,8 @@ float4 CalculateTransmissionBounds(
     float2 safeMin = textureMin;
     float2 safeMax = textureMax;
 
-    // The separable blur chain materializes full-color intermediates and performs
-    // its own mirrored edge sampling. There is no D2D Gaussian transparent-padding
-    // region to estimate here: samplerData is the authoritative logical content rect.
     if (hasContentRect)
     {
-        // Stay half a texel inside the logical content rectangle. Custom-sampler
-        // materialization can place transparent allocation texels immediately
-        // outside samplerData's content rect; bilinear filtering exactly on that
-        // boundary otherwise mixes premultiplied black into strong refraction.
         safeMin = max(textureMin, contentMin + halfTexel);
         safeMax = min(textureMax, contentMax - halfTexel);
     }
@@ -198,14 +251,8 @@ float OffsetScaleToBounds(float2 origin, float2 offset, float2 safeMin, float2 s
 float4 SampleTransmission(float2 uv, float2 safeMin, float2 safeMax)
 {
     float4 result = texture0.Sample(sampler0, clamp(uv, safeMin, safeMax));
-
-    // The materialized backdrop is premultiplied-alpha. Strong Concave/Lip
-    // refraction reaches the finite intermediate boundary first; if RGB is used
-    // directly there, its allocation alpha darkens the transmitted color into a
-    // black rim. Recover straight transmission color before applying glass alpha.
     if (result.a > 1e-5f)
         result.rgb /= result.a;
-
     return result;
 }
 
@@ -251,19 +298,11 @@ float PointerSpecularCoefficient(
     float highlightSharpness)
 {
     const float edgeProfile = SpecularEdgeProfile(distanceFromEdge, specularWidth, feather);
-
-    // Treat the pointer as a local light source. When it is inside the glass the
-    // inward-facing rim should light; when it is outside, the outward-facing rim
-    // should light. Keep a faint angular floor so the radial field reads as one
-    // coherent reveal instead of disappearing abruptly around rounded corners.
     const float signedFacing = dot(normal, pointerLightDirection);
     const float facing = pointerInside ? saturate(-signedFacing) : saturate(signedFacing);
     const float angular = pow(
         saturate(0.15f + 0.85f * facing),
         max(highlightSharpness * 0.85f, 0.5f));
-
-    // PointerInteraction already contains the rounded-rect hover gate and radial
-    // distance falloff. Reshape it into a bright core with a soft reveal shoulder.
     const float radialCore = SmootherStep01(saturate(pointerInteraction));
     const float radialShoulder = sqrt(radialCore);
     const float radialField = lerp(radialCore, radialShoulder, 0.28f);
@@ -328,18 +367,10 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float2 halfRect = rectSize * 0.5f;
     const float2 local = localPosition - halfRect;
 
-    // Keep the SDF one raster pixel inside the brush bounds. LiquidGlassWinUI uses
-    // the same invariant: if the geometric edge lies exactly on the brush edge,
-    // antialiasing/refraction/specular coverage has nowhere to extend and rounded
-    // corners get visibly cut during resize or strong refraction.
-    // Kube's convex-squircle slider displacement/specular maps are authored exactly
-    // to the 90x60 object bounds. For that no-border profile, shrinking the SDF by one
-    // raster pixel changes radius 30 -> 29, moves the strongest refraction one pixel
-    // inward, and produces the visibly wrong corner/rim geometry. Keep the safety margin
-    // for generic bordered surfaces and the Concave/Lip paths that need materialized-edge
-    // protection, but let the borderless ConvexSquircle occupy its authored bounds.
-    const bool authoredBoundedConvex =
-        surfaceProfile < 0.5f && borderThickness <= 1e-4f;
+    // Keep one raster pixel for generic surfaces so AA/refraction/specular survive
+    // the compositor/XAML clip. Borderless ConvexSquircle is the Kube-authored path
+    // and intentionally occupies its exact 90x60-style bounds.
+    const bool authoredBoundedConvex = surfaceProfile < 0.5f && borderThickness <= 1e-4f;
     const float shapeMargin = authoredBoundedConvex ? 0.0f : 1.0f;
     const float2 shapeHalfRect = max(halfRect - shapeMargin.xx, 1.0f.xx);
     const float halfMinSize = max(min(shapeHalfRect.x, shapeHalfRect.y), 1.0f);
@@ -348,11 +379,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 
     const float sdfPixelFootprint = max(length(float2(ddx(sdf), ddy(sdf))), 0.5f);
     const float feather = max(edgeSoftness, sdfPixelFootprint * 0.5f);
-
-    // One-sided AA: the entire geometric interior remains fully covered and only
-    // the outside feather fades to transparent. The previous symmetric smoothstep
-    // made the actual SDF edge 50% alpha, washing out and effectively clipping the
-    // Fresnel/specular rim at all four corners.
     const float coverage = 1.0f - smoothstep(0.0f, feather, sdf);
     const float alpha = coverage * saturate(materialOpacity);
 
@@ -369,26 +395,44 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             height, derivative, bezel, glassThickness, refractiveIndex);
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
 
-        // Kube's standalone Concave profile produces a negative ray displacement:
-        // at the silhouette that means sampling outside the element. CSS backdrop
-        // filters can access surrounding backdrop pixels, but this WinUI custom
-        // sampler receives a finite materialized texture clipped to the brush.
-        //
-        // LiquidGlassStudio/LiquidGlassWinUI avoid that unavailable-source problem
-        // by always bending their edge field inward. Use that composition-safe
-        // direction for the *pure* Concave profile while retaining its Kube surface
-        // magnitude curve. Lip must stay signed: its convex outer lobe + concave
-        // interior are what make the Switch optics work.
         const bool pureConcave = surfaceProfile >= 1.5f && surfaceProfile < 2.5f;
-        const float transmissionDisplacement =
-            pureConcave ? abs(referenceDisplacement) : referenceDisplacement;
+        const float transmissionDisplacement = pureConcave ? abs(referenceDisplacement) : referenceDisplacement;
 
         const float opticalFeather = max(max(feather, sdfPixelFootprint), 0.75f);
         const float opticalInterior = 1.0f - smoothstep(0.0f, opticalFeather, sdf);
+
+        // Do not alter Kube's exact borderless convex field, Lip switch optics, or
+        // circles/pills where a superellipse corner would change the authored shape.
+        // Ordinary rounded rectangles get a larger virtual corner whose n=4 gradient
+        // stays curved through more of the bezel while the visible SDF remains WinUI-compatible.
+        const bool hasDistinctCorners = radius > 0.5f && radius < halfMinSize - 0.5f;
+        const bool enhanceCornerOptics =
+            hasDistinctCorners && !authoredBoundedConvex && surfaceProfile < 2.5f;
+        const float opticalRadius = enhanceCornerOptics
+            ? min(max(radius, bezel * 1.25f), halfMinSize)
+            : radius;
+        const float medialBlend = enhanceCornerOptics ? clamp(bezel * 0.12f, 1.0f, 4.0f) : 0.5f;
+        const float2 normal = RoundedRectNormal(
+            local,
+            shapeHalfRect,
+            radius,
+            opticalRadius,
+            medialBlend,
+            enhanceCornerOptics);
+        const float cornerWeight = enhanceCornerOptics
+            ? RoundedRectCornerWeight(local, shapeHalfRect, radius)
+            : 0.0f;
+
+        // Corner curvature is visually under-represented when a single 1D bezel
+        // profile is merely swept around a rounded rectangle. Add a modest local
+        // energy correction only inside the true corner footprint; straight edges
+        // retain the previous physically-derived displacement exactly.
+        const float cornerRefractionBoost = 1.0f + 0.28f * cornerWeight;
         const float rawDisplacementPixels =
-            transmissionDisplacement * artisticScale * refractionNormalization;
+            transmissionDisplacement * artisticScale * refractionNormalization * cornerRefractionBoost;
         const float displacementLimit = max(maximumExtent * 0.48f, 1.0f);
-        const float displacementPixels = clamp(rawDisplacementPixels, -displacementLimit, displacementLimit) * opticalInterior;
+        const float displacementPixels =
+            clamp(rawDisplacementPixels, -displacementLimit, displacementLimit) * opticalInterior;
 
         const float pointerInteraction = CalculatePointerInteraction(
             localPosition,
@@ -415,7 +459,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float2 pointerMotionOffset =
             motionDirection * pointerSpeedWeight * pointerInteraction * pointerMotionRefractionStrength * opticalInterior;
 
-        const float2 normal = RoundedRectNormal(local, shapeHalfRect, radius, sdf);
         const float2 refractionPixelOffset =
             -normal * displacementPixels + pointerRefractionOffset + pointerMotionOffset;
         const float2 refractedUv = uv + refractionPixelOffset * texelSize;
@@ -430,8 +473,13 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float2 sampleUv = refractedUv + magnificationOffset;
 
         const float bezelWeight = 1.0f - smoothstep(0.18f, 1.0f, bezelT);
+        // LiquidGlassWinUI deliberately gives corners more chromatic separation.
+        // Keep our cheaper three-sample pipeline, but apply the same perceptual idea:
+        // RGB separation grows toward the corner diagonal and stays unchanged on faces.
+        const float cornerDispersionBoost = 1.0f + 0.85f * cornerWeight;
         const float dispersionPixels = dispersionStrength * bezelWeight *
-            (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) * opticalInterior;
+            (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) *
+            opticalInterior * cornerDispersionBoost;
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
         const float4 transmissionBounds = CalculateTransmissionBounds(
@@ -439,10 +487,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float2 transmissionOrigin = clamp(uv, transmissionBounds.xy, transmissionBounds.zw);
         const float2 baseSampleOffset = sampleUv - uv;
 
-        // The source texture is finite even though a real backdrop is not. Constrain
-        // each wavelength independently before sampling instead of hard-clamping the
-        // completed UV (which pins a large Concave field to one border texel) or using
-        // one shared RGB scale (which lets one channel collapse all three).
         const float2 redOffset = baseSampleOffset - dispersionOffset;
         const float2 greenOffset = baseSampleOffset;
         const float2 blueOffset = baseSampleOffset + dispersionOffset;
@@ -462,9 +506,6 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         float4 blueSample = SampleTransmission(
             transmissionOrigin + blueOffset * blueScale, transmissionBounds.xy, transmissionBounds.zw);
 
-        // A zero-alpha allocation texel contains no recoverable straight color.
-        // Fall back to the undisplaced backdrop at this output pixel rather than
-        // manufacturing black. This path only activates at the materialized edge.
         if (redSample.a <= 1e-5f) redSample = baseSample;
         if (greenSample.a <= 1e-5f) greenSample = baseSample;
         if (blueSample.a <= 1e-5f) blueSample = baseSample;
@@ -488,13 +529,16 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         color = lerp(color, tintColor, borderMask * 0.20f * highlightStrength);
 
         const float2 lightDirection = normalize(float2(cos(lightAngle), sin(lightAngle)));
-        const float specularCoefficient = ReferenceSpecularCoefficient(
-            distanceFromEdge,
-            specularWidth,
-            feather,
-            normal,
-            lightDirection,
-            highlightSharpness) * opticalInterior;
+        const float cornerSpecularBoost = 1.0f + 0.18f * cornerWeight;
+        const float specularCoefficient = saturate(
+            ReferenceSpecularCoefficient(
+                distanceFromEdge,
+                specularWidth,
+                feather,
+                normal,
+                lightDirection,
+                highlightSharpness) *
+            opticalInterior * cornerSpecularBoost);
 
         float pointerSpecular = 0.0f;
         const float pointerLightDistance = length(pointerPosition - localPosition);
@@ -513,6 +557,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
                 highlightSharpness) *
                 pointerHighlightStrength *
                 (1.0f + pointerSpeedWeight * 0.18f) *
+                (1.0f + cornerWeight * 0.12f) *
                 opticalInterior;
         }
 
