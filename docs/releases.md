@@ -7,7 +7,7 @@
 | Demo Preview Package | `master` / `fix/liquid-glass-corner-optics` pushes affecting the Demo, or manual run | Signed x64/ARM64 sideload MSIX plus the public preview certificate. No Store upload or GitHub Release. |
 | Release NuGet | **Manual only**, required `package_version` | Validates the exact requested version through CI, publishes both packages to NuGet.org, and creates a `nuget-<version>` GitHub Release. |
 | Release Microsoft Store Package | **Manual only**, required `package_version` | Unsigned x64/ARM64 `.msixupload` / `.msixbundle` artifacts and a `store-<version>` GitHub Release. |
-| Windows Dependency Submission | Manifest pushes, PR restore checks, or manual run | Restores native and managed dependency graphs with Visual Studio MSBuild; submits snapshots on trusted push/manual runs. |
+| Windows Dependency Submission | Manifest pushes, PR restore checks, or manual run | Restores native and managed dependency graphs with Visual Studio MSBuild; supplements GitHub's managed Linux snapshot with native dependency coverage on trusted push/manual runs. |
 
 ## Release a version
 
@@ -28,12 +28,12 @@ ships only the public `.cer`; install that certificate into Trusted People first
 - Update the NuGet.org trusted publishing policy for both packages to allow the
   `release-nuget.yml` workflow filename (previously `ci.yml`). Keep the existing
   repository/owner and `NUGET_USER` Actions secret. Publication uses OIDC.
-- In GitHub **Settings → Advanced Security → Dependency graph → Automatic
-  dependency submission**, disable the GitHub-managed Linux submission workflow
-  after enabling the repository's **Windows Dependency Submission** workflow.
-  Keep the dependency graph and Dependabot alerts enabled. The managed workflow
-  cannot restore Visual C++ projects on Linux; adding `EnableWindowsTargeting`
-  alone only fixes its first managed-project error.
+
+GitHub's automatic dependency submission can stay enabled: its Linux managed
+restore and snapshot submission now pass. That workflow skips native project
+restoration on Linux. **Windows Dependency Submission** therefore also restores
+the actual Visual C++ dependency graphs and uses a distinct snapshot correlator.
+No dependency graph, Dependabot, or repository security setting needs to be disabled.
 
 The managed projects permit Windows reference-pack restoration and the projection
 libraries declare `win-x64`, `win-x86`, and `win-arm64` RIDs. Native references map
