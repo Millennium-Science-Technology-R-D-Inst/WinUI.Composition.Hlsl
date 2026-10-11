@@ -57,7 +57,7 @@ For controls, reference both packages using matching versions:
 
 The NuGet packages require **Windows App SDK 1.6 or later** and ship native runtime assets for **x86, x64, and ARM64**.
 
-Each validated `master` push is published automatically to NuGet.org as a stable `1.0.<CI run number>` package.
+NuGet publication is manual: run **Release NuGet** in Actions with the desired version. Ordinary CI produces test artifacts without publishing them.
 
 Custom shader execution relies on a private, undocumented Composition implementation ABI. Unsupported layouts fail closed instead of writing guessed private data. See [Architecture](docs/architecture.md) and [Runtime safety](docs/design/runtime-safety.md) for implementation details and support boundaries.
 
@@ -195,7 +195,7 @@ Useful references:
 .\tests\build.ps1 -Language CSharp
 ```
 
-CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, both NuGet packages, and downstream C++/C# package consumers. Successful `master` push runs publish the validated packages directly from `ci.yml` to NuGet.org through OIDC trusted publishing.
+CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, both NuGet packages, and downstream C++/C# package consumers. NuGet and Microsoft Store releases have separate manual workflows with explicit version inputs; automatic Demo builds produce sideload previews only. See [CI and releases](docs/releases.md) for workflow triggers, artifacts, and one-time trusted publishing/dependency submission settings.
 
 ## License
 

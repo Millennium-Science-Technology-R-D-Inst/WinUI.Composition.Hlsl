@@ -1,0 +1,50 @@
+name: Release Microsoft Store Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: Store version (Major.Minor.Build.0).
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-store-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    uses: ./.github/workflows/demo-packages.yml
+    with:
+      package_version: ${{ inputs.package_version }}
+      store: true
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.package.outputs.artifact_name }}-Store
+          path: artifacts/store
+      - name: Publish GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: store-${{ needs.package.outputs.version }}
+          name: Liquid Glass Demo Store ${{ needs.package.outputs.version }}
+          commit: ${{ github.sha }}
+          artifacts: artifacts/store/*.msixupload
+          artifactErrorsFailBuild: true
+          allowUpdates: false
+          prerelease: false
+          generateReleaseNotes: true
+          body: |
+            Unsigned Microsoft Store upload package for x64 and ARM64.
+            Version: ${{ needs.package.outputs.version }}
+            Source commit: ${{ github.sha }}
+            Submit the .msixupload to Partner Center; Microsoft Store signs it during publication.

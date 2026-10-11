@@ -1,0 +1,56 @@
+name: Windows Dependency Submission
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, fix/liquid-glass-corner-optics]
+    paths:
+      - '**.csproj'
+      - '**.vcxproj'
+      - 'Directory.*'
+      - '**/Directory.*'
+      - 'NuGet.Config'
+      - '.github/workflows/dependency-submission.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - '**.csproj'
+      - '**.vcxproj'
+      - 'Directory.*'
+      - '**/Directory.*'
+      - 'NuGet.Config'
+      - '.github/workflows/dependency-submission.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore-and-submit:
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v7
+      - uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+      - name: Restore native and managed dependency graphs on Windows
+        shell: pwsh
+        run: |
+          $projects = @(
+            'src/WinUI.Composition.Hlsl/WinUI.Composition.Hlsl.vcxproj',
+            'src/WinUI.LiquidGlass/WinUI.LiquidGlass.vcxproj',
+            'projection/WinUI.Composition.Hlsl.Projection.csproj',
+            'projection/WinUI.LiquidGlass.Projection.csproj',
+            'tests/Cpp/WUILiquidGlassDemo.Hlsl.vcxproj',
+            'tests/CSharp/HlslCSharpConsumer.csproj',
+            'tests/CSharp/LiquidGlassConsumer/LiquidGlassConsumer.csproj'
+          )
+          foreach ($project in $projects) {
+            & msbuild $project /t:Restore /p:Configuration=Release /p:Platform=x64 /p:NuGetAudit=false /v:minimal /nologo
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+      - name: Submit restored dependency snapshot
+        if: github.event_name != 'pull_request'
+        uses: actions/component-detection-dependency-submission-action@98beaea5a1227f3db476e4c9ca959a0cacd7ac4f
+        with:
+          detectorsCategories: NuGet
+          correlator: windows-nuget
