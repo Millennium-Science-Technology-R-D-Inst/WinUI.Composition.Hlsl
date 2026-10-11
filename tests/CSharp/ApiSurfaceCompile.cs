@@ -56,6 +56,24 @@ internal static class ApiSurfaceCompile
     private static void Validate(HlslShaderLibrary library, Compositor compositor, StorageFile file)
     {
         _ = HlslComposition.GetRuntimeCapabilities();
+
+        var glassMaterial = new LiquidGlassMaterial(compositor)
+        {
+            ShapeRoundness = 5.0f,
+            RasterizationScale = 1.5f,
+        };
+        _ = glassMaterial.ShapeRoundness;
+        _ = glassMaterial.RasterizationScale;
+        var glassBrush = new LiquidGlassBrush
+        {
+            ShapeRoundness = 5.0,
+            RasterizationScale = 1.5,
+        };
+        _ = glassBrush.ShapeRoundness;
+        _ = glassBrush.RasterizationScale;
+        _ = LiquidGlassBrush.ShapeRoundnessProperty;
+        _ = LiquidGlassBrush.RasterizationScaleProperty;
+
         _ = HlslCompiler.CompileAsync(
             MaterializedShader,
             HlslEffectKind.Auto,
@@ -178,5 +196,61 @@ internal static class ApiSurfaceCompile
         _ = brush.Properties;
         _ = library.Bytecode;
         _ = HlslComposition.CreateXamlBrushFromCompositionBrush(brush.Brush);
+    }
+}
+
+internal static class ExtendedLiquidGlassApiCompile
+{
+    private static void Validate(WinUI.Composition.Hlsl.LiquidGlassMaterial material, WinUI.Composition.Hlsl.LiquidGlassBrush brush)
+    {
+        _ = material.PostProcessingEffectBrush;
+        material.DispersionRange = 1.0f; _ = material.DispersionRange;
+        brush.DispersionRange = 1.0; _ = brush.DispersionRange;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.DispersionRangeProperty;
+        material.RefFresnelRange = 30.0f; _ = material.RefFresnelRange;
+        brush.RefFresnelRange = 30.0; _ = brush.RefFresnelRange;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.RefFresnelRangeProperty;
+        material.RefFresnelHardness = 20.0f; _ = material.RefFresnelHardness;
+        brush.RefFresnelHardness = 20.0; _ = brush.RefFresnelHardness;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.RefFresnelHardnessProperty;
+        material.RefFresnelFactor = 0.0f; _ = material.RefFresnelFactor;
+        brush.RefFresnelFactor = 0.0; _ = brush.RefFresnelFactor;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.RefFresnelFactorProperty;
+        material.GlareRange = 30.0f; _ = material.GlareRange;
+        brush.GlareRange = 30.0; _ = brush.GlareRange;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.GlareRangeProperty;
+        material.GlareHardness = 20.0f; _ = material.GlareHardness;
+        brush.GlareHardness = 20.0; _ = brush.GlareHardness;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.GlareHardnessProperty;
+        material.GlareFactor = 0.0f; _ = material.GlareFactor;
+        brush.GlareFactor = 0.0; _ = brush.GlareFactor;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.GlareFactorProperty;
+        material.GlareConvergence = 50.0f; _ = material.GlareConvergence;
+        brush.GlareConvergence = 50.0; _ = brush.GlareConvergence;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.GlareConvergenceProperty;
+        material.GlareOppositeFactor = 80.0f; _ = material.GlareOppositeFactor;
+        brush.GlareOppositeFactor = 80.0; _ = brush.GlareOppositeFactor;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.GlareOppositeFactorProperty;
+        material.GlareAngle = -45.0f; _ = material.GlareAngle;
+        brush.GlareAngle = -45.0; _ = brush.GlareAngle;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.GlareAngleProperty;
+        material.ShapeRadius = -1.0f; _ = material.ShapeRadius;
+        brush.ShapeRadius = -1.0; _ = brush.ShapeRadius;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.ShapeRadiusProperty;
+        material.Magnification = 1.0f; _ = material.Magnification;
+        brush.Magnification = 1.0; _ = brush.Magnification;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.MagnificationProperty;
+        material.BloomAmount = 1.0f; _ = material.BloomAmount;
+        brush.BloomAmount = 1.0; _ = brush.BloomAmount;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.BloomAmountProperty;
+        material.Brightness = 0.0f; _ = material.Brightness;
+        brush.Brightness = 0.0; _ = brush.Brightness;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.BrightnessProperty;
+        material.Temperature = 0.0f; _ = material.Temperature;
+        brush.Temperature = 0.0; _ = brush.Temperature;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.TemperatureProperty;
+        material.Vibrance = 0.0f; _ = material.Vibrance;
+        brush.Vibrance = 0.0; _ = brush.Vibrance;
+        _ = WinUI.Composition.Hlsl.LiquidGlassBrush.VibranceProperty;
     }
 }

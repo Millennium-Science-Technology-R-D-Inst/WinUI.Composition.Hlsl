@@ -4,6 +4,7 @@
 		<TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
 		<UseWinUI>true</UseWinUI>
 		<Platforms>x64;ARM64;x86</Platforms>
+		<RuntimeIdentifiers>win-x64;win-x86;win-arm64</RuntimeIdentifiers>
 		<AssetTargetFallback>$(AssetTargetFallback);native</AssetTargetFallback>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<AssemblyName>WinUI.Composition.Hlsl.Projection</AssemblyName>
@@ -14,12 +15,16 @@
 		<NuspecBasePath>$(MSBuildThisFileDirectory)..</NuspecBasePath>
 		<PackageOutputPath>../artifacts/packages</PackageOutputPath>
 		<NoWarn>$(NoWarn);NU1701</NoWarn>
+		<HlslNativePlatform Condition="'$(Platform)' == 'x86'">Win32</HlslNativePlatform>
+		<HlslNativePlatform Condition="'$(HlslNativePlatform)' == '' and ('$(Platform)' == '' or '$(Platform)' == 'AnyCPU')">x64</HlslNativePlatform>
+		<HlslNativePlatform Condition="'$(HlslNativePlatform)' == ''">$(Platform)</HlslNativePlatform>
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Remove="Generated/**/*.cs"/>
 		<PackageReference Include="Microsoft.Windows.CsWinRT" PrivateAssets="all"/>
 		<PackageReference Include="Microsoft.WindowsAppSDK"/>
-		<ProjectReference Include="../src/WinUI.Composition.Hlsl/WinUI.Composition.Hlsl.vcxproj"/>
+		<ProjectReference Include="../src/WinUI.Composition.Hlsl/WinUI.Composition.Hlsl.vcxproj"
+		                  SetPlatform="Platform=$(HlslNativePlatform)"/>
 	</ItemGroup>
 	<Target Name="BuildNativeRuntimesForPack" BeforeTargets="Pack">
 		<MSBuild

@@ -105,6 +105,8 @@ namespace winrt::WinUI::LiquidGlass::detail
         if (!effect) return;
         auto compositionBrush = effect.EffectBrush();
         if (!compositionBrush) return;
+        auto postEffect = material.PostProcessingEffectBrush();
+        auto postBrush = postEffect ? postEffect.EffectBrush() : Microsoft::UI::Composition::CompositionEffectBrush{ nullptr };
 
         auto compositor = compositionBrush.Compositor();
         auto easing = compositor.CreateCubicBezierEasingFunction(
@@ -117,11 +119,11 @@ namespace winrt::WinUI::LiquidGlass::detail
             L"RefractionStrength", from.refraction, brush.RefractionStrength());
         AnimateOpticsScalar(effect, compositionBrush, easing, duration,
             L"DispersionStrength", from.dispersion, brush.DispersionStrength());
-        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+        AnimateOpticsScalar(postEffect, postBrush, easing, duration,
             L"Saturation", from.saturation, brush.Saturation());
-        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+        AnimateOpticsScalar(postEffect, postBrush, easing, duration,
             L"Contrast", from.contrast, brush.Contrast());
-        AnimateOpticsScalar(effect, compositionBrush, easing, duration,
+        AnimateOpticsScalar(postEffect, postBrush, easing, duration,
             L"Exposure", from.exposure, brush.Exposure());
         AnimateOpticsScalar(effect, compositionBrush, easing, duration,
             L"TintOpacity", from.tintOpacity, brush.TintOpacity());

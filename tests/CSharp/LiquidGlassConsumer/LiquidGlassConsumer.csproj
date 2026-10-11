@@ -6,6 +6,9 @@
     <WindowsPackageType>None</WindowsPackageType>
     <Platforms>x64</Platforms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- The projection's transitive build dependencies include native WinRT
+         projects when using ProjectReference instead of the packed NuGet. -->
+    <AssetTargetFallback>$(AssetTargetFallback);native</AssetTargetFallback>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>LiquidGlassCSharpConsumer</RootNamespace>

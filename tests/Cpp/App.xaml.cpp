@@ -84,6 +84,12 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 	/// <param name="e">Details about the launch request and process.</param>
 	void App::OnLaunched([[maybe_unused]] LaunchActivatedEventArgs const& e)
 	{
+		if (wcsstr(GetCommandLineW(), L"--smoke"))
+		{
+			// Resources are deferred. Force this brush to be created before any
+			// preset/control can register the DPs and hide a cold-start binding bug.
+			(void)Resources().Lookup(box_value(L"StartupBindingBrush"));
+		}
 		window = make<MainWindow>();
 		window.Activate();
 #if defined _DEBUG

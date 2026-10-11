@@ -139,15 +139,17 @@ namespace hlsl::engine
 				}
 				for (size_t index = 0; index < sourceNames.size(); ++index)
 				{
+					// High byte selects the linker input kind; low byte selects
+					// the source. Repeating a zero low byte aliases every input to source 0.
 					if (description.sampler)
 					{
-						arguments.push_back(0x0100);
-						arguments.push_back(0x0400);
-						if (description.materializedSampler) arguments.push_back(0x0300);
+						arguments.push_back(static_cast<std::uint16_t>(0x0100 | index));
+						arguments.push_back(static_cast<std::uint16_t>(0x0400 | index));
+						if (description.materializedSampler) arguments.push_back(static_cast<std::uint16_t>(0x0300 | index));
 					}
 					else
 					{
-						arguments.push_back(0x0200);
+						arguments.push_back(static_cast<std::uint16_t>(0x0200 | index));
 					}
 					sources.push_back({
 						sourceNames[index].c_str(),

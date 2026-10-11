@@ -1,0 +1,34 @@
+name: Demo Preview Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: Optional sideload version (Major.Minor.Build.0); blank uses YYYY.MMDD.RUN.0.
+        required: false
+        type: string
+  push:
+    branches: [master, fix/liquid-glass-corner-optics]
+    paths:
+      - '.github/workflows/demo-preview-package.yml'
+      - '.github/workflows/demo-packages.yml'
+      - 'eng/Get-PackageVersion.ps1'
+      - 'src/**'
+      - 'tests/Cpp/**'
+      - 'Directory.*'
+      - '*.props'
+      - '*.targets'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    uses: ./.github/workflows/demo-packages.yml
+    with:
+      package_version: ${{ inputs.package_version || '' }}
+      store: false

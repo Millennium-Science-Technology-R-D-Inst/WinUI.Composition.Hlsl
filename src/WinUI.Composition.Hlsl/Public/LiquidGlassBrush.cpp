@@ -22,6 +22,56 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 
 	LiquidGlassBrush::LiquidGlassBrush()
 	{
+		// XAML must find every DP before it applies a Binding to this instance.
+		// Lazy registration in a getter/setter is too late: an unregistered DP
+		// falls through to the generated value setter, which tries to unbox the
+		// Binding as a Double and throws E_NOINTERFACE during LoadComponent.
+		(void)IsEnabledProperty();
+		(void)BlurRadiusProperty();
+		(void)RefractionStrengthProperty();
+		(void)DispersionStrengthProperty();
+		(void)CornerRadiusProperty();
+		(void)ShapeRoundnessProperty();
+		(void)RasterizationScaleProperty();
+		(void)BorderThicknessProperty();
+		(void)HighlightStrengthProperty();
+		(void)EdgeSoftnessProperty();
+		(void)MaterialOpacityProperty();
+		(void)BezelWidthProperty();
+		(void)GlassThicknessProperty();
+		(void)RefractiveIndexProperty();
+		(void)TintOpacityProperty();
+		(void)SaturationProperty();
+		(void)LightAngleProperty();
+		(void)SurfaceProfileProperty();
+		(void)MagnificationStrengthProperty();
+		(void)HighlightSharpnessProperty();
+		(void)TintRedProperty();
+		(void)TintGreenProperty();
+		(void)TintBlueProperty();
+		(void)InnerShadowStrengthProperty();
+		(void)SpecularSaturationProperty();
+		(void)SpecularWidthProperty();
+		(void)ContrastProperty();
+		(void)ExposureProperty();
+		(void)DispersionRangeProperty();
+		(void)RefFresnelRangeProperty();
+		(void)RefFresnelHardnessProperty();
+		(void)RefFresnelFactorProperty();
+		(void)GlareRangeProperty();
+		(void)GlareHardnessProperty();
+		(void)GlareFactorProperty();
+		(void)GlareConvergenceProperty();
+		(void)GlareOppositeFactorProperty();
+		(void)GlareAngleProperty();
+		(void)ShapeRadiusProperty();
+		(void)MagnificationProperty();
+		(void)BloomAmountProperty();
+		(void)BrightnessProperty();
+		(void)TemperatureProperty();
+		(void)VibranceProperty();
+
+
 		RegisterPropertyChangedCallback(Media::XamlCompositionBrushBase::FallbackColorProperty(), [this](auto const&, auto const&)
 			{
 				Update();
@@ -104,6 +154,24 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 
 	double LiquidGlassBrush::CornerRadius() const { return GetDoubleProperty(CornerRadiusProperty()); }
 	void LiquidGlassBrush::CornerRadius(double value) { SetDoubleProperty(CornerRadiusProperty(), value, 0.0, 512.0, L"CornerRadius must be between 0 and 512 DIPs."); }
+
+	DependencyProperty LiquidGlassBrush::ShapeRoundnessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"ShapeRoundness", 4.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::ShapeRoundness() const { return GetDoubleProperty(ShapeRoundnessProperty()); }
+	void LiquidGlassBrush::ShapeRoundness(double value) { SetDoubleProperty(ShapeRoundnessProperty(), value, 2.0, 8.0, L"ShapeRoundness must be between 2 and 8."); }
+
+	DependencyProperty LiquidGlassBrush::RasterizationScaleProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"RasterizationScale", 1.0);
+		return property;
+	}
+
+	double LiquidGlassBrush::RasterizationScale() const { return GetDoubleProperty(RasterizationScaleProperty()); }
+	void LiquidGlassBrush::RasterizationScale(double value) { SetDoubleProperty(RasterizationScaleProperty(), value, 0.01, 16.0, L"RasterizationScale must be between 0.01 and 16."); }
 
 	DependencyProperty LiquidGlassBrush::BorderThicknessProperty()
 	{
@@ -306,6 +374,134 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		SetValue(SurfaceProfileProperty(), box_value(value));
 	}
 
+	DependencyProperty LiquidGlassBrush::DispersionRangeProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"DispersionRange", 1.0);
+		return property;
+	}
+	double LiquidGlassBrush::DispersionRange() const { return GetDoubleProperty(DispersionRangeProperty()); }
+	void LiquidGlassBrush::DispersionRange(double value) { SetDoubleProperty(DispersionRangeProperty(), value, 0.0, 1.0, L"DispersionRange is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::RefFresnelRangeProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"RefFresnelRange", 30.0);
+		return property;
+	}
+	double LiquidGlassBrush::RefFresnelRange() const { return GetDoubleProperty(RefFresnelRangeProperty()); }
+	void LiquidGlassBrush::RefFresnelRange(double value) { SetDoubleProperty(RefFresnelRangeProperty(), value, 0.0, 100.0, L"RefFresnelRange is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::RefFresnelHardnessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"RefFresnelHardness", 20.0);
+		return property;
+	}
+	double LiquidGlassBrush::RefFresnelHardness() const { return GetDoubleProperty(RefFresnelHardnessProperty()); }
+	void LiquidGlassBrush::RefFresnelHardness(double value) { SetDoubleProperty(RefFresnelHardnessProperty(), value, 0.0, 100.0, L"RefFresnelHardness is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::RefFresnelFactorProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"RefFresnelFactor", 0.0);
+		return property;
+	}
+	double LiquidGlassBrush::RefFresnelFactor() const { return GetDoubleProperty(RefFresnelFactorProperty()); }
+	void LiquidGlassBrush::RefFresnelFactor(double value) { SetDoubleProperty(RefFresnelFactorProperty(), value, 0.0, 100.0, L"RefFresnelFactor is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::GlareRangeProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"GlareRange", 30.0);
+		return property;
+	}
+	double LiquidGlassBrush::GlareRange() const { return GetDoubleProperty(GlareRangeProperty()); }
+	void LiquidGlassBrush::GlareRange(double value) { SetDoubleProperty(GlareRangeProperty(), value, 0.0, 100.0, L"GlareRange is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::GlareHardnessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"GlareHardness", 20.0);
+		return property;
+	}
+	double LiquidGlassBrush::GlareHardness() const { return GetDoubleProperty(GlareHardnessProperty()); }
+	void LiquidGlassBrush::GlareHardness(double value) { SetDoubleProperty(GlareHardnessProperty(), value, 0.0, 100.0, L"GlareHardness is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::GlareFactorProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"GlareFactor", 0.0);
+		return property;
+	}
+	double LiquidGlassBrush::GlareFactor() const { return GetDoubleProperty(GlareFactorProperty()); }
+	void LiquidGlassBrush::GlareFactor(double value) { SetDoubleProperty(GlareFactorProperty(), value, 0.0, 120.0, L"GlareFactor is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::GlareConvergenceProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"GlareConvergence", 50.0);
+		return property;
+	}
+	double LiquidGlassBrush::GlareConvergence() const { return GetDoubleProperty(GlareConvergenceProperty()); }
+	void LiquidGlassBrush::GlareConvergence(double value) { SetDoubleProperty(GlareConvergenceProperty(), value, 0.0, 100.0, L"GlareConvergence is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::GlareOppositeFactorProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"GlareOppositeFactor", 80.0);
+		return property;
+	}
+	double LiquidGlassBrush::GlareOppositeFactor() const { return GetDoubleProperty(GlareOppositeFactorProperty()); }
+	void LiquidGlassBrush::GlareOppositeFactor(double value) { SetDoubleProperty(GlareOppositeFactorProperty(), value, 0.0, 100.0, L"GlareOppositeFactor is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::GlareAngleProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"GlareAngle", -45.0);
+		return property;
+	}
+	double LiquidGlassBrush::GlareAngle() const { return GetDoubleProperty(GlareAngleProperty()); }
+	void LiquidGlassBrush::GlareAngle(double value) { SetDoubleProperty(GlareAngleProperty(), value, -180.0, 180.0, L"GlareAngle is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::ShapeRadiusProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"ShapeRadius", -1.0);
+		return property;
+	}
+	double LiquidGlassBrush::ShapeRadius() const { return GetDoubleProperty(ShapeRadiusProperty()); }
+	void LiquidGlassBrush::ShapeRadius(double value) { SetDoubleProperty(ShapeRadiusProperty(), value, -1.0, 1.0, L"ShapeRadius is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::MagnificationProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"Magnification", 1.0);
+		return property;
+	}
+	double LiquidGlassBrush::Magnification() const { return GetDoubleProperty(MagnificationProperty()); }
+	void LiquidGlassBrush::Magnification(double value) { SetDoubleProperty(MagnificationProperty(), value, 1.0, 3.0, L"Magnification is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::BloomAmountProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"BloomAmount", 1.0);
+		return property;
+	}
+	double LiquidGlassBrush::BloomAmount() const { return GetDoubleProperty(BloomAmountProperty()); }
+	void LiquidGlassBrush::BloomAmount(double value) { SetDoubleProperty(BloomAmountProperty(), value, 0.0, 1.0, L"BloomAmount is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::BrightnessProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"Brightness", 0.0);
+		return property;
+	}
+	double LiquidGlassBrush::Brightness() const { return GetDoubleProperty(BrightnessProperty()); }
+	void LiquidGlassBrush::Brightness(double value) { SetDoubleProperty(BrightnessProperty(), value, -1.0, 1.0, L"Brightness is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::TemperatureProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"Temperature", 0.0);
+		return property;
+	}
+	double LiquidGlassBrush::Temperature() const { return GetDoubleProperty(TemperatureProperty()); }
+	void LiquidGlassBrush::Temperature(double value) { SetDoubleProperty(TemperatureProperty(), value, -1.0, 1.0, L"Temperature is outside its supported range."); }
+
+	DependencyProperty LiquidGlassBrush::VibranceProperty()
+	{
+		static auto const property = RegisterDoubleProperty(L"Vibrance", 0.0);
+		return property;
+	}
+	double LiquidGlassBrush::Vibrance() const { return GetDoubleProperty(VibranceProperty()); }
+	void LiquidGlassBrush::Vibrance(double value) { SetDoubleProperty(VibranceProperty(), value, 0.0, 1.0, L"Vibrance is outside its supported range."); }
+
 	void LiquidGlassBrush::OnConnected() { m_lifecycle.Connect(*this); }
 	void LiquidGlassBrush::OnDisconnected() { m_lifecycle.Disconnect(*this); }
 	void LiquidGlassBrush::Update() { m_lifecycle.Update(*this); }
@@ -317,10 +513,12 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 			m_material = Hlsl::LiquidGlassMaterial(compositor);
 		}
 
+		m_material.RasterizationScale(static_cast<float>(RasterizationScale()));
 		m_material.BlurRadius(static_cast<float>(BlurRadius()));
 		m_material.RefractionStrength(static_cast<float>(RefractionStrength()));
 		m_material.DispersionStrength(static_cast<float>(DispersionStrength()));
 		m_material.CornerRadius(static_cast<float>(CornerRadius()));
+		m_material.ShapeRoundness(static_cast<float>(ShapeRoundness()));
 		m_material.BorderThickness(static_cast<float>(BorderThickness()));
 		m_material.HighlightStrength(static_cast<float>(HighlightStrength()));
 		m_material.EdgeSoftness(static_cast<float>(EdgeSoftness()));
@@ -342,6 +540,22 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_material.SpecularWidth(static_cast<float>(SpecularWidth()));
 		m_material.Contrast(static_cast<float>(Contrast()));
 		m_material.Exposure(static_cast<float>(Exposure()));
+		m_material.DispersionRange(static_cast<float>(DispersionRange()));
+		m_material.RefFresnelRange(static_cast<float>(RefFresnelRange()));
+		m_material.RefFresnelHardness(static_cast<float>(RefFresnelHardness()));
+		m_material.RefFresnelFactor(static_cast<float>(RefFresnelFactor()));
+		m_material.GlareRange(static_cast<float>(GlareRange()));
+		m_material.GlareHardness(static_cast<float>(GlareHardness()));
+		m_material.GlareFactor(static_cast<float>(GlareFactor()));
+		m_material.GlareConvergence(static_cast<float>(GlareConvergence()));
+		m_material.GlareOppositeFactor(static_cast<float>(GlareOppositeFactor()));
+		m_material.GlareAngle(static_cast<float>(GlareAngle()));
+		m_material.ShapeRadius(static_cast<float>(ShapeRadius()));
+		m_material.Magnification(static_cast<float>(Magnification()));
+		m_material.BloomAmount(static_cast<float>(BloomAmount()));
+		m_material.Brightness(static_cast<float>(Brightness()));
+		m_material.Temperature(static_cast<float>(Temperature()));
+		m_material.Vibrance(static_cast<float>(Vibrance()));
 		return m_material.EffectBrush().Brush();
 	}
 }

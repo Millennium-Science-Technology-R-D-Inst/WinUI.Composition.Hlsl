@@ -134,10 +134,13 @@ namespace WinUI.Composition.Hlsl
     {
         LiquidGlassMaterial(Microsoft.UI.Composition.Compositor compositor);
         HlslEffectBrush EffectBrush{ get; };
+        HlslEffectBrush PostProcessingEffectBrush{ get; };
         Single BlurRadius;
         Single RefractionStrength;
         Single DispersionStrength;
         Single CornerRadius;
+        Single ShapeRoundness;
+        Single RasterizationScale;
         Single BorderThickness;
         Single HighlightStrength;
         Single EdgeSoftness;
@@ -159,6 +162,23 @@ namespace WinUI.Composition.Hlsl
         Single SpecularWidth;
         Single Contrast;
         Single Exposure;
+        Single DispersionRange;
+        Single RefFresnelRange;
+        Single RefFresnelHardness;
+        Single RefFresnelFactor;
+        Single GlareRange;
+        Single GlareHardness;
+        Single GlareFactor;
+        Single GlareConvergence;
+        Single GlareOppositeFactor;
+        Single GlareAngle;
+        Single ShapeRadius;
+        Single Magnification;
+        Single BloomAmount;
+        Single Brightness;
+        Single Temperature;
+        Single Vibrance;
+
     }
     [default_interface] runtimeclass LiquidGlassBrush : Microsoft.UI.Xaml.Media.XamlCompositionBrushBase
     {
@@ -174,6 +194,10 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty DispersionStrengthProperty{ get; };
         Double CornerRadius;
         static Microsoft.UI.Xaml.DependencyProperty CornerRadiusProperty{ get; };
+        Double ShapeRoundness;
+        static Microsoft.UI.Xaml.DependencyProperty ShapeRoundnessProperty{ get; };
+        Double RasterizationScale;
+        static Microsoft.UI.Xaml.DependencyProperty RasterizationScaleProperty{ get; };
         Double BorderThickness;
         static Microsoft.UI.Xaml.DependencyProperty BorderThicknessProperty{ get; };
         Double HighlightStrength;
@@ -216,5 +240,38 @@ namespace WinUI.Composition.Hlsl
         static Microsoft.UI.Xaml.DependencyProperty ContrastProperty{ get; };
         Double Exposure;
         static Microsoft.UI.Xaml.DependencyProperty ExposureProperty{ get; };
+        Double DispersionRange;
+        static Microsoft.UI.Xaml.DependencyProperty DispersionRangeProperty{ get; };
+        Double RefFresnelRange;
+        static Microsoft.UI.Xaml.DependencyProperty RefFresnelRangeProperty{ get; };
+        Double RefFresnelHardness;
+        static Microsoft.UI.Xaml.DependencyProperty RefFresnelHardnessProperty{ get; };
+        Double RefFresnelFactor;
+        static Microsoft.UI.Xaml.DependencyProperty RefFresnelFactorProperty{ get; };
+        Double GlareRange;
+        static Microsoft.UI.Xaml.DependencyProperty GlareRangeProperty{ get; };
+        Double GlareHardness;
+        static Microsoft.UI.Xaml.DependencyProperty GlareHardnessProperty{ get; };
+        Double GlareFactor;
+        static Microsoft.UI.Xaml.DependencyProperty GlareFactorProperty{ get; };
+        Double GlareConvergence;
+        static Microsoft.UI.Xaml.DependencyProperty GlareConvergenceProperty{ get; };
+        Double GlareOppositeFactor;
+        static Microsoft.UI.Xaml.DependencyProperty GlareOppositeFactorProperty{ get; };
+        Double GlareAngle;
+        static Microsoft.UI.Xaml.DependencyProperty GlareAngleProperty{ get; };
+        Double ShapeRadius;
+        static Microsoft.UI.Xaml.DependencyProperty ShapeRadiusProperty{ get; };
+        Double Magnification;
+        static Microsoft.UI.Xaml.DependencyProperty MagnificationProperty{ get; };
+        Double BloomAmount;
+        static Microsoft.UI.Xaml.DependencyProperty BloomAmountProperty{ get; };
+        Double Brightness;
+        static Microsoft.UI.Xaml.DependencyProperty BrightnessProperty{ get; };
+        Double Temperature;
+        static Microsoft.UI.Xaml.DependencyProperty TemperatureProperty{ get; };
+        Double Vibrance;
+        static Microsoft.UI.Xaml.DependencyProperty VibranceProperty{ get; };
+
     }
 }

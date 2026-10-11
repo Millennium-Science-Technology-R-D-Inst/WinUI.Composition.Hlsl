@@ -54,6 +54,20 @@ float4 Shade(float2 uv, float4 samplerDataExt)
 		auto const caps = HlslComposition::GetRuntimeCapabilities();
 		(void)caps;
 
+		// Keep liquid-glass public shape/DPI parameters in the consumer compile graph.
+		auto glassMaterial = LiquidGlassMaterial(compositor);
+		glassMaterial.ShapeRoundness(5.0f);
+		glassMaterial.RasterizationScale(1.5f);
+		(void)glassMaterial.ShapeRoundness();
+		(void)glassMaterial.RasterizationScale();
+		auto glassBrush = LiquidGlassBrush{};
+		glassBrush.ShapeRoundness(5.0);
+		glassBrush.RasterizationScale(1.5);
+		(void)glassBrush.ShapeRoundness();
+		(void)glassBrush.RasterizationScale();
+		(void)LiquidGlassBrush::ShapeRoundnessProperty();
+		(void)LiquidGlassBrush::RasterizationScaleProperty();
+
 		auto defines = single_threaded_vector<hstring>();
 		defines.Append(L"RUNTIME_VARIANT=1");
 		auto properties = single_threaded_vector<HlslFloatProperty>();
@@ -202,3 +216,58 @@ float4 Shade(float2 uv, float4 samplerDataExt)
 		(void)HlslComposition::CreateXamlBrushFromCompositionBrush(brush.Brush());
 	}
 }
+
+namespace { [[maybe_unused]] void ValidateExtendedGlass(
+    winrt::WinUI::Composition::Hlsl::LiquidGlassMaterial const& material,
+    winrt::WinUI::Composition::Hlsl::LiquidGlassBrush const& brush)
+{
+    (void)material.PostProcessingEffectBrush();
+    material.DispersionRange(1.0f); (void)material.DispersionRange();
+    brush.DispersionRange(1.0); (void)brush.DispersionRange();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::DispersionRangeProperty();
+    material.RefFresnelRange(30.0f); (void)material.RefFresnelRange();
+    brush.RefFresnelRange(30.0); (void)brush.RefFresnelRange();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::RefFresnelRangeProperty();
+    material.RefFresnelHardness(20.0f); (void)material.RefFresnelHardness();
+    brush.RefFresnelHardness(20.0); (void)brush.RefFresnelHardness();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::RefFresnelHardnessProperty();
+    material.RefFresnelFactor(0.0f); (void)material.RefFresnelFactor();
+    brush.RefFresnelFactor(0.0); (void)brush.RefFresnelFactor();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::RefFresnelFactorProperty();
+    material.GlareRange(30.0f); (void)material.GlareRange();
+    brush.GlareRange(30.0); (void)brush.GlareRange();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::GlareRangeProperty();
+    material.GlareHardness(20.0f); (void)material.GlareHardness();
+    brush.GlareHardness(20.0); (void)brush.GlareHardness();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::GlareHardnessProperty();
+    material.GlareFactor(0.0f); (void)material.GlareFactor();
+    brush.GlareFactor(0.0); (void)brush.GlareFactor();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::GlareFactorProperty();
+    material.GlareConvergence(50.0f); (void)material.GlareConvergence();
+    brush.GlareConvergence(50.0); (void)brush.GlareConvergence();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::GlareConvergenceProperty();
+    material.GlareOppositeFactor(80.0f); (void)material.GlareOppositeFactor();
+    brush.GlareOppositeFactor(80.0); (void)brush.GlareOppositeFactor();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::GlareOppositeFactorProperty();
+    material.GlareAngle(-45.0f); (void)material.GlareAngle();
+    brush.GlareAngle(-45.0); (void)brush.GlareAngle();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::GlareAngleProperty();
+    material.ShapeRadius(-1.0f); (void)material.ShapeRadius();
+    brush.ShapeRadius(-1.0); (void)brush.ShapeRadius();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::ShapeRadiusProperty();
+    material.Magnification(1.0f); (void)material.Magnification();
+    brush.Magnification(1.0); (void)brush.Magnification();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::MagnificationProperty();
+    material.BloomAmount(1.0f); (void)material.BloomAmount();
+    brush.BloomAmount(1.0); (void)brush.BloomAmount();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::BloomAmountProperty();
+    material.Brightness(0.0f); (void)material.Brightness();
+    brush.Brightness(0.0); (void)brush.Brightness();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::BrightnessProperty();
+    material.Temperature(0.0f); (void)material.Temperature();
+    brush.Temperature(0.0); (void)brush.Temperature();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::TemperatureProperty();
+    material.Vibrance(0.0f); (void)material.Vibrance();
+    brush.Vibrance(0.0); (void)brush.Vibrance();
+    (void)winrt::WinUI::Composition::Hlsl::LiquidGlassBrush::VibranceProperty();
+} }

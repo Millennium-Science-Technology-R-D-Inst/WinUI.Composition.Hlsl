@@ -6,7 +6,7 @@
 version: 2
 updates:
   - package-ecosystem: "nuget" # See documentation for possible values
-    directory: "Directory.Packages.props" # Location of package manifests
+    directory: "/" # Directory containing Directory.Packages.props
     schedule:
       interval: "weekly"
     groups:

@@ -6,6 +6,7 @@
 #include "HlslEffectFactory.h"
 #include "CustomLiquidGlassEffect.h"
 #include "CustomSeparableGaussianBlurEffect.h"
+#include "CustomLiquidGlassPostProcessingEffect.h"
 
 import winrt.Microsoft.UI.Composition;
 import winrt.Windows.Graphics.Effects;
@@ -171,6 +172,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		auto animatableProperties = single_threaded_vector<hstring>();
 		animatableProperties.Append(CustomLiquidGlassEffect::RefractionStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::CornerRadiusPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::ShapeRoundnessPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::RasterizationScalePropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::BorderThicknessPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::HighlightStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::EdgeSoftnessPropertyPath);
@@ -206,6 +209,27 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		animatableProperties.Append(CustomLiquidGlassEffect::PointerMotionRefractionStrengthPropertyPath);
 		animatableProperties.Append(CustomLiquidGlassEffect::RefractionNormalizationPropertyPath);
 
+		animatableProperties.Append(CustomLiquidGlassEffect::DispersionRangePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::RefFresnelRangePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::RefFresnelHardnessPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::RefFresnelFactorPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::GlareRangePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::GlareHardnessPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::GlareFactorPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::GlareConvergencePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::GlareOppositeFactorPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::GlareAnglePropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::ShapeRadiusPropertyPath);
+		animatableProperties.Append(CustomLiquidGlassEffect::MagnificationPropertyPath);
+
+		auto postDefinition = CustomLiquidGlassPostProcessingEffect::Description();
+		auto postGraph = CustomLiquidGlassPostProcessingEffect::CreateEffect();
+		auto postProperties = single_threaded_vector<hstring>();
+		for (auto const& property : postDefinition->properties)
+			postProperties.Append(hstring{ postDefinition->effectName + L"." + property.name });
+		auto postFactory = make<implementation::HlslEffectFactory>(
+			compositor.CreateEffectFactory(postGraph, postProperties), postDefinition);
+
 		auto horizontalFactory = compositor.CreateEffectFactory(horizontalGraph, horizontalProperties);
 		auto verticalFactory = compositor.CreateEffectFactory(verticalGraph, verticalProperties);
 		auto compositionFactory = compositor.CreateEffectFactory(graph, animatableProperties);
@@ -219,11 +243,16 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		auto definition = CustomLiquidGlassEffect::Description();
 		auto factory = make<implementation::HlslEffectFactory>(compositionFactory, definition);
 		m_effect = factory.CreateBrush();
-		m_effect.SetSource(L"Backdrop", m_blurVerticalBrush);
-		SetSeparableBlurRadius(m_blurHorizontalBrush, m_blurVerticalBrush, m_BlurRadius);
+		m_postEffect = postFactory.CreateBrush();
+		m_postEffect.SetSource(L"Blurred", m_blurVerticalBrush);
+		m_postEffect.SetSource(L"RawBackdrop", backdropBrush);
+		m_effect.SetSource(L"Backdrop", m_postEffect.Brush());
+		UpdateRasterizedBlurRadius();
 		m_effect.SetFloat(L"RefractionStrength", m_RefractionStrength);
 		m_effect.SetFloat(L"DispersionStrength", m_DispersionStrength);
 		m_effect.SetFloat(L"CornerRadius", m_CornerRadius);
+		m_effect.SetFloat(L"ShapeRoundness", m_ShapeRoundness);
+		m_effect.SetFloat(L"RasterizationScale", m_RasterizationScale);
 		m_effect.SetFloat(L"BorderThickness", m_BorderThickness);
 		m_effect.SetFloat(L"HighlightStrength", m_HighlightStrength);
 		m_effect.SetFloat(L"EdgeSoftness", m_EdgeSoftness);
@@ -232,7 +261,8 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"GlassThickness", m_GlassThickness);
 		m_effect.SetFloat(L"RefractiveIndex", m_RefractiveIndex);
 		m_effect.SetFloat(L"TintOpacity", m_TintOpacity);
-		m_effect.SetFloat(L"Saturation", m_Saturation);
+		m_effect.SetFloat(L"Saturation", 1.0f);
+		m_postEffect.SetFloat(L"Saturation", m_Saturation);
 		m_effect.SetFloat(L"LightAngle", m_LightAngle);
 		m_effect.SetFloat(L"SurfaceProfile", static_cast<float>(m_SurfaceProfile));
 		m_effect.SetFloat(L"MagnificationStrength", m_MagnificationStrength);
@@ -243,9 +273,27 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_effect.SetFloat(L"InnerShadowStrength", m_InnerShadowStrength);
 		m_effect.SetFloat(L"SpecularSaturation", m_SpecularSaturation);
 		m_effect.SetFloat(L"SpecularWidth", m_SpecularWidth);
-		m_effect.SetFloat(L"Contrast", m_Contrast);
-		m_effect.SetFloat(L"Exposure", m_Exposure);
+		m_effect.SetFloat(L"Contrast", 1.0f);
+		m_postEffect.SetFloat(L"Contrast", m_Contrast);
+		m_effect.SetFloat(L"Exposure", 0.0f);
+		m_postEffect.SetFloat(L"Exposure", m_Exposure);
 		UpdateRefractionNormalization();
+		DispersionRange(m_DispersionRange);
+		RefFresnelRange(m_RefFresnelRange);
+		RefFresnelHardness(m_RefFresnelHardness);
+		RefFresnelFactor(m_RefFresnelFactor);
+		GlareRange(m_GlareRange);
+		GlareHardness(m_GlareHardness);
+		GlareFactor(m_GlareFactor);
+		GlareConvergence(m_GlareConvergence);
+		GlareOppositeFactor(m_GlareOppositeFactor);
+		GlareAngle(m_GlareAngle);
+		ShapeRadius(m_ShapeRadius);
+		Magnification(m_Magnification);
+		BloomAmount(m_BloomAmount);
+		Brightness(m_Brightness);
+		Temperature(m_Temperature);
+		Vibrance(m_Vibrance);
 
 		m_effect.SetFloat(L"PointerX", 0.0f);
 		m_effect.SetFloat(L"PointerY", 0.0f);
@@ -271,23 +319,42 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 				m_SurfaceProfile));
 	}
 
+	void LiquidGlassMaterial::UpdateRasterizedBlurRadius()
+	{
+		SetSeparableBlurRadius(
+			m_blurHorizontalBrush,
+			m_blurVerticalBrush,
+			m_BlurRadius * m_RasterizationScale);
+	}
+
 	void LiquidGlassMaterial::BlurRadius(float value)
 	{
 		ValidateBlurRadius(value);
-		SetSeparableBlurRadius(m_blurHorizontalBrush, m_blurVerticalBrush, value);
 		m_BlurRadius = value;
+		UpdateRasterizedBlurRadius();
 	}
 
 	void LiquidGlassMaterial::SetFloatProperty(wchar_t const* propertyName, float& storage, float value, float minimum, float maximum, wchar_t const* message)
 	{
 		ValidateRange(value, minimum, maximum, message);
-		m_effect.SetFloat(propertyName, value);
+		std::wstring_view name{ propertyName };
+		if (name == L"BloomAmount" || name == L"Brightness" || name == L"Temperature" ||
+			name == L"Vibrance" || name == L"Saturation" || name == L"Contrast" || name == L"Exposure")
+			m_postEffect.SetFloat(propertyName, value);
+		else
+			m_effect.SetFloat(propertyName, value);
 		storage = value;
 	}
 
 	void LiquidGlassMaterial::RefractionStrength(float value) { SetFloatProperty(L"RefractionStrength", m_RefractionStrength, value, 0.0f, 128.0f, L"RefractionStrength must be between 0 and 128."); }
 	void LiquidGlassMaterial::DispersionStrength(float value) { SetFloatProperty(L"DispersionStrength", m_DispersionStrength, value, 0.0f, 16.0f, L"DispersionStrength must be between 0 and 16."); }
 	void LiquidGlassMaterial::CornerRadius(float value) { SetFloatProperty(L"CornerRadius", m_CornerRadius, value, 0.0f, 512.0f, L"CornerRadius must be between 0 and 512 DIPs."); }
+	void LiquidGlassMaterial::ShapeRoundness(float value) { SetFloatProperty(L"ShapeRoundness", m_ShapeRoundness, value, 2.0f, 8.0f, L"ShapeRoundness must be between 2 and 8."); }
+	void LiquidGlassMaterial::RasterizationScale(float value)
+	{
+		SetFloatProperty(L"RasterizationScale", m_RasterizationScale, value, 0.01f, 16.0f, L"RasterizationScale must be between 0.01 and 16.");
+		UpdateRasterizedBlurRadius();
+	}
 	void LiquidGlassMaterial::BorderThickness(float value) { SetFloatProperty(L"BorderThickness", m_BorderThickness, value, 0.0f, 32.0f, L"BorderThickness must be between 0 and 32 DIPs."); }
 	void LiquidGlassMaterial::HighlightStrength(float value) { SetFloatProperty(L"HighlightStrength", m_HighlightStrength, value, 0.0f, 4.0f, L"HighlightStrength must be between 0 and 4."); }
 	void LiquidGlassMaterial::EdgeSoftness(float value) { SetFloatProperty(L"EdgeSoftness", m_EdgeSoftness, value, 0.25f, 16.0f, L"EdgeSoftness must be between 0.25 and 16 DIPs."); }
@@ -335,4 +402,21 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		m_SurfaceProfile = value;
 		UpdateRefractionNormalization();
 	}
+	void LiquidGlassMaterial::DispersionRange(float value) { SetFloatProperty(L"DispersionRange", m_DispersionRange, value, 0.0f, 1.0f, L"DispersionRange is outside its supported range."); }
+	void LiquidGlassMaterial::RefFresnelRange(float value) { SetFloatProperty(L"RefFresnelRange", m_RefFresnelRange, value, 0.0f, 100.0f, L"RefFresnelRange is outside its supported range."); }
+	void LiquidGlassMaterial::RefFresnelHardness(float value) { SetFloatProperty(L"RefFresnelHardness", m_RefFresnelHardness, value, 0.0f, 100.0f, L"RefFresnelHardness is outside its supported range."); }
+	void LiquidGlassMaterial::RefFresnelFactor(float value) { SetFloatProperty(L"RefFresnelFactor", m_RefFresnelFactor, value, 0.0f, 100.0f, L"RefFresnelFactor is outside its supported range."); }
+	void LiquidGlassMaterial::GlareRange(float value) { SetFloatProperty(L"GlareRange", m_GlareRange, value, 0.0f, 100.0f, L"GlareRange is outside its supported range."); }
+	void LiquidGlassMaterial::GlareHardness(float value) { SetFloatProperty(L"GlareHardness", m_GlareHardness, value, 0.0f, 100.0f, L"GlareHardness is outside its supported range."); }
+	void LiquidGlassMaterial::GlareFactor(float value) { SetFloatProperty(L"GlareFactor", m_GlareFactor, value, 0.0f, 120.0f, L"GlareFactor is outside its supported range."); }
+	void LiquidGlassMaterial::GlareConvergence(float value) { SetFloatProperty(L"GlareConvergence", m_GlareConvergence, value, 0.0f, 100.0f, L"GlareConvergence is outside its supported range."); }
+	void LiquidGlassMaterial::GlareOppositeFactor(float value) { SetFloatProperty(L"GlareOppositeFactor", m_GlareOppositeFactor, value, 0.0f, 100.0f, L"GlareOppositeFactor is outside its supported range."); }
+	void LiquidGlassMaterial::GlareAngle(float value) { SetFloatProperty(L"GlareAngle", m_GlareAngle, value, -180.0f, 180.0f, L"GlareAngle is outside its supported range."); }
+	void LiquidGlassMaterial::ShapeRadius(float value) { SetFloatProperty(L"ShapeRadius", m_ShapeRadius, value, -1.0f, 1.0f, L"ShapeRadius is outside its supported range."); }
+	void LiquidGlassMaterial::Magnification(float value) { SetFloatProperty(L"Magnification", m_Magnification, value, 1.0f, 3.0f, L"Magnification is outside its supported range."); }
+	void LiquidGlassMaterial::BloomAmount(float value) { SetFloatProperty(L"BloomAmount", m_BloomAmount, value, 0.0f, 1.0f, L"BloomAmount is outside its supported range."); }
+	void LiquidGlassMaterial::Brightness(float value) { SetFloatProperty(L"Brightness", m_Brightness, value, -1.0f, 1.0f, L"Brightness is outside its supported range."); }
+	void LiquidGlassMaterial::Temperature(float value) { SetFloatProperty(L"Temperature", m_Temperature, value, -1.0f, 1.0f, L"Temperature is outside its supported range."); }
+	void LiquidGlassMaterial::Vibrance(float value) { SetFloatProperty(L"Vibrance", m_Vibrance, value, 0.0f, 1.0f, L"Vibrance is outside its supported range."); }
+
 }

@@ -6,13 +6,25 @@ on:
       - master
     paths-ignore:
       - '.gitattributes'
-      - '.github/**'
       - '.gitignore'
       - '.gitmodules'
       - '**.md'
       - 'LICENSE'
-      - '**.yml'
+  pull_request:
+    branches: [master]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      package_version:
+        description: Explicit version for a manually dispatched NuGet release.
+        required: false
+        type: string
+        default: ''
+    outputs:
+      package-version:
+        value: ${{ jobs.pack-nuget.outputs.package-version }}
+      package-artifact:
+        value: ${{ jobs.pack-nuget.outputs.package-artifact }}
 
 permissions:
   contents: read
@@ -35,8 +47,10 @@ jobs:
       - name: Compute package version
         id: version
         shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.package_version }}
         run: |
-          $version = "1.1.${{ github.run_number }}"
+          $version = & ./eng/Get-PackageVersion.ps1 -Kind NuGet -Version $env:REQUESTED_VERSION -RunNumber ${{ github.run_number }} -RunAttempt ${{ github.run_attempt }}
           $artifact = "WinUI-LiquidGlass-$version-attempt-${{ github.run_attempt }}"
           "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "package-version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -140,16 +154,24 @@ jobs:
         run: |
           $winmd = (Resolve-Path 'artifacts\x64\Release\WinUI.Composition.Hlsl.winmd').Path
           $nativeDll = (Resolve-Path 'artifacts\x64\Release\WinUI.Composition.Hlsl.dll').Path
+          $coreShaderDir = (Resolve-Path 'src\WinUI.Composition.Hlsl\obj\x64\Release').Path
           & $env:MSBUILD `
             'tests\BuildIntegration\NativeShaderConsumer.vcxproj' `
             /p:Configuration=Debug `
             /p:Platform=x64 `
             "/p:HlslWinmd=$winmd" `
             "/p:HlslNativeDll=$nativeDll" `
+            "/p:HlslCoreShaderDir=$coreShaderDir" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
             /fl "/flp:logfile=native-shader-consumer.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          $validator = Get-ChildItem 'tests\BuildIntegration\Output' -Recurse -File -Filter 'NativeShaderConsumer.exe' |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]Debug[\\/]' } | Select-Object -First 1
+          if (!$validator) { throw 'NativeShaderConsumer executable was not produced.' }
+          & $validator.FullName
+          if ($LASTEXITCODE) { throw 'Shader export, linkage signature, resource or constant-buffer verification failed.' }
 
           foreach ($name in @(
             'ConsumerSampler.dxbc',
@@ -316,6 +338,7 @@ jobs:
             'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj' `
             /restore /t:Build `
             /p:Configuration=Debug /p:Platform=x64 /p:NuGetAudit=false `
+            /p:GenerateAppxPackageOnBuild=false `
             "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
@@ -388,6 +411,7 @@ jobs:
             'tests\CSharp\HlslCSharpConsumer.csproj' `
             /restore /t:Build `
             /p:Configuration=Debug /p:Platform=x64 /p:NuGetAudit=false `
+            /p:GenerateAppxPackageOnBuild=false `
             "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
@@ -401,6 +425,7 @@ jobs:
             'tests\CSharp\LiquidGlassConsumer\LiquidGlassConsumer.csproj' `
             /restore /t:Build `
             /p:Configuration=Debug /p:Platform=x64 /p:NuGetAudit=false `
+            /p:GenerateAppxPackageOnBuild=false `
             "/p:LiquidGlassPackageVersion=$env:PACKAGE_VERSION" `
             "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
@@ -435,58 +460,3 @@ jobs:
           path: |
             CSharp-test-build.log
             CSharp-liquidglass-build.log
-
-  publish-nuget:
-    name: Publish NuGet
-    needs:
-      - pack-nuget
-      - build-cpp-xaml-demo
-      - build-csharp-demo
-    if: >-
-      success() &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/master'
-    permissions:
-      contents: read
-      id-token: write
-    runs-on: ubuntu-latest
-    env:
-      PACKAGE_VERSION: ${{ needs.pack-nuget.outputs.package-version }}
-
-    steps:
-      - name: Download validated NuGet packages
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ needs.pack-nuget.outputs.package-artifact }}
-          path: artifacts/packages
-
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Verify packages
-        shell: bash
-        run: |
-          for id in WinUI.Composition.Hlsl WinUI.LiquidGlass; do
-            package="artifacts/packages/${id}.${PACKAGE_VERSION}.nupkg"
-            if [[ ! -f "$package" ]]; then
-              echo "::error::Expected package not found: $package"
-              exit 1
-            fi
-          done
-
-      - name: NuGet login
-        uses: NuGet/login@v1
-        id: nuget-login
-        with:
-          user: ${{ secrets.NUGET_USER }}
-
-      - name: Publish packages
-        shell: bash
-        run: |
-          for id in WinUI.Composition.Hlsl WinUI.LiquidGlass; do
-            dotnet nuget push "artifacts/packages/${id}.${PACKAGE_VERSION}.nupkg" \
-              --source https://api.nuget.org/v3/index.json \
-              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
-              --skip-duplicate
-          done

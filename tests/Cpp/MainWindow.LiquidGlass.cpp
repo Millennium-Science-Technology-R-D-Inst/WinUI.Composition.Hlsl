@@ -182,6 +182,15 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
             return;
         }
 
+        // The direct Composition material does not know which XamlRoot owns it. Keep
+        // the playground's logical DIP authoring aligned with the custom sampler's
+        // raster-pixel coordinate field, including after a per-monitor DPI transition.
+        if (auto root = BackdropHost().XamlRoot())
+        {
+            m_liquidGlassMaterial.RasterizationScale(
+                static_cast<float>(std::max(root.RasterizationScale(), 0.01)));
+        }
+
         auto const profileIndex = std::clamp(
             static_cast<int32_t>(std::lround(SurfaceProfileSlider().Value())),
             0,
@@ -238,6 +247,19 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
         TintRedSlider().ValueChanged(onRangeChanged);
         TintGreenSlider().ValueChanged(onRangeChanged);
         TintBlueSlider().ValueChanged(onRangeChanged);
+
+        // Keep the direct material in sync if the window crosses monitors with different
+        // rasterization scales. The weak owner avoids extending the window lifetime.
+        if (auto root = BackdropHost().XamlRoot())
+        {
+            root.Changed([weak](auto const&, auto const&)
+            {
+                if (auto self = weak.get())
+                {
+                    self->ApplyAdvancedLiquidGlassProperties();
+                }
+            });
+        }
 
         // XAML registered OnEffectSelectionChanged first. This second handler therefore runs
         // after ApplyBackdropEffect recreated the material and restores every advanced value.

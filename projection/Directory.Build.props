@@ -1,0 +1,9 @@
+<Project>
+  <Import Project="../Directory.Build.props" />
+  <!-- These projects share a directory, but must not overwrite one another's
+       project.assets.json and NuGet-generated imports during restore. -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: NuGet version (Major.Minor.Patch or Major.Minor.Patch-prerelease).
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-nuget-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate explicit release version
+        id: version
+        shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.package_version }}
+        run: |
+          $version = & ./eng/Get-PackageVersion.ps1 -Kind NuGet -Version $env:REQUESTED_VERSION -RequireExplicit
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+  validate:
+    needs: version
+    uses: ./.github/workflows/ci.yml
+    with:
+      package_version: ${{ needs.version.outputs.version }}
+
+  store:
+    needs: validate
+    uses: ./.github/workflows/demo-packages.yml
+    with:
+      store: true
+
+  publish:
+    name: Publish NuGet and Store release
+    needs: [validate, store]
+    permissions:
+      contents: write
+      id-token: write
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE_VERSION: ${{ needs.validate.outputs.package-version }}
+
+    steps:
+      - name: Download validated NuGet packages
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.validate.outputs.package-artifact }}
+          path: artifacts/packages
+
+      - name: Download Store upload from the same source revision
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.store.outputs.artifact_name }}-Store
+          path: artifacts/store
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify packages
+        shell: bash
+        run: |
+          for id in WinUI.Composition.Hlsl WinUI.LiquidGlass; do
+            package="artifacts/packages/${id}.${PACKAGE_VERSION}.nupkg"
+            if [[ ! -f "$package" ]]; then
+              echo "::error::Expected package not found: $package"
+              exit 1
+            fi
+          done
+
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Publish packages
+        shell: bash
+        run: |
+          for id in WinUI.Composition.Hlsl WinUI.LiquidGlass; do
+            dotnet nuget push "artifacts/packages/${id}.${PACKAGE_VERSION}.nupkg" \
+              --source https://api.nuget.org/v3/index.json \
+              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+              --skip-duplicate
+          done
+
+      - name: Publish GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: nuget-${{ env.PACKAGE_VERSION }}
+          name: WinUI Liquid Glass ${{ env.PACKAGE_VERSION }}
+          commit: ${{ github.sha }}
+          artifacts: artifacts/packages/*.nupkg,artifacts/store/*.msixupload
+          artifactErrorsFailBuild: true
+          allowUpdates: false
+          prerelease: ${{ contains(env.PACKAGE_VERSION, '-') }}
+          generateReleaseNotes: true
+          body: |
+            NuGet version: ${{ env.PACKAGE_VERSION }}
+            Store version: ${{ needs.store.outputs.version }}
+            Source: ${{ github.sha }}
+            Both NuGet packages and the unsigned x64/ARM64 Store upload are built from this revision.

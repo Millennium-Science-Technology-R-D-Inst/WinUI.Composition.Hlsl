@@ -1,1 +1,8 @@
-<Project />
+<Project>
+  <!-- Permit Windows-targeting reference packs to be restored by dependency
+       scanners on non-Windows hosts. Native compilation still requires MSBuild
+       from Visual Studio on Windows. -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+</Project>

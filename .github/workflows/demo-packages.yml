@@ -1,0 +1,306 @@
+name: Build Demo Packages
+
+on:
+  workflow_call:
+    inputs:
+      package_version:
+        required: false
+        type: string
+        default: ''
+      store:
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      version:
+        value: ${{ jobs.build-and-package.outputs.version }}
+      artifact_name:
+        value: ${{ jobs.build-and-package.outputs.artifact_name }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-package:
+    runs-on: windows-2025-vs2026
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Resolve Windows SDK tools
+        shell: pwsh
+        run: |
+          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10"
+          $sdk = Get-ChildItem (Join-Path $sdkRoot 'Lib') -Directory |
+            Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            Select-Object -First 1
+          if (!$sdk) { throw 'No Windows SDK found on the runner.' }
+
+          $bin = Join-Path $sdkRoot "bin\$($sdk.Name)\x64"
+          $makeAppx = Join-Path $bin 'makeappx.exe'
+          $signTool = Join-Path $bin 'signtool.exe'
+          if (-not (Test-Path $makeAppx)) { throw "MakeAppx not found: $makeAppx" }
+          if (-not (Test-Path $signTool)) { throw "SignTool not found: $signTool" }
+
+          "WIN_SDK=$($sdk.Name)" >> $env:GITHUB_ENV
+          "MAKEAPPX=$makeAppx" >> $env:GITHUB_ENV
+          "SIGNTOOL=$signTool" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\ci-logs" | Out-Null
+          Write-Host "Using Windows SDK $($sdk.Name)"
+
+      - name: Generate package metadata
+        id: meta
+        shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.package_version }}
+          STORE_RELEASE: ${{ inputs.store }}
+        run: |
+          $versionArgs = @{
+            Kind = 'Store'
+            Version = $env:REQUESTED_VERSION
+            RunNumber = [int]'${{ github.run_number }}'
+            RunAttempt = [int]'${{ github.run_attempt }}'
+          }
+          $version = & ./eng/Get-PackageVersion.ps1 @versionArgs
+          $kind = if ($env:STORE_RELEASE -eq 'true') { 'Store' } else { 'Preview' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "artifact_name=LiquidGlassDemo.${kind}_$version" >> $env:GITHUB_OUTPUT
+
+      - name: Patch package manifest version
+        shell: pwsh
+        run: |
+          $manifestPath = Join-Path $env:GITHUB_WORKSPACE 'tests\Cpp\Package.appxmanifest'
+          [xml]$manifest = Get-Content $manifestPath -Raw
+          $manifest.Package.Identity.Version = '${{ steps.meta.outputs.version }}'
+          $manifest.Save($manifestPath)
+
+          [xml]$verify = Get-Content $manifestPath -Raw
+          if ($verify.Package.Identity.Version -ne '${{ steps.meta.outputs.version }}') {
+            throw "Manifest version patch failed: $($verify.Package.Identity.Version)"
+          }
+          Write-Host "Package version: $($verify.Package.Identity.Version)"
+
+      - name: Build unsigned x64 and ARM64 MSIX packages
+        shell: pwsh
+        run: |
+          foreach ($platform in @('x64', 'ARM64')) {
+            $packageDir = "$env:GITHUB_WORKSPACE\artifacts\unsigned\$platform\"
+            New-Item -ItemType Directory -Force $packageDir | Out-Null
+            $log = "$env:GITHUB_WORKSPACE\ci-logs\package-$platform.log"
+            $args = @(
+              'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj',
+              '/restore',
+              '/t:Build',
+              '/p:Configuration=Release',
+              "/p:Platform=$platform",
+              '/p:PreferredToolArchitecture=x64',
+              '/p:GenerateAppxPackageOnBuild=true',
+              '/p:UapAppxPackageBuildMode=SideloadOnly',
+              '/p:AppxBundle=Never',
+              "/p:AppxPackageDir=$packageDir",
+              '/p:AppxPackageSigningEnabled=false',
+              '/p:GenerateTemporaryStoreCertificate=false',
+              "/p:AppxPackageVersion=${{ steps.meta.outputs.version }}",
+              "/p:WindowsTargetPlatformVersion=$env:WIN_SDK",
+              '/m:1',
+              '/v:minimal',
+              '/nologo'
+            )
+            & msbuild @args *> $log
+            if ($LASTEXITCODE -ne 0) {
+              Get-Content $log -Tail 300
+              exit $LASTEXITCODE
+            }
+
+            $pattern = "^WUILiquidGlassDemo\.Hlsl_.*_${platform}\.msix$"
+            $packages = @(
+              Get-ChildItem $packageDir -Recurse -File -Filter '*.msix' |
+                Where-Object { $_.Name -match $pattern }
+            )
+            if ($packages.Count -ne 1) {
+              Write-Host "MSIX files produced for ${platform}:"
+              Get-ChildItem $packageDir -Recurse -File -Filter '*.msix' | Select-Object FullName, Length
+              throw "Expected exactly one WUILiquidGlassDemo.Hlsl $platform MSIX, found $($packages.Count)."
+            }
+            Write-Host "$platform application package: $($packages[0].FullName)"
+          }
+
+      - name: Create Store MSIX bundle and upload package
+        if: inputs.store
+        shell: pwsh
+        run: |
+          $unsignedRoot = "$env:GITHUB_WORKSPACE\artifacts\unsigned"
+          $x64 = @(
+            Get-ChildItem "$unsignedRoot\x64" -Recurse -File -Filter '*.msix' |
+              Where-Object { $_.Name -match '^WUILiquidGlassDemo\.Hlsl_.*_x64\.msix$' }
+          )
+          $arm64 = @(
+            Get-ChildItem "$unsignedRoot\ARM64" -Recurse -File -Filter '*.msix' |
+              Where-Object { $_.Name -match '^WUILiquidGlassDemo\.Hlsl_.*_ARM64\.msix$' }
+          )
+          if ($x64.Count -ne 1 -or $arm64.Count -ne 1) {
+            throw "Expected one x64 and one ARM64 application package; found x64=$($x64.Count), ARM64=$($arm64.Count)."
+          }
+
+          $storeDir = "$env:GITHUB_WORKSPACE\artifacts\store"
+          $bundleDir = Join-Path $storeDir 'bundle'
+          $uploadStaging = Join-Path $storeDir 'upload-staging'
+          New-Item -ItemType Directory -Force $bundleDir, $uploadStaging | Out-Null
+
+          $bundleName = "WUILiquidGlassDemo.Hlsl_${{ steps.meta.outputs.version }}_neutral.msixbundle"
+          $bundlePath = Join-Path $bundleDir $bundleName
+          $mapping = Join-Path $storeDir 'bundle-mapping.txt'
+          @"
+          [Files]
+          "$($x64[0].FullName)" "WUILiquidGlassDemo.Hlsl_${{ steps.meta.outputs.version }}_x64.msix"
+          "$($arm64[0].FullName)" "WUILiquidGlassDemo.Hlsl_${{ steps.meta.outputs.version }}_arm64.msix"
+          "@ | Set-Content -Path $mapping -Encoding ascii
+
+          & $env:MAKEAPPX bundle /v /o /bv '${{ steps.meta.outputs.version }}' /f $mapping /p $bundlePath *> "$env:GITHUB_WORKSPACE\ci-logs\makeappx-bundle.log"
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content "$env:GITHUB_WORKSPACE\ci-logs\makeappx-bundle.log" -Tail 200
+            exit $LASTEXITCODE
+          }
+          if (-not (Test-Path $bundlePath)) { throw "MakeAppx did not produce $bundlePath" }
+
+          Copy-Item $bundlePath (Join-Path $uploadStaging $bundleName)
+          $zipPath = Join-Path $storeDir "WUILiquidGlassDemo.Hlsl_${{ steps.meta.outputs.version }}.zip"
+          $uploadPath = Join-Path $storeDir "WUILiquidGlassDemo.Hlsl_${{ steps.meta.outputs.version }}.msixupload"
+          Compress-Archive -Path (Join-Path $uploadStaging '*') -DestinationPath $zipPath -CompressionLevel Optimal
+          Move-Item $zipPath $uploadPath
+          Write-Host "Store upload: $uploadPath"
+
+      - name: Create preview signing certificate
+        if: ${{ !inputs.store }}
+        id: cert
+        shell: pwsh
+        run: |
+          $publisher = 'CN=9C947BF5-422C-4285-B301-9F787230839B'
+          $passwordText = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+          Write-Output "::add-mask::$passwordText"
+          $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject $publisher `
+            -KeyUsage DigitalSignature `
+            -FriendlyName 'WinUI Liquid Glass Demo Preview' `
+            -CertStoreLocation 'Cert:\CurrentUser\My' `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3','2.5.29.19={text}')
+
+          $certDir = "$env:GITHUB_WORKSPACE\artifacts\certificate"
+          New-Item -ItemType Directory -Force $certDir | Out-Null
+          $pfx = Join-Path $certDir 'LiquidGlassDemoPreview.pfx'
+          $cer = Join-Path $certDir 'LiquidGlassDemoPreview.cer'
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $password | Out-Null
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+
+          "pfx=$pfx" >> $env:GITHUB_OUTPUT
+          "cer=$cer" >> $env:GITHUB_OUTPUT
+          "password=$passwordText" >> $env:GITHUB_OUTPUT
+          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+
+      - name: Sign sideload preview MSIX packages
+        if: ${{ !inputs.store }}
+        shell: pwsh
+        run: |
+          foreach ($platform in @('x64', 'ARM64')) {
+            $pattern = "^WUILiquidGlassDemo\.Hlsl_.*_${platform}\.msix$"
+            $source = @(
+              Get-ChildItem "$env:GITHUB_WORKSPACE\artifacts\unsigned\$platform" -Recurse -File -Filter '*.msix' |
+                Where-Object { $_.Name -match $pattern }
+            )
+            if ($source.Count -ne 1) { throw "Expected one unsigned WUILiquidGlassDemo.Hlsl $platform package." }
+
+            $targetDir = "$env:GITHUB_WORKSPACE\artifacts\sideload\$platform"
+            New-Item -ItemType Directory -Force $targetDir | Out-Null
+            $target = Join-Path $targetDir $source[0].Name
+            Copy-Item $source[0].FullName $target
+
+            & $env:SIGNTOOL sign /fd SHA256 /f '${{ steps.cert.outputs.pfx }}' /p '${{ steps.cert.outputs.password }}' $target
+            if ($LASTEXITCODE -ne 0) { throw "SignTool failed for $platform package." }
+            Write-Host "Signed sideload package: $target"
+          }
+
+      - name: Verify Store outputs
+        if: inputs.store
+        shell: pwsh
+        run: |
+          $uploads = @(Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts/store" -File -Filter '*.msixupload')
+          $bundles = @(Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts/store/bundle" -File -Filter '*.msixbundle')
+          if ($uploads.Count -ne 1 -or $bundles.Count -ne 1) { throw 'Expected one Store upload and bundle.' }
+          @"
+          ## Liquid Glass Demo Store release
+          - Version: ${{ steps.meta.outputs.version }}
+          - Unsigned x64/ARM64 Store upload; Microsoft Store signs it after submission.
+          - Source: ${{ github.sha }}
+          "@ >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Verify sideload outputs
+        if: ${{ !inputs.store }}
+        shell: pwsh
+        run: |
+          $msix = @(
+            Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts/sideload" -Recurse -File -Filter '*.msix' |
+              Where-Object { $_.Name -match '^WUILiquidGlassDemo\.Hlsl_.*_(x64|ARM64)\.msix$' }
+          )
+          if ($msix.Count -ne 2) { throw 'Expected x64 and ARM64 signed preview packages.' }
+          @"
+          ## Liquid Glass Demo sideload preview
+          - Version: ${{ steps.meta.outputs.version }}
+          - Signed x64/ARM64 MSIX; install LiquidGlassDemoPreview.cer into Trusted People.
+          - Source: ${{ github.sha }}
+          "@ >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Remove private signing key
+        if: ${{ always() && !inputs.store }}
+        shell: pwsh
+        run: |
+          $pfx = '${{ steps.cert.outputs.pfx }}'
+          if (-not [string]::IsNullOrWhiteSpace($pfx) -and (Test-Path $pfx)) {
+            Remove-Item $pfx -Force
+          }
+          $thumbprint = '${{ steps.cert.outputs.thumbprint }}'
+          if (-not [string]::IsNullOrWhiteSpace($thumbprint)) {
+            Remove-Item "Cert:\CurrentUser\My\$thumbprint" -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Upload Store package
+        if: inputs.store
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}-Store
+          path: |
+            artifacts/store/*.msixupload
+            artifacts/store/bundle/*.msixbundle
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload sideload preview
+        if: ${{ !inputs.store }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}-Sideload
+          path: |
+            artifacts/sideload/**/*.msix
+            artifacts/certificate/*.cer
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: demo-preview-logs-${{ github.run_id }}
+          path: ci-logs/*.log
+          if-no-files-found: ignore
+          retention-days: 14

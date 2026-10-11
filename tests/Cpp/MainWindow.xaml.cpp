@@ -161,6 +161,15 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 						{
 							case 0:
 							{
+								auto bindingBrush = Application::Current().Resources().Lookup(box_value(L"StartupBindingBrush"))
+									.as<WinUI::Composition::Hlsl::LiquidGlassBrush>();
+								if (std::abs(bindingBrush.ShapeRoundness() - 5.0) > 1e-6 ||
+									std::abs(bindingBrush.RasterizationScale() - 1.5) > 1e-6 ||
+									std::abs(bindingBrush.Brightness() - 0.05) > 1e-6)
+								{
+									throw hresult_error(E_FAIL, L"Cold-start LiquidGlassBrush XAML bindings did not resolve.");
+								}
+								std::ofstream("smoke.log", std::ios::app) << "PASS: cold-start ShapeRoundness/RasterizationScale bindings\n";
 								auto compositor = Media::CompositionTarget::GetCompositorForCurrentThread();
 								self->m_liquidGlassMaterial = nullptr;
 								self->m_backdropEffectBrush = CreateMultiSourceBackdropBrush(compositor, WinUI::Composition::Hlsl::HlslEffectKind::Color);
@@ -175,6 +184,9 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 								break;
 							}
 							case 2:
+								// The manual graph phases leave the selector at its initial 4.
+								// Force a selection change so the direct Material is recreated.
+								self->EffectSelector().SelectedIndex(-1);
 								self->EffectSelector().SelectedIndex(4);
 								break;
 							case 3:
@@ -189,6 +201,22 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 								self->m_liquidGlassMaterial.TintOpacity(0.12f);
 								self->m_liquidGlassMaterial.Saturation(1.45f);
 								self->m_liquidGlassMaterial.LightAngle(0.4f);
+								self->m_liquidGlassMaterial.BloomAmount(0.15f);
+								self->m_liquidGlassMaterial.Brightness(0.05f);
+								self->m_liquidGlassMaterial.Temperature(0.1f);
+								self->m_liquidGlassMaterial.Vibrance(0.2f);
+								self->m_liquidGlassMaterial.DispersionRange(0.39f);
+								self->m_liquidGlassMaterial.RefFresnelRange(57.84f);
+								self->m_liquidGlassMaterial.RefFresnelHardness(0.0f);
+								self->m_liquidGlassMaterial.RefFresnelFactor(21.96f);
+								self->m_liquidGlassMaterial.GlareRange(36.13f);
+								self->m_liquidGlassMaterial.GlareHardness(13.0f);
+								self->m_liquidGlassMaterial.GlareFactor(71.52f);
+								self->m_liquidGlassMaterial.GlareConvergence(100.0f);
+								self->m_liquidGlassMaterial.GlareOppositeFactor(80.0f);
+								self->m_liquidGlassMaterial.GlareAngle(-135.0f);
+								self->m_liquidGlassMaterial.ShapeRadius(0.92f);
+								self->m_liquidGlassMaterial.Magnification(1.1f);
 								break;
 							case 5:
 								self->BackdropFrame().Width(500);
