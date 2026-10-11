@@ -57,7 +57,7 @@ For controls, reference both packages using matching versions:
 
 The NuGet packages require **Windows App SDK 1.6 or later** and ship native runtime assets for **x86, x64, and ARM64**.
 
-Publication is manual: run **Release** in Actions with the NuGet version. The same run builds the current-source Store upload with an automatic version. Ordinary CI produces test artifacts without publishing them.
+Publication is manual: run **Release** in Actions with one version for NuGet, the current-source Store upload and signed x64/ARM64 sideload packages. Ordinary CI produces test artifacts without publishing them.
 
 Custom shader execution relies on a private, undocumented Composition implementation ABI. Unsupported layouts fail closed instead of writing guessed private data. See [Architecture](docs/architecture.md) and [Runtime safety](docs/design/runtime-safety.md) for implementation details and support boundaries.
 

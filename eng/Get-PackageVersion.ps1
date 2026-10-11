@@ -17,26 +17,29 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     }
 }
 if ($Kind -eq 'NuGet') {
-    # NuGet SemVer with three numeric components and optional prerelease labels.
-    # Exclude build metadata so artifact names and the normalized feed version agree.
-    if ($Version -cnotmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$') {
-        throw 'NuGet version must be Major.Minor.Patch with an optional -prerelease suffix.'
+    # Use the same parser/normalization as NuGet pack and restore, including
+    # four-part versions. The SDK ships this assembly on Windows and Linux.
+    if (-not ('NuGet.Versioning.NuGetVersion' -as [type])) {
+        $sdks = @(& dotnet --list-sdks)
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to locate the .NET SDK.' }
+        $sdk = $sdks | Select-Object -Last 1
+        if ($sdk -notmatch '^(\S+) \[(.+)\]$') { throw 'A .NET SDK is required to parse NuGet versions.' }
+        $assembly = Join-Path (Join-Path $Matches[2] $Matches[1]) 'NuGet.Versioning.dll'
+        Add-Type -Path $assembly
     }
-    foreach ($component in $Version.Split('-')[0].Split('.')) {
-        if ([long]$component -gt [int]::MaxValue) { throw 'NuGet numeric components must fit a 32-bit integer.' }
-    }
-    if ($Version.Contains('-')) {
-        foreach ($label in $Version.Substring($Version.IndexOf('-') + 1).Split('.')) {
-            if ($label -match '^0[0-9]+$') { throw 'Numeric prerelease labels must not contain leading zeroes.' }
-        }
-    }
+    $parsed = [NuGet.Versioning.NuGetVersion]::Parse($Version)
+    $Version = $parsed.ToNormalizedString()
 } else {
-    if ($Version -cnotmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.0$') {
-        throw 'Store version must be Major.Minor.Build.0 with no leading zeroes.'
+    # MSIX Identity.Version contains four UInt16 components. Three-part release
+    # inputs get a zero revision; explicitly supplied revisions are preserved.
+    if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$') {
+        throw 'MSIX version must have three or four numeric components.'
     }
     $parts = $Version.Split('.') | ForEach-Object { [long]$_ }
     if ($parts[0] -lt 1 -or @($parts | Where-Object { $_ -gt 65535 }).Count) {
-        throw 'Store version components must be 0..65535 and Major must be positive.'
+        throw 'MSIX version components must be 0..65535 and Major must be positive.'
     }
+    if ($parts.Count -eq 3) { $parts += 0 }
+    $Version = $parts -join '.'
 }
 $Version

@@ -55,7 +55,6 @@ jobs:
           "WIN_SDK=$($sdk.Name)" >> $env:GITHUB_ENV
           "MAKEAPPX=$makeAppx" >> $env:GITHUB_ENV
           "SIGNTOOL=$signTool" >> $env:GITHUB_ENV
-          New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\ci-logs" | Out-Null
           Write-Host "Using Windows SDK $($sdk.Name)"
 
       - name: Generate package metadata
@@ -96,7 +95,6 @@ jobs:
           foreach ($platform in @('x64', 'ARM64')) {
             $packageDir = "$env:GITHUB_WORKSPACE\artifacts\unsigned\$platform\"
             New-Item -ItemType Directory -Force $packageDir | Out-Null
-            $log = "$env:GITHUB_WORKSPACE\ci-logs\package-$platform.log"
             $args = @(
               'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj',
               '/restore',
@@ -116,9 +114,8 @@ jobs:
               '/v:minimal',
               '/nologo'
             )
-            & msbuild @args *> $log
+            & msbuild @args
             if ($LASTEXITCODE -ne 0) {
-              Get-Content $log -Tail 300
               exit $LASTEXITCODE
             }
 
@@ -166,9 +163,8 @@ jobs:
           "$($arm64[0].FullName)" "WUILiquidGlassDemo.Hlsl_${{ steps.meta.outputs.version }}_arm64.msix"
           "@ | Set-Content -Path $mapping -Encoding ascii
 
-          & $env:MAKEAPPX bundle /v /o /bv '${{ steps.meta.outputs.version }}' /f $mapping /p $bundlePath *> "$env:GITHUB_WORKSPACE\ci-logs\makeappx-bundle.log"
+          & $env:MAKEAPPX bundle /v /o /bv '${{ steps.meta.outputs.version }}' /f $mapping /p $bundlePath
           if ($LASTEXITCODE -ne 0) {
-            Get-Content "$env:GITHUB_WORKSPACE\ci-logs\makeappx-bundle.log" -Tail 200
             exit $LASTEXITCODE
           }
           if (-not (Test-Path $bundlePath)) { throw "MakeAppx did not produce $bundlePath" }
@@ -180,8 +176,7 @@ jobs:
           Move-Item $zipPath $uploadPath
           Write-Host "Store upload: $uploadPath"
 
-      - name: Create preview signing certificate
-        if: ${{ !inputs.store }}
+      - name: Create sideload signing certificate
         id: cert
         shell: pwsh
         run: |
@@ -209,8 +204,7 @@ jobs:
           "password=$passwordText" >> $env:GITHUB_OUTPUT
           "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
 
-      - name: Sign sideload preview MSIX packages
-        if: ${{ !inputs.store }}
+      - name: Sign sideload MSIX packages
         shell: pwsh
         run: |
           foreach ($platform in @('x64', 'ARM64')) {
@@ -246,23 +240,22 @@ jobs:
           "@ >> $env:GITHUB_STEP_SUMMARY
 
       - name: Verify sideload outputs
-        if: ${{ !inputs.store }}
         shell: pwsh
         run: |
           $msix = @(
             Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts/sideload" -Recurse -File -Filter '*.msix' |
               Where-Object { $_.Name -match '^WUILiquidGlassDemo\.Hlsl_.*_(x64|ARM64)\.msix$' }
           )
-          if ($msix.Count -ne 2) { throw 'Expected x64 and ARM64 signed preview packages.' }
+          if ($msix.Count -ne 2) { throw 'Expected x64 and ARM64 signed sideload packages.' }
           @"
-          ## Liquid Glass Demo sideload preview
+          ## Liquid Glass Demo sideload packages
           - Version: ${{ steps.meta.outputs.version }}
           - Signed x64/ARM64 MSIX; install LiquidGlassDemoPreview.cer into Trusted People.
           - Source: ${{ github.sha }}
           "@ >> $env:GITHUB_STEP_SUMMARY
 
       - name: Remove private signing key
-        if: ${{ always() && !inputs.store }}
+        if: always()
         shell: pwsh
         run: |
           $pfx = '${{ steps.cert.outputs.pfx }}'
@@ -285,8 +278,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload sideload preview
-        if: ${{ !inputs.store }}
+      - name: Upload sideload packages
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.meta.outputs.artifact_name }}-Sideload
@@ -295,12 +287,3 @@ jobs:
             artifacts/certificate/*.cer
           if-no-files-found: error
           retention-days: 30
-
-      - name: Upload build logs
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: demo-preview-logs-${{ github.run_id }}
-          path: ci-logs/*.log
-          if-no-files-found: ignore
-          retention-days: 14

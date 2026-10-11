@@ -3,7 +3,8 @@
 // The logical kernel radius is 20 and sigma is radius/3. CPU-side setup computes
 // normalized Gaussian weights, then merges adjacent integer taps (1,2), (3,4),
 // ... (19,20) into ten bilinear samples. A horizontal pass followed by a vertical
-// pass uses 21 texture reads while keeping the sample count constant as
+// pass reproduces the 41-tap reference kernel with 21 texture reads per
+// pass at unit texel spacing, while keeping the sample count constant as
 // BlurRadius changes. Bilinear pair merging is exact at unit texel spacing;
 // scaling the spacing gives a fixed-cost approximation at other radii.
 //

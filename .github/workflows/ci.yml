@@ -6,10 +6,12 @@ on:
       - master
     paths-ignore:
       - '.gitattributes'
+      - '.github/**'
       - '.gitignore'
       - '.gitmodules'
       - '**.md'
       - 'LICENSE'
+      - '**.yml'
   pull_request:
     branches: [master]
   workflow_dispatch:
@@ -91,8 +93,7 @@ jobs:
               "/p:Platform=$platform" `
               /p:NuGetAudit=false `
               "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-              /m /v:minimal /nologo `
-              /fl "/flp:logfile=core-$platform.log;verbosity=minimal"
+              /m /v:minimal /nologo
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
             Write-Host "Building WinUI.LiquidGlass Release/$platform"
@@ -104,8 +105,7 @@ jobs:
               "/p:Platform=$platform" `
               /p:NuGetAudit=false `
               "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-              /m /v:minimal /nologo `
-              /fl "/flp:logfile=liquidglass-$platform.log;verbosity=minimal"
+              /m /v:minimal /nologo
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
 
@@ -133,8 +133,7 @@ jobs:
             /p:Platform=x64 `
             /p:NuGetAudit=false `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo `
-            /fl "/flp:logfile=projection-core-build.log;verbosity=minimal"
+            /m /v:minimal /nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
           & $env:MSBUILD `
@@ -145,8 +144,7 @@ jobs:
             /p:Platform=x64 `
             /p:NuGetAudit=false `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo `
-            /fl "/flp:logfile=projection-liquidglass-build.log;verbosity=minimal"
+            /m /v:minimal /nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Validate native HLSL build integration
@@ -163,8 +161,7 @@ jobs:
             "/p:HlslNativeDll=$nativeDll" `
             "/p:HlslCoreShaderDir=$coreShaderDir" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo `
-            /fl "/flp:logfile=native-shader-consumer.log;verbosity=minimal"
+            /m /v:minimal /nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
           $validator = Get-ChildItem 'tests\BuildIntegration\Output' -Recurse -File -Filter 'NativeShaderConsumer.exe' |
@@ -229,7 +226,7 @@ jobs:
             -OutputDirectory 'artifacts\packages' `
             -Version $env:PACKAGE_VERSION `
             -NoPackageAnalysis `
-            -Verbosity detailed 2>&1 | Tee-Object -FilePath core-nuget-pack.log
+            -Verbosity detailed
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
           & nuget pack `
@@ -239,7 +236,7 @@ jobs:
             -Version $env:PACKAGE_VERSION `
             -Properties "HlslVersion=$env:PACKAGE_VERSION" `
             -NoPackageAnalysis `
-            -Verbosity detailed 2>&1 | Tee-Object -FilePath liquidglass-nuget-pack.log
+            -Verbosity detailed
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
           foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.LiquidGlass')) {
@@ -255,20 +252,6 @@ jobs:
           name: ${{ steps.version.outputs.package-artifact }}
           if-no-files-found: error
           path: artifacts/packages/*.nupkg
-
-      - name: Upload pack logs
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: WinUI-LiquidGlass-pack-logs-${{ github.run_id }}-${{ github.run_attempt }}
-          if-no-files-found: ignore
-          path: |
-            core-*.log
-            liquidglass-*.log
-            projection-*-build.log
-            native-shader-consumer.log
-            core-nuget-pack.log
-            liquidglass-nuget-pack.log
 
   build-cpp-xaml-demo:
     name: Build C++ demo from WinUI.LiquidGlass package
@@ -341,17 +324,8 @@ jobs:
             /p:GenerateAppxPackageOnBuild=false `
             "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo `
-            /fl "/flp:logfile=Cpp-test-build.log;verbosity=minimal"
+            /m /v:minimal /nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
-      - name: Upload C++ demo build log
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: cpp-xaml-demo-build-logs-${{ github.run_id }}-${{ github.run_attempt }}
-          if-no-files-found: ignore
-          path: Cpp-test-build.log
 
   build-csharp-demo:
     name: Build C# package consumers from packed NuGet
@@ -414,8 +388,7 @@ jobs:
             /p:GenerateAppxPackageOnBuild=false `
             "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo `
-            /fl "/flp:logfile=CSharp-test-build.log;verbosity=minimal"
+            /m /v:minimal /nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Build managed LiquidGlass consumer from package
@@ -429,8 +402,7 @@ jobs:
             "/p:LiquidGlassPackageVersion=$env:PACKAGE_VERSION" `
             "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo `
-            /fl "/flp:logfile=CSharp-liquidglass-build.log;verbosity=minimal"
+            /m /v:minimal /nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Verify managed HLSL build outputs
@@ -450,13 +422,3 @@ jobs:
               throw "$name is not a DXBC container."
             }
           }
-
-      - name: Upload C# demo build log
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: csharp-demo-build-logs-${{ github.run_id }}-${{ github.run_attempt }}
-          if-no-files-found: ignore
-          path: |
-            CSharp-test-build.log
-            CSharp-liquidglass-build.log

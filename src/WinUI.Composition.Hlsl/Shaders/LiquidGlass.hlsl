@@ -236,6 +236,9 @@ float4 CalculateTransmissionBounds(
     float2 contentMax,
     bool hasContentRect)
 {
+    // The separable blur chain materializes full-color intermediates and performs
+    // its own mirrored edge sampling. There is no D2D Gaussian transparent-padding
+    // region to estimate here: samplerData is the authoritative logical content rect.
     const float2 halfTexel = max(texelSize * 0.5f, 1e-6f.xx);
     const float2 textureMin = min(halfTexel, 1.0f.xx - halfTexel);
     const float2 textureMax = max(halfTexel, 1.0f.xx - halfTexel);
@@ -244,6 +247,10 @@ float4 CalculateTransmissionBounds(
 
     if (hasContentRect)
     {
+        // Stay half a texel inside the logical content rectangle. Custom-sampler
+        // materialization can place transparent allocation texels immediately
+        // outside samplerData's content rect; bilinear filtering exactly on that
+        // boundary otherwise mixes premultiplied black into strong refraction.
         safeMin = max(textureMin, contentMin + halfTexel);
         safeMax = min(textureMax, contentMax - halfTexel);
     }
@@ -274,6 +281,10 @@ float OffsetScaleToBounds(float2 origin, float2 offset, float2 safeMin, float2 s
 
 float4 SampleTransmission(float2 uv, float2 safeMin, float2 safeMax)
 {
+    // The materialized backdrop is premultiplied-alpha. Strong Concave/Lip
+    // refraction reaches the finite intermediate boundary first; if RGB is used
+    // directly there, its allocation alpha darkens the transmitted color into a
+    // black rim. Recover straight transmission color before applying glass alpha.
     float4 result = texture0.Sample(sampler0, clamp(uv, safeMin, safeMax));
     if (result.a > 1e-5f)
         result.rgb /= result.a;
@@ -282,8 +293,15 @@ float4 SampleTransmission(float2 uv, float2 safeMin, float2 safeMax)
 
 float4 SampleSpectralTap(float2 origin, float2 offset, float4 bounds, float4 fallback)
 {
+    // The source texture is finite even though a real backdrop is not. Constrain
+    // each wavelength independently before sampling instead of hard-clamping the
+    // completed UV (which pins a large Concave field to one border texel) or using
+    // one shared RGB scale (which lets one channel collapse all three).
     float scale = OffsetScaleToBounds(origin, offset, bounds.xy, bounds.zw);
     float4 tap = SampleTransmission(origin + offset * scale, bounds.xy, bounds.zw);
+    // A zero-alpha allocation texel contains no recoverable straight color.
+    // Fall back to the undisplaced backdrop at this output pixel rather than
+    // manufacturing black. This path only activates at the materialized edge.
     return tap.a > 1e-5f ? tap : fallback;
 }
 
@@ -329,11 +347,17 @@ float PointerSpecularCoefficient(
     float highlightSharpness)
 {
     const float edgeProfile = SpecularEdgeProfile(distanceFromEdge, specularWidth, feather);
+    // Treat the pointer as a local light source. When it is inside the glass the
+    // inward-facing rim should light; when it is outside, the outward-facing rim
+    // should light. Keep a faint angular floor so the radial field reads as one
+    // coherent reveal instead of disappearing abruptly around rounded corners.
     const float signedFacing = dot(normal, pointerLightDirection);
     const float facing = pointerInside ? saturate(-signedFacing) : saturate(signedFacing);
     const float angular = pow(
         saturate(0.15f + 0.85f * facing),
         max(highlightSharpness * 0.85f, 0.5f));
+    // PointerInteraction already contains the rounded-rect hover gate and radial
+    // distance falloff. Reshape it into a bright core with a soft reveal shoulder.
     const float radialCore = SmootherStep01(saturate(pointerInteraction));
     const float radialShoulder = sqrt(radialCore);
     const float radialField = lerp(radialCore, radialShoulder, 0.28f);
@@ -424,6 +448,10 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         ? min(halfRect.x, halfRect.y) * saturate(relativeRadius)
         : cornerRadius;
 
+    // Kube's convex-squircle slider displacement/specular maps are authored exactly
+    // to the 90x60 pill bounds. Shrinking radius 30 to 29 moves the strongest
+    // refraction inward and changes the authored rim geometry. This exception is
+    // limited to pills/circles; ordinary borderless rectangles still need padding.
     // Keep one raster pixel for generic surfaces so AA/refraction/specular survive
     // the compositor/XAML clip. Only an authored borderless convex pill/circle keeps
     // zero margin; using BorderThickness == 0 alone is too broad because ordinary
@@ -443,6 +471,10 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 
     const float sdfPixelFootprint = max(length(float2(ddx(sdf), ddy(sdf))), 0.5f);
     const float feather = max(edgeSoftness, sdfPixelFootprint * 0.5f);
+    // One-sided AA: the entire geometric interior remains fully covered and only
+    // the outside feather fades to transparent. The previous symmetric smoothstep
+    // made the actual SDF edge 50% alpha, washing out and effectively clipping the
+    // Fresnel/specular rim at all four corners.
     const float coverage = 1.0f - smoothstep(0.0f, feather, sdf);
     const float alpha = coverage * saturate(materialOpacity);
 
@@ -459,6 +491,16 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             height, derivative, bezel, glassThickness, refractiveIndex);
         const float artisticScale = max(refractionStrength, 0.0f) / 24.0f;
 
+        // Kube's standalone Concave profile produces a negative ray displacement:
+        // at the silhouette that means sampling outside the element. CSS backdrop
+        // filters can access surrounding backdrop pixels, but this WinUI custom
+        // sampler receives a finite materialized texture clipped to the brush.
+        //
+        // LiquidGlassStudio/LiquidGlassWinUI avoid that unavailable-source problem
+        // by always bending their edge field inward. Use that composition-safe
+        // direction for the *pure* Concave profile while retaining its Kube surface
+        // magnitude curve. Lip must stay signed: its convex outer lobe + concave
+        // interior are what make the Switch optics work.
         const bool pureConcave = surfaceProfile >= 1.5f && surfaceProfile < 2.5f;
         const float transmissionDisplacement = pureConcave ? abs(referenceDisplacement) : referenceDisplacement;
 

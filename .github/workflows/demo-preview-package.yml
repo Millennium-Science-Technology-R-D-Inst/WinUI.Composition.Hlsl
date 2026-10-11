@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       package_version:
-        description: Optional sideload version (Major.Minor.Build.0); blank uses YYYY.MMDD.RUN.0.
+        description: Optional sideload version (Major.Minor.Build.Revision); blank uses YYYY.MMDD.RUN.0.
         required: false
         type: string
   push:
-    branches: [master, fix/liquid-glass-corner-optics]
+    branches: [master]
     paths:
       - '.github/workflows/demo-preview-package.yml'
       - '.github/workflows/demo-packages.yml'

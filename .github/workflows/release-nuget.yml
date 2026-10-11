@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       package_version:
-        description: NuGet version (Major.Minor.Patch or Major.Minor.Patch-prerelease).
+        description: Release version, e.g. 1.2.0 or 1.2.0.1 (optional NuGet prerelease suffix).
         required: true
         type: string
 
@@ -20,8 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      msix-version: ${{ steps.version.outputs.msix-version }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
       - name: Validate explicit release version
         id: version
         shell: pwsh
@@ -29,7 +34,10 @@ jobs:
           REQUESTED_VERSION: ${{ inputs.package_version }}
         run: |
           $version = & ./eng/Get-PackageVersion.ps1 -Kind NuGet -Version $env:REQUESTED_VERSION -RequireExplicit
+          $numericVersion = ($version -split '[-+]', 2)[0]
+          $msixVersion = & ./eng/Get-PackageVersion.ps1 -Kind Store -Version $numericVersion -RequireExplicit
           "version=$version" >> $env:GITHUB_OUTPUT
+          "msix-version=$msixVersion" >> $env:GITHUB_OUTPUT
 
   validate:
     needs: version
@@ -38,10 +46,11 @@ jobs:
       package_version: ${{ needs.version.outputs.version }}
 
   store:
-    needs: validate
+    needs: [version, validate]
     uses: ./.github/workflows/demo-packages.yml
     with:
       store: true
+      package_version: ${{ needs.version.outputs.msix-version }}
 
   publish:
     name: Publish NuGet and Store release
@@ -65,6 +74,12 @@ jobs:
         with:
           name: ${{ needs.store.outputs.artifact_name }}-Store
           path: artifacts/store
+
+      - name: Download signed sideload packages and public certificate
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.store.outputs.artifact_name }}-Sideload
+          path: artifacts/sideload
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -103,7 +118,7 @@ jobs:
           tag: nuget-${{ env.PACKAGE_VERSION }}
           name: WinUI Liquid Glass ${{ env.PACKAGE_VERSION }}
           commit: ${{ github.sha }}
-          artifacts: artifacts/packages/*.nupkg,artifacts/store/*.msixupload
+          artifacts: artifacts/packages/*.nupkg,artifacts/store/*.msixupload,artifacts/store/bundle/*.msixbundle,artifacts/sideload/**/*.msix,artifacts/sideload/**/*.cer
           artifactErrorsFailBuild: true
           allowUpdates: false
           prerelease: ${{ contains(env.PACKAGE_VERSION, '-') }}
@@ -112,4 +127,5 @@ jobs:
             NuGet version: ${{ env.PACKAGE_VERSION }}
             Store version: ${{ needs.store.outputs.version }}
             Source: ${{ github.sha }}
-            Both NuGet packages and the unsigned x64/ARM64 Store upload are built from this revision.
+            Both NuGet packages, the unsigned Store upload and signed x64/ARM64 sideload packages are built from this revision.
+            For sideload installation, import the attached public certificate into Trusted People first.
