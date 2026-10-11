@@ -31,6 +31,9 @@
       <PreprocessorDefinitions Condition="'$(HlslCoreShaderDir)' != ''">WINUI_VALIDATE_BUILTIN_SHADERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level4</WarningLevel>
       <LanguageStandard>stdcpp23</LanguageStandard>
+      <!-- This headless validator runs on CI; do not require deployment of the
+           Visual Studio debug CRT DLLs just to inspect DXBC. -->
+      <RuntimeLibrary Condition="'$(Configuration)' == 'Debug'">MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
