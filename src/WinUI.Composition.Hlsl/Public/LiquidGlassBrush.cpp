@@ -22,6 +22,39 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 
 	LiquidGlassBrush::LiquidGlassBrush()
 	{
+		// XAML must find every DP before it applies a Binding to this instance.
+		// Lazy registration in a getter/setter is too late: an unregistered DP
+		// falls through to the generated value setter, which tries to unbox the
+		// Binding as a Double and throws E_NOINTERFACE during LoadComponent.
+		(void)IsEnabledProperty();
+		(void)BlurRadiusProperty();
+		(void)RefractionStrengthProperty();
+		(void)DispersionStrengthProperty();
+		(void)CornerRadiusProperty();
+		(void)ShapeRoundnessProperty();
+		(void)RasterizationScaleProperty();
+		(void)BorderThicknessProperty();
+		(void)HighlightStrengthProperty();
+		(void)EdgeSoftnessProperty();
+		(void)MaterialOpacityProperty();
+		(void)BezelWidthProperty();
+		(void)GlassThicknessProperty();
+		(void)RefractiveIndexProperty();
+		(void)TintOpacityProperty();
+		(void)SaturationProperty();
+		(void)LightAngleProperty();
+		(void)SurfaceProfileProperty();
+		(void)MagnificationStrengthProperty();
+		(void)HighlightSharpnessProperty();
+		(void)TintRedProperty();
+		(void)TintGreenProperty();
+		(void)TintBlueProperty();
+		(void)InnerShadowStrengthProperty();
+		(void)SpecularSaturationProperty();
+		(void)SpecularWidthProperty();
+		(void)ContrastProperty();
+		(void)ExposureProperty();
+
 		RegisterPropertyChangedCallback(Media::XamlCompositionBrushBase::FallbackColorProperty(), [this](auto const&, auto const&)
 			{
 				Update();

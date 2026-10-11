@@ -161,6 +161,14 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 						{
 							case 0:
 							{
+								auto bindingBrush = Application::Current().Resources().Lookup(box_value(L"StartupBindingBrush"))
+									.as<WinUI::Composition::Hlsl::LiquidGlassBrush>();
+								if (std::abs(bindingBrush.ShapeRoundness() - 5.0) > 1e-6 ||
+									std::abs(bindingBrush.RasterizationScale() - 1.5) > 1e-6)
+								{
+									throw hresult_error(E_FAIL, L"Cold-start LiquidGlassBrush XAML bindings did not resolve.");
+								}
+								std::ofstream("smoke.log", std::ios::app) << "PASS: cold-start ShapeRoundness/RasterizationScale bindings\n";
 								auto compositor = Media::CompositionTarget::GetCompositorForCurrentThread();
 								self->m_liquidGlassMaterial = nullptr;
 								self->m_backdropEffectBrush = CreateMultiSourceBackdropBrush(compositor, WinUI::Composition::Hlsl::HlslEffectKind::Color);
@@ -175,6 +183,9 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 								break;
 							}
 							case 2:
+								// The manual graph phases leave the selector at its initial 4.
+								// Force a selection change so the direct Material is recreated.
+								self->EffectSelector().SelectedIndex(-1);
 								self->EffectSelector().SelectedIndex(4);
 								break;
 							case 3:

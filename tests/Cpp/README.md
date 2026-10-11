@@ -57,6 +57,8 @@ VS内部构建或
 
 smoke 依次切换 invert、sampler blur、glass，更新参数并 resize，写入工作目录 smoke.log，完成后关闭。它检查创建/更新和持续运行，不替代像素正确性测试。
 
+`--smoke` 在创建窗口之前取出 `App.xaml` 的原始 brush 资源，直接绑定 `ShapeRoundness` 和 `RasterizationScale`，并验证绑定值为 5 和 1.5。这必须发生在 presets / controls 使用这些属性之前，避免其他 setter 偶然完成 DP 注册而掩盖冷启动问题。`LiquidGlassBrush` 构造时注册完整 DP 集合；仅在属性 getter/setter 里延迟注册会让 XAML 把 Binding 交给普通 Double setter，导致 `E_NOINTERFACE`、`Failed to assign ... ShapeRoundness`，最终在启动回调中 fail-fast。
+
 ## MSIX 打包注意事项
 
 这个 Demo 直接 `ProjectReference` 到 native `WinUI.Composition.Hlsl` 项目。C++ shader 的 `*.dxbc` 是 FXC 生成 `.g.h` 时使用的中间文件，运行时 bytecode 已经嵌入 native DLL，不应作为 loose MSIX 内容重复部署。
