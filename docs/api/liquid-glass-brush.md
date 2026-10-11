@@ -82,3 +82,14 @@ Use `{ThemeResource CardMaterialBrush}` from controls. To switch visual material
 ## Remarks
 
 The brush checks `CompositionCapabilities.AreEffectsSupported()` when connected. If effects are disabled, initialization fails, or `IsEnabled` is false, it uses `FallbackColor`. It closes replaced Composition resources when disconnected or rebuilt.
+
+## Transmission and optical response controls
+
+All 43 Material authoring parameters are available here as Double dependency
+properties (or the existing enum). The added controls are `DispersionRange`,
+`RefFresnelRange/Hardness/Factor`, `GlareRange/Hardness/Factor/Convergence`,
+`GlareOppositeFactor`, `GlareAngle`, `ShapeRadius`, `Magnification`, `BloomAmount`,
+`Brightness`, `Temperature`, and `Vibrance`. They are registered before XAML applies
+bindings, including on a cold raw brush. See the [Material parameter table](liquid-glass-material.md)
+for ranges, defaults and units. Fresnel/glare default to zero intensity; relative
+radius defaults to disabled and zoom to 1, preserving existing control presets.

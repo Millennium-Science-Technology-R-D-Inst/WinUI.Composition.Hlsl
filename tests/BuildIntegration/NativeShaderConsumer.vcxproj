@@ -27,6 +27,8 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
+      <AdditionalIncludeDirectories Condition="'$(HlslCoreShaderDir)' != ''">$(HlslCoreShaderDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions Condition="'$(HlslCoreShaderDir)' != ''">WINUI_VALIDATE_BUILTIN_SHADERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level4</WarningLevel>
       <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>

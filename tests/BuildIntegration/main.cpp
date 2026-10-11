@@ -8,6 +8,10 @@
 #include "ConsumerMaterializedSampler.g.h"
 #include "ConsumerMultiSourceColor.g.h"
 #include "ConsumerMultiSourceSampler.g.h"
+#ifdef WINUI_VALIDATE_BUILTIN_SHADERS
+#include "LiquidGlassShader.g.h"
+#include "LiquidGlassPostProcessingShader.g.h"
+#endif
 
 static_assert(sizeof(g_ConsumerSampler_Shader) > 4);
 static_assert(sizeof(g_ConsumerMaterializedSampler_Shader) > 4);
@@ -107,10 +111,49 @@ namespace
         std::cerr << "NativeShaderConsumer validation failed [" << code << "]: " << message << '\n';
         return code;
     }
+
+    template <std::size_t Size>
+    bool HasConstantLayout(unsigned char const (&bytecode)[Size], char const* buffer,
+        UINT bytes, char const* variable, UINT offset, UINT parameters)
+    {
+        return ReflectLibrary(bytecode, [&](ID3D11LibraryReflection* reflection)
+        {
+            D3D11_LIBRARY_DESC library{};
+            if (FAILED(reflection->GetDesc(&library))) return false;
+            ID3D11FunctionReflection* function{};
+            for (UINT index = 0; index < library.FunctionCount; ++index)
+            {
+                auto* candidate = reflection->GetFunctionByIndex(index);
+                D3D11_FUNCTION_DESC description{};
+                if (candidate && SUCCEEDED(candidate->GetDesc(&description)) && description.Name &&
+                    std::strcmp(description.Name, "PSBody") == 0) { function = candidate; break; }
+            }
+            if (!function) return false;
+            D3D11_FUNCTION_DESC signature{};
+            if (FAILED(function->GetDesc(&signature)) || signature.FunctionParameterCount != parameters) return false;
+            auto* constants = function->GetConstantBufferByName(buffer);
+            if (!constants) return false;
+            D3D11_SHADER_BUFFER_DESC layout{};
+            if (FAILED(constants->GetDesc(&layout)) || layout.Size != bytes) return false;
+            auto* field = constants->GetVariableByName(variable);
+            if (!field) return false;
+            D3D11_SHADER_VARIABLE_DESC value{};
+            return SUCCEEDED(field->GetDesc(&value)) && value.StartOffset == offset;
+        });
+    }
 }
 
 int main()
 {
+#ifdef WINUI_VALIDATE_BUILTIN_SHADERS
+    if (!HasConstantLayout(g_LiquidGlassShader, "LiquidGlassConstants", 208, "MaterialParams12", 192, 3))
+        return Fail(51, "LiquidGlass optical buffer or sampler linkage signature differs from native metadata.");
+    if (!HasSamplerBindings(g_LiquidGlassShader, 1) || !HasLibraryExport(g_LiquidGlassShader, "MaterializeColor") ||
+        !HasLibraryExport(g_LiquidGlassShader, "PSBodyCC") || !HasLibraryExport(g_LiquidGlassShader, "PSBodyMM"))
+        return Fail(53, "LiquidGlass sampler resources or edge-mode exports are incomplete.");
+    if (!HasConstantLayout(g_LiquidGlassPostProcessingShader, "PostProcessingConstants", 32, "Exposure", 24, 2))
+        return Fail(52, "LiquidGlass post-processing buffer or two-color linkage signature differs from native metadata.");
+#endif
     if (!IsDxbc(g_ConsumerSampler_Shader))
         return Fail(11, "ConsumerSampler is not DXBC.");
     if (!HasLibraryExport(g_ConsumerSampler_Shader, "PSBody") ||

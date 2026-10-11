@@ -4,5 +4,6 @@
        project.assets.json and NuGet-generated imports during restore. -->
   <PropertyGroup>
     <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
   </PropertyGroup>
 </Project>

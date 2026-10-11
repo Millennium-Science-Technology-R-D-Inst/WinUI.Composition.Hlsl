@@ -16,10 +16,12 @@
                  accidentally register these DPs by calling their setters. -->
             <x:Double x:Key="StartupShapeRoundness">5</x:Double>
             <x:Double x:Key="StartupRasterizationScale">1.5</x:Double>
+            <x:Double x:Key="StartupBrightness">0.05</x:Double>
             <hlsl:LiquidGlassBrush
                 x:Key="StartupBindingBrush"
                 ShapeRoundness="{Binding Source={StaticResource StartupShapeRoundness}, Mode=OneWay}"
-                RasterizationScale="{Binding Source={StaticResource StartupRasterizationScale}, Mode=OneWay}" />
+                RasterizationScale="{Binding Source={StaticResource StartupRasterizationScale}, Mode=OneWay}"
+                Brightness="{Binding Source={StaticResource StartupBrightness}, Mode=OneWay}" />
 
             <hlsl:LiquidGlassBrush
                 x:Key="SharedGlassBrush"

@@ -92,14 +92,11 @@ The closest conceptual mappings are:
 
 `WinUI.Composition.Hlsl` additionally exposes controls that are absent or not explicit in LiquidGlassWinUI: `RefractionStrength`, `GlassThickness`, `SurfaceProfile`, `BorderThickness`, `EdgeSoftness`, `MaterialOpacity`, `InnerShadowStrength`, `SpecularSaturation`, and `SpecularWidth`.
 
-LiquidGlassWinUI still exposes independent dimensions that are not currently represented as public authoring properties here:
-
-- `DispersionRange`;
-- `RefFresnelRange`, `RefFresnelHardness`, and `RefFresnelFactor`;
-- `GlareRange`, `GlareConvergence`, and `GlareOppositeFactor`;
-- `BloomAmount`, `Brightness`, `Temperature`, and `Vibrance`.
-
-Those missing dimensions should not be copied by name alone. Fresnel, glare, and post-processing parameters need explicit shader stages or response functions so their semantics remain stable and testable rather than becoming aliases for existing strength values.
+The independent reference dimensions are now represented explicitly:
+`DispersionRange`, Fresnel range/hardness/factor, glare range/hardness/factor/
+convergence/opposite intensity/angle, relative `ShapeRadius`, ratio `Magnification`,
+and Bloom/Brightness/Temperature/Vibrance. They drive actual optical equations or
+the separate two-input post-processing stage, rather than aliases for strengths.
 
 The effect also contains high-frequency pointer/internal scalars (`PointerX/Y`, interaction radius/strength, pointer velocity, hover/active state, pointer refraction/highlight/motion strengths, and `RefractionNormalization`). These are intentionally not ordinary public `LiquidGlassBrush` dependency properties: interaction helpers update them directly on the live Composition effect, while `RefractionNormalization` is derived from authored optical parameters.
 
@@ -112,7 +109,7 @@ The native Gaussian stage first produces the blurred transmission source. The cu
 This ordering is deliberate:
 
 ```text
-Backdrop -> Gaussian blur -> materialized texture -> refract/dispersion/color -> rounded SDF coverage -> output
+Backdrop -> BlurH -> BlurV + raw backdrop -> transmission post-process -> materialized texture -> refraction/dispersion/Fresnel/glare -> rounded coverage
 ```
 
 If the rounded shape were blurred together with the source, increasing `BlurRadius` would soften or visually enlarge the corner. Keeping the final coverage after the blur makes `CornerRadius` independent from `BlurRadius`.
@@ -121,7 +118,11 @@ If the rounded shape were blurred together with the source, increasing `BlurRadi
 
 The private native-effect metadata and HLSL constant buffer must remain byte-for-byte synchronized.
 
-`ShapeRoundness` is an additive extension rather than a reorder of the existing layout. The previous P0–P8 fields keep their byte offsets `0..140`; a new P9 vector extends the constant buffer from 144 to 160 bytes, with `ShapeRoundness` stored at P9.x / byte offset 144 and the remaining P9 lanes reserved. This minimizes regression risk for the existing optical and pointer property mappings.
+The optical buffer preserves offsets 0..148 and appends P10–P12 (bytes
+160..207) for dispersion range, Fresnel, glare, relative radius and zoom. Its total
+size is 208 bytes. The transmission post-processing stage uses a separate 32-byte
+buffer for Bloom, Brightness, Temperature, Vibrance, Saturation, Contrast and
+Exposure. The linked color inputs select source 0 (blurred) and 1 (raw).
 
 Every public parameter is registered through the custom-effect property table and included in `CompositionEffectFactory`'s animatable-property list. Interaction code therefore updates constants on the existing graph rather than recreating the graph. `ShapeRoundness` follows that same path and is exposed by both `LiquidGlassMaterial` and the XAML `LiquidGlassBrush` dependency-property surface.
 

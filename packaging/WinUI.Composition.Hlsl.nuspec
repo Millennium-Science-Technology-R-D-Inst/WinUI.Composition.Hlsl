@@ -26,6 +26,7 @@
     <file src="assets\MainLogo.png" target="assets\"/>
     <file src="README.md" target="README.md"/>
     <file src="LICENSE.txt" target="LICENSE.txt"/>
+    <file src="src\WinUI.Composition.Hlsl\THIRD_PARTY_NOTICES.md" target="THIRD_PARTY_NOTICES.md"/>
 
     <file src="artifacts\x64\Release\WinUI.Composition.Hlsl.winmd" target="lib\native"/>
     <file src="artifacts\x64\Release\WinUI.Composition.Hlsl.dll" target="runtimes\win-x64\native"/>

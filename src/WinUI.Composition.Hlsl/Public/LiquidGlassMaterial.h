@@ -9,6 +9,7 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 	{
 		LiquidGlassMaterial(Microsoft::UI::Composition::Compositor const& compositor);
 		Hlsl::HlslEffectBrush EffectBrush() const { return m_effect; }
+		Hlsl::HlslEffectBrush PostProcessingEffectBrush() const { return m_postEffect; }
 		float BlurRadius() const { return m_BlurRadius; }
 		void BlurRadius(float value);
 		float RefractionStrength() const { return m_RefractionStrength; }
@@ -64,11 +65,45 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		float Exposure() const { return m_Exposure; }
 		void Exposure(float value);
 
+		float DispersionRange() const { return m_DispersionRange; }
+		void DispersionRange(float value);
+		float RefFresnelRange() const { return m_RefFresnelRange; }
+		void RefFresnelRange(float value);
+		float RefFresnelHardness() const { return m_RefFresnelHardness; }
+		void RefFresnelHardness(float value);
+		float RefFresnelFactor() const { return m_RefFresnelFactor; }
+		void RefFresnelFactor(float value);
+		float GlareRange() const { return m_GlareRange; }
+		void GlareRange(float value);
+		float GlareHardness() const { return m_GlareHardness; }
+		void GlareHardness(float value);
+		float GlareFactor() const { return m_GlareFactor; }
+		void GlareFactor(float value);
+		float GlareConvergence() const { return m_GlareConvergence; }
+		void GlareConvergence(float value);
+		float GlareOppositeFactor() const { return m_GlareOppositeFactor; }
+		void GlareOppositeFactor(float value);
+		float GlareAngle() const { return m_GlareAngle; }
+		void GlareAngle(float value);
+		float ShapeRadius() const { return m_ShapeRadius; }
+		void ShapeRadius(float value);
+		float Magnification() const { return m_Magnification; }
+		void Magnification(float value);
+		float BloomAmount() const { return m_BloomAmount; }
+		void BloomAmount(float value);
+		float Brightness() const { return m_Brightness; }
+		void Brightness(float value);
+		float Temperature() const { return m_Temperature; }
+		void Temperature(float value);
+		float Vibrance() const { return m_Vibrance; }
+		void Vibrance(float value);
+
 	private:
 		void SetFloatProperty(wchar_t const* propertyName, float& storage, float value, float minimum, float maximum, wchar_t const* message);
 		void UpdateRefractionNormalization();
 		void UpdateRasterizedBlurRadius();
 		Hlsl::HlslEffectBrush m_effect{ nullptr };
+		Hlsl::HlslEffectBrush m_postEffect{ nullptr };
 		Microsoft::UI::Composition::CompositionEffectBrush m_blurHorizontalBrush{ nullptr };
 		Microsoft::UI::Composition::CompositionEffectBrush m_blurVerticalBrush{ nullptr };
 		float m_BlurRadius{ 12.0f };
@@ -98,6 +133,23 @@ namespace winrt::WinUI::Composition::Hlsl::implementation
 		float m_SpecularWidth{ 1.0f };
 		float m_Contrast{ 1.0f };
 		float m_Exposure{ 0.0f };
+		float m_DispersionRange{ 1.0f };
+		float m_RefFresnelRange{ 30.0f };
+		float m_RefFresnelHardness{ 20.0f };
+		float m_RefFresnelFactor{ 0.0f };
+		float m_GlareRange{ 30.0f };
+		float m_GlareHardness{ 20.0f };
+		float m_GlareFactor{ 0.0f };
+		float m_GlareConvergence{ 50.0f };
+		float m_GlareOppositeFactor{ 80.0f };
+		float m_GlareAngle{ -45.0f };
+		float m_ShapeRadius{ -1.0f };
+		float m_Magnification{ 1.0f };
+		float m_BloomAmount{ 1.0f };
+		float m_Brightness{ 0.0f };
+		float m_Temperature{ 0.0f };
+		float m_Vibrance{ 0.0f };
+
 	};
 }
 namespace winrt::WinUI::Composition::Hlsl::factory_implementation

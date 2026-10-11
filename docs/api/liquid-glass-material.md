@@ -2,7 +2,7 @@
 
 Provides a Composition-level instance of the built-in Liquid Glass effect.
 
-The material is described as a Composition pipeline with a separable native-backed blur stage feeding the custom HLSL sampler. The runtime materializes the transmitted backdrop before arbitrary UV sampling so refraction, dispersion, and magnification can operate on a stable source texture.
+The material is described as a Composition pipeline with a separable native-backed blur, a two-input transmission post-processing stage, and the custom HLSL sampler. The runtime materializes the transmitted backdrop before arbitrary UV sampling so refraction, dispersion, and magnification can operate on a stable source texture.
 
 The built-in shader models the glass edge as an optical bezel. For every destination pixel it evaluates a rounded-rectangle signed-distance field (SDF), derives an optical normal, evaluates the selected surface-height profile, obtains the surface slope, applies Snell refraction using `RefractiveIndex`, and converts the refracted ray through `GlassThickness` into a sampling displacement. `RefractionStrength` remains an artistic multiplier over that physically-derived displacement.
 
@@ -23,11 +23,12 @@ public LiquidGlassMaterial(Compositor compositor);
 
 ## Properties
 
-`LiquidGlassMaterial` currently exposes 27 author-facing material parameters. They are also mirrored by `LiquidGlassBrush` as XAML dependency properties unless noted otherwise.
+`LiquidGlassMaterial` currently exposes 43 author-facing material parameters. They are also mirrored by `LiquidGlassBrush` as XAML dependency properties unless noted otherwise.
 
 | Property | Type | Range | Default | Description |
 | --- | --- | --- | --- | --- |
 | `EffectBrush` | `HlslEffectBrush` | — | — | Gets the final live custom glass brush. Read-only. |
+| `PostProcessingEffectBrush` | `HlslEffectBrush` | — | — | Gets the preceding transmission stage for direct Composition color animations. Read-only. |
 | `BlurRadius` | `float` | 0–64 | `12` | Gaussian transmission blur radius in DIPs. |
 | `RefractionStrength` | `float` | 0–128 | `24` | Artistic multiplier applied after physically-derived Snell displacement. |
 | `DispersionStrength` | `float` | 0–16 | `1.2` | RGB sampling separation around the optical bezel. |
@@ -55,10 +56,33 @@ public LiquidGlassMaterial(Compositor compositor);
 | `SpecularWidth` | `float` | 0.25–32 | `1` | Width of the specular edge profile in DIPs. |
 | `Contrast` | `float` | 0–4 | `1` | Contrast multiplier around mid-grey. |
 | `Exposure` | `float` | -4–4 | `0` | Exposure in stops; the shader applies `exp2(Exposure)`. |
+| `DispersionRange` | `float` | 0–1 | `1` | Fraction of the bezel occupied by chromatic separation. |
+| `RefFresnelRange` | `float` | 0–100 | `30` | Fresnel rim falloff range in DIPs. Zero disables the band. |
+| `RefFresnelHardness` | `float` | 0–100 | `20` | Spatial hardness of the Fresnel band. |
+| `RefFresnelFactor` | `float` | 0–100 | `0` | Fresnel intensity. Zero preserves existing presets. |
+| `GlareRange` | `float` | 0–100 | `30` | Glare band range in DIPs. |
+| `GlareHardness` | `float` | 0–100 | `20` | Spatial hardness of the glare band. |
+| `GlareFactor` | `float` | 0–120 | `0` | Directional glare intensity, independent from the Kube specular layer. |
+| `GlareConvergence` | `float` | 0–100 | `50` | Angular concentration of glare. |
+| `GlareOppositeFactor` | `float` | 0–100 | `80` | Opposite-side glare intensity relative to the front lobe. |
+| `GlareAngle` | `float` | -180–180 | `-45` | Glare direction in degrees; `LightAngle` remains radians for the existing specular layer. |
+| `ShapeRadius` | `float` | -1–1 | `-1` | Relative radius of the shorter inset half-side. A negative value uses the existing absolute `CornerRadius`; 0–1 overrides it. |
+| `Magnification` | `float` | 1–3 | `1` | Uniform backdrop zoom about its content center, independent from localized `MagnificationStrength`. |
+| `BloomAmount` | `float` | 0–1 | `1` | Blurred fraction: 0 selects raw backdrop, 1 selects the full blur. |
+| `Brightness` | `float` | -1–1 | `0` | Additive straight-color brightness before contrast. |
+| `Temperature` | `float` | -1–1 | `0` | Cool/warm channel gain. |
+| `Vibrance` | `float` | 0–1 | `0` | Extra saturation weighted toward low-chroma colors. |
 
 The high-frequency pointer field and `RefractionNormalization` are private effect controls, not authoring properties. Interaction helpers update them directly on the existing Composition effect rather than invalidating XAML dependency properties on every pointer move.
 
-All author-facing shader properties are registered as animatable Composition effect properties; changing them does not require rebuilding the effect graph. `BlurRadius` and `RasterizationScale` update the existing separable blur brushes rather than recreating the graph.
+All author-facing shader properties are registered as animatable Composition effect properties on their owning stage; changing them does not require rebuilding the effect graph. `BlurRadius` and `RasterizationScale` update the existing separable blur brushes rather than recreating the graph.
+
+Transmission color runs in the order raw/blur mix → EV exposure → temperature →
+brightness → contrast → saturation/vibrance → clamp. It unpremultiplies before
+color adjustment and restores premultiplication afterward. `EffectBrush` exposes
+the final optics brush; use the Material properties or `PostProcessingEffectBrush` to control the preceding
+post-processing stage. `Exposure` retains this library's EV convention: to match
+a reference multiplicative exposure gain, use `log2(gain)`.
 
 ## Example
 

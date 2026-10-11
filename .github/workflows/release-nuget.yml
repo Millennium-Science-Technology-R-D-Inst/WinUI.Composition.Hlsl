@@ -1,4 +1,4 @@
-name: Release NuGet
+name: Release
 
 on:
   workflow_dispatch:
@@ -37,9 +37,15 @@ jobs:
     with:
       package_version: ${{ needs.version.outputs.version }}
 
-  publish-nuget:
-    name: Publish NuGet
+  store:
     needs: validate
+    uses: ./.github/workflows/demo-packages.yml
+    with:
+      store: true
+
+  publish:
+    name: Publish NuGet and Store release
+    needs: [validate, store]
     permissions:
       contents: write
       id-token: write
@@ -53,6 +59,12 @@ jobs:
         with:
           name: ${{ needs.validate.outputs.package-artifact }}
           path: artifacts/packages
+
+      - name: Download Store upload from the same source revision
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.store.outputs.artifact_name }}-Store
+          path: artifacts/store
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -89,10 +101,15 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: nuget-${{ env.PACKAGE_VERSION }}
-          name: NuGet ${{ env.PACKAGE_VERSION }}
+          name: WinUI Liquid Glass ${{ env.PACKAGE_VERSION }}
           commit: ${{ github.sha }}
-          artifacts: artifacts/packages/*.nupkg
+          artifacts: artifacts/packages/*.nupkg,artifacts/store/*.msixupload
           artifactErrorsFailBuild: true
           allowUpdates: false
           prerelease: ${{ contains(env.PACKAGE_VERSION, '-') }}
           generateReleaseNotes: true
+          body: |
+            NuGet version: ${{ env.PACKAGE_VERSION }}
+            Store version: ${{ needs.store.outputs.version }}
+            Source: ${{ github.sha }}
+            Both NuGet packages and the unsigned x64/ARM64 Store upload are built from this revision.

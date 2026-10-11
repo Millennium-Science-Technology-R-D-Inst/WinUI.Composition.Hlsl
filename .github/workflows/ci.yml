@@ -154,16 +154,24 @@ jobs:
         run: |
           $winmd = (Resolve-Path 'artifacts\x64\Release\WinUI.Composition.Hlsl.winmd').Path
           $nativeDll = (Resolve-Path 'artifacts\x64\Release\WinUI.Composition.Hlsl.dll').Path
+          $coreShaderDir = (Resolve-Path 'src\WinUI.Composition.Hlsl\obj\x64\Release').Path
           & $env:MSBUILD `
             'tests\BuildIntegration\NativeShaderConsumer.vcxproj' `
             /p:Configuration=Debug `
             /p:Platform=x64 `
             "/p:HlslWinmd=$winmd" `
             "/p:HlslNativeDll=$nativeDll" `
+            "/p:HlslCoreShaderDir=$coreShaderDir" `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
             /m /v:minimal /nologo `
             /fl "/flp:logfile=native-shader-consumer.log;verbosity=minimal"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          $validator = Get-ChildItem 'tests\BuildIntegration\Output' -Recurse -File -Filter 'NativeShaderConsumer.exe' |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]Debug[\\/]' } | Select-Object -First 1
+          if (!$validator) { throw 'NativeShaderConsumer executable was not produced.' }
+          & $validator.FullName
+          if ($LASTEXITCODE) { throw 'Shader export, linkage signature, resource or constant-buffer verification failed.' }
 
           foreach ($name in @(
             'ConsumerSampler.dxbc',

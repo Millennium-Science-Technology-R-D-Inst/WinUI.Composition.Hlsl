@@ -45,6 +45,19 @@ namespace CustomLiquidGlassEffect
 	inline constexpr wchar_t PointerMotionRefractionStrengthPropertyPath[] = L"BackdropLiquidGlassEffect.PointerMotionRefractionStrength";
 	inline constexpr wchar_t RefractionNormalizationPropertyPath[] = L"BackdropLiquidGlassEffect.RefractionNormalization";
 
+	inline constexpr wchar_t DispersionRangePropertyPath[] = L"BackdropLiquidGlassEffect.DispersionRange";
+	inline constexpr wchar_t RefFresnelRangePropertyPath[] = L"BackdropLiquidGlassEffect.RefFresnelRange";
+	inline constexpr wchar_t RefFresnelHardnessPropertyPath[] = L"BackdropLiquidGlassEffect.RefFresnelHardness";
+	inline constexpr wchar_t RefFresnelFactorPropertyPath[] = L"BackdropLiquidGlassEffect.RefFresnelFactor";
+	inline constexpr wchar_t GlareRangePropertyPath[] = L"BackdropLiquidGlassEffect.GlareRange";
+	inline constexpr wchar_t GlareHardnessPropertyPath[] = L"BackdropLiquidGlassEffect.GlareHardness";
+	inline constexpr wchar_t GlareFactorPropertyPath[] = L"BackdropLiquidGlassEffect.GlareFactor";
+	inline constexpr wchar_t GlareConvergencePropertyPath[] = L"BackdropLiquidGlassEffect.GlareConvergence";
+	inline constexpr wchar_t GlareOppositeFactorPropertyPath[] = L"BackdropLiquidGlassEffect.GlareOppositeFactor";
+	inline constexpr wchar_t GlareAnglePropertyPath[] = L"BackdropLiquidGlassEffect.GlareAngle";
+	inline constexpr wchar_t ShapeRadiusPropertyPath[] = L"BackdropLiquidGlassEffect.ShapeRadius";
+	inline constexpr wchar_t MagnificationPropertyPath[] = L"BackdropLiquidGlassEffect.Magnification";
+
 	std::shared_ptr<hlsl::engine::EffectDefinition const> Description();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect();
 	winrt::Windows::Graphics::Effects::IGraphicsEffect CreateEffect(

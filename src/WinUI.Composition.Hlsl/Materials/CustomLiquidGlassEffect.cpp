@@ -29,6 +29,9 @@ namespace
 		float materialParams7[4];
 		float materialParams8[4];
 		float materialParams9[4];
+		float materialParams10[4];
+		float materialParams11[4];
+		float materialParams12[4];
 	};
 
 	// Keep this layout byte-for-byte synchronized with LiquidGlass.hlsl.
@@ -42,6 +45,9 @@ namespace
 	// P7: normalized pointer velocity X/Y per second, normalized outside hover range, active flag.
 	// P8: pointer refraction, pointer highlight, motion refraction, Kube displacement normalization.
 	// P9: optical corner roundness, XAML rasterization scale, reserved, reserved.
+	// P10: dispersion range, Fresnel range/hardness/factor.
+	// P11: glare range/hardness/factor/convergence.
+	// P12: opposite glare factor, glare angle (degrees), relative shape radius, zoom.
 	constexpr LiquidGlassConstants kInitialConstants{
 		{ 1.5f, 36.0f, 24.0f, 32.0f },
 		{ 0.85f, 1.0f, 1.2f, 1.0f },
@@ -53,9 +59,12 @@ namespace
 		{ 0.0f, 0.0f, 0.10f, 0.0f },
 		{ 5.0f, 0.22f, 5.0f, 1.0f },
 		{ 4.0f, 1.0f, 0.0f, 0.0f },
+		{ 1.0f, 30.0f, 20.0f, 0.0f },
+		{ 30.0f, 20.0f, 0.0f, 50.0f },
+		{ 80.0f, -45.0f, -1.0f, 1.0f },
 	};
 
-	static_assert(sizeof(LiquidGlassConstants) == 160);
+	static_assert(sizeof(LiquidGlassConstants) == 208);
 
 	enum LiquidGlassPropertyIndex : std::uint32_t
 	{
@@ -97,6 +106,19 @@ namespace
 		RefractionNormalizationProperty,
 		ShapeRoundnessProperty,
 		RasterizationScaleProperty,
+		DispersionRangeProperty,
+		RefFresnelRangeProperty,
+		RefFresnelHardnessProperty,
+		RefFresnelFactorProperty,
+		GlareRangeProperty,
+		GlareHardnessProperty,
+		GlareFactorProperty,
+		GlareConvergenceProperty,
+		GlareOppositeFactorProperty,
+		GlareAngleProperty,
+		ShapeRadiusProperty,
+		MagnificationProperty,
+
 	};
 
 	constexpr std::uint32_t kDCompositionExpressionTypeScalar = 18;
@@ -139,6 +161,19 @@ namespace
 	constexpr std::uint32_t kRefractionNormalizationOffset = 140;
 	constexpr std::uint32_t kShapeRoundnessOffset = 144;
 	constexpr std::uint32_t kRasterizationScaleOffset = 148;
+	constexpr std::uint32_t kDispersionRangeOffset = 160;
+	constexpr std::uint32_t kRefFresnelRangeOffset = 164;
+	constexpr std::uint32_t kRefFresnelHardnessOffset = 168;
+	constexpr std::uint32_t kRefFresnelFactorOffset = 172;
+	constexpr std::uint32_t kGlareRangeOffset = 176;
+	constexpr std::uint32_t kGlareHardnessOffset = 180;
+	constexpr std::uint32_t kGlareFactorOffset = 184;
+	constexpr std::uint32_t kGlareConvergenceOffset = 188;
+	constexpr std::uint32_t kGlareOppositeFactorOffset = 192;
+	constexpr std::uint32_t kGlareAngleOffset = 196;
+	constexpr std::uint32_t kShapeRadiusOffset = 200;
+	constexpr std::uint32_t kMagnificationOffset = 204;
+
 
 	HRESULT CreateScalarProperty(float scalar, ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
@@ -164,17 +199,20 @@ namespace
 	template<std::size_t Group, std::size_t Index>
 	HRESULT GetDefaultScalar(ABI::Windows::Foundation::IPropertyValue** value) noexcept
 	{
-		static_assert(Group < 10 && Index < 4);
+		static_assert(Group < 13 && Index < 4);
 		if constexpr (Group == 0) return CreateScalarProperty(kInitialConstants.materialParams0[Index], value);
-		if constexpr (Group == 1) return CreateScalarProperty(kInitialConstants.materialParams1[Index], value);
-		if constexpr (Group == 2) return CreateScalarProperty(kInitialConstants.materialParams2[Index], value);
-		if constexpr (Group == 3) return CreateScalarProperty(kInitialConstants.materialParams3[Index], value);
-		if constexpr (Group == 4) return CreateScalarProperty(kInitialConstants.materialParams4[Index], value);
-		if constexpr (Group == 5) return CreateScalarProperty(kInitialConstants.materialParams5[Index], value);
-		if constexpr (Group == 6) return CreateScalarProperty(kInitialConstants.materialParams6[Index], value);
-		if constexpr (Group == 7) return CreateScalarProperty(kInitialConstants.materialParams7[Index], value);
-		if constexpr (Group == 8) return CreateScalarProperty(kInitialConstants.materialParams8[Index], value);
-		return CreateScalarProperty(kInitialConstants.materialParams9[Index], value);
+		else if constexpr (Group == 1) return CreateScalarProperty(kInitialConstants.materialParams1[Index], value);
+		else if constexpr (Group == 2) return CreateScalarProperty(kInitialConstants.materialParams2[Index], value);
+		else if constexpr (Group == 3) return CreateScalarProperty(kInitialConstants.materialParams3[Index], value);
+		else if constexpr (Group == 4) return CreateScalarProperty(kInitialConstants.materialParams4[Index], value);
+		else if constexpr (Group == 5) return CreateScalarProperty(kInitialConstants.materialParams5[Index], value);
+		else if constexpr (Group == 6) return CreateScalarProperty(kInitialConstants.materialParams6[Index], value);
+		else if constexpr (Group == 7) return CreateScalarProperty(kInitialConstants.materialParams7[Index], value);
+		else if constexpr (Group == 8) return CreateScalarProperty(kInitialConstants.materialParams8[Index], value);
+		else if constexpr (Group == 9) return CreateScalarProperty(kInitialConstants.materialParams9[Index], value);
+		else if constexpr (Group == 10) return CreateScalarProperty(kInitialConstants.materialParams10[Index], value);
+		else if constexpr (Group == 11) return CreateScalarProperty(kInitialConstants.materialParams11[Index], value);
+		else return CreateScalarProperty(kInitialConstants.materialParams12[Index], value);
 	}
 
 	CustomEffectRuntime::PropertyDescriptor const kProperties[] = {
@@ -216,6 +254,18 @@ namespace
 		{ L"RefractionNormalization", RefractionNormalizationProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<8, 3> },
 		{ L"ShapeRoundness", ShapeRoundnessProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<9, 0> },
 		{ L"RasterizationScale", RasterizationScaleProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<9, 1> },
+		{ L"DispersionRange", DispersionRangeProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<10, 0> },
+		{ L"RefFresnelRange", RefFresnelRangeProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<10, 1> },
+		{ L"RefFresnelHardness", RefFresnelHardnessProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<10, 2> },
+		{ L"RefFresnelFactor", RefFresnelFactorProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<10, 3> },
+		{ L"GlareRange", GlareRangeProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<11, 0> },
+		{ L"GlareHardness", GlareHardnessProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<11, 1> },
+		{ L"GlareFactor", GlareFactorProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<11, 2> },
+		{ L"GlareConvergence", GlareConvergenceProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<11, 3> },
+		{ L"GlareOppositeFactor", GlareOppositeFactorProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<12, 0> },
+		{ L"GlareAngle", GlareAngleProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<12, 1> },
+		{ L"ShapeRadius", ShapeRadiusProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<12, 2> },
+		{ L"Magnification", MagnificationProperty, ABI::Windows::Graphics::Effects::GRAPHICS_EFFECT_PROPERTY_MAPPING_DIRECT, GetDefaultScalar<12, 3> },
 	};
 
 	CustomEffectRuntime::NativePropertyMetadata const kNativePropertyMetadata[] = {
@@ -257,6 +307,18 @@ namespace
 		{ "RefractionNormalization", kRefractionNormalizationOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 		{ "ShapeRoundness", kShapeRoundnessOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 		{ "RasterizationScale", kRasterizationScaleOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "DispersionRange", kDispersionRangeOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "RefFresnelRange", kRefFresnelRangeOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "RefFresnelHardness", kRefFresnelHardnessOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "RefFresnelFactor", kRefFresnelFactorOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "GlareRange", kGlareRangeOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "GlareHardness", kGlareHardnessOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "GlareFactor", kGlareFactorOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "GlareConvergence", kGlareConvergenceOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "GlareOppositeFactor", kGlareOppositeFactorOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "GlareAngle", kGlareAngleOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "ShapeRadius", kShapeRadiusOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
+		{ "Magnification", kMagnificationOffset, kDCompositionExpressionTypeScalar, kPropertyTypeSingle, 1, nullptr },
 	};
 
 	CustomEffectRuntime::ConstantBufferPropertyMapping const kConstantBufferProperties[] = {
@@ -298,6 +360,18 @@ namespace
 		{ RefractionNormalizationProperty, kRefractionNormalizationOffset },
 		{ ShapeRoundnessProperty, kShapeRoundnessOffset },
 		{ RasterizationScaleProperty, kRasterizationScaleOffset },
+		{ DispersionRangeProperty, kDispersionRangeOffset },
+		{ RefFresnelRangeProperty, kRefFresnelRangeOffset },
+		{ RefFresnelHardnessProperty, kRefFresnelHardnessOffset },
+		{ RefFresnelFactorProperty, kRefFresnelFactorOffset },
+		{ GlareRangeProperty, kGlareRangeOffset },
+		{ GlareHardnessProperty, kGlareHardnessOffset },
+		{ GlareFactorProperty, kGlareFactorOffset },
+		{ GlareConvergenceProperty, kGlareConvergenceOffset },
+		{ GlareOppositeFactorProperty, kGlareOppositeFactorOffset },
+		{ GlareAngleProperty, kGlareAngleOffset },
+		{ ShapeRadiusProperty, kShapeRadiusOffset },
+		{ MagnificationProperty, kMagnificationOffset },
 	};
 
 	constexpr uint16_t kBackdropUvArgument = 0x0100;
@@ -359,6 +433,19 @@ namespace CustomLiquidGlassEffect
 				definition->effectName = EffectName;
 				definition->nativeTemplate = &kDefinition;
 				definition->properties = {
+					{ L"DispersionRange", 1.0f, 0.0f, 1.0f },
+					{ L"RefFresnelRange", 30.0f, 0.0f, 100.0f },
+					{ L"RefFresnelHardness", 20.0f, 0.0f, 100.0f },
+					{ L"RefFresnelFactor", 0.0f, 0.0f, 100.0f },
+					{ L"GlareRange", 30.0f, 0.0f, 100.0f },
+					{ L"GlareHardness", 20.0f, 0.0f, 100.0f },
+					{ L"GlareFactor", 0.0f, 0.0f, 120.0f },
+					{ L"GlareConvergence", 50.0f, 0.0f, 100.0f },
+					{ L"GlareOppositeFactor", 80.0f, 0.0f, 100.0f },
+					{ L"GlareAngle", -45.0f, -180.0f, 180.0f },
+					{ L"ShapeRadius", -1.0f, -1.0f, 1.0f },
+					{ L"Magnification", 1.0f, 1.0f, 3.0f },
+
 					{ L"RefractionStrength", 24.0f, 0.0f, 128.0f },
 					{ L"CornerRadius", 36.0f, 0.0f, 512.0f },
 					{ L"ShapeRoundness", 4.0f, 2.0f, 8.0f },

@@ -13,6 +13,9 @@ cbuffer LiquidGlassConstants : register(b0)
     float4 MaterialParams7;
     float4 MaterialParams8;
     float4 MaterialParams9;
+    float4 MaterialParams10; // dispersion range, Fresnel range/hardness/factor
+    float4 MaterialParams11; // glare range/hardness/factor/convergence
+    float4 MaterialParams12; // opposite glare, angle (degrees), relative radius, zoom
 };
 
 float RoundedRectSdf(float2 p, float2 halfSize, float radius)
@@ -79,7 +82,7 @@ float CalculateReferenceRefractionDistance(
 {
     const float inverseLength = rsqrt(max(derivative * derivative + 1.0f, 1e-6f));
     const float2 surfaceNormal = float2(-derivative * inverseLength, -inverseLength);
-    const float eta = 1.0f / max(refractiveIndex, 1.0001f);
+    const float eta = 1.0f / max(refractiveIndex, 1.0f);
     const float normalDotIncident = surfaceNormal.y;
     const float k = 1.0f - eta * eta * (1.0f - normalDotIncident * normalDotIncident);
     float result = 0.0f;
@@ -277,6 +280,13 @@ float4 SampleTransmission(float2 uv, float2 safeMin, float2 safeMax)
     return result;
 }
 
+float4 SampleSpectralTap(float2 origin, float2 offset, float4 bounds, float4 fallback)
+{
+    float scale = OffsetScaleToBounds(origin, offset, bounds.xy, bounds.zw);
+    float4 tap = SampleTransmission(origin + offset * scale, bounds.xy, bounds.zw);
+    return tap.a > 1e-5f ? tap : fallback;
+}
+
 float SpecularEdgeProfile(
     float distanceFromEdge,
     float specularWidth,
@@ -330,6 +340,17 @@ float PointerSpecularCoefficient(
     return saturate(edgeProfile * angular * radialField);
 }
 
+// Reference Fresnel/glare spatial response, in physical pixels. The range
+// multiplies by DPI once; zero range disables the band rather than dividing by 0.
+float OpticalBand(float depth, float range, float hardness, float dpi)
+{
+    float width = max(range, 0.0001f);
+    float k = min((500.0f / width) * (500.0f / width), 3000.0f * dpi);
+    float x = max(1.0f - depth * k / (1500.0f * dpi) + hardness * 0.01f, 0.0f);
+    float x2 = x * x;
+    return saturate(x2 * x2 * x) * smoothstep(0.0f, 2.0f, range * dpi);
+}
+
 float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 {
     // Custom-sampler derivatives are in raster pixels, while public material geometry
@@ -345,7 +366,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float dispersionStrength = MaterialParams1.z;
     const float materialOpacity = MaterialParams1.w;
     const float glassThickness = MaterialParams2.x * rasterizationScale;
-    const float refractiveIndex = max(MaterialParams2.y, 1.0001f);
+    const float refractiveIndex = max(MaterialParams2.y, 1.0f);
     const float tintOpacity = saturate(MaterialParams2.z);
     const float saturation = max(MaterialParams2.w, 0.0f);
     const float lightAngle = MaterialParams3.x;
@@ -371,6 +392,9 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     // therefore scales the final screen-space displacement exactly once, not twice.
     const float refractionNormalization = max(MaterialParams8.w, 0.0f);
     const float shapeRoundness = clamp(MaterialParams9.x, 2.0f, 8.0f);
+    const float dispersionRange = max(MaterialParams10.x, 0.001f);
+    const float relativeRadius = MaterialParams12.z;
+    const float magnification = max(MaterialParams12.w, 1.0f);
 
     const float2 contentMin = min(samplerData.xy, samplerData.zw);
     const float2 contentMax = max(samplerData.xy, samplerData.zw);
@@ -394,6 +418,11 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const float pointerHoverRange = pointerHoverRangeNormalized * maximumExtent;
     const float2 halfRect = rectSize * 0.5f;
     const float2 local = localPosition - halfRect;
+    const float2 contentCenter = hasContentRect ? (contentMin + contentMax) * 0.5f : 0.5f.xx;
+    const float2 zoomedUv = contentCenter + (uv - contentCenter) / magnification;
+    const float resolvedCornerRadius = relativeRadius >= 0.0f
+        ? min(halfRect.x, halfRect.y) * saturate(relativeRadius)
+        : cornerRadius;
 
     // Keep one raster pixel for generic surfaces so AA/refraction/specular survive
     // the compositor/XAML clip. Only an authored borderless convex pill/circle keeps
@@ -403,11 +432,13 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
     const bool authoredConvexPill =
         surfaceProfile < 0.5f &&
         borderThickness <= 1e-4f &&
-        cornerRadius >= authoredHalfMinSize - 0.5f;
+        resolvedCornerRadius >= authoredHalfMinSize - 0.5f;
     const float shapeMargin = authoredConvexPill ? 0.0f : 1.0f;
     const float2 shapeHalfRect = max(halfRect - shapeMargin.xx, 1.0f.xx);
     const float halfMinSize = max(min(shapeHalfRect.x, shapeHalfRect.y), 1.0f);
-    const float radius = clamp(cornerRadius, 0.0f, halfMinSize);
+    const float radius = relativeRadius >= 0.0f
+        ? halfMinSize * saturate(relativeRadius)
+        : clamp(cornerRadius, 0.0f, halfMinSize);
     const float sdf = RoundedRectSdf(local, shapeHalfRect, radius);
 
     const float sdfPixelFootprint = max(length(float2(ddx(sdf), ddy(sdf))), 0.5f);
@@ -496,7 +527,7 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
 
         const float2 refractionPixelOffset =
             -normal * displacementPixels + pointerRefractionOffset + pointerMotionOffset;
-        const float2 refractedUv = uv + refractionPixelOffset * texelSize;
+        const float2 refractedUv = zoomedUv + refractionPixelOffset * texelSize;
 
         // Required ordering: Source(x + Refraction(x) + Magnification(x + Refraction(x))).
         const float maximumHalfExtent = max(max(halfRect.x, halfRect.y), 1.0f);
@@ -507,14 +538,14 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
             -normalizedMagnification * texelSize * magnificationStrength * magnificationEncodingScale * opticalInterior;
         const float2 sampleUv = refractedUv + magnificationOffset;
 
-        const float bezelWeight = 1.0f - smoothstep(0.18f, 1.0f, bezelT);
+        const float bezelWeight = 1.0f - smoothstep(0.18f * dispersionRange, dispersionRange, bezelT);
         // LiquidGlassWinUI deliberately gives corners more chromatic separation.
-        // Keep our cheaper three-sample pipeline, but apply the same perceptual idea:
-        // RGB separation grows toward the corner diagonal and stays unchanged on faces.
+        // Spread is bounded in physical pixels and converted to UV once. Seven
+        // overlapping wavelength weights below preserve a constant-color backdrop.
         const float cornerDispersionBoost = 1.0f + 0.85f * cornerWeight;
-        const float dispersionPixels = dispersionStrength * bezelWeight *
-            (0.35f + min(abs(displacementPixels) * 0.04f, 1.5f)) *
-            opticalInterior * cornerDispersionBoost;
+        const float dispersionPixels = min(dispersionStrength * bezelWeight *
+            (0.35f * rasterizationScale + min(abs(displacementPixels) * 0.04f, 1.5f * rasterizationScale)) *
+            opticalInterior * cornerDispersionBoost, 8.0f * rasterizationScale);
         const float2 dispersionOffset = normal * texelSize * dispersionPixels;
 
         const float4 transmissionBounds = CalculateTransmissionBounds(
@@ -522,30 +553,50 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float2 transmissionOrigin = clamp(uv, transmissionBounds.xy, transmissionBounds.zw);
         const float2 baseSampleOffset = sampleUv - uv;
 
-        const float2 redOffset = baseSampleOffset - dispersionOffset;
-        const float2 greenOffset = baseSampleOffset;
-        const float2 blueOffset = baseSampleOffset + dispersionOffset;
-        const float redScale = OffsetScaleToBounds(
-            transmissionOrigin, redOffset, transmissionBounds.xy, transmissionBounds.zw);
-        const float greenScale = OffsetScaleToBounds(
-            transmissionOrigin, greenOffset, transmissionBounds.xy, transmissionBounds.zw);
-        const float blueScale = OffsetScaleToBounds(
-            transmissionOrigin, blueOffset, transmissionBounds.xy, transmissionBounds.zw);
-
         float4 baseSample = SampleTransmission(
             transmissionOrigin, transmissionBounds.xy, transmissionBounds.zw);
-        float4 redSample = SampleTransmission(
-            transmissionOrigin + redOffset * redScale, transmissionBounds.xy, transmissionBounds.zw);
-        float4 greenSample = SampleTransmission(
-            transmissionOrigin + greenOffset * greenScale, transmissionBounds.xy, transmissionBounds.zw);
-        float4 blueSample = SampleTransmission(
-            transmissionOrigin + blueOffset * blueScale, transmissionBounds.xy, transmissionBounds.zw);
-
-        if (redSample.a <= 1e-5f) redSample = baseSample;
-        if (greenSample.a <= 1e-5f) greenSample = baseSample;
-        if (blueSample.a <= 1e-5f) blueSample = baseSample;
-
-        float3 color = float3(redSample.r, greenSample.g, blueSample.b);
+        // Integrate the steep refraction footprint along the analytic edge
+        // normal. A one-pixel finite difference of the Snell displacement is
+        // independent of screen-grid orientation and avoids a single noisy rim
+        // sample when blur is zero. Identity refraction gives zero spread.
+        const float nextT = saturate((distanceFromEdge + 1.0f) / bezel);
+        const float nextReference = CalculateReferenceRefractionDistance(
+            SurfaceHeight(nextT, surfaceProfile), SurfaceDerivative(nextT, surfaceProfile),
+            bezel, glassThickness, refractiveIndex);
+        const float nextTransmission = pureConcave ? abs(nextReference) : nextReference;
+        const float nextDisplacement = clamp(nextTransmission * artisticScale *
+            refractionNormalization * cornerRefractionBoost, -displacementLimit, displacementLimit) * opticalInterior;
+        const float2 footprintSpread = normal * texelSize *
+            min(abs(nextDisplacement - displacementPixels), 8.0f * rasterizationScale);
+        float4 footprint = 0.0f.xxxx;
+        [unroll]
+        for (int tapIndex = 0; tapIndex < 8; ++tapIndex)
+        {
+            float t = float(tapIndex) / 7.0f - 0.5f;
+            float4 tap = SampleSpectralTap(transmissionOrigin, baseSampleOffset + footprintSpread * t,
+                transmissionBounds, baseSample);
+            footprint += float4(tap.rgb * tap.a, tap.a);
+        }
+        footprint *= 0.125f;
+        if (footprint.a > 1e-5f) footprint.rgb /= footprint.a;
+        else footprint = baseSample;
+        float4 red = SampleSpectralTap(transmissionOrigin, baseSampleOffset - dispersionOffset,
+            transmissionBounds, baseSample);
+        float4 orange = SampleSpectralTap(transmissionOrigin, baseSampleOffset - dispersionOffset * (2.0f / 3.0f),
+            transmissionBounds, baseSample);
+        float4 yellow = SampleSpectralTap(transmissionOrigin, baseSampleOffset - dispersionOffset * (1.0f / 3.0f),
+            transmissionBounds, baseSample);
+        float4 green = footprint;
+        float4 cyan = SampleSpectralTap(transmissionOrigin, baseSampleOffset + dispersionOffset * (1.0f / 3.0f),
+            transmissionBounds, baseSample);
+        float4 blue = SampleSpectralTap(transmissionOrigin, baseSampleOffset + dispersionOffset * (2.0f / 3.0f),
+            transmissionBounds, baseSample);
+        float4 purple = SampleSpectralTap(transmissionOrigin, baseSampleOffset + dispersionOffset,
+            transmissionBounds, baseSample);
+        float3 color = float3(
+            (red.r + orange.r + yellow.r) / 3.5f + purple.r / 7.0f,
+            orange.g / 7.0f + (yellow.g + green.g + cyan.g) / 3.5f,
+            (green.b + cyan.b + blue.b + purple.b) * 0.25f);
         color = ApplySaturation(color, saturation);
         color = ApplyExposureContrast(color, exposure, contrast);
         color = lerp(color, tintColor, tintOpacity);
@@ -602,6 +653,23 @@ float4 LiquidGlassCore(float2 uv, float4 samplerDataExt, float4 samplerData)
         const float specularAlpha = saturate(specularMask * highlightStrength);
         color = lerp(color, specularCoefficient.xxx, specularAlpha);
         color = lerp(color, 1.0f.xxx, saturate(pointerSpecular));
+
+        const float fresnel = OpticalBand(distanceFromEdge, MaterialParams10.y,
+            MaterialParams10.z, rasterizationScale) * saturate(MaterialParams10.w * 0.01f);
+        const float3 fresnelTint = lerp(1.0f.xxx, tintColor, tintOpacity * 0.5f);
+        color = lerp(color, lerp(fresnelTint, 1.0f.xxx, fresnel * 0.2f), fresnel * 0.7f);
+
+        // Separate front/back lobes and angular convergence, independent of the
+        // Kube specular controls. Algebraic dot formulation avoids atan2/wrapping.
+        const float glareAngle = MaterialParams12.y * 0.01745329252f;
+        const float2 glareDirection = float2(sin(glareAngle), cos(glareAngle));
+        const float facing = dot(normal, glareDirection);
+        const float opposite = facing < 0.0f ? saturate(MaterialParams12.x * 0.01f) : 1.0f;
+        const float glareBase = max(facing * facing * 1.2f * opposite * MaterialParams11.z * 0.01f, 0.0f);
+        const float glareAngular = pow(glareBase, 0.1f + saturate(MaterialParams11.w * 0.01f) * 2.0f);
+        const float glare = saturate(glareAngular) * OpticalBand(distanceFromEdge,
+            MaterialParams11.x, MaterialParams11.y, rasterizationScale);
+        color = lerp(color, 1.0f.xxx, saturate(glare));
         color = saturate(color);
         result = float4(color * alpha, alpha);
     }

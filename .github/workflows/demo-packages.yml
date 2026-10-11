@@ -70,7 +70,6 @@ jobs:
             Version = $env:REQUESTED_VERSION
             RunNumber = [int]'${{ github.run_number }}'
             RunAttempt = [int]'${{ github.run_attempt }}'
-            RequireExplicit = $env:STORE_RELEASE -eq 'true'
           }
           $version = & ./eng/Get-PackageVersion.ps1 @versionArgs
           $kind = if ($env:STORE_RELEASE -eq 'true') { 'Store' } else { 'Preview' }
