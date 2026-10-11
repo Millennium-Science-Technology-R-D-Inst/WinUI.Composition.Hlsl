@@ -9,8 +9,8 @@
 
 <p align="center">
   <a href="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl/actions/workflows/ci.yml/badge.svg?branch=master"></a>
-  <a href="https://www.nuget.org/packages/WinUI.Composition.Hlsl"><img alt="WinUI.Composition.Hlsl NuGet" src="https://img.shields.io/nuget/v/WinUI.Composition.Hlsl?logo=nuget"></a>
-  <a href="https://www.nuget.org/packages/WinUI.LiquidGlass"><img alt="WinUI.LiquidGlass NuGet" src="https://img.shields.io/nuget/v/WinUI.LiquidGlass?logo=nuget"></a>
+  <a href="https://www.nuget.org/packages/WinUI.Composition.Hlsl"><img alt="WinUI.Composition.Hlsl NuGet" src="https://img.shields.io/nuget/v/WinUI.Composition.Hlsl?logo=nuget&label=WinUI.Composition.Hlsl"></a>
+  <a href="https://www.nuget.org/packages/WinUI.LiquidGlass"><img alt="WinUI.LiquidGlass NuGet" src="https://img.shields.io/nuget/v/WinUI.LiquidGlass?logo=nuget&label=LiquidGlass"></a>
   <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="C++23" src="https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus">
   <img alt="WinUI 3" src="https://img.shields.io/badge/WinUI-3-0078D4">
