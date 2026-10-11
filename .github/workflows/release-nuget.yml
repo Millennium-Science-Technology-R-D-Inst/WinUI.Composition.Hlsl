@@ -116,7 +116,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: nuget-${{ env.PACKAGE_VERSION }}
-          name: WinUI Liquid Glass ${{ env.PACKAGE_VERSION }}
+          name: ${{ env.PACKAGE_VERSION }} Release
           commit: ${{ github.sha }}
           artifacts: artifacts/packages/*.nupkg,artifacts/store/*.msixupload,artifacts/store/bundle/*.msixbundle,artifacts/sideload/**/*.msix,artifacts/sideload/**/*.cer
           artifactErrorsFailBuild: true
@@ -124,8 +124,8 @@ jobs:
           prerelease: ${{ contains(env.PACKAGE_VERSION, '-') }}
           generateReleaseNotes: true
           body: |
-            NuGet version: ${{ env.PACKAGE_VERSION }}
-            Store version: ${{ needs.store.outputs.version }}
+            Release version: ${{ env.PACKAGE_VERSION }}
+            Packages: WinUI.Composition.Hlsl and WinUI.LiquidGlass.
             Source: ${{ github.sha }}
             Both NuGet packages, the unsigned Store upload and signed x64/ARM64 sideload packages are built from this revision.
             For sideload installation, import the attached public certificate into Trusted People first.
