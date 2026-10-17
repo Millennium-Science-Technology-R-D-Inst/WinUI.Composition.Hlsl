@@ -2,73 +2,98 @@
 
     <Style BasedOn="{StaticResource DefaultToggleButtonStyle}" TargetType="local:LiquidGlassToggleSwitch">
         <!--
-            Keep Kube's authored geometry at 160x67 internally, but render it at a
-            compact WinUI control size by default. FrameworkElement.Height scales the
-            complete authored coordinate system, so callers can still override the size
-            without rewriting shader geometry or the 57.9-DIP authored travel.
+            Keep Kube's authored geometry at 160x67 internally. SwitchScale sizes only
+            the glyph Viewbox, including the material, knob travel and optical overflow.
+            The outer control remains auto-sized so a Header cannot squeeze the glyph.
         -->
         <Setter Property="MinWidth" Value="0" />
         <Setter Property="MinHeight" Value="0" />
-        <Setter Property="Height" Value="44" />
         <Setter Property="Padding" Value="0" />
+        <Setter Property="Foreground" Value="{ThemeResource ToggleSwitchContentForeground}" />
+        <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+        <Setter Property="FontSize" Value="{ThemeResource ControlContentThemeFontSize}" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="local:LiquidGlassToggleSwitch">
-                    <StackPanel x:Name="Root" Orientation="Horizontal" Spacing="10">
-                        <!--
-                            Keep layout/hit-test semantics at Kube's real 160x67 track size.
-                            The 146x92 optical knob is an overflowing Canvas child, exactly like
-                            Kube's absolutely-positioned DOM element; Canvas does not use that
-                            overflow when measuring the control and does not clip it to the track.
-                        -->
-                        <Viewbox x:Name="SwitchGlyphViewbox" Height="{TemplateBinding Height}" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform" StretchDirection="Both">
+                    <Grid x:Name="Root" Padding="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <!-- Header/Content aliases share a top-row presenter, matching WinUI. -->
+                        <ContentPresenter
+                            x:Name="HeaderContentPresenter"
+                            Grid.Row="0"
+                            Margin="{ThemeResource ToggleSwitchTopHeaderMargin}"
+                            VerticalAlignment="Top"
+                            AutomationProperties.AccessibilityView="Raw"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}"
+                            IsHitTestVisible="False"
+                            TextWrapping="Wrap"
+                            Visibility="Collapsed" />
+                        <Grid Grid.Row="1" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <!--
-                                Viewbox scales the complete authored coordinate system as one unit.
-                                Shader dimensions, 57.9-DIP travel and lip geometry remain Kube's
-                                native values; only the final rendered glyph is uniformly scaled.
+                                Keep layout/hit-test semantics at Kube's real 160x67 track size.
+                                The 146x92 optical knob is an overflowing Canvas child, exactly like
+                                Kube's absolutely-positioned DOM element; Canvas does not use that
+                                overflow when measuring the control and does not clip it to the track.
                             -->
-                            <Grid x:Name="SwitchGlyph" Width="160" Height="67" Control.IsTemplateFocusTarget="True">
-                                <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" />
-                                <Canvas Width="160" Height="67" IsHitTestVisible="False">
-                                    <!--
-                                        Kube:
-                                          marginLeft = -THUMB_REST_OFFSET
-                                                       + (trackHeight - knobHeight*restScale)/2
-                                                     = -21.95
-                                          top = trackHeight/2 with translateY(-50%) -> -12.5.
-                                        Canvas intentionally permits optical overflow beyond the
-                                        160x67 semantic track without contributing it to layout.
-                                    -->
-                                    <Grid x:Name="SwitchKnob" Width="146" Height="92" Canvas.Left="-21.95" Canvas.Top="-12.5" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
-                                        <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" CornerRadius="46" />
-                                    </Grid>
-                                </Canvas>
-                            </Grid>
-                        </Viewbox>
-                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Spacing="8">
-                            <ContentPresenter
-                                VerticalAlignment="Center"
-                                Content="{TemplateBinding Content}"
-                                ContentTemplate="{TemplateBinding ContentTemplate}"
-                                Foreground="{TemplateBinding Foreground}" />
-                            <Grid VerticalAlignment="Center">
+                            <Viewbox x:Name="SwitchGlyphViewbox" Grid.Column="0" Height="44" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform" StretchDirection="Both">
+                                <!--
+                                    Viewbox scales the complete authored coordinate system as one unit.
+                                    Shader dimensions, 57.9-DIP travel and lip geometry remain Kube's
+                                    native values; only the final rendered glyph is uniformly scaled.
+                                -->
+                                <Grid x:Name="SwitchGlyph" Width="160" Height="67" Control.IsTemplateFocusTarget="True">
+                                    <Border x:Name="Track" Width="160" Height="67" Background="Transparent" CornerRadius="33.5" />
+                                    <Canvas Width="160" Height="67" IsHitTestVisible="False">
+                                        <!--
+                                            Kube:
+                                              marginLeft = -THUMB_REST_OFFSET
+                                                           + (trackHeight - knobHeight*restScale)/2
+                                                         = -21.95
+                                              top = trackHeight/2 with translateY(-50%) -> -12.5.
+                                            Canvas intentionally permits optical overflow beyond the
+                                            160x67 semantic track without contributing it to layout.
+                                        -->
+                                        <Grid x:Name="SwitchKnob" Width="146" Height="92" Canvas.Left="-21.95" Canvas.Top="-12.5" local:LiquidGlassInteraction.SpringDampingRatio="0.86" local:LiquidGlassInteraction.SpringPeriod="120">
+                                            <Border x:Name="SwitchKnobSurface" Background="{TemplateBinding Background}" CornerRadius="46" />
+                                        </Grid>
+                                    </Canvas>
+                                </Grid>
+                            </Viewbox>
+                            <!-- Keep both labels measured to avoid width jumps between On/Off. -->
+                            <Grid Grid.Column="2" VerticalAlignment="Center">
                                 <ContentPresenter
                                     x:Name="OffContentPresenter"
                                     VerticalAlignment="Center"
+                                    AutomationProperties.AccessibilityView="Raw"
                                     Content="{TemplateBinding OffContent}"
                                     ContentTemplate="{TemplateBinding OffContentTemplate}"
-                                    Foreground="{TemplateBinding Foreground}" />
+                                    Foreground="{TemplateBinding Foreground}"
+                                    IsHitTestVisible="False" />
                                 <ContentPresenter
                                     x:Name="OnContentPresenter"
                                     VerticalAlignment="Center"
+                                    AutomationProperties.AccessibilityView="Raw"
                                     Content="{TemplateBinding OnContent}"
                                     ContentTemplate="{TemplateBinding OnContentTemplate}"
                                     Foreground="{TemplateBinding Foreground}"
-                                    Visibility="Collapsed" />
+                                    IsHitTestVisible="False"
+                                    Opacity="0" />
                             </Grid>
-                        </StackPanel>
+                        </Grid>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal" />
@@ -81,27 +106,27 @@
                                 </VisualState>
                                 <VisualState x:Name="Checked">
                                     <VisualState.Setters>
-                                        <Setter Target="OffContentPresenter.Visibility" Value="Collapsed" />
-                                        <Setter Target="OnContentPresenter.Visibility" Value="Visible" />
+                                        <Setter Target="OffContentPresenter.Opacity" Value="0" />
+                                        <Setter Target="OnContentPresenter.Opacity" Value="1" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="CheckedPointerOver">
                                     <VisualState.Setters>
-                                        <Setter Target="OffContentPresenter.Visibility" Value="Collapsed" />
-                                        <Setter Target="OnContentPresenter.Visibility" Value="Visible" />
+                                        <Setter Target="OffContentPresenter.Opacity" Value="0" />
+                                        <Setter Target="OnContentPresenter.Opacity" Value="1" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="CheckedPressed">
                                     <VisualState.Setters>
-                                        <Setter Target="OffContentPresenter.Visibility" Value="Collapsed" />
-                                        <Setter Target="OnContentPresenter.Visibility" Value="Visible" />
+                                        <Setter Target="OffContentPresenter.Opacity" Value="0" />
+                                        <Setter Target="OnContentPresenter.Opacity" Value="1" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="CheckedDisabled">
                                     <VisualState.Setters>
                                         <Setter Target="Root.Opacity" Value="0.45" />
-                                        <Setter Target="OffContentPresenter.Visibility" Value="Collapsed" />
-                                        <Setter Target="OnContentPresenter.Visibility" Value="Visible" />
+                                        <Setter Target="OffContentPresenter.Opacity" Value="0" />
+                                        <Setter Target="OnContentPresenter.Opacity" Value="1" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Indeterminate" />
@@ -114,7 +139,7 @@
                                 </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                    </StackPanel>
+                    </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

@@ -9,6 +9,92 @@ using namespace Microsoft::UI::Xaml;
 
 namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 {
+    void MainWindow::VerifyToggleSwitchLayout()
+    {
+        namespace Controls = Microsoft::UI::Xaml::Controls;
+        using Switch = WinUI::LiquidGlass::LiquidGlassToggleSwitch;
+        auto control = GalleryToggleSwitch();
+        auto require = [](bool condition, wchar_t const* message)
+        {
+            if (!condition) throw hresult_error(E_FAIL, message);
+        };
+        auto findPart = [](auto&& findPart, DependencyObject const& root, hstring const& name) -> DependencyObject
+        {
+            if (auto element = root.try_as<FrameworkElement>(); element && element.Name() == name) return root;
+            auto const count = Media::VisualTreeHelper::GetChildrenCount(root);
+            for (int index = 0; index < count; ++index)
+            {
+                if (auto part = findPart(findPart, Media::VisualTreeHelper::GetChild(root, index), name)) return part;
+            }
+            return nullptr;
+        };
+        Controls::ToggleSwitch native;
+        require(unbox_value<hstring>(control.OnContent()) == unbox_value<hstring>(native.OnContent()), L"Default OnContent must use WinUI localization.");
+        require(unbox_value<hstring>(control.OffContent()) == unbox_value<hstring>(native.OffContent()), L"Default OffContent must use WinUI localization.");
+        require(control.ReadLocalValue(Switch::OnContentProperty()) == DependencyProperty::UnsetValue(), L"Localized defaults must remain overridable by styles.");
+        require(std::abs(control.SwitchScale() - SwitchScaleSlider().Value()) < 1e-6, L"SwitchScale XAML binding must resolve before an imperative setter registers the DP.");
+        require(std::isnan(control.Height()), L"Default outer height must be Auto so Header can participate in layout.");
+
+        control.ApplyTemplate();
+        control.UpdateLayout();
+        auto viewbox = findPart(findPart, control, L"SwitchGlyphViewbox").as<Controls::Viewbox>();
+        auto track = findPart(findPart, control, L"Track").as<FrameworkElement>();
+        auto knob = findPart(findPart, control, L"SwitchKnob").as<FrameworkElement>();
+        auto header = findPart(findPart, control, L"HeaderContentPresenter").as<Controls::ContentPresenter>();
+        auto on = findPart(findPart, control, L"OnContentPresenter").as<Controls::ContentPresenter>();
+        auto off = findPart(findPart, control, L"OffContentPresenter").as<Controls::ContentPresenter>();
+        auto const originalHeader = control.Header();
+        auto const headerHeight = header.ActualHeight();
+        auto const headerTop = header.TransformToVisual(control).TransformPoint({ 0.0f, 0.0f }).Y;
+        auto const trackTop = track.TransformToVisual(control).TransformPoint({ 0.0f, 0.0f }).Y;
+        require(header.Visibility() == Visibility::Visible && headerTop + headerHeight <= trackTop + 1.0, L"Header must be above the glyph.");
+
+        for (double scale : { 0.5, 1.0, 1.5 })
+        {
+            control.SwitchScale(scale);
+            control.UpdateLayout();
+            require(std::abs(viewbox.ActualHeight() - 44.0 * scale) <= 1.0, L"Runtime scale must resize the glyph layout box.");
+            require(track.Width() == 160.0 && track.Height() == 67.0 && knob.Width() == 146.0 && knob.Height() == 92.0, L"Scaling must preserve authored material geometry.");
+            require(std::abs(header.ActualHeight() - headerHeight) <= 1.0, L"SwitchScale must not scale Header text.");
+            auto const transform = track.TransformToVisual(control);
+            auto const origin = transform.TransformPoint({ 0.0f, 0.0f });
+            auto const x = transform.TransformPoint({ 160.0f, 0.0f });
+            auto const y = transform.TransformPoint({ 0.0f, 67.0f });
+            require(std::abs(std::abs(x.X - origin.X) / 160.0 - std::abs(y.Y - origin.Y) / 67.0) < 0.01, L"Track must scale uniformly rather than stretch its shape.");
+        }
+
+        control.Width(480.0);
+        control.Height(160.0);
+        control.UpdateLayout();
+        require(std::abs(viewbox.ActualHeight() - 66.0) <= 1.0, L"Outer Width/Height must not change the glyph size.");
+        control.ClearValue(FrameworkElement::WidthProperty());
+        control.ClearValue(FrameworkElement::HeightProperty());
+        control.Header(nullptr);
+        require(header.Visibility() == Visibility::Collapsed, L"A null Header must not reserve a row.");
+        control.HeaderTemplate(Markup::XamlReader::Load(LR"(<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><TextBlock Text="Template-only header" /></DataTemplate>)").as<DataTemplate>());
+        require(header.Visibility() == Visibility::Visible, L"HeaderTemplate alone must show the header row.");
+        control.HeaderTemplate(nullptr);
+        require(header.Visibility() == Visibility::Collapsed, L"Clearing HeaderTemplate must remove an empty header row.");
+        control.Header(originalHeader);
+
+        control.OnContent(box_value(L"A longer enabled label"));
+        control.OffContent(box_value(L"Off"));
+        control.IsOn(false);
+        control.UpdateLayout();
+        auto const offWidth = control.DesiredSize().Width;
+        require(off.Opacity() == 1.0 && on.Opacity() == 0.0, L"Off state must show OffContent.");
+        control.IsOn(true);
+        control.UpdateLayout();
+        require(std::abs(control.DesiredSize().Width - offWidth) <= 1.0, L"Changing state must not change the measured label width.");
+        require(off.Opacity() == 0.0 && on.Opacity() == 1.0, L"On state must show OnContent.");
+        control.IsEnabled(false);
+        require(on.Opacity() == 1.0, L"Disabled checked state must retain OnContent.");
+        control.IsEnabled(true);
+        control.ClearValue(Switch::OnContentProperty());
+        control.ClearValue(Switch::OffContentProperty());
+        control.SwitchScale(1.0);
+    }
+
     void MainWindow::BuildRegressionLab()
     {
         if (m_regressionLabBuilt)

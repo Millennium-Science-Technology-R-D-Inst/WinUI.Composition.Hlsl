@@ -405,8 +405,8 @@ namespace winrt::WinUI::LiquidGlass::detail
             if (std::abs(delta) >= kDragThresholdDips) m_dragOverrideArmed = true;
 
             // Pointer delta is measured in XamlRoot DIPs while the knob translation
-            // remains in Kube's authored 160x67 coordinate system. If Height scales the
-            // Viewbox, convert the authored 57.9-DIP travel into root-space before
+            // remains in Kube's authored 160x67 coordinate system. When SwitchScale or
+            // an ancestor scales the Viewbox, convert the authored travel to root-space before
             // computing the drag ratio.
             auto travel = kTravelDips;
             try

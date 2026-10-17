@@ -316,6 +316,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
 	void LiquidGlassToggleSwitch::EnsureDependencyProperties()
 	{
 		(void)GlassBrushProperty();
+		(void)SwitchScaleProperty();
 		(void)HeaderProperty();
 		(void)HeaderTemplateProperty();
 		(void)OnContentProperty();
@@ -323,6 +324,25 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		(void)OffContentProperty();
 		(void)OffContentTemplateProperty();
 		(void)IsOnProperty();
+	}
+
+	Xaml::DependencyProperty LiquidGlassToggleSwitch::SwitchScaleProperty()
+	{
+		static auto const property = Xaml::DependencyProperty::Register(
+			L"SwitchScale",
+			xaml_typename<double>(),
+			xaml_typename<class_type>(),
+			Xaml::PropertyMetadata{
+				box_value(1.0),
+				Xaml::PropertyChangedCallback{
+					[](Xaml::DependencyObject const& object, Xaml::DependencyPropertyChangedEventArgs const&)
+					{
+						auto self = detail::EnsureDependencyProperty<LiquidGlassToggleSwitch>::GetSelf(object);
+						self->UpdateSwitchScale();
+					}
+				}
+			});
+		return property;
 	}
 
 	Xaml::DependencyProperty LiquidGlassToggleSwitch::HeaderProperty()
@@ -369,7 +389,9 @@ namespace winrt::WinUI::LiquidGlass::implementation
 			L"OnContent",
 			xaml_typename<Windows::Foundation::IInspectable>(),
 			xaml_typename<class_type>(),
-			Xaml::PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr } });
+			// Ask WinUI for its localized default without setting a local value on this
+			// control, so application styles can still override OnContent normally.
+			Xaml::PropertyMetadata{ Controls::ToggleSwitch{}.OnContent() });
 		return property;
 	}
 
@@ -389,7 +411,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
 			L"OffContent",
 			xaml_typename<Windows::Foundation::IInspectable>(),
 			xaml_typename<class_type>(),
-			Xaml::PropertyMetadata{ Windows::Foundation::IInspectable{ nullptr } });
+			Xaml::PropertyMetadata{ Controls::ToggleSwitch{}.OffContent() });
 		return property;
 	}
 
@@ -427,6 +449,14 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		DefaultStyleKey(box_value(xaml_typename<class_type>()));
 
 		auto weak = get_weak();
+		// Header remains an alias for Content for existing callers and the native
+		// ToggleButton automation peer. Its presenter now occupies a separate top row.
+		auto updateHeader = [weak](Xaml::DependencyObject const&, Xaml::DependencyProperty const&)
+		{
+			if (auto self = weak.get()) self->UpdateHeaderVisibility();
+		};
+		(void)RegisterPropertyChangedCallback(Controls::ContentControl::ContentProperty(), updateHeader);
+		(void)RegisterPropertyChangedCallback(Controls::ContentControl::ContentTemplateProperty(), updateHeader);
 		(void)RegisterPropertyChangedCallback(
 			Controls::Primitives::ToggleButton::IsCheckedProperty(),
 			[weak](Xaml::DependencyObject const&, Xaml::DependencyProperty const&)
@@ -460,6 +490,45 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		SetValue(LiquidGlassInteraction::PressedHighlightMultiplierProperty(), box_value(1.0));
 		SetValue(LiquidGlassInteraction::PressedHighlightBoostProperty(), box_value(0.0));
 		SetValue(LiquidGlassInteraction::PressedInnerShadowBoostProperty(), box_value(.09));
+	}
+
+	void LiquidGlassToggleSwitch::OnApplyTemplate()
+	{
+		m_switchGlyphViewbox = nullptr;
+		m_headerPresenter = nullptr;
+		base_type::OnApplyTemplate();
+		m_switchGlyphViewbox = GetTemplateChild(L"SwitchGlyphViewbox").try_as<Controls::Viewbox>();
+		m_headerPresenter = GetTemplateChild(L"HeaderContentPresenter").try_as<Controls::ContentPresenter>();
+		UpdateSwitchScale();
+		UpdateHeaderVisibility();
+		detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>::RefreshVisualModel();
+	}
+
+	double LiquidGlassToggleSwitch::SwitchScale() const
+	{
+		return unbox_value<double>(GetValue(SwitchScaleProperty()));
+	}
+
+	void LiquidGlassToggleSwitch::SwitchScale(double value)
+	{
+		if (!std::isfinite(value) || value <= 0.0 || !std::isfinite(44.0 * value))
+			throw hresult_invalid_argument(L"SwitchScale must be finite and greater than zero.");
+		SetValue(SwitchScaleProperty(), box_value(value));
+	}
+
+	void LiquidGlassToggleSwitch::UpdateSwitchScale()
+	{
+		auto scale = SwitchScale();
+		// SetValue and bindings bypass the projected setter. Never propagate an
+		// invalid scale into layout; render the default size until a valid value arrives.
+		if (!std::isfinite(scale) || scale <= 0.0 || !std::isfinite(44.0 * scale)) scale = 1.0;
+		if (m_switchGlyphViewbox) m_switchGlyphViewbox.Height(44.0 * scale);
+	}
+
+	void LiquidGlassToggleSwitch::UpdateHeaderVisibility()
+	{
+		if (m_headerPresenter)
+			m_headerPresenter.Visibility(Content() || ContentTemplate() ? Xaml::Visibility::Visible : Xaml::Visibility::Collapsed);
 	}
 
 	Windows::Foundation::IInspectable LiquidGlassToggleSwitch::Header() const
