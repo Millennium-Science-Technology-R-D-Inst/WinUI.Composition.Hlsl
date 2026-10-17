@@ -11,6 +11,9 @@ internal static class ApiSurfaceCompile
         _ = typeof(LiquidGlassButton);
         _ = typeof(LiquidGlassSlider);
         _ = typeof(LiquidGlassToggleSwitch);
+        _ = LiquidGlassToggleSwitch.SwitchScaleProperty;
+        var toggleSwitch = new LiquidGlassToggleSwitch { SwitchScale = 0.75 };
+        _ = toggleSwitch.SwitchScale;
         _ = LiquidGlassToggleSwitch.IsOnProperty;
         _ = LiquidGlassToggleSwitch.HeaderProperty;
         _ = LiquidGlassToggleSwitch.HeaderTemplateProperty;

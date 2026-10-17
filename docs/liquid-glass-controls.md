@@ -96,7 +96,24 @@ The active optical response mirrors the Kube reference conceptually:
 
 `LiquidGlassToggleSwitch` keeps the original `ToggleButton`-based Kube implementation because the public WinUI `ToggleSwitch` runtimeclass is sealed and wrapping it changes the switch template/layout contract.
 
-The existing switch visuals remain unchanged: a 160×67 authored track, a 146×92 overflowing optical knob, Kube travel/drag behavior, and the established press/refraction animation. The public `IsOnProperty` is synchronized bidirectionally with inherited `ToggleButton.IsCheckedProperty`, while `HeaderProperty` forwards to inherited `Content`. This preserves the previous appearance and interaction behavior while making `IsOn` a valid TwoWay XAML binding target.
+The switch uses a 160×67 authored track and a 146×92 overflowing optical knob. A uniform `Viewbox` scales that complete coordinate system, preserving the track/knob proportions, corner radii, material, 57.9-DIP authored travel, and press/refraction animation. Pointer drag distances are converted from the rendered size back into authored travel.
+
+Use `SwitchScale` to change the glyph size without editing its template:
+
+```xml
+<liquid:LiquidGlassToggleSwitch Header="Notifications" SwitchScale="0.5" />
+<liquid:LiquidGlassToggleSwitch Header="Notifications" SwitchScale="1.25" IsOn="True" />
+```
+
+`SwitchScale` is a dependency property, so it supports styles, bindings and runtime changes. Its default is `1.0`, retaining the previous 44-DIP track height (approximately 105.1 DIPs wide). `0.5` produces a 22-DIP track height; `1.25` produces 55 DIPs. Header and state text remain at the requested font size. Positive finite values are supported; the projected setter rejects invalid values, while invalid raw dependency-property/binding values render at the default scale until corrected.
+
+`Width` and `Height` size the **whole control's layout box**, including its header and state text; they do not resize the glyph. The default outer height is now `Auto`. An explicit height must leave room for the header plus the glyph, or normal XAML clipping can occur. Scaling a whole-control `RenderTransform` also scales its text and does not reserve extra layout space; prefer `SwitchScale` for the switch graphic alone.
+
+The Header now appears above the switch, with the native `ToggleSwitchTopHeaderMargin`. A null Header with no HeaderTemplate collapses that row; template-only headers are supported. `HeaderProperty` and `HeaderTemplateProperty` retain their existing forwarding to inherited `Content`/`ContentTemplate`, preserving legacy callers and the ToggleButton automation name. The public `IsOnProperty` remains synchronized bidirectionally with inherited `ToggleButton.IsCheckedProperty`.
+
+`OnContent` and `OffContent` default to the localized values returned by a native WinUI `ToggleSwitch`; no English strings are hardcoded. These are metadata defaults, so application styles, explicit content (including an empty string), and content templates can override them. Both state presenters stay measured, avoiding width jumps when toggling between labels of different lengths.
+
+The C++ gallery compares native and glass headers side by side and binds a slider to `SwitchScale`. The demo's `--smoke` mode also checks localized defaults, runtime scaling, header visibility/template changes, and state-label layout stability.
 
 ## LiquidGlassMagnifier
 

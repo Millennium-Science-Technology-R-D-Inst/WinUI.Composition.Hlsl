@@ -238,6 +238,10 @@ namespace winrt::WinUI::LiquidGlass::implementation
 
 		static void EnsureDependencyProperties();
 
+		double SwitchScale() const;
+		void SwitchScale(double value);
+		static Microsoft::UI::Xaml::DependencyProperty SwitchScaleProperty();
+
 		Windows::Foundation::IInspectable Header() const;
 		void Header(Windows::Foundation::IInspectable const& value);
 		static Microsoft::UI::Xaml::DependencyProperty HeaderProperty();
@@ -266,11 +270,7 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		void IsOn(bool value);
 		static Microsoft::UI::Xaml::DependencyProperty IsOnProperty();
 
-		void OnApplyTemplate()
-		{
-			base_type::OnApplyTemplate();
-			detail::KubeToggleSwitchVisualModel<LiquidGlassToggleSwitch>::RefreshVisualModel();
-		}
+		void OnApplyTemplate();
 
 		void OnToggle()
 		{
@@ -279,8 +279,12 @@ namespace winrt::WinUI::LiquidGlass::implementation
 		}
 
 	private:
+		void UpdateSwitchScale();
+		void UpdateHeaderVisibility();
 		void OnIsOnPropertyChanged(bool value);
 		void MirrorIsCheckedToIsOn();
+		Microsoft::UI::Xaml::Controls::Viewbox m_switchGlyphViewbox{ nullptr };
+		Microsoft::UI::Xaml::Controls::ContentPresenter m_headerPresenter{ nullptr };
 		bool m_syncingIsOn{};
 	};
 
