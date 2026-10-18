@@ -144,6 +144,43 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
             });
         panel.Children().Append(glass);
 
+        // Record the optical parameters as well as IsOn. If the numbers change
+        // but refraction is invisible, investigate Popup backdrop sampling;
+        // if they stay fixed, investigate pressed-state dispatch/teardown.
+        Controls::TextBlock opticsStatus;
+        opticsStatus.TextWrapping(TextWrapping::Wrap);
+        opticsStatus.Text(L"Hold the glass switch to inspect pressed optics.");
+        panel.Children().Append(opticsStatus);
+
+        auto showOptics = [opticsStatus](Windows::Foundation::IInspectable const& sender, bool pressed)
+        {
+            auto control = sender.try_as<Liquid::LiquidGlassToggleSwitch>();
+            auto brush = control ? control.GlassBrush() : nullptr;
+            if (!brush)
+            {
+                opticsStatus.Text(L"GlassBrush missing.");
+                return;
+            }
+
+            std::wstring value = pressed ? L"Pressed optics: " : L"Released optics: ";
+            value += L"refraction=";
+            value += winrt::to_hstring(brush.RefractionStrength()).c_str();
+            value += L"; tint=";
+            value += winrt::to_hstring(brush.TintOpacity()).c_str();
+            opticsStatus.Text(winrt::hstring{ value });
+        };
+        using PointerHandler = Microsoft::UI::Xaml::Input::PointerEventHandler;
+        auto pressedHandler = winrt::box_value<PointerHandler>({ [showOptics](auto const& sender, auto const&)
+        {
+            showOptics(sender, true);
+        } });
+        auto releasedHandler = winrt::box_value<PointerHandler>({ [showOptics](auto const& sender, auto const&)
+        {
+            showOptics(sender, false);
+        } });
+        glass.AddHandler(UIElement::PointerPressedEvent(), pressedHandler, true);
+        glass.AddHandler(UIElement::PointerReleasedEvent(), releasedHandler, true);
+
         Controls::ToggleSwitch native;
         native.Header(box_value(L"Native WinUI comparison"));
         native.IsOn(true);
