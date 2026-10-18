@@ -29,13 +29,13 @@ try {
         [IO.File]::WriteAllBytes($cer, $certificate.Export(
             [Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 
-        # SignTool verify uses WinVerifyTrust and requires a chain of trust,
-        # unlike SignTool sign. Trust only this exact public certificate for
-        # the lifetime of this ephemeral CI job. A self-signed certificate is
-        # its own chain root; a CA-issued leaf belongs in TrustedPeople.
-        $storeName = if ($certificate.Subject -eq $certificate.Issuer) { 'Root' } else { 'TrustedPeople' }
+        # The MSIX signing verification policy needs the signer to be trusted.
+        # Microsoft recommends LocalMachine\TrustedPeople for sideload signing.
+        # Never add a non-CA leaf to Trusted Root Certification Authorities.
+        # This hosted CI runner installs only the exported public certificate
+        # temporarily and removes it in finally; no private key is installed.
         $store = [Security.Cryptography.X509Certificates.X509Store]::new(
-            $storeName, [Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+            'TrustedPeople', [Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine)
         try {
             $store.Open([Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
             $existing = $store.Certificates.Find(
@@ -43,7 +43,7 @@ try {
                 $certificate.Thumbprint, $false)
             if ($existing.Count -eq 0) {
                 $store.Add($certificate)
-                $temporaryTrust = $storeName
+                $temporaryTrust = $true
             }
         } finally {
             $store.Close()
@@ -140,7 +140,7 @@ The Store .msixupload is for Partner Center submission; it is not the sideload i
 } finally {
     if ($temporaryTrust) {
         $store = [Security.Cryptography.X509Certificates.X509Store]::new(
-            $temporaryTrust, [Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+            'TrustedPeople', [Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine)
         try {
             $store.Open([Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
             $installed = $store.Certificates.Find(
