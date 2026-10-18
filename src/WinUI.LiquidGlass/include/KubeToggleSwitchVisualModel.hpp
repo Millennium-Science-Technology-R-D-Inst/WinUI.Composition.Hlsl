@@ -21,7 +21,15 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_loaded = true;
                 RefreshVisualModel();
             });
-            self->Unloaded([this](auto const&, auto const&) { ClearForTeardown(); });
+            self->Unloaded([this](auto const&, auto const&)
+            {
+                // ContentDialog can reparent controls before delivering a queued
+                // Unloaded from the old tree. Loaded has already reinitialized us.
+                // Do not tear down a live visual model for that stale event.
+                // See microsoft/microsoft-ui-xaml#8402 and #8342.
+                if (static_cast<Self*>(this)->IsLoaded()) return;
+                ClearForTeardown();
+            });
             self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
             {
                 m_pointerField.InvalidateBrush();
