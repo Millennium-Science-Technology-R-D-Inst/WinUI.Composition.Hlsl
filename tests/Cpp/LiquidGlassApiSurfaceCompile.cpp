@@ -50,6 +50,7 @@ namespace
         (void)LiquidGlassPasswordBox::PasswordProperty();
         (void)LiquidGlassComboBox::GlassBrushProperty();
         (void)LiquidGlassToggleSwitch::GlassBrushProperty();
+        (void)LiquidGlassToggleSwitch::SwitchScaleProperty();
         (void)LiquidGlassToggleSwitch::IsOnProperty();
         (void)LiquidGlassToggleSwitch::HeaderProperty();
         (void)LiquidGlassToggleSwitch::HeaderTemplateProperty();
@@ -83,10 +84,12 @@ namespace
         (void)passwordBox.InnerPasswordBox();
 
         toggleSwitch.Header(box_value(hstring{ L"Switch" }));
+        toggleSwitch.SwitchScale(0.75);
         toggleSwitch.OnContent(box_value(hstring{ L"On" }));
         toggleSwitch.OffContent(box_value(hstring{ L"Off" }));
         toggleSwitch.IsOn(true);
         (void)toggleSwitch.Header();
+        (void)toggleSwitch.SwitchScale();
         (void)toggleSwitch.HeaderTemplate();
         (void)toggleSwitch.OnContent();
         (void)toggleSwitch.OnContentTemplate();

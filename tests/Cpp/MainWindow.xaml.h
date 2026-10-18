@@ -87,6 +87,7 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 		void ApplyLiquidGlassProperties();
 		void ApplyAdvancedLiquidGlassProperties();
 		void BuildRegressionLab();
+		void VerifyToggleSwitchLayout();
 		void UpdateLiquidGlassControlsState();
 		void UpdateLiquidGlassPointerLighting(winrt::Windows::Foundation::Point const& position);
 		void AnimateBackdropScale(float targetScale, int durationMilliseconds);

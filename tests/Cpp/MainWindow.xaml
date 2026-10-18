@@ -319,11 +319,26 @@
                             IsChecked="True" />
                     </Grid>
 
-                    <liquid:LiquidGlassToggleSwitch
-                        Header="Switch"
-                        IsOn="True"
-                        OffContent="Off"
-                        OnContent="On" />
+                    <Grid ColumnSpacing="24">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ToggleSwitch Header="Switch" IsOn="True" />
+                        <liquid:LiquidGlassToggleSwitch
+                            x:Name="GalleryToggleSwitch"
+                            Grid.Column="1"
+                            Header="Switch"
+                            IsOn="True"
+                            SwitchScale="{Binding Value, ElementName=SwitchScaleSlider, Mode=OneWay}" />
+                    </Grid>
+                    <TextBlock Text="Glass switch scale (0.5–1.5); labels keep their text size" />
+                    <Slider
+                        x:Name="SwitchScaleSlider"
+                        Minimum="0.5"
+                        Maximum="1.5"
+                        StepFrequency="0.05"
+                        Value="1" />
                     <liquid:LiquidGlassToggleSwitch
                         Visibility="Collapsed"
                         IsOn="{x:Bind RegressionToggleState, Mode=TwoWay}" />

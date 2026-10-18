@@ -329,6 +329,9 @@ namespace WinUI.LiquidGlass
     {
         LiquidGlassToggleSwitch();
 
+        Double SwitchScale;
+        static Microsoft.UI.Xaml.DependencyProperty SwitchScaleProperty{ get; };
+
         Object Header;
         static Microsoft.UI.Xaml.DependencyProperty HeaderProperty{ get; };
 

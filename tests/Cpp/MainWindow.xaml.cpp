@@ -170,6 +170,8 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
 									throw hresult_error(E_FAIL, L"Cold-start LiquidGlassBrush XAML bindings did not resolve.");
 								}
 								std::ofstream("smoke.log", std::ios::app) << "PASS: cold-start ShapeRoundness/RasterizationScale bindings\n";
+								self->VerifyToggleSwitchLayout();
+								std::ofstream("smoke.log", std::ios::app) << "PASS: ToggleSwitch localization, scale, header and state layout\n";
 								auto compositor = Media::CompositionTarget::GetCompositorForCurrentThread();
 								self->m_liquidGlassMaterial = nullptr;
 								self->m_backdropEffectBrush = CreateMultiSourceBackdropBrush(compositor, WinUI::Composition::Hlsl::HlslEffectKind::Color);
