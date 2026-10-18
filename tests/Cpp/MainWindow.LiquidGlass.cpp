@@ -95,6 +95,64 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
         control.SwitchScale(1.0);
     }
 
+    winrt::fire_and_forget MainWindow::ShowToggleSwitchPopupRegressionAsync()
+    {
+        auto lifetime = get_strong();
+
+        namespace Controls = Microsoft::UI::Xaml::Controls;
+        namespace Liquid = WinUI::LiquidGlass;
+
+        Controls::ContentDialog dialog;
+        dialog.XamlRoot(Root().XamlRoot());
+        dialog.Title(box_value(L"ContentDialog switch lifecycle regression"));
+        dialog.CloseButtonText(L"Close");
+
+        Controls::StackPanel panel;
+        panel.Spacing(12.0);
+
+        Controls::TextBlock instruction;
+        instruction.TextWrapping(TextWrapping::Wrap);
+        instruction.Text(L"Switch between On and Off repeatedly. Compare the live knob/track with the bound IsOn value, then close and reopen this dialog.");
+        panel.Children().Append(instruction);
+
+        Controls::TextBlock status;
+        status.Text(L"Glass IsOn=true. Watch for a delayed Unloaded event.");
+        panel.Children().Append(status);
+
+        Liquid::LiquidGlassToggleSwitch glass;
+        glass.Header(box_value(L"Liquid glass"));
+        glass.IsOn(true);
+        glass.Loaded([status](auto const&, auto const&)
+        {
+            status.Text(L"Glass Loaded: ready for interaction.");
+        });
+        glass.Unloaded([status](auto const& sender, auto const&)
+        {
+            auto element = sender.try_as<FrameworkElement>();
+            if (element && element.IsLoaded())
+            {
+                status.Text(L"Delayed Unloaded while IsLoaded=true: live visual must be preserved.");
+            }
+        });
+        glass.RegisterPropertyChangedCallback(Liquid::LiquidGlassToggleSwitch::IsOnProperty(),
+            [status](DependencyObject const& sender, DependencyProperty const&)
+            {
+                auto control = sender.as<Liquid::LiquidGlassToggleSwitch>();
+                status.Text(control.IsOn()
+                    ? L"Glass IsOn=true: knob must be right, track green."
+                    : L"Glass IsOn=false: knob must be left, track gray.");
+            });
+        panel.Children().Append(glass);
+
+        Controls::ToggleSwitch native;
+        native.Header(box_value(L"Native WinUI comparison"));
+        native.IsOn(true);
+        panel.Children().Append(native);
+
+        dialog.Content(panel);
+        co_await dialog.ShowAsync();
+    }
+
     void MainWindow::BuildRegressionLab()
     {
         if (m_regressionLabBuilt)
@@ -125,6 +183,18 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
             L"Reproduce Concave + blur, verify Slider endpoints, then detach/reload an active control subtree. "
             L"After interacting with it, close the window to exercise composition teardown.");
         host.Children().Append(instructions);
+
+        Controls::Button popupSwitchButton;
+        popupSwitchButton.HorizontalAlignment(HorizontalAlignment::Stretch);
+        popupSwitchButton.Content(box_value(L"Open ContentDialog toggle switch regression"));
+        popupSwitchButton.Click([weak = get_weak()](auto const&, auto const&)
+        {
+            if (auto self = weak.get())
+            {
+                self->ShowToggleSwitchPopupRegressionAsync();
+            }
+        });
+        host.Children().Append(popupSwitchButton);
 
         Controls::Button concaveButton;
         concaveButton.HorizontalAlignment(HorizontalAlignment::Stretch);
