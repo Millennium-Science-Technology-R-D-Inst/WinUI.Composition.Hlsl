@@ -1,5 +1,6 @@
 name: Demo Preview Package
 
+# Manual convenience entry; push/PR previews are produced by CI itself.
 on:
   workflow_dispatch:
     inputs:
@@ -7,28 +8,15 @@ on:
         description: Optional sideload version (Major.Minor.Build.Revision); blank uses YYYY.MMDD.RUN.0.
         required: false
         type: string
-  push:
-    branches: [master]
-    paths:
-      - '.github/workflows/demo-preview-package.yml'
-      - '.github/workflows/demo-packages.yml'
-      - 'eng/Get-PackageVersion.ps1'
-      - 'src/**'
-      - 'tests/Cpp/**'
-      - 'Directory.*'
-      - '*.props'
-      - '*.targets'
 
 permissions:
   contents: read
 
-concurrency:
-  group: demo-preview-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   preview:
-    uses: ./.github/workflows/demo-packages.yml
+    uses: ./.github/workflows/ci.yml
     with:
-      package_version: ${{ inputs.package_version || '' }}
-      store: false
+      msix_version: ${{ inputs.package_version || '' }}
+    secrets:
+      PFX_CERT_BASE64: ${{ secrets.PFX_CERT_BASE64 }}
+      PFX_PASSWORD: ${{ secrets.PFX_PASSWORD }}

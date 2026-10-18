@@ -57,7 +57,7 @@ For controls, reference both packages using matching versions:
 
 The NuGet packages require **Windows App SDK 1.6 or later** and ship native runtime assets for **x86, x64, and ARM64**.
 
-Publication is manual: run **Release** in Actions with one version for NuGet, the current-source Store upload and signed x64/ARM64 sideload packages. Ordinary CI produces test artifacts without publishing them.
+Publication is manual: run **Release** in Actions with one version for NuGet, the current-source Store upload and signed x64/ARM64 sideload packages. CI on all branches and pull requests also produces Demo sideload artifacts without publishing them.
 
 Custom shader execution relies on a private, undocumented Composition implementation ABI. Unsupported layouts fail closed instead of writing guessed private data. See [Architecture](docs/architecture.md) and [Runtime safety](docs/design/runtime-safety.md) for implementation details and support boundaries.
 
@@ -195,7 +195,7 @@ Useful references:
 .\tests\build.ps1 -Language CSharp
 ```
 
-CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, both NuGet packages, and downstream C++/C# package consumers. One manual Release workflow publishes NuGet and prepares the Store upload; automatic Demo builds produce sideload previews only. See [CI and release](docs/releases.md) and the [shader comparison](docs/design/liquid-glass-shader-audit.md).
+CI builds x64/Win32/ARM64 native assets, the CsWinRT projection, generated shader fixtures, both NuGet packages, and downstream C++/C# package consumers. Its final Demo job uses those NuGets to create x64/ARM64 sideload previews signed with the organization certificate. Release reuses that job to prepare the Store upload and publishes the validated outputs. See [CI and release](docs/releases.md) and the [shader comparison](docs/design/liquid-glass-shader-audit.md).
 
 ## License
 
