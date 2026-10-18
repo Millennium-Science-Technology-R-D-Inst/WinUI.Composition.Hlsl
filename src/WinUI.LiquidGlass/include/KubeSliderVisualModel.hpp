@@ -27,6 +27,12 @@ namespace winrt::WinUI::LiquidGlass::detail
             });
             self->Unloaded([this](auto const&, auto const&)
             {
+                // ContentDialog can raise a queued Unloaded after the Slider has
+                // already been reattached and Loaded again (microsoft-ui-xaml#8402).
+                // Disposing the live lens here would disable all further value and
+                // press-driven Composition updates until another Loaded event.
+                if (static_cast<Self*>(this)->IsLoaded()) return;
+
                 m_loaded = false;
                 DetachInitialLayoutSync();
                 m_pointerField.Detach(false);
@@ -80,6 +86,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
             auto updateValue = [this](auto const&, auto const&)
             {
+                EnsureVisualModelForInteraction();
                 if (!m_loaded) return;
                 UpdateProgressVisual();
                 // The glass lens is a sibling overlay, so its position can follow Value
@@ -137,6 +144,22 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
     private:
+        void EnsureVisualModelForInteraction()
+        {
+            if (m_loaded && m_surface && m_track) return;
+
+            auto self = static_cast<Self*>(this);
+            // Do not recreate visuals for a genuinely detached Slider.
+            if (!self->IsLoaded() || !self->XamlRoot()) return;
+
+            // Recover after an unexpected teardown or template replacement.
+            // RefreshVisual reacquires the current template and restores both
+            // the progress track and pressed lens material.
+            m_loaded = true;
+            RestorePendingOptics();
+            RefreshVisual();
+        }
+
         static constexpr double kSemanticThumbExtent = 18.0;
         static constexpr double kVisualWidth = 90.0;
         static constexpr double kVisualHeight = 60.0;
@@ -805,6 +828,7 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void BeginPress(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
+            EnsureVisualModelForInteraction();
             if (!m_loaded || m_pressed) return;
             m_pressed = true;
             ApplyInteractionState(true);
