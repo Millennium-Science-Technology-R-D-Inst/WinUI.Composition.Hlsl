@@ -99,3 +99,8 @@ import winrt.Microsoft.UI.Xaml.Media.Imaging;
 import winrt.Microsoft.UI.Xaml.Navigation;
 import winrt.Microsoft.UI.Xaml.Shapes;
 import winrt.Microsoft.UI.Xaml.XamlTypeInfo;
+
+// Named custom controls become typed fields/accessors in *.xaml.g.h. Import
+// their projections before generated headers are parsed, just like WinUI types.
+import winrt.WinUI.Composition.Hlsl;
+import winrt.WinUI.LiquidGlass;
