@@ -197,6 +197,81 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
         co_await dialog.ShowAsync();
     }
 
+    winrt::fire_and_forget MainWindow::ShowSliderPopupRegressionAsync()
+    {
+        auto lifetime = get_strong();
+
+        namespace Controls = Microsoft::UI::Xaml::Controls;
+        namespace Liquid = WinUI::LiquidGlass;
+
+        Controls::ContentDialog dialog;
+        dialog.XamlRoot(Root().XamlRoot());
+        dialog.Title(box_value(L"ContentDialog slider lifecycle regression"));
+        dialog.CloseButtonText(L"Close");
+
+        Controls::StackPanel panel;
+        panel.Spacing(12.0);
+
+        Controls::TextBlock instructions;
+        instructions.TextWrapping(TextWrapping::Wrap);
+        instructions.Text(L"Drag or click the glass slider repeatedly. Its glass lens and filled track must follow the numeric Value immediately. Press and hold to check the optical response.");
+        panel.Children().Append(instructions);
+
+        Controls::TextBlock lifecycle;
+        lifecycle.Text(L"Waiting for Slider Loaded...");
+        panel.Children().Append(lifecycle);
+
+        Controls::TextBlock valueStatus;
+        valueStatus.Text(L"Glass slider Value=50");
+        panel.Children().Append(valueStatus);
+
+        // Give the backdrop some local contrast, so refraction is easier to
+        // distinguish from a static white lens on ContentDialog's flat background.
+        Controls::Grid trackHost;
+        Controls::TextBlock backdropPattern;
+        backdropPattern.Text(L"  0  1  2  3  4  5  6  7  8  9  ");
+        backdropPattern.FontSize(30.0);
+        backdropPattern.Opacity(0.45);
+        trackHost.Children().Append(backdropPattern);
+
+        Liquid::LiquidGlassSlider glass;
+        glass.Minimum(0.0);
+        glass.Maximum(100.0);
+        glass.Value(50.0);
+        glass.HorizontalAlignment(HorizontalAlignment::Stretch);
+        glass.Loaded([lifecycle](auto const&, auto const&)
+        {
+            lifecycle.Text(L"Glass Slider Loaded");
+        });
+        glass.Unloaded([lifecycle](auto const& sender, auto const&)
+        {
+            auto element = sender.try_as<FrameworkElement>();
+            if (element && element.IsLoaded())
+            {
+                lifecycle.Text(L"Delayed Unloaded with IsLoaded=true: skip visual teardown.");
+            }
+        });
+        glass.ValueChanged([valueStatus](auto const&, auto const& args)
+        {
+            valueStatus.Text(winrt::to_hstring(args.NewValue()));
+        });
+        trackHost.Children().Append(glass);
+        panel.Children().Append(trackHost);
+
+        Controls::TextBlock comparisonLabel;
+        comparisonLabel.Text(L"Native WinUI Slider comparison:");
+        panel.Children().Append(comparisonLabel);
+
+        Controls::Slider native;
+        native.Minimum(0.0);
+        native.Maximum(100.0);
+        native.Value(50.0);
+        panel.Children().Append(native);
+
+        dialog.Content(panel);
+        co_await dialog.ShowAsync();
+    }
+
     void MainWindow::BuildRegressionLab()
     {
         if (m_regressionLabBuilt)
@@ -239,6 +314,18 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
             }
         });
         host.Children().Append(popupSwitchButton);
+
+        Controls::Button popupSliderButton;
+        popupSliderButton.HorizontalAlignment(HorizontalAlignment::Stretch);
+        popupSliderButton.Content(box_value(L"Open ContentDialog slider regression"));
+        popupSliderButton.Click([weak = get_weak()](auto const&, auto const&)
+        {
+            if (auto self = weak.get())
+            {
+                self->ShowSliderPopupRegressionAsync();
+            }
+        });
+        host.Children().Append(popupSliderButton);
 
         Controls::Button concaveButton;
         concaveButton.HorizontalAlignment(HorizontalAlignment::Stretch);
