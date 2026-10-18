@@ -6,6 +6,7 @@ $sideloadDir = Join-Path $root 'artifacts/sideload'
 $certificateDir = Join-Path $root 'artifacts/certificate'
 $privateDir = Join-Path $env:RUNNER_TEMP 'liquidglass-demo-signing'
 $certificates = [Security.Cryptography.X509Certificates.X509Certificate2Collection]::new()
+$temporaryTrust = $null
 New-Item -ItemType Directory -Force $sideloadDir | Out-Null
 
 try {
@@ -27,6 +28,26 @@ try {
         $cer = Join-Path $certificateDir 'LiquidGlassDemo.cer'
         [IO.File]::WriteAllBytes($cer, $certificate.Export(
             [Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+
+        # SignTool verify uses WinVerifyTrust and requires a chain of trust,
+        # unlike SignTool sign. Trust only this exact public certificate for
+        # the lifetime of this ephemeral CI job. A self-signed certificate is
+        # its own chain root; a CA-issued leaf belongs in TrustedPeople.
+        $storeName = if ($certificate.Subject -eq $certificate.Issuer) { 'Root' } else { 'TrustedPeople' }
+        $store = [Security.Cryptography.X509Certificates.X509Store]::new(
+            $storeName, [Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+        try {
+            $store.Open([Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+            $existing = $store.Certificates.Find(
+                [Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+                $certificate.Thumbprint, $false)
+            if ($existing.Count -eq 0) {
+                $store.Add($certificate)
+                $temporaryTrust = $storeName
+            }
+        } finally {
+            $store.Close()
+        }
     }
 
     foreach ($platform in @('x64', 'ARM64')) {
@@ -61,14 +82,47 @@ try {
         & $env:SIGNTOOL sign /fd SHA256 /f $pfx /p $env:PFX_PASSWORD /sha1 $certificate.Thumbprint $target
         if ($LASTEXITCODE) { throw "SignTool failed for $platform." }
 
-        # Verify cryptographic integrity and the actual signer. Do not require
-        # the ephemeral runner to trust the organization's self-signed root.
-        $signature = Get-AuthenticodeSignature $target
-        if ($signature.SignerCertificate.Thumbprint -ne $certificate.Thumbprint -or
-            $signature.Status -notin @('Valid', 'NotTrusted')) {
-            throw "Unexpected signature on $platform package: $($signature.Status)"
+        # MSIX is a ZIP-based AppX container. Get-AuthenticodeSignature
+        # commonly reports UnknownError for it even after SignTool sign
+        # succeeds, because its ordinary file SIP is not the AppX verifier.
+        # Use SignTool's AppX-aware WinVerifyTrust policy for package
+        # integrity, and independently check the embedded CMS signer.
+        & $env:SIGNTOOL verify /pa /v $target
+        if ($LASTEXITCODE -ne 0) {
+            throw "SignTool package signature verification failed for $platform (exit $LASTEXITCODE)."
         }
-        Write-Host "Signed $platform Demo with organization certificate $($certificate.Thumbprint)."
+
+        $zip = [IO.Compression.ZipFile]::OpenRead($target)
+        try {
+            $entry = $zip.GetEntry('AppxSignature.p7x')
+            if (!$entry) { throw "Signed $platform MSIX has no AppxSignature.p7x." }
+            $stream = $entry.Open()
+            try {
+                $buffer = [IO.MemoryStream]::new()
+                try {
+                    $stream.CopyTo($buffer)
+                    $bytes = $buffer.ToArray()
+                } finally {
+                    $buffer.Dispose()
+                }
+            } finally {
+                $stream.Dispose()
+            }
+            # MSIX prefixes the DER PKCS#7 data with the ASCII magic PKCX.
+            if ($bytes.Length -le 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'PKCX') {
+                throw "Unexpected AppX signature format for $platform."
+            }
+            $cms = [Security.Cryptography.Pkcs.SignedCms]::new()
+            $cms.Decode($bytes[4..($bytes.Length - 1)])
+            if ($cms.SignerInfos.Count -ne 1 -or
+                !$cms.SignerInfos[0].Certificate -or
+                $cms.SignerInfos[0].Certificate.Thumbprint -ne $certificate.Thumbprint) {
+                throw "The $platform MSIX was not signed by the expected organization certificate."
+            }
+        } finally {
+            $zip.Dispose()
+        }
+        Write-Host "Verified signed $platform Demo with organization certificate $($certificate.Thumbprint)."
     }
 
     $instructions = if ($Unsigned) {
@@ -84,6 +138,19 @@ The Store .msixupload is for Partner Center submission; it is not the sideload i
     }
     $instructions | Set-Content (Join-Path $sideloadDir 'INSTALL.txt') -Encoding utf8
 } finally {
+    if ($temporaryTrust) {
+        $store = [Security.Cryptography.X509Certificates.X509Store]::new(
+            $temporaryTrust, [Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+        try {
+            $store.Open([Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+            $installed = $store.Certificates.Find(
+                [Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+                $certificate.Thumbprint, $false)
+            foreach ($item in $installed) { $store.Remove($item) }
+        } finally {
+            $store.Close()
+        }
+    }
     foreach ($item in $certificates) { $item.Dispose() }
     Remove-Item $privateDir -Recurse -Force -ErrorAction SilentlyContinue
 }
