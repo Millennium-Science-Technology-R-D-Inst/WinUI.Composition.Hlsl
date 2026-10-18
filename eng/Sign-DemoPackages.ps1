@@ -7,6 +7,7 @@ $certificateDir = Join-Path $root 'artifacts/certificate'
 $privateDir = Join-Path $env:RUNNER_TEMP 'liquidglass-demo-signing'
 $certificates = [Security.Cryptography.X509Certificates.X509Certificate2Collection]::new()
 $temporaryTrust = $null
+$publicCertificate = $null
 New-Item -ItemType Directory -Force $sideloadDir | Out-Null
 
 try {
@@ -26,8 +27,9 @@ try {
             throw 'The organization signing certificate is not currently valid.'
         }
         $cer = Join-Path $certificateDir 'LiquidGlassDemo.cer'
-        [IO.File]::WriteAllBytes($cer, $certificate.Export(
-            [Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+        $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            $certificate.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+        [IO.File]::WriteAllBytes($cer, $publicCertificate.RawData)
 
         # The MSIX signing verification policy needs the signer to be trusted.
         # Microsoft recommends LocalMachine\TrustedPeople for sideload signing.
@@ -42,7 +44,7 @@ try {
                 [Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
                 $certificate.Thumbprint, $false)
             if ($existing.Count -eq 0) {
-                $store.Add($certificate)
+                $store.Add($publicCertificate)
                 $temporaryTrust = $true
             }
         } finally {
@@ -151,6 +153,7 @@ The Store .msixupload is for Partner Center submission; it is not the sideload i
             $store.Close()
         }
     }
+    if ($publicCertificate) { $publicCertificate.Dispose() }
     foreach ($item in $certificates) { $item.Dispose() }
     Remove-Item $privateDir -Recurse -Force -ErrorAction SilentlyContinue
 }
