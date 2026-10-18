@@ -147,7 +147,9 @@ namespace winrt::WinUI::LiquidGlass::detail
     private:
         void EnsureVisualModelForInteraction()
         {
-            if (m_loaded) return;
+            // An unexpected Unloaded is not the only way to lose visuals: a
+            // template can also be replaced while the control stays loaded.
+            if (m_loaded && m_knob && m_trackBrush) return;
             auto self = static_cast<Self*>(this);
             // Do not recreate visuals for controls that have really left the tree.
             // IsLoaded alone is unreliable during ContentDialog reparenting.
