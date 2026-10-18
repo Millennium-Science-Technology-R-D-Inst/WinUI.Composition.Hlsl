@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 #include "XamlWorkaround.h"
 #include "MainWindow.xaml.h"
@@ -155,7 +156,13 @@ namespace winrt::WUILiquidGlassDemo_Hlsl::implementation
         auto showOptics = [opticsStatus](Windows::Foundation::IInspectable const& sender, bool pressed)
         {
             auto control = sender.try_as<Liquid::LiquidGlassToggleSwitch>();
-            auto brush = control ? control.GlassBrush() : nullptr;
+            if (!control)
+            {
+                opticsStatus.Text(L"Not a LiquidGlassToggleSwitch.");
+                return;
+            }
+
+            auto brush = control.GlassBrush();
             if (!brush)
             {
                 opticsStatus.Text(L"GlassBrush missing.");
