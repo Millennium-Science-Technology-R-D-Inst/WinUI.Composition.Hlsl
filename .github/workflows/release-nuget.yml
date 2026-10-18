@@ -113,7 +113,7 @@ jobs:
       - name: Publish GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          tag: nuget-${{ env.PACKAGE_VERSION }}
+          tag: v${{ env.PACKAGE_VERSION }}
           name: ${{ env.PACKAGE_VERSION }} Release
           commit: ${{ github.sha }}
           artifacts: artifacts/packages/*.nupkg,artifacts/store/*.msixupload,artifacts/sideload/**/*.msix,artifacts/sideload/**/*.cer
