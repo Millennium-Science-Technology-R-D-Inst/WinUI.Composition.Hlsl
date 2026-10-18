@@ -21,7 +21,15 @@ namespace winrt::WinUI::LiquidGlass::detail
                 m_loaded = true;
                 RefreshVisualModel();
             });
-            self->Unloaded([this](auto const&, auto const&) { ClearForTeardown(); });
+            self->Unloaded([this](auto const&, auto const&)
+            {
+                // ContentDialog can reparent controls before delivering a queued
+                // Unloaded from the old tree. Loaded has already reinitialized us.
+                // Do not tear down a live visual model for that stale event.
+                // See microsoft/microsoft-ui-xaml#8402 and #8342.
+                if (static_cast<Self*>(this)->IsLoaded()) return;
+                ClearForTeardown();
+            });
             self->RegisterPropertyChangedCallback(Self::GlassBrushProperty(), [this](auto const&, auto const&)
             {
                 m_pointerField.InvalidateBrush();
@@ -35,6 +43,10 @@ namespace winrt::WinUI::LiquidGlass::detail
                     // routed PointerReleased handler runs. Always observe the semantic state
                     // change, even while a pointer gesture is still active, otherwise the
                     // visual ratio remains one click behind and teleports on the next press.
+                    // ContentDialog can raise a transient Unloaded while the control
+                    // still has a XamlRoot. Recover the template visuals before
+                    // responding to the semantic state, or only IsOn will change.
+                    EnsureVisualModelForInteraction();
                     if (m_loaded) SyncSemanticState(true);
                 });
 
@@ -141,6 +153,23 @@ namespace winrt::WinUI::LiquidGlass::detail
         }
 
     private:
+        void EnsureVisualModelForInteraction()
+        {
+            // An unexpected Unloaded is not the only way to lose visuals: a
+            // template can also be replaced while the control stays loaded.
+            if (m_loaded && m_knob && m_trackBrush) return;
+            auto self = static_cast<Self*>(this);
+            // Do not recreate visuals for controls that have really left the tree.
+            // IsLoaded alone is unreliable during ContentDialog reparenting.
+            if (!self->XamlRoot()) return;
+
+            // ClearForTeardown intentionally drops cached template references.
+            // Reacquire the current template and Composition track on interaction,
+            // even if WinUI did not deliver a matching Loaded notification.
+            m_loaded = true;
+            RefreshVisualModel();
+        }
+
         static constexpr double kTrackWidth = 160.0;
         static constexpr double kTrackHeight = 67.0;
         static constexpr double kTrackRadius = 33.5;
@@ -363,6 +392,8 @@ namespace winrt::WinUI::LiquidGlass::detail
 
         void BeginDrag(Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const& args)
         {
+            // A stale Unloaded must not permanently disable pointer interaction.
+            EnsureVisualModelForInteraction();
             if (!m_loaded || m_dragging) return;
             auto self = static_cast<Self*>(this);
             auto element = self->template try_as<Microsoft::UI::Xaml::UIElement>();

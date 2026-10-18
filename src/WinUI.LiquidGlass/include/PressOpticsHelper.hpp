@@ -306,6 +306,11 @@ namespace winrt::WinUI::LiquidGlass::detail
             });
             self->Unloaded([this](auto const&, auto const&)
             {
+                // ContentDialog can deliver queued Unloaded events after the control
+                // has been reparented and Loaded again (microsoft-ui-xaml#8402).
+                // Keep optical interactions active for a control still in the tree.
+                if (static_cast<Self*>(this)->IsLoaded()) return;
+
                 // Teardown is deliberately no-write: retain an active numeric baseline so a
                 // later Loaded can restore/reapply it, but never touch a possibly closed
                 // CompositionEffectBrush while the XAML tree is being dismantled.
