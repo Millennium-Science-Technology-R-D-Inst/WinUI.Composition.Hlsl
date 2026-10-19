@@ -1,7 +1,7 @@
 # CI and release
 
-- **CI** runs on pushes to all branches, pull requests to master, and manual
-  dispatch (documentation-only pushes are excluded). It builds native
+- **CI** runs on pushes to all branches and manual dispatch
+  (documentation-only pushes are excluded). It builds native
   x86/x64/ARM64 assets, managed projections, NuGets and C#/C++ package consumers,
   and runs the native shader reflection validator. Its final Demo job produces
   x64/ARM64 sideload MSIX and the organization public certificate. Demo packaging
@@ -55,9 +55,9 @@ organization identity.
 The sideload artifact includes `LiquidGlassDemo.cer`, exported from the actual
 signing PFX without a private key, and `INSTALL.txt`. If the certificate is not
 already trusted, install the public certificate under **Local Computer > Trusted
-People** before installing the MSIX for the device's architecture. Fork and
-Dependabot PRs without secrets produce an explicitly named `-Sideload-Unsigned`
-artifact with instructions instead. Missing secrets on ordinary builds fail
+People** before installing the MSIX for the device's architecture. Dependabot branch pushes without secrets produce an explicitly named
+`-Sideload-Unsigned` artifact with instructions instead. Push-only CI does
+not automatically validate external fork PRs. Missing secrets on ordinary builds fail
 with a configuration error rather than silently generating another certificate.
 
 ## Store submission
