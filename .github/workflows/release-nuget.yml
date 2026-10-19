@@ -44,17 +44,15 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       package_version: ${{ needs.version.outputs.version }}
-
-  store:
-    needs: [version, validate]
-    uses: ./.github/workflows/demo-packages.yml
-    with:
+      msix_version: ${{ needs.version.outputs.msix-version }}
       store: true
-      package_version: ${{ needs.version.outputs.msix-version }}
+    secrets:
+      PFX_CERT_BASE64: ${{ secrets.PFX_CERT_BASE64 }}
+      PFX_PASSWORD: ${{ secrets.PFX_PASSWORD }}
 
   publish:
     name: Publish NuGet and Store release
-    needs: [validate, store]
+    needs: validate
     permissions:
       contents: write
       id-token: write
@@ -72,13 +70,13 @@ jobs:
       - name: Download Store upload from the same source revision
         uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.store.outputs.artifact_name }}-Store
+          name: ${{ needs.validate.outputs.store-artifact }}
           path: artifacts/store
 
       - name: Download signed sideload packages and public certificate
         uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.store.outputs.artifact_name }}-Sideload
+          name: ${{ needs.validate.outputs.sideload-artifact }}
           path: artifacts/sideload
 
       - uses: actions/setup-dotnet@v6
@@ -115,10 +113,10 @@ jobs:
       - name: Publish GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          tag: nuget-${{ env.PACKAGE_VERSION }}
+          tag: v${{ env.PACKAGE_VERSION }}
           name: ${{ env.PACKAGE_VERSION }} Release
           commit: ${{ github.sha }}
-          artifacts: artifacts/packages/*.nupkg,artifacts/store/*.msixupload,artifacts/store/bundle/*.msixbundle,artifacts/sideload/**/*.msix,artifacts/sideload/**/*.cer
+          artifacts: artifacts/packages/*.nupkg,artifacts/store/*.msixupload,artifacts/sideload/**/*.msix,artifacts/sideload/**/*.cer
           artifactErrorsFailBuild: true
           allowUpdates: false
           prerelease: ${{ contains(env.PACKAGE_VERSION, '-') }}
@@ -128,4 +126,5 @@ jobs:
             Packages: WinUI.Composition.Hlsl and WinUI.LiquidGlass.
             Source: ${{ github.sha }}
             Both NuGet packages, the unsigned Store upload and signed x64/ARM64 sideload packages are built from this revision.
-            For sideload installation, import the attached public certificate into Trusted People first.
+            Upload the .msixupload to Partner Center; it already contains the x64/ARM64 bundle.
+            For sideload installation, trust the attached organization public certificate (LiquidGlassDemo.cer) if needed.

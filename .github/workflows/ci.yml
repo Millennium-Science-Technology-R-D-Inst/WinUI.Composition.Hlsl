@@ -1,19 +1,13 @@
-﻿name: CI
+name: CI
 
 on:
   push:
-    branches:
-      - master
     paths-ignore:
       - '.gitattributes'
-      - '.github/**'
       - '.gitignore'
       - '.gitmodules'
       - '**.md'
       - 'LICENSE'
-      - '**.yml'
-  pull_request:
-    branches: [master]
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -22,16 +16,42 @@ on:
         required: false
         type: string
         default: ''
+      msix_version:
+        description: Optional numeric Demo MSIX version; blank uses the CI preview version.
+        required: false
+        type: string
+        default: ''
+      store:
+        description: Also prepare the Store upload from the same Demo build.
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      PFX_CERT_BASE64:
+        required: false
+      PFX_PASSWORD:
+        required: false
     outputs:
       package-version:
         value: ${{ jobs.pack-nuget.outputs.package-version }}
       package-artifact:
         value: ${{ jobs.pack-nuget.outputs.package-artifact }}
+      sideload-artifact:
+        value: ${{ jobs.demo.outputs.sideload_artifact }}
+      store-artifact:
+        value: ${{ jobs.demo.outputs.store_artifact }}
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
 jobs:
+  debug-core:
+    uses: ./.github/workflows/debug-core.yml
+
   pack-nuget:
     name: Pack native packages
     runs-on: windows-2025-vs2026
@@ -84,18 +104,7 @@ jobs:
         shell: pwsh
         run: |
           foreach ($platform in @('x64', 'Win32', 'ARM64')) {
-            Write-Host "Building core Release/$platform"
-            & $env:MSBUILD `
-              'src\WinUI.Composition.Hlsl\WinUI.Composition.Hlsl.vcxproj' `
-              /restore `
-              /t:Build `
-              /p:Configuration=Release `
-              "/p:Platform=$platform" `
-              /p:NuGetAudit=false `
-              "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-              /m /v:minimal /nologo
-            if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
+            # LiquidGlass's ProjectReference builds core once for this platform.
             Write-Host "Building WinUI.LiquidGlass Release/$platform"
             & $env:MSBUILD `
               'src\WinUI.LiquidGlass\WinUI.LiquidGlass.vcxproj' `
@@ -130,6 +139,7 @@ jobs:
             /restore `
             /t:Build `
             /p:Configuration=Release `
+            /p:BuildProjectReferences=false `
             /p:Platform=x64 `
             /p:NuGetAudit=false `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
@@ -141,6 +151,7 @@ jobs:
             /restore `
             /t:Build `
             /p:Configuration=Release `
+            /p:BuildProjectReferences=false `
             /p:Platform=x64 `
             /p:NuGetAudit=false `
             "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
@@ -253,80 +264,6 @@ jobs:
           if-no-files-found: error
           path: artifacts/packages/*.nupkg
 
-  build-cpp-xaml-demo:
-    name: Build C++ demo from WinUI.LiquidGlass package
-    needs: pack-nuget
-    runs-on: windows-2025-vs2026
-    env:
-      PACKAGE_VERSION: ${{ needs.pack-nuget.outputs.package-version }}
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Prepare package output
-        shell: pwsh
-        run: New-Item -ItemType Directory -Force artifacts\packages | Out-Null
-
-      - name: Download packed NuGets
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ needs.pack-nuget.outputs.package-artifact }}
-          path: artifacts/packages
-
-      - name: Configure exact WinUI.LiquidGlass package consumer
-        shell: pwsh
-        run: |
-          foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.LiquidGlass')) {
-            $expected = "$id.$env:PACKAGE_VERSION.nupkg"
-            if (!(Test-Path "artifacts\packages\$expected")) { throw "Expected package $expected was not downloaded." }
-          }
-
-          $projectPath = (Resolve-Path 'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj').Path
-          [xml]$project = Get-Content $projectPath -Raw
-          $ns = [System.Xml.XmlNamespaceManager]::new($project.NameTable)
-          $ns.AddNamespace('msb', 'http://schemas.microsoft.com/developer/msbuild/2003')
-          $projectRefs = @($project.SelectNodes('//msb:ProjectReference', $ns))
-          if ($projectRefs.Count -lt 2) { throw 'Expected core and WinUI.LiquidGlass ProjectReference entries in the C++ demo.' }
-          foreach ($projectRef in $projectRefs) {
-            [void]$projectRef.ParentNode.RemoveChild($projectRef)
-          }
-          $itemGroup = $project.CreateElement('ItemGroup', $project.DocumentElement.NamespaceURI)
-          $packageRef = $project.CreateElement('PackageReference', $project.DocumentElement.NamespaceURI)
-          $packageRef.SetAttribute('Include', 'WinUI.LiquidGlass')
-          $packageRef.SetAttribute('VersionOverride', $env:PACKAGE_VERSION)
-          [void]$itemGroup.AppendChild($packageRef)
-          [void]$project.DocumentElement.AppendChild($itemGroup)
-          $project.Save($projectPath)
-
-          '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear/><add key="LocalPackages" value="artifacts/packages"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources></configuration>' |
-            Set-Content -Path NuGet.CI.Config -Encoding utf8
-
-      - name: Resolve Visual Studio and Windows SDK
-        shell: pwsh
-        run: |
-          $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Lib" -Directory |
-            Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } |
-            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
-          if (!$sdk) { throw 'Windows SDK not found.' }
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $msbuild = & $vswhere -latest -prerelease -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
-          if (!$msbuild) { throw 'MSBuild not found.' }
-          "WIN_SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "MSBUILD=$msbuild" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Build demo from package
-        shell: pwsh
-        run: |
-          & $env:MSBUILD `
-            'tests\Cpp\WUILiquidGlassDemo.Hlsl.vcxproj' `
-            /restore /t:Build `
-            /p:Configuration=Debug /p:Platform=x64 /p:NuGetAudit=false `
-            /p:GenerateAppxPackageOnBuild=false `
-            "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
-            "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" `
-            /m /v:minimal /nologo
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
   build-csharp-demo:
     name: Build C# package consumers from packed NuGet
     needs: pack-nuget
@@ -350,10 +287,7 @@ jobs:
       - name: Configure exact package consumers
         shell: pwsh
         run: |
-          foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.LiquidGlass')) {
-            $expected = "$id.$env:PACKAGE_VERSION.nupkg"
-            if (!(Test-Path "artifacts\packages\$expected")) { throw "Expected package $expected was not downloaded." }
-          }
+          & ./eng/Use-CIPackages.ps1 -PackageVersion $env:PACKAGE_VERSION
 
           $projectPath = (Resolve-Path 'tests\CSharp\HlslCSharpConsumer.csproj').Path
           [xml]$project = Get-Content $projectPath -Raw
@@ -361,9 +295,6 @@ jobs:
           if (!$packageRef) { throw 'WinUI.Composition.Hlsl PackageReference was not found in the C# demo.' }
           $packageRef.SetAttribute('VersionOverride', $env:PACKAGE_VERSION)
           $project.Save($projectPath)
-
-          '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear/><add key="LocalPackages" value="artifacts/packages"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources></configuration>' |
-            Set-Content -Path NuGet.CI.Config -Encoding utf8
 
       - name: Resolve Visual Studio and Windows SDK
         shell: pwsh
@@ -422,3 +353,17 @@ jobs:
               throw "$name is not a DXBC container."
             }
           }
+
+  demo:
+    name: Package Demo from validated NuGets
+    needs: [pack-nuget, build-csharp-demo, debug-core]
+    if: ${{ !cancelled() && needs.pack-nuget.result == 'success' }}
+    uses: ./.github/workflows/demo-packages.yml
+    with:
+      package_version: ${{ needs.pack-nuget.outputs.package-version }}
+      package_artifact: ${{ needs.pack-nuget.outputs.package-artifact }}
+      msix_version: ${{ inputs.msix_version || '' }}
+      store: ${{ inputs.store || false }}
+    secrets:
+      PFX_CERT_BASE64: ${{ secrets.PFX_CERT_BASE64 }}
+      PFX_PASSWORD: ${{ secrets.PFX_PASSWORD }}
