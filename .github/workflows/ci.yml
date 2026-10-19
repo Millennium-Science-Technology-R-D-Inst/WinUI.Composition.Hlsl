@@ -8,8 +8,6 @@ on:
       - '.gitmodules'
       - '**.md'
       - 'LICENSE'
-  pull_request:
-    branches: [master]
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -45,48 +43,16 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
-  ci-gate:
-    name: Skip redundant branch build when a master PR is open
-    runs-on: ubuntu-latest
-    outputs:
-      run_ci: ${{ steps.check.outputs.run_ci }}
-    steps:
-      - name: Check for an open PR from this branch
-        id: check
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          run_ci=true
-          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == refs/heads/* && "$GITHUB_REF_NAME" != "master" ]]; then
-            owner="${GITHUB_REPOSITORY%%/*}"
-            if count=$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" \
-                -f state=open -f base=master -f head="$owner:$GITHUB_REF_NAME" --jq 'length'); then
-              if [[ "$count" -gt 0 ]]; then
-                run_ci=false
-                echo "Open PR detected for $GITHUB_REF_NAME; the pull_request run performs validation."
-              fi
-            else
-              echo "::warning::Cannot query open PRs; retaining the push validation as a safe fallback."
-            fi
-          fi
-          echo "run_ci=$run_ci" >> "$GITHUB_OUTPUT"
-
   debug-core:
-    needs: ci-gate
-    if: needs.ci-gate.outputs.run_ci == 'true'
     uses: ./.github/workflows/debug-core.yml
 
   pack-nuget:
-    needs: ci-gate
-    if: needs.ci-gate.outputs.run_ci == 'true'
     name: Pack native packages
     runs-on: windows-2025-vs2026
     outputs:
