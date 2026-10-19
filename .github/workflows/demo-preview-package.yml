@@ -1,6 +1,6 @@
 name: Demo Preview Package
 
-# Manual convenience entry; push/PR previews are produced by CI itself.
+# Manual convenience entry; branch push previews are produced by CI itself.
 on:
   workflow_dispatch:
     inputs:
