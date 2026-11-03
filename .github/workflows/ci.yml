@@ -201,33 +201,39 @@ jobs:
       - name: Verify package inputs
         shell: pwsh
         run: |
+          $targetFrameworks = @('net8.0-windows10.0.26100.0', 'net10.0-windows10.0.26100.0')
           $required = @(
             'artifacts\x64\Release\WinUI.Composition.Hlsl.winmd',
             'artifacts\x64\Release\WinUI.Composition.Hlsl.dll',
             'artifacts\Win32\Release\WinUI.Composition.Hlsl.dll',
             'artifacts\ARM64\Release\WinUI.Composition.Hlsl.dll',
-            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll',
-            'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.LiquidGlass.Projection.dll',
             'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.winmd',
             'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.pri',
             'artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll',
             'artifacts\Win32\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll',
             'artifacts\ARM64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll'
           )
+          foreach ($tfm in $targetFrameworks) {
+            $required += "projection\bin\x64\Release\$tfm\WinUI.Composition.Hlsl.Projection.dll"
+            $required += "projection\bin\x64\Release\$tfm\WinUI.LiquidGlass.Projection.dll"
+          }
           foreach ($path in $required) {
             if (!(Test-Path $path)) { throw "Missing package input: $path" }
             Write-Host "Found: $path"
           }
 
           # A successful C# build can still produce a 4-KB assembly with no
-          # projected WinRT types. Assert on both size and a concrete projected type.
-          $projection = Get-Item 'projection\bin\x64\Release\net8.0-windows10.0.26100.0\WinUI.LiquidGlass.Projection.dll'
-          if ($projection.Length -lt 16384) {
-            throw "WinUI.LiquidGlass.Projection.dll is suspiciously small ($($projection.Length) bytes)."
-          }
-          $projectionText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($projection.FullName))
-          if (!$projectionText.Contains('LiquidGlassToggleSwitch')) {
-            throw 'WinUI.LiquidGlass.Projection.dll does not contain the LiquidGlassToggleSwitch projected type.'
+          # projected WinRT types. Validate every target framework independently.
+          foreach ($tfm in $targetFrameworks) {
+            $path = "projection\bin\x64\Release\$tfm\WinUI.LiquidGlass.Projection.dll"
+            $projection = Get-Item $path
+            if ($projection.Length -lt 16384) {
+              throw "WinUI.LiquidGlass.Projection.dll for $tfm is suspiciously small ($($projection.Length) bytes)."
+            }
+            $projectionText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($projection.FullName))
+            if (!$projectionText.Contains('LiquidGlassToggleSwitch')) {
+              throw "WinUI.LiquidGlass.Projection.dll for $tfm does not contain the LiquidGlassToggleSwitch projected type."
+            }
           }
 
       - name: Pack NuGet packages
@@ -259,6 +265,31 @@ jobs:
             }
           }
 
+      - name: Verify NuGet assets for every managed target framework
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression
+          $targetFrameworks = @('net8.0-windows10.0.26100.0', 'net10.0-windows10.0.26100.0')
+          foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.LiquidGlass')) {
+            $packagePath = (Resolve-Path "artifacts\packages\$id.$env:PACKAGE_VERSION.nupkg").Path
+            $zip = [IO.Compression.ZipFile]::OpenRead($packagePath)
+            try {
+              $entries = @($zip.Entries | ForEach-Object { $_.FullName })
+              foreach ($tfm in $targetFrameworks) {
+                $expected = if ($id -eq 'WinUI.Composition.Hlsl') {
+                  @("lib/$tfm/WinUI.Composition.Hlsl.Projection.dll", "buildTransitive/$tfm/WinUI.Composition.Hlsl.targets", "buildTransitive/$tfm/WinUI.Composition.Hlsl.Build.targets")
+                } else {
+                  @("lib/$tfm/WinUI.LiquidGlass.Projection.dll", "lib/$tfm/WinUI.LiquidGlass.Projection.pri", "build/$tfm/WinUI.LiquidGlass.targets")
+                }
+                foreach ($entry in $expected) {
+                  if ($entries -notcontains $entry) { throw "Missing NuGet asset in $id for $tfm`: $entry" }
+                }
+              }
+              Write-Host "Verified $id managed assets for $($targetFrameworks -join ', ')"
+            } finally {
+              $zip.Dispose()
+            }
+          }
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v7
         with:
@@ -341,18 +372,21 @@ jobs:
       - name: Verify managed HLSL build outputs
         shell: pwsh
         run: |
-          foreach ($name in @(
-            'ConsumerColor.dxbc',
-            'ConsumerMaterializedSampler.dxbc',
-            'ConsumerMultiSourceColor.dxbc',
-            'ConsumerMultiSourceSampler.dxbc')) {
-            $fixture = Get-ChildItem 'tests\CSharp' -Recurse -Filter $name -File -ErrorAction SilentlyContinue |
-              Where-Object { $_.FullName -match '[\\/]Hlsl[\\/]' } |
-              Select-Object -First 1
-            if (!$fixture) { throw "Managed build target did not emit $name" }
-            $bytes = [System.IO.File]::ReadAllBytes($fixture.FullName)
-            if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
-              throw "$name is not a DXBC container."
+          $targetFrameworks = @('net8.0-windows10.0.26100.0', 'net10.0-windows10.0.26100.0')
+          foreach ($tfm in $targetFrameworks) {
+            foreach ($name in @(
+              'ConsumerColor.dxbc',
+              'ConsumerMaterializedSampler.dxbc',
+              'ConsumerMultiSourceColor.dxbc',
+              'ConsumerMultiSourceSampler.dxbc')) {
+              $fixture = Get-ChildItem 'tests\CSharp' -Recurse -Filter $name -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -like "*\$tfm\*" -and $_.FullName -match '[\\/]Hlsl[\\/]' } |
+                Select-Object -First 1
+              if (!$fixture) { throw "Managed build target did not emit $name for $tfm" }
+              $bytes = [System.IO.File]::ReadAllBytes($fixture.FullName)
+              if ($bytes.Length -lt 4 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'DXBC') {
+                throw "$name for $tfm is not a DXBC container."
+              }
             }
           }
 

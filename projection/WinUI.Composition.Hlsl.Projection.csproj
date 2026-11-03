@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+		<TargetFrameworks>net8.0-windows10.0.26100.0;net10.0-windows10.0.26100.0</TargetFrameworks>
+		<WindowsSdkPackageVersion Condition="'$(TargetFramework)' == 'net8.0-windows10.0.26100.0'">10.0.26100.86</WindowsSdkPackageVersion>
+		<WindowsSdkPackageVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.0'">10.0.26100.87</WindowsSdkPackageVersion>
 		<TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
 		<UseWinUI>true</UseWinUI>
 		<Platforms>x64;ARM64;x86</Platforms>
