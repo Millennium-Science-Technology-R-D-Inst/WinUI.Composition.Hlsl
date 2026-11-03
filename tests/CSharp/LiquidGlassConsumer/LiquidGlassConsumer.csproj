@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" />
     <PackageReference Include="WinUI.LiquidGlass"
                       VersionOverride="$(LiquidGlassPackageVersion)"
                       Condition="'$(LiquidGlassPackageVersion)' != ''" />

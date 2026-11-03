@@ -17,6 +17,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.WindowsAppSDK"/>
 		<PackageReference Include="WinUI.Composition.Hlsl"/>
+		<PackageReference Include="Microsoft.Windows.CsWinRT" />
 	</ItemGroup>
 	<ItemGroup>
 		<!-- Kind=Auto and Profile=Pixel40 are the package defaults. This consumer
