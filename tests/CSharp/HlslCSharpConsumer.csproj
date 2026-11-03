@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
+		<TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
 		<UseWinUI>true</UseWinUI>
 		<WindowsPackageType>None</WindowsPackageType>
 		<Platforms>x64</Platforms>
@@ -17,6 +17,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.WindowsAppSDK"/>
 		<PackageReference Include="WinUI.Composition.Hlsl"/>
+		<PackageReference Include="Microsoft.Windows.CsWinRT" />
 	</ItemGroup>
 	<ItemGroup>
 		<!-- Kind=Auto and Profile=Pixel40 are the package defaults. This consumer

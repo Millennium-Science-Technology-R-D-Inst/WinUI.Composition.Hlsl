@@ -160,6 +160,8 @@ namespace HlslComposition
 	{
 		std::uintptr_t fromGuid{}, table{}, getBounds{}, calcInputBounds{}, updater{};
 		std::size_t effectCount{};
+		// x64 2.6.4 inlines FromGuid in both Traverser paths and EffectNode.
+		std::array<std::uintptr_t, 3> inlineLookups{};
 	};
 	class RuntimeImage
 	{
@@ -198,7 +200,7 @@ namespace HlslComposition
 			return false;
 		}
 
-		std::uint8_t* Unique(std::initializer_list<int> pattern, DWORD flags) const
+		std::uint8_t* Unique(std::initializer_list<int> pattern, DWORD flags, bool required = true) const
 		{
 			std::uint8_t* found{};
 			for (auto const& s : m_sections)
@@ -217,7 +219,7 @@ namespace HlslComposition
 					}
 				}
 			}
-			if (!found) Fail();
+			if (!found && required) Fail();
 			return found;
 		}
 
@@ -231,14 +233,35 @@ namespace HlslComposition
 			constexpr DWORD code = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
 			std::uint8_t* lookup{};
 			void** table{};
+			std::array<std::uintptr_t, 3> inlineLookups{};
 #if defined(_M_IX86)
 			// PDB: Microsoft::UI::Composition::EffectType::FromGuid. The absolute
 			// table operand is relocated by the loader and is therefore decoded here.
 			lookup = Unique({
 				0x8b,0xff,0x55,0x8b,0xec,0x51,0x53,0x56,0x57,0x89,0x4d,-1,0x33,0xff,
 				0x8b,0x9f,-1,-1,-1,-1,0x8b,0x03,0x8b,0x70,0x04
-							}, code);
-			memcpy(&table, lookup + 16, sizeof(table));
+							}, code, false);
+			if (lookup) memcpy(&table, lookup + 16, sizeof(table));
+			else
+			{
+				// Retail 1.8 saves ESP around the CFG call and walks byte offsets.
+				lookup = Unique({ 0x8b,0xff,0x55,0x8b,0xec,0x51,0x51,0x53,0x56,0x57,
+					0x89,0x4d,0xf8,0x33,0xdb,0x8b,0x83,-1,-1,-1,-1,
+					0x8b,0xfc,0x89,0x45,0xfc,0x8b,0x00,0x8b,0x70,0x04,
+					0x8b,0xce,0xff,0x15,-1,-1,-1,-1,0x8b,0x4d,0xfc,0xff,0xd6,
+					0x3b,0xfc,0x74,0x07,0xb9,0x04,0,0,0,0xcd,0x29 }, code, false);
+				if (lookup) memcpy(&table, lookup + 17, sizeof(table));
+			}
+			if (!lookup)
+			{
+				// 2.6.4: no hotpatch prefix; the indexed table load replaces
+				// the old running-pointer form. ECX still carries the GUID.
+				lookup = Unique({ 0x55,0x8b,0xec,0x51,0x53,0x56,0x57,0x89,0x4d,0xfc,
+					0x33,0xff,0x0f,0x1f,0x40,0x00,0x8b,0x1c,0xbd,-1,-1,-1,-1,
+					0x8b,0x03,0x8b,0x70,0x04,0x8b,0xce,0xff,0x15,-1,-1,-1,-1,
+					0x8b,0xcb,0xff,0xd6,0x8b,0xd0,0xbe,0x0c,0,0,0,0x8b,0x45,0xfc }, code);
+				memcpy(&table, lookup + 19, sizeof(table));
+			}
 #elif defined(_M_ARM64)
 			// Same function on ARM64. Decode its ADRP+ADD pair rather than retaining
 			// the RVA produced by one Windows App SDK build.
@@ -248,14 +271,23 @@ namespace HlslComposition
 				0xfd,0x03,0x00,0x91,
 				-1,-1,-1,-1,-1,-1,-1,-1,
 				0xf4,0x03,0x00,0xaa,0x15,0x00,0x80,0x52,0xd3,0x5a,0x75,0xf8
-							}, code);
+							}, code, false);
+			if (!lookup)
+			{
+				// Non-PAC ARM64 build, with X23 used for memcmp's result.
+				lookup = Unique({ 0xf3,0x53,0xbd,0xa9,0xf5,0x5b,0x01,0xa9,
+					0xf7,0x13,0x00,0xf9,0xfd,0x7b,0xbf,0xa9,0xfd,0x03,0,0x91,
+					-1,-1,-1,-1,-1,-1,-1,-1,0xf4,0x03,0,0xaa,0x15,0,0x80,0x52,
+					0x17,0,0x80,0x12,0xd3,0x5a,0x75,0xf8 }, code);
+			}
 			std::uint32_t adrp{}, add{};
 			memcpy(&adrp, lookup + 20, sizeof(adrp));
 			memcpy(&add, lookup + 24, sizeof(add));
 			int64_t pageOffset = static_cast<int64_t>(
 				(((adrp >> 5) & 0x7ffff) << 2) | ((adrp >> 29) & 3));
 			if (pageOffset & (1 << 20)) pageOffset -= (1 << 21);
-			auto page = reinterpret_cast<std::uintptr_t>(lookup) & ~std::uintptr_t{ 0xfff };
+			// ADRP is relative to its own instruction page, not the entry page.
+			auto page = reinterpret_cast<std::uintptr_t>(lookup + 20) & ~std::uintptr_t{ 0xfff };
 			auto immediate = static_cast<std::uintptr_t>((add >> 10) & 0xfff);
 			if (add & (1 << 22)) immediate <<= 12;
 			auto tableAddress = static_cast<std::intptr_t>(page) + pageOffset * 4096 +
@@ -272,10 +304,29 @@ namespace HlslComposition
 				0x48,0x8b,0xc8,0x49,0x8b,0x06,0x48,0x3b,0x01,0x75,0x0a,
 				0x49,0x8b,0x46,0x08,0x48,0x3b,0x41,0x08,0x74,0x24,0xff,0xc3,
 				0x48,0x83,0xc7,0x08,0x83,0xfb,-1,0x72,0xce
-							}, code);
+							}, code, false);
 			int32_t displacement{};
-			memcpy(&displacement, lookup + 27, 4);
-			table = reinterpret_cast<void**>(lookup + 31 + displacement);
+			if (lookup)
+			{
+				memcpy(&displacement, lookup + 27, 4);
+				table = reinterpret_cast<void**>(lookup + 31 + displacement);
+			}
+			else
+			{
+				// Complete loop bodies, including their GUID operands, register
+				// destinations, bounds and exits. Never patch a prologue-only match.
+				auto constructor = Unique({ 0x48,0x8d,0x0d,-1,-1,-1,-1,0x8b,0xc7,0x48,0x8b,0x1c,0xc1,0x48,0x8b,0x03,0x48,0x8b,0xcb,0x48,0x8b,0x40,0x08,0xff,0x15,-1,-1,-1,-1,0x48,0x8b,0xc8,0x48,0x8b,0x45,0x07,0x48,0x3b,0x01,0x75,0x0a,0x48,0x8b,0x45,0x0f,0x48,0x3b,0x41,0x08,0x74,0x0a,0xff,0xc7,0x83,0xff,0x1f,0x72,0xc6,0x49,0x8b,0xdd }, code);
+				auto enumerate = Unique({ 0x4c,0x8d,0x25,-1,-1,-1,-1,0x0f,0x1f,0x84,0x00,0,0,0,0,0x8b,0xc3,0x49,0x8b,0x3c,0xc4,0x48,0x8b,0x07,0x48,0x8b,0xcf,0x48,0x8b,0x40,0x08,0xff,0x15,-1,-1,-1,-1,0x48,0x8b,0x4d,0x0f,0x48,0x3b,0x08,0x75,0x0a,0x48,0x8b,0x4d,0x17,0x48,0x3b,0x48,0x08,0x74,0x0a,0xff,0xc3,0x83,0xfb,0x1f,0x72,0xd0,0x49,0x8b,0xff }, code);
+				auto node = Unique({ 0x4c,0x8d,0x25,-1,-1,-1,-1,0x0f,0x1f,0x44,0,0,0x8b,0xc3,0x4d,0x8b,0x34,0xc4,0x49,0x8b,0x06,0x49,0x8b,0xce,0x48,0x8b,0x40,0x08,0xff,0x15,-1,-1,-1,-1,0x48,0x8b,0xc8,0x48,0x8b,0x07,0x48,0x3b,0x01,0x75,0x0a,0x48,0x8b,0x47,0x08,0x48,0x3b,0x41,0x08,0x74,0x09,0xff,0xc3,0x83,0xfb,0x1f,0x73,0x3d,0xeb,0xcc }, code);
+				memcpy(&displacement, constructor + 3, 4);
+				table = reinterpret_cast<void**>(constructor + 7 + displacement);
+				for (auto site : { enumerate, node })
+				{
+					memcpy(&displacement, site + 3, 4);
+					if (reinterpret_cast<void**>(site + 7 + displacement) != table) Fail();
+				}
+				inlineLookups = { Rva(constructor), Rva(enumerate), Rva(node) };
+			}
 #endif
 
 			// Discover the table length from valid EffectType objects. FromGuid's
@@ -299,6 +350,9 @@ namespace HlslComposition
 				if (IsEqualGUID(*guid, CLSID_D2D1ColorMatrix)) neutral = vt;
 			}
 			if (!count || !neutral) Fail();
+			// All three inlined loops above have the audited 31-entry bound.
+			// Do not silently accept an adjacent table or a changed table layout.
+			if (inlineLookups[0] && count != 31) Fail();
 
 			std::uint8_t* copy{};
 #if defined(_M_IX86)
@@ -307,7 +361,11 @@ namespace HlslComposition
 				0x8b,0xff,0x55,0x8b,0xec,0x8b,0x41,0x14,0x8b,0x49,0x08,0xc1,0xe0,0x02,
 				0x50,0x8b,0x45,0x08,0x03,0x08,0x8b,0x45,0x0c,0x51,0xff,0x30,0xe8,
 				-1,-1,-1,-1,0x83,0xc4,0x0c,0x5d,0xc2,0x08,0x00
-						  }, code);
+						  }, code, false);
+			if (!copy)
+				copy = Unique({ 0x55,0x8b,0xec,0x8b,0x41,0x14,0x8b,0x49,0x08,0xc1,0xe0,0x02,
+					0x50,0x8b,0x45,0x08,0x03,0x08,0x8b,0x45,0x0c,0x51,0xff,0x30,0xe8,
+					-1,-1,-1,-1,0x83,0xc4,0x0c,0x5d,0xc2,0x08,0x00 }, code);
 #elif defined(_M_ARM64)
 			copy = Unique({
 				0x0a,0x1c,0x40,0xb9,0xeb,0x03,0x02,0xaa,0x09,0x10,0x40,0xb9,
@@ -339,7 +397,7 @@ namespace HlslComposition
 				}
 			}
 			if (!updater) Fail();
-			return { Rva(lookup),Rva(table),Rva(neutral[15]),Rva(neutral[16]),Rva(updater),count };
+			return { lookup ? Rva(lookup) : 0,Rva(table),Rva(neutral[15]),Rva(neutral[16]),Rva(updater),count,inlineLookups };
 		}
 	};
 }
@@ -379,6 +437,7 @@ namespace
 	std::uintptr_t kEffectTypeCalcInputBoundsRva{};
 	std::uintptr_t kDirectPropertyUpdaterFunctionVtableRva{};
 	std::size_t kEffectTypeCount{};
+	std::array<std::uintptr_t, 3> g_inlineEffectLookups{};
 	// Reverse engineering shows EffectType virtual calls stop at slot 21
 	// (+0xa8, GetEffectOpacityRelation) in this WinAppSDK build. Slot 22+
 	// is not part of the callable ABI we need to model for private GUIDs.
@@ -1009,6 +1068,48 @@ namespace
 
 	void PatchEffectTypeFromGuid(HMODULE wuceffectsi)
 	{
+#if defined(_M_X64)
+		if (g_inlineEffectLookups[0])
+		{
+			// These sites already provide aligned Win64 call frames and shadow
+			// space for GetGuid. Retain the table LEA (r12 is nonvolatile), then
+			// replace the complete loop with our native + custom GUID lookup.
+			constexpr size_t sizes[] = { 61, 66, 64 };
+			for (size_t index = 0; index < g_inlineEffectLookups.size(); ++index)
+			{
+				auto site = reinterpret_cast<uint8_t*>(wuceffectsi) + g_inlineEffectLookups[index];
+				std::vector<uint8_t> patch(sizes[index] - 7, 0x90);
+				size_t cursor{};
+				auto emit = [&](std::initializer_list<uint8_t> bytes)
+					{
+						for (auto byte : bytes) patch[cursor++] = byte;
+					};
+				if (index == 0) emit({ 0x48,0x8d,0x4d,0x07 }); // GUID at rbp+7
+				else if (index == 1) emit({ 0x48,0x8d,0x4d,0x0f }); // GUID at rbp+15
+				else emit({ 0x48,0x8b,0xcf }); // GUID in rdi
+				emit({ 0x48,0xb8 });
+				auto function = reinterpret_cast<uintptr_t>(&DetourEffectTypeFromGuid);
+				memcpy(patch.data() + cursor, &function, sizeof(function));
+				cursor += sizeof(function);
+				emit({ 0xff,0xd0 }); // call rax
+				if (index == 0) emit({ 0x48,0x8b,0xd8 }); // result in rbx
+				else if (index == 1) emit({ 0x48,0x8b,0xf8 }); // result in rdi
+				else
+				{
+					emit({ 0x4c,0x8b,0xf0,0x48,0x85,0xc0,0x0f,0x84 }); // r14; null -> native error
+					auto displacement = static_cast<int32_t>((site + 123) - (site + 7 + cursor + 4));
+					memcpy(patch.data() + cursor, &displacement, sizeof(displacement));
+				}
+				DWORD oldProtect{};
+				check_bool(VirtualProtect(site + 7, patch.size(), PAGE_EXECUTE_READWRITE, &oldProtect));
+				memcpy(site + 7, patch.data(), patch.size());
+				FlushInstructionCache(GetCurrentProcess(), site + 7, patch.size());
+				DWORD unused{};
+				VirtualProtect(site + 7, patch.size(), oldProtect, &unused);
+			}
+			return;
+		}
+#endif
 		// EffectType::FromGuid is called before CompileEffectDescription. If it
 		// returns null, traversal fails with "Unsupported effect type" and our
 		// compile detour never runs. Patching this function is therefore the first
@@ -2159,6 +2260,7 @@ namespace
 						   kEffectTypeCalcInputBoundsRva = resolved.calcInputBounds;
 						   kDirectPropertyUpdaterFunctionVtableRva = resolved.updater;
 						   kEffectTypeCount = resolved.effectCount;
+						   g_inlineEffectLookups = resolved.inlineLookups;
 						   g_originalCompileEffectDescription = original;
 						   g_wuceffectsiModule = module;
 
