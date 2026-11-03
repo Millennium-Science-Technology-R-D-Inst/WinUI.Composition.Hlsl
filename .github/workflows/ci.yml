@@ -4,10 +4,12 @@ on:
   push:
     paths-ignore:
       - '.gitattributes'
+      - '.github/**'
       - '.gitignore'
       - '.gitmodules'
       - '**.md'
       - 'LICENSE'
+      - '**.yml'
   workflow_dispatch:
   workflow_call:
     inputs:
