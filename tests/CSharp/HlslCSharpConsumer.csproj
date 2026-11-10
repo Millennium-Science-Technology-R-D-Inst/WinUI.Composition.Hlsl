@@ -1,7 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<TargetFrameworks>net10.0-windows10.0.26100.0;net10.0-windows10.0.26100.1</TargetFrameworks>
+		<!-- Default release builds use the published CsWinRT 2 WinUI projection.
+         Set EnableExperimentalCsWinRT3=true explicitly for the .1 experiment. -->
+    <TargetFrameworks>net10.0-windows10.0.26100.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(EnableExperimentalCsWinRT3)' == 'true'">net10.0-windows10.0.26100.0;net10.0-windows10.0.26100.1</TargetFrameworks>
     <CsWinRTGenerateReferenceProjection Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">true</CsWinRTGenerateReferenceProjection>
     <WindowsSdkPackageVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">10.0.26100.88-preview</WindowsSdkPackageVersion>
 		<UseWinUI>true</UseWinUI>

@@ -201,7 +201,7 @@ jobs:
       - name: Verify package inputs
         shell: pwsh
         run: |
-          $targetFrameworks = @('net10.0-windows10.0.26100.0', 'net10.0-windows10.0.26100.1')
+          $targetFrameworks = @('net10.0-windows10.0.26100.0')
           $required = @(
             'artifacts\x64\Release\WinUI.Composition.Hlsl.winmd',
             'artifacts\x64\Release\WinUI.Composition.Hlsl.dll',
@@ -217,10 +217,6 @@ jobs:
             $required += "projection\bin\x64\Release\$tfm\WinUI.Composition.Hlsl.Projection.dll"
             $required += "projection\bin\x64\Release\$tfm\WinUI.LiquidGlass.Projection.dll"
           }
-          $required += @(
-            'projection\\bin\\x64\\Release\\net10.0-windows10.0.26100.1\\ref\\WinUI.Composition.Hlsl.Projection.dll',
-            'projection\\bin\\x64\\Release\\net10.0-windows10.0.26100.1\\ref\\WinUI.LiquidGlass.Projection.dll'
-          )
           foreach ($path in $required) {
             if (!(Test-Path $path)) { throw "Missing package input: $path" }
             Write-Host "Found: $path"
@@ -231,11 +227,6 @@ jobs:
           foreach ($tfm in $targetFrameworks) {
             $path = "projection\bin\x64\Release\$tfm\WinUI.LiquidGlass.Projection.dll"
             $projection = Get-Item $path
-            if ($tfm -eq 'net10.0-windows10.0.26100.1') {
-              $reference = "projection\\bin\\x64\\Release\\$tfm\\ref\\WinUI.LiquidGlass.Projection.dll"
-              if (!(Test-Path $reference)) { throw "Missing CsWinRT 3 reference projection: $reference" }
-              continue # CsWinRT 3 forwarders are intentionally smaller than full 2.x projections.
-            }
             if ($projection.Length -lt 16384) {
               throw "WinUI.LiquidGlass.Projection.dll for $tfm is suspiciously small ($($projection.Length) bytes)."
             }
@@ -278,7 +269,7 @@ jobs:
         shell: pwsh
         run: |
           Add-Type -AssemblyName System.IO.Compression
-          $targetFrameworks = @('net10.0-windows10.0.26100.0', 'net10.0-windows10.0.26100.1')
+          $targetFrameworks = @('net10.0-windows10.0.26100.0')
           foreach ($id in @('WinUI.Composition.Hlsl', 'WinUI.LiquidGlass')) {
             $packagePath = (Resolve-Path "artifacts\packages\$id.$env:PACKAGE_VERSION.nupkg").Path
             $zip = [IO.Compression.ZipFile]::OpenRead($packagePath)
@@ -290,14 +281,8 @@ jobs:
                 } else {
                   @("lib/$tfm/WinUI.LiquidGlass.Projection.dll", "lib/$tfm/WinUI.LiquidGlass.Projection.pri", "build/$tfm/WinUI.LiquidGlass.targets")
                 }
-                if ($tfm -eq 'net10.0-windows10.0.26100.1') {
-                  $expected += "ref/$tfm/$id.Projection.dll"
-                }
                 foreach ($entry in $expected) {
                   if ($entries -notcontains $entry) { throw "Missing NuGet asset in $id for $tfm`: $entry" }
-                }
-                if ($tfm -eq 'net10.0-windows10.0.26100.1' -and $entries -notcontains "metadata/$id.winmd") {
-                  throw "CsWinRT 3 metadata is missing from $id"
                 }
               }
               Write-Host "Verified $id managed assets for $($targetFrameworks -join ', ')"
@@ -384,20 +369,12 @@ jobs:
             /m /v:minimal /nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
-      - name: Publish CsWinRT 3 C# package consumer with Native AOT
-        shell: pwsh
-        run: |
-          & dotnet publish 'tests\\CSharp\\HlslCSharpConsumer.csproj' `
-            -c Release -f net10.0-windows10.0.26100.1 -r win-x64 `
-            -p:PublishAot=true -p:SelfContained=true `
-            "/p:RestoreConfigFile=$((Resolve-Path 'NuGet.CI.Config').Path)" `
-            -p:NuGetAudit=false
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
+      # The experimental .1 pipeline lives in cswinrt3-restore.yml until
+      # Microsoft.WinUI provides a CsWinRT 3-compatible managed projection.
       - name: Verify managed HLSL build outputs
         shell: pwsh
         run: |
-          $targetFrameworks = @('net10.0-windows10.0.26100.0', 'net10.0-windows10.0.26100.1')
+          $targetFrameworks = @('net10.0-windows10.0.26100.0')
           foreach ($tfm in $targetFrameworks) {
             foreach ($name in @(
               'ConsumerColor.dxbc',

@@ -16,10 +16,6 @@
       <group targetFramework="net10.0-windows10.0.26100.0">
         <dependency id="WinUI.Composition.Hlsl" version="[$HlslVersion$]" />
       </group>
-      <group targetFramework="net10.0-windows10.0.26100.1">
-        <dependency id="WinUI.Composition.Hlsl" version="[$HlslVersion$]" />
-        <dependency id="Microsoft.Windows.CsWinRT" version="[3.0.0-preview.261104.1,)" />
-      </group>
     </dependencies>
     <projectUrl>https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl</projectUrl>
     <tags>winui3 c++ cppwinrt csharp cswinrt controls liquid glass composition xaml native</tags>
@@ -35,11 +31,7 @@
     <file src="artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.pri" target="lib\native"/>
 
     <file src="projection\bin\x64\Release\net10.0-windows10.0.26100.0\WinUI.LiquidGlass.Projection.dll" target="lib\net10.0-windows10.0.26100.0"/>
-    <file src="projection\bin\x64\Release\net10.0-windows10.0.26100.1\WinUI.LiquidGlass.Projection.dll" target="lib\net10.0-windows10.0.26100.1"/>
-    <file src="projection\bin\x64\Release\net10.0-windows10.0.26100.1\ref\WinUI.LiquidGlass.Projection.dll" target="ref\net10.0-windows10.0.26100.1"/>
-    <file src="artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.winmd" target="metadata"/>
     <file src="artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.pri" target="lib\net10.0-windows10.0.26100.0\WinUI.LiquidGlass.Projection.pri"/>
-    <file src="artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.pri" target="lib\net10.0-windows10.0.26100.1\WinUI.LiquidGlass.Projection.pri"/>
 
     <file src="artifacts\x64\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll" target="runtimes\win-x64\native"/>
     <file src="artifacts\Win32\Release\WinUI.LiquidGlass\WinUI.LiquidGlass.dll" target="runtimes\win-x86\native"/>
@@ -47,6 +39,5 @@
 
     <file src="packaging\WinUI.LiquidGlass.Native.targets" target="build\native\WinUI.LiquidGlass.targets"/>
     <file src="packaging\WinUI.LiquidGlass.Managed.targets" target="build\net10.0-windows10.0.26100.0\WinUI.LiquidGlass.targets"/>
-    <file src="packaging\WinUI.LiquidGlass.Managed.targets" target="build\net10.0-windows10.0.26100.1\WinUI.LiquidGlass.targets"/>
   </files>
 </package>

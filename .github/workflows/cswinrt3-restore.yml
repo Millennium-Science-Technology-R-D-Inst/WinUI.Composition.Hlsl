@@ -1,4 +1,8 @@
-name: CsWinRT 3 quick restore
+# The WinUI 2.6.5 managed Microsoft.WinUI projection is compiled for CsWinRT 2.
+# The .1 build intentionally checks for an official compatible WinUI projection.
+# Failure with CS0234 (missing Microsoft.UI) is an upstream dependency blocker,
+# not a success and not something to paper over by referencing old .0 assemblies.
+name: CsWinRT 3 experimental compatibility
 
 on:
   push:
@@ -33,7 +37,7 @@ jobs:
         run: |
           foreach ($project in @('projection\WinUI.Composition.Hlsl.Projection.csproj', 'projection\WinUI.LiquidGlass.Projection.csproj')) {
             Write-Host "Restoring $project for CsWinRT 3"
-            & $env:MSBUILD $project /t:Restore /p:TargetFramework=net10.0-windows10.0.26100.1 /p:Platform=x64 /p:NuGetAudit=false /v:minimal /nologo
+            & $env:MSBUILD $project /t:Restore /p:TargetFramework=net10.0-windows10.0.26100.1 /p:EnableExperimentalCsWinRT3=true /p:Platform=x64 /p:NuGetAudit=false /v:minimal /nologo
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
       - name: Validate resolved projection toolchain
@@ -77,7 +81,7 @@ jobs:
         shell: pwsh
         run: |
           foreach ($project in @('projection\WinUI.Composition.Hlsl.Projection.csproj', 'projection\WinUI.LiquidGlass.Projection.csproj')) {
-            & $env:MSBUILD $project /restore /t:Build /p:TargetFramework=net10.0-windows10.0.26100.1 /p:Configuration=Release /p:Platform=x64 /p:BuildProjectReferences=false /p:NuGetAudit=false "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" /m /v:minimal /nologo
+            & $env:MSBUILD $project /restore /t:Build /p:TargetFramework=net10.0-windows10.0.26100.1 /p:EnableExperimentalCsWinRT3=true /p:Configuration=Release /p:Platform=x64 /p:BuildProjectReferences=false /p:NuGetAudit=false "/p:WindowsTargetPlatformVersion=$env:WIN_SDK" /m /v:minimal /nologo
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
       - name: Verify reference assemblies and forwarders

@@ -16,10 +16,6 @@
       <group targetFramework="net10.0-windows10.0.26100.0">
         <dependency id="Microsoft.WindowsAppSDK" version="1.6.0"/>
       </group>
-      <group targetFramework="net10.0-windows10.0.26100.1">
-        <dependency id="Microsoft.WindowsAppSDK" version="1.6.0"/>
-        <dependency id="Microsoft.Windows.CsWinRT" version="[3.0.0-preview.261104.1,)"/>
-      </group>
     </dependencies>
     <projectUrl>https://github.com/Millennium-Science-Technology-R-D-Inst/WinUI.Composition.Hlsl</projectUrl>
     <tags>hlsl c++ cpp winui3 winui cpp23 liquid composition shader</tags>
@@ -37,19 +33,13 @@
     <file src="artifacts\Win32\Release\WinUI.Composition.Hlsl.dll" target="runtimes\win-x86\native"/>
     <file src="artifacts\ARM64\Release\WinUI.Composition.Hlsl.dll" target="runtimes\win-arm64\native"/>
     <file src="projection\bin\x64\Release\net10.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Projection.dll" target="lib\net10.0-windows10.0.26100.0"/>
-    <file src="projection\bin\x64\Release\net10.0-windows10.0.26100.1\WinUI.Composition.Hlsl.Projection.dll" target="lib\net10.0-windows10.0.26100.1"/>
-    <file src="projection\bin\x64\Release\net10.0-windows10.0.26100.1\ref\WinUI.Composition.Hlsl.Projection.dll" target="ref\net10.0-windows10.0.26100.1"/>
-    <file src="artifacts\x64\Release\WinUI.Composition.Hlsl.winmd" target="metadata"/>
 
     <file src="packaging\WinUI.Composition.Hlsl.Native.targets" target="buildTransitive\native\WinUI.Composition.Hlsl.targets"/>
     <file src="packaging\WinUI.Composition.Hlsl.Build.targets" target="buildTransitive\native\WinUI.Composition.Hlsl.Build.targets"/>
     <file src="packaging\tools\Compile-HlslCompositionShader.ps1" target="buildTransitive\native\tools\Compile-HlslCompositionShader.ps1"/>
 
     <file src="packaging\WinUI.Composition.Hlsl.Managed.targets" target="buildTransitive\net10.0-windows10.0.26100.0\WinUI.Composition.Hlsl.targets"/>
-    <file src="packaging\WinUI.Composition.Hlsl.Managed.targets" target="buildTransitive\net10.0-windows10.0.26100.1\WinUI.Composition.Hlsl.targets"/>
     <file src="packaging\WinUI.Composition.Hlsl.Build.targets" target="buildTransitive\net10.0-windows10.0.26100.0\WinUI.Composition.Hlsl.Build.targets"/>
-    <file src="packaging\WinUI.Composition.Hlsl.Build.targets" target="buildTransitive\net10.0-windows10.0.26100.1\WinUI.Composition.Hlsl.Build.targets"/>
     <file src="packaging\tools\Compile-HlslCompositionShader.ps1" target="buildTransitive\net10.0-windows10.0.26100.0\tools\Compile-HlslCompositionShader.ps1"/>
-    <file src="packaging\tools\Compile-HlslCompositionShader.ps1" target="buildTransitive\net10.0-windows10.0.26100.1\tools\Compile-HlslCompositionShader.ps1"/>
   </files>
 </package>
