@@ -94,3 +94,17 @@ jobs:
               Write-Host "$path ($((Get-Item $path).Length) bytes)"
             }
           }
+
+  verify-winui-projection:
+    name: Reproduce WinUI CsWinRT 3 dependency without HLSL
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compile standalone WinUI reference against CsWinRT 3
+        shell: pwsh
+        run: |
+          dotnet build 'tests/CSharp/CsWinRT3WinUIProbe/CsWinRT3WinUIProbe.csproj' -c Release -p:NuGetAudit=false -v:minimal
+          if ($LASTEXITCODE) {
+            Write-Host "::error::The Microsoft.UI.Xaml projection is not available in this CsWinRT 3 / Windows .1 dependency graph."
+            exit $LASTEXITCODE
+          }

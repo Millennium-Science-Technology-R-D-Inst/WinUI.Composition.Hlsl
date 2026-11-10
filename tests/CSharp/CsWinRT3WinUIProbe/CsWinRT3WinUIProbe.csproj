@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.26100.1</TargetFramework>
+    <WindowsSdkPackageVersion>10.0.26100.88-preview</WindowsSdkPackageVersion>
+    <UseWinUI>true</UseWinUI>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" VersionOverride="3.0.0-preview.261104.1" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
