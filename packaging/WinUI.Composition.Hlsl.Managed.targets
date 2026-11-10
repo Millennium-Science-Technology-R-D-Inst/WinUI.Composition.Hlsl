@@ -5,7 +5,12 @@
 		<HlslCompositionGenerateHeaders Condition="'$(HlslCompositionGenerateHeaders)'==''">false</HlslCompositionGenerateHeaders>
 		<HlslCompositionPublishAsContent Condition="'$(HlslCompositionPublishAsContent)'==''">true</HlslCompositionPublishAsContent>
 	</PropertyGroup>
-	<ItemGroup>
+	<!-- CsWinRT 3 reference projections need the package-owned WinMD at consumer build time.
+       Preserve WindowsMetadataReference below for native WinUI/XAML registration. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">
+    <CsWinRTInputs Include="$(MSBuildThisFileDirectory)..\..\metadata\WinUI.Composition.Hlsl.winmd" />
+  </ItemGroup>
+  <ItemGroup>
 		<WindowsMetadataReference Include="$(MSBuildThisFileDirectory)..\..\lib\native\WinUI.Composition.Hlsl.winmd" Implementation="WinUI.Composition.Hlsl.dll"/>
 	</ItemGroup>
 	<Import Project="$(MSBuildThisFileDirectory)WinUI.Composition.Hlsl.Build.targets" />

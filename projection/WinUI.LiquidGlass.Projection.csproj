@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFrameworks>net10.0-windows10.0.26100.0;net10.0-windows10.0.26100.1</TargetFrameworks>
     <CsWinRTGenerateReferenceProjection Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">true</CsWinRTGenerateReferenceProjection>
+    <!-- Own only LiquidGlass types; the core HLSL projection is a separate dependency. -->
+    <CsWinRTIncludes Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">WinUI.LiquidGlass</CsWinRTIncludes>
     <WindowsSdkPackageVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">10.0.26100.88-preview</WindowsSdkPackageVersion>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <UseWinUI>true</UseWinUI>
