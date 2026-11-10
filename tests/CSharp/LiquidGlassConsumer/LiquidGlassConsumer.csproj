@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetFrameworks>net10.0-windows10.0.26100.0;net10.0-windows10.0.26100.1</TargetFrameworks>
+    <CsWinRTGenerateReferenceProjection Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">true</CsWinRTGenerateReferenceProjection>
+    <WindowsSdkPackageVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">10.0.26100.88-preview</WindowsSdkPackageVersion>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
@@ -16,7 +18,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
-    <PackageReference Include="Microsoft.Windows.CsWinRT" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT"  Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.0'" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT"  VersionOverride="3.0.0-preview.261104.1" Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'" />
     <PackageReference Include="WinUI.LiquidGlass"
                       VersionOverride="$(LiquidGlassPackageVersion)"
                       Condition="'$(LiquidGlassPackageVersion)' != ''" />

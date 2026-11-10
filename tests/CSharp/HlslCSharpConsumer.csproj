@@ -1,7 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+		<TargetFrameworks>net10.0-windows10.0.26100.0;net10.0-windows10.0.26100.1</TargetFrameworks>
+    <CsWinRTGenerateReferenceProjection Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">true</CsWinRTGenerateReferenceProjection>
+    <WindowsSdkPackageVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'">10.0.26100.88-preview</WindowsSdkPackageVersion>
 		<UseWinUI>true</UseWinUI>
 		<WindowsPackageType>None</WindowsPackageType>
 		<Platforms>x64</Platforms>
@@ -17,7 +19,8 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.WindowsAppSDK"/>
 		<PackageReference Include="WinUI.Composition.Hlsl"/>
-		<PackageReference Include="Microsoft.Windows.CsWinRT" />
+		<PackageReference Include="Microsoft.Windows.CsWinRT"  Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.0'" />
+		<PackageReference Include="Microsoft.Windows.CsWinRT"  VersionOverride="3.0.0-preview.261104.1" Condition="'$(TargetFramework)' == 'net10.0-windows10.0.26100.1'" />
 	</ItemGroup>
 	<ItemGroup>
 		<!-- Kind=Auto and Profile=Pixel40 are the package defaults. This consumer
